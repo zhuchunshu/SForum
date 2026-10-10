@@ -65,6 +65,33 @@ adminAIProfileCredential:
       '404': {$ref: "../components/responses.yaml#/NotFound"}
       '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}
 
+adminAIProfileModels:
+  post:
+    summary: List the models a provider endpoint currently serves (requires ai.manage)
+    description: |
+      一次只读探测，供控制台从返回的模型里直接选择。它不产生补全调用，因此不计费、
+      不写执行记录，也不经过成本闸门。请求体可省略：省略时使用已保存的地址与密钥。
+      body 中携带的 baseUrl / protocol / apiKey 只用于这次探测，不写库、不回传。
+    operationId: listAIProfileModels
+    security: [{cookieAuth: []}]
+    parameters:
+    - name: profileId
+      in: path
+      required: true
+      schema:
+        type: string
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: {$ref: "../schemas/ai.yaml#/AIModelListRequest"}
+    responses:
+      '200': {description: Model list outcome. Provider-side failures are returned as a reason code with a readable detail., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAIModelList"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '404': {$ref: "../components/responses.yaml#/NotFound"}
+      '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}
+
 adminAIDiagnose:
   post:
     summary: Send one minimal live call to verify AI connectivity (requires ai.manage)

@@ -125,7 +125,11 @@ func shortcodeProjectionProtocolV2QueryDefinitions() []protocolV2QueryDefinition
 			ResultSchemaID: QueryShortcodePublicCommentSchema, ResultSchemaVersion: ShortcodeProjectionSchemaVersion,
 			From: `(
 				SELECT comments.id, comments.topic_id, topics.slug AS topic_slug, topics.title AS topic_title,
-					LEFT(posts.plain_text, 240) AS excerpt, comments.created_at, TRUE AS owning_topic_public
+					LEFT(posts.plain_text, 240) AS excerpt,
+					-- 展示用时间固定为 Y-m-d H:i:s：投影契约声明 created_at 为 string，
+					-- 直接返回 timestamptz 会让 Go 驱动序列化成 RFC3339 毫秒串。
+					TO_CHAR(comments.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+					TRUE AS owning_topic_public
 				FROM comments
 				JOIN topics ON topics.id = comments.topic_id
 				JOIN categories ON categories.id = topics.category_id

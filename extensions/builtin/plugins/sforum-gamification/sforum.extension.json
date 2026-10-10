@@ -1,0 +1,427 @@
+{
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "backend": {
+    "digest": "c8e0cdeea10cf62a5cd648f8603126852fd9247043ddcd6c4d3457076be98796",
+    "entry": "backend/plugin",
+    "hostApiVersion": "sforum.host@2",
+    "protocolVersion": 2,
+    "rpc": "hashicorp-go-plugin"
+  },
+  "capabilities": [
+    "host.api",
+    "settings.own",
+    "audit.append"
+  ],
+  "contributions": [
+    {
+      "icon": "i-lucide-award",
+      "id": "sforum.gamification.contribution.profile-badges",
+      "label": {
+        "en-US": "Badges",
+        "zh-CN": "徽章"
+      },
+      "order": 40,
+      "payload": {
+        "method": "GET",
+        "path": "/gamification/users/{userId}/achievements",
+        "type": "extensionRoute"
+      },
+      "point": "forum.profile.tabs"
+    }
+  ],
+  "database": {
+    "backup": {
+      "required": true,
+      "strategy": "pg_dump"
+    },
+    "contractVersion": "sforum.gamification.database@1",
+    "grants": [
+      "own_schema"
+    ],
+    "retention": {
+      "days": 30,
+      "onDisable": "retain",
+      "onUninstall": "export"
+    },
+    "role": "sforum_gamification",
+    "schema": "sforum_gamification"
+  },
+  "description": "Protected built-in gamification plugin: badges, growth-value ledger, and level titles. Phase 1 scope.",
+  "events": [
+    {
+      "contractVersion": "sforum.gamification.event.user-registered@1",
+      "handler": "gamification.handle",
+      "id": "sforum.gamification.event.user-registered",
+      "inputSchema": "sforum.gamification.event.user-registered.input@1",
+      "kind": "observe",
+      "name": "user.registered",
+      "resultSchema": "sforum.gamification.event.result@1"
+    },
+    {
+      "contractVersion": "sforum.gamification.event.topic-created@1",
+      "handler": "gamification.handle",
+      "id": "sforum.gamification.event.topic-created",
+      "inputSchema": "sforum.gamification.event.topic-created.input@1",
+      "kind": "observe",
+      "name": "topic.created",
+      "resultSchema": "sforum.gamification.event.result@1"
+    },
+    {
+      "contractVersion": "sforum.gamification.event.comment-created@1",
+      "handler": "gamification.handle",
+      "id": "sforum.gamification.event.comment-created",
+      "inputSchema": "sforum.gamification.event.comment-created.input@1",
+      "kind": "observe",
+      "name": "comment.created",
+      "resultSchema": "sforum.gamification.event.result@1"
+    }
+  ],
+  "id": "sforum.gamification",
+  "includes": {
+    "settings": "manifest/settings.json"
+  },
+  "jobs": [
+    {
+      "concurrencyLimit": 1,
+      "contractVersion": "sforum.gamification.job.daily-scan@1",
+      "handler": "sforum.gamification.job.daily-scan",
+      "id": "sforum.gamification.job.daily-scan",
+      "maxAttempts": 3,
+      "name": "sforum.gamification.daily-scan",
+      "payloadSchema": "sforum.gamification.job.daily-scan.payload@1",
+      "retryDelaySeconds": 30,
+      "retryPolicy": "bounded"
+    }
+  ],
+  "manifestVersion": 3,
+  "name": "SForum Gamification",
+  "notificationTypes": [
+    {
+      "body": "You earned the “{badgeName}” badge.",
+      "category": "activity",
+      "channels": [
+        "in_app"
+      ],
+      "contractVersion": "sforum.gamification.badge_granted@1",
+      "icon": "i-lucide-award",
+      "id": "sforum.gamification.badge_granted",
+      "label": "New badge earned",
+      "payloadSchema": "sforum.gamification.notification.badge-granted@1",
+      "payloadVersion": 1,
+      "recommendedChannels": [
+        "in_app"
+      ],
+      "targetId": "notifications",
+      "targetKind": "host_route"
+    }
+  ],
+  "packageFiles": [
+    {
+      "digest": "c8e0cdeea10cf62a5cd648f8603126852fd9247043ddcd6c4d3457076be98796",
+      "id": "sforum.gamification.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin"
+    },
+    {
+      "digest": "6e2919f3e5f3b0342842443b30a8c1d763f82ef8ab515922c43fe45c13e39ef9",
+      "id": "sforum.gamification.schema.event-user-registered",
+      "kind": "schema",
+      "path": "schemas/user-registered.input.json",
+      "version": "1"
+    },
+    {
+      "digest": "7687366982987490664db159854c1f60f1f076512ffd062b36a9ddd0858246e2",
+      "id": "sforum.gamification.schema.event-topic-created",
+      "kind": "schema",
+      "path": "schemas/topic-created.input.json",
+      "version": "1"
+    },
+    {
+      "digest": "f0ed6e5ec034ca2b11ea81af667b8b2d0b50e4a6a462b5097d01dbe80d7a859f",
+      "id": "sforum.gamification.schema.event-comment-created",
+      "kind": "schema",
+      "path": "schemas/comment-created.input.json",
+      "version": "1"
+    },
+    {
+      "digest": "f23a0bc0b7d80d7ecad5b1fc5656265200b668840de488319b27dce6d3d21e14",
+      "id": "sforum.gamification.schema.event-result",
+      "kind": "schema",
+      "path": "schemas/event.result.json",
+      "version": "1"
+    },
+    {
+      "digest": "9c1ab571999e851e9098adfafb08a43b27c151fcf5a01cf0be2bfc8b0615306e",
+      "id": "sforum.gamification.schema.job-daily-scan",
+      "kind": "schema",
+      "path": "schemas/daily-scan.payload.json",
+      "version": "1"
+    },
+    {
+      "digest": "cf8be6ac19667946b7348ee80eb642c3497c0a71aacd41ff9f4878153712ba06",
+      "id": "sforum.gamification.schema.admin-badge-request",
+      "kind": "schema",
+      "path": "schemas/admin.badge.request.json",
+      "version": "1"
+    },
+    {
+      "digest": "5d8ad95d91be4224f65c25ca9f60e66a4218589394e779320f562dffd6b6a809",
+      "id": "sforum.gamification.schema.admin-badges-response",
+      "kind": "schema",
+      "path": "schemas/admin.badges.response.json",
+      "version": "1"
+    },
+    {
+      "digest": "21e18a8b0fde307115e013cef707a2b5c9574a8fd606bd7a952acf9ddadd2c90",
+      "id": "sforum.gamification.schema.admin-badge-response",
+      "kind": "schema",
+      "path": "schemas/admin.badge.response.json",
+      "version": "1"
+    },
+    {
+      "digest": "175a51835e4d643bc7f628c04002a3933fbdd9c5d2c7f0d0583fc9f7d734ab0a",
+      "id": "sforum.gamification.schema.admin-grants-request",
+      "kind": "schema",
+      "path": "schemas/admin.grants.request.json",
+      "version": "1"
+    },
+    {
+      "digest": "8552755a484aa858b263d5a30b8cdf92d85480a96cfa92447ccab5a505784b3a",
+      "id": "sforum.gamification.schema.admin-grants-response",
+      "kind": "schema",
+      "path": "schemas/admin.grants.response.json",
+      "version": "1"
+    },
+    {
+      "digest": "d1e6cf67fecfebf348ef7bef625ab222c3de5a3e4092f167e71eb45ba2592dd4",
+      "id": "sforum.gamification.schema.admin-grant-log-response",
+      "kind": "schema",
+      "path": "schemas/admin.grant-log.response.json",
+      "version": "1"
+    },
+    {
+      "digest": "768f0fcd135424f681484ee50aed4ad38cd97c97c54177ee518933a31411cbc5",
+      "id": "sforum.gamification.schema.admin-levels-request",
+      "kind": "schema",
+      "path": "schemas/admin.levels.request.json",
+      "version": "1"
+    },
+    {
+      "digest": "59475dea7357d5e1230890dd2be5ecf8748c0e8df3520a2114a29dfbec2c621b",
+      "id": "sforum.gamification.schema.admin-levels-response",
+      "kind": "schema",
+      "path": "schemas/admin.levels.response.json",
+      "version": "1"
+    },
+    {
+      "digest": "a7d58edd321ae840580cbc69c54d8a7215cef535a13da5f715842e4d56ec5c3f",
+      "id": "sforum.gamification.schema.admin-action-request",
+      "kind": "schema",
+      "path": "schemas/admin.action.request.json",
+      "version": "1"
+    },
+    {
+      "digest": "b5c6de31c9afbbc7aa82bf7ea25ae22cf08b006a9d2d11bf1ea0990ddb1a75b1",
+      "id": "sforum.gamification.schema.admin-action-response",
+      "kind": "schema",
+      "path": "schemas/admin.action.response.json",
+      "version": "1"
+    },
+    {
+      "digest": "5c84c3a3311319c7426ebc0f9c853dfaf2940cf4ede542e1051cc7f98a733ef3",
+      "id": "sforum.gamification.schema-profile-achievements-response",
+      "kind": "schema",
+      "path": "schemas/profile.achievements.response.json",
+      "version": "1"
+    },
+    {
+      "digest": "02beb2bf95434537beb43f07275fd3649a6fe2915ed03e6cde1c69fbaf40ab07",
+      "id": "sforum.gamification.notification.badge-granted",
+      "kind": "schema",
+      "path": "schemas/badge-granted.payload.json",
+      "version": "1"
+    }
+  ],
+  "permissionDefinitions": [
+    {
+      "assignmentPolicy": "host",
+      "contractVersion": "sforum.gamification.manage@1",
+      "description": {
+        "en-US": "Create/disable badge definitions and levels, grant or revoke badges manually, restore recommended defaults, trigger historical backfill.",
+        "zh-CN": "创建/停用徽章定义与等级、手动授予或撤销徽章、恢复推荐默认、触发历史回填。"
+      },
+      "key": "sforum.gamification.manage",
+      "label": {
+        "en-US": "Manage badges and growth values",
+        "zh-CN": "管理徽章与成长值"
+      },
+      "recommendedRoles": [
+        "admin"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.gamification.route.admin.badges@1",
+      "fallback": "closed",
+      "guard": "core.guard.permission",
+      "handler": "sforum.gamification.route.admin.badges",
+      "id": "sforum.gamification.route.admin.badges",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mode": "http",
+      "path": "/api/v1/admin/gamification/badges",
+      "permission": "sforum.gamification.manage",
+      "requestSchema": "sforum.gamification.route.admin.badge.request@1",
+      "responseSchema": "sforum.gamification.route.admin.badges.response@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.gamification.route.admin.badge@1",
+      "fallback": "closed",
+      "guard": "core.guard.permission",
+      "handler": "sforum.gamification.route.admin.badge",
+      "id": "sforum.gamification.route.admin.badge",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "mode": "http",
+      "path": "/api/v1/admin/gamification/badges/:slug",
+      "permission": "sforum.gamification.manage",
+      "requestSchema": "sforum.gamification.route.admin.badge.request@1",
+      "responseSchema": "sforum.gamification.route.admin.badge.response@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.gamification.route.admin.grants@1",
+      "fallback": "closed",
+      "guard": "core.guard.permission",
+      "handler": "sforum.gamification.route.admin.grants",
+      "id": "sforum.gamification.route.admin.grants",
+      "methods": [
+        "POST"
+      ],
+      "mode": "http",
+      "path": "/api/v1/admin/gamification/grants",
+      "permission": "sforum.gamification.manage",
+      "requestSchema": "sforum.gamification.route.admin.grants.request@1",
+      "responseSchema": "sforum.gamification.route.admin.grants.response@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.gamification.route.admin.grant@1",
+      "fallback": "closed",
+      "guard": "core.guard.permission",
+      "handler": "sforum.gamification.route.admin.grant",
+      "id": "sforum.gamification.route.admin.grant",
+      "methods": [
+        "DELETE"
+      ],
+      "mode": "http",
+      "path": "/api/v1/admin/gamification/users/:userId/badges/:badgeSlug",
+      "permission": "sforum.gamification.manage",
+      "requestSchema": "sforum.gamification.route.admin.action.request@1",
+      "responseSchema": "sforum.gamification.route.admin.action.response@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.gamification.route.admin.grant-log@1",
+      "fallback": "closed",
+      "guard": "core.guard.permission",
+      "handler": "sforum.gamification.route.admin.grant-log",
+      "id": "sforum.gamification.route.admin.grant-log",
+      "methods": [
+        "GET"
+      ],
+      "mode": "http",
+      "path": "/api/v1/admin/gamification/users/:userId/badges",
+      "permission": "sforum.gamification.manage",
+      "requestSchema": "sforum.gamification.route.admin.action.request@1",
+      "responseSchema": "sforum.gamification.route.admin.grant-log.response@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.gamification.route.admin.levels@1",
+      "fallback": "closed",
+      "guard": "core.guard.permission",
+      "handler": "sforum.gamification.route.admin.levels",
+      "id": "sforum.gamification.route.admin.levels",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "mode": "http",
+      "path": "/api/v1/admin/gamification/levels",
+      "permission": "sforum.gamification.manage",
+      "requestSchema": "sforum.gamification.route.admin.levels.request@1",
+      "responseSchema": "sforum.gamification.route.admin.levels.response@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.gamification.route.admin.seed-defaults@1",
+      "fallback": "closed",
+      "guard": "core.guard.permission",
+      "handler": "sforum.gamification.route.admin.seed-defaults",
+      "id": "sforum.gamification.route.admin.seed-defaults",
+      "methods": [
+        "POST"
+      ],
+      "mode": "http",
+      "path": "/api/v1/admin/gamification/seed-defaults",
+      "permission": "sforum.gamification.manage",
+      "requestSchema": "sforum.gamification.route.admin.action.request@1",
+      "responseSchema": "sforum.gamification.route.admin.action.response@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.gamification.route.admin.backfill@1",
+      "fallback": "closed",
+      "guard": "core.guard.permission",
+      "handler": "sforum.gamification.route.admin.backfill",
+      "id": "sforum.gamification.route.admin.backfill",
+      "methods": [
+        "POST"
+      ],
+      "mode": "http",
+      "path": "/api/v1/admin/gamification/backfill",
+      "permission": "sforum.gamification.manage",
+      "requestSchema": "sforum.gamification.route.admin.action.request@1",
+      "responseSchema": "sforum.gamification.route.admin.action.response@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.gamification.route.profile.achievements@1",
+      "fallback": "closed",
+      "guard": "core.guard.public",
+      "handler": "sforum.gamification.route.profile.achievements",
+      "id": "sforum.gamification.route.profile.achievements",
+      "methods": [
+        "GET"
+      ],
+      "mode": "http",
+      "path": "/gamification/users/:userId/achievements",
+      "requestSchema": "sforum.gamification.route.admin.action.request@1",
+      "responseSchema": "sforum.gamification.route.profile.achievements.response@1"
+    }
+  ],
+  "schedules": [
+    {
+      "contractVersion": "sforum.gamification.schedule.daily-scan@1",
+      "cron": "30 3 * * *",
+      "id": "sforum.gamification.schedule.daily-scan",
+      "jobId": "sforum.gamification.job.daily-scan",
+      "timezone": "UTC"
+    }
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "type": "plugin",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "version": "0.1.0"
+}

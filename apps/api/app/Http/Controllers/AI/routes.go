@@ -13,4 +13,6 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	admin.Post("/diagnose", h.diagnose)
 	// 密钥录入：明文只在这一次请求里存在，写入 Secret Store 后不再回传。
 	admin.Put("/profiles/:profileId/credential", h.putProfileCredential)
+	// 模型列表：一次只读探测，不产生计费调用，也不写执行记录。
+	admin.Post("/profiles/:profileId/models", h.listProfileModels)
 }

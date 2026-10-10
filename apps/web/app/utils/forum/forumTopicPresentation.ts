@@ -46,6 +46,7 @@ export type CommentActionMenuInput = {
   labels: {
     reply: string
     link: string
+    quoteShortcode: string
     edit: string
     delete: string
     report: string
@@ -130,6 +131,8 @@ export function buildCommentActionMenuItems(input: CommentActionMenuInput): Comm
     items.push({ label: input.labels.reply, value: 'reply', icon: 'i-lucide-reply' })
   }
   items.push({ label: input.labels.link, value: 'link', icon: 'i-lucide-link' })
+  // 一键复制引用该评论的 shortcode（[comment comment_id="N"][/comment]），供粘贴进编辑器。
+  items.push({ label: input.labels.quoteShortcode, value: 'quote-shortcode', icon: 'i-lucide-square-code' })
   if (input.canEdit) items.push({ label: input.labels.edit, value: 'edit', icon: 'i-lucide-pencil' })
   if (input.canDelete) items.push({ label: input.labels.delete, value: 'delete', icon: 'i-lucide-trash-2' })
   if (input.canReport) items.push({ label: input.labels.report, value: 'report', icon: 'i-lucide-flag' })
@@ -160,6 +163,7 @@ export function buildCommentActionLabels(
   return {
     reply: t('topicDetail.reply'),
     link: t('topicDetail.commentLink'),
+    quoteShortcode: t('topicDetail.copyShortcode'),
     edit: t('topicDetail.edit'),
     delete: state.deleting ? t('topicDetail.deleting') : t('topicDetail.delete'),
     report: t('topicDetail.report')

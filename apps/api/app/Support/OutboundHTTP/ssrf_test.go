@@ -59,6 +59,38 @@ func TestValidatePublicURLRejects(t *testing.T) {
 	}
 }
 
+// AllowPrivate 是显式的 SSRF 例外：它只放行私网/回环地址，不放松其它任何规则。
+func TestValidatePublicURLOptionsAllowPrivateNarrowsToAddressesOnly(t *testing.T) {
+	opts := Options{AllowHTTP: true, AllowPrivate: true}
+	for _, raw := range []string{
+		"http://127.0.0.1:11434/v1/models",
+		"http://10.0.0.5:8000/v1",
+		"http://192.168.1.9/v1",
+		"http://[::1]:11434/v1",
+		"http://169.254.169.254/latest/meta-data",
+	} {
+		if err := ValidatePublicURL(raw, opts); err != nil {
+			t.Fatalf("%q must be allowed once the operator opts in: %v", raw, err)
+		}
+	}
+	// 仍然拒绝的：scheme 与 userinfo。放行私网不等于放行一切。
+	for _, raw := range []string{"file:///etc/passwd", "ftp://10.0.0.5/x", "http://user:pass@10.0.0.5/x", ""} {
+		if err := ValidatePublicURL(raw, opts); !errors.Is(err, ErrUnsafeURL) {
+			t.Fatalf("%q must stay rejected with AllowPrivate: %v", raw, err)
+		}
+	}
+	if err := ValidatePublicURL("http://127.0.0.1/x", Options{AllowPrivate: true}); err == nil {
+		t.Fatal("AllowPrivate must not imply AllowHTTP")
+	}
+}
+
+// 生产默认值（AllowPrivate=false）必须继续拒绝混合解析：一个私网 A 记录即整体拒绝。
+func TestValidatePublicURLKeepsRejectingPrivateByDefault(t *testing.T) {
+	if err := ValidatePublicURL("http://127.0.0.1:11434/v1", Options{AllowHTTP: true}); !errors.Is(err, ErrUnsafeURL) {
+		t.Fatalf("default options must reject loopback: %v", err)
+	}
+}
+
 func TestValidatePublicURLRejectsHTTPWhenDisallowed(t *testing.T) {
 	err := ValidatePublicURL("http://example.com/hook", Options{AllowHTTP: false})
 	if !errors.Is(err, ErrUnsafeURL) {
@@ -106,7 +138,7 @@ func TestResolvePublicIPsRejectsAnyForbiddenAmongMany(t *testing.T) {
 		{IP: net.ParseIP("8.8.8.8")},
 		{IP: net.ParseIP("10.0.0.1")},
 	}}
-	_, err := resolvePublicIPs(context.Background(), r, "mixed.example")
+	_, err := resolveTargetIPs(context.Background(), r, "mixed.example", false)
 	if !errors.Is(err, ErrUnsafeURL) {
 		t.Fatalf("got %v", err)
 	}

@@ -3,6 +3,7 @@ package ai_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	ai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
+	outboundhttp "github.com/zhuchunshu/sforum/apps/api/app/Support/OutboundHTTP"
 )
 
 func testInvoker(server *httptest.Server) *ai.HTTPInvoker {
@@ -122,5 +124,78 @@ func TestHTTPInvokerRejectsUnsafeTargetWhenValidationIsOn(t *testing.T) {
 	invoker := ai.NewHTTPInvoker(ai.HTTPInvokerOptions{Client: server.Client()})
 	if _, err := invoker.Invoke(context.Background(), profile, wire); err == nil {
 		t.Fatal("loopback target must be rejected by the SSRF guard")
+	}
+}
+
+// 出站守卫的错误只念一次前缀。曾经这里再包一层 ErrUnsafeURL，运营者看到的是
+// 「outboundhttp: unsafe url: outboundhttp: unsafe url: http not allowed」。
+func TestHTTPInvokerUnsafeURLErrorIsNotDoubleWrapped(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	profile := localProfile(server)
+	wire, err := ai.BuildWireRequest(profile, "sk-live", validRequest())
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	_, err = ai.NewHTTPInvoker(ai.HTTPInvokerOptions{Client: server.Client()}).Invoke(context.Background(), profile, wire)
+	if err == nil {
+		t.Fatal("expected the SSRF guard to reject the target")
+	}
+	if !errors.Is(err, outboundhttp.ErrUnsafeURL) {
+		t.Fatalf("guard rejection must stay classifiable: %v", err)
+	}
+	if count := strings.Count(err.Error(), "outboundhttp: unsafe url"); count != 1 {
+		t.Fatalf("error message repeats the guard prefix %d times: %v", count, err)
+	}
+	if !strings.Contains(err.Error(), "http not allowed") {
+		t.Fatalf("error must say why: %v", err)
+	}
+}
+
+// 允许 http 只放行 scheme：私网与回环地址仍然被拒绝。这是 SSRF 边界，不由部署
+// 环境决定。
+func TestHTTPInvokerAllowHTTPStillRejectsLoopback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"hello"},"finish_reason":"stop"}]}`))
+	}))
+	defer server.Close()
+
+	profile := localProfile(server)
+	wire, err := ai.BuildWireRequest(profile, "sk-live", validRequest())
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	invoker := ai.NewHTTPInvoker(ai.HTTPInvokerOptions{Client: server.Client(), AllowHTTP: true})
+	_, err = invoker.Invoke(context.Background(), profile, wire)
+	if err == nil {
+		t.Fatal("http must not make a loopback target reachable")
+	}
+	if !errors.Is(err, outboundhttp.ErrUnsafeURL) {
+		t.Fatalf("err = %v", err)
+	}
+	// AllowHTTP 必须真的越过 scheme 检查：否则这条测试会在「http not allowed」上
+	// 通过，看起来像在验证 IP 边界，实际什么都没验证。
+	if strings.Contains(err.Error(), "http not allowed") {
+		t.Fatalf("AllowHTTP did not clear the scheme check: %v", err)
+	}
+	if !strings.Contains(err.Error(), "address 127.0.0.1 not allowed") {
+		t.Fatalf("loopback must be rejected by the address rule: %v", err)
+	}
+}
+
+func TestReasonForProviderFailureSeparatesGuardRejections(t *testing.T) {
+	if got := ai.ReasonForProviderFailure(errors.New("ai: provider call timed out")); got != ai.ReasonProviderFailed {
+		t.Fatalf("reason = %q", got)
+	}
+	guard := fmt.Errorf("%w: http not allowed", outboundhttp.ErrUnsafeURL)
+	if got := ai.ReasonForProviderFailure(guard); got != ai.ReasonUnsafeTarget {
+		t.Fatalf("reason = %q", got)
+	}
+	// 诊断的原因码与共用取值必须一致，否则前端要维护两份文案。
+	if ai.DiagnoseReasonProviderFailed != ai.ReasonProviderFailed {
+		t.Fatalf("diagnose reason drifted: %q", ai.DiagnoseReasonProviderFailed)
 	}
 }

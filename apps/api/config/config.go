@@ -66,9 +66,13 @@ type Config struct {
 	AltchaCost                int
 	// OptionEncryptionKey 是 web_options 中敏感值（云存储凭证/SFTP 私钥等）AES-GCM 加密的密钥（hex 编码）。
 	// 生产环境必须显式配置；缺失或为占位词时启动会被拒绝。
-	OptionEncryptionKey  string
-	ExtensionRoot        string
-	BuiltinExtensionRoot string
+	OptionEncryptionKey string
+	// AIAllowPrivateEndpoint 是 SFORUM_AI_ALLOW_PRIVATE_ENDPOINT 的原始取值：允许 AI
+	// 供应商端点解析到私网/回环地址（本机或内网模型服务）。是否真正放行由
+	// AllowPrivateAIEndpoint 决定——生产恒为 false。
+	AIAllowPrivateEndpoint bool
+	ExtensionRoot          string
+	BuiltinExtensionRoot   string
 	// ExternalExtensionRoots 是逗号分隔的第三方源码集合根目录。
 	// Host 仅静态扫描并快照为 uploaded/staged，不自动启用或执行代码。
 	ExternalExtensionRoots []string
@@ -210,6 +214,7 @@ func Load() Config {
 		AltchaChallengeTTL:             envDuration("ALTCHA_CHALLENGE_TTL", 10*time.Minute),
 		AltchaCost:                     envPositiveInt("ALTCHA_COST", 1000),
 		OptionEncryptionKey:            env("APP_OPTION_ENC_KEY", ""),
+		AIAllowPrivateEndpoint:         envBool("SFORUM_AI_ALLOW_PRIVATE_ENDPOINT", false),
 		ExtensionRoot:                  env("EXTENSION_ROOT", "../../storage/extensions"),
 		BuiltinExtensionRoot:           env("BUILTIN_EXTENSION_ROOT", "../../extensions/builtin"),
 		ExternalExtensionRoots:         envStringSlice("EXTERNAL_EXTENSION_ROOTS"),
@@ -445,6 +450,17 @@ func envStringSlice(key string) []string {
 		items = append(items, item)
 	}
 	return items
+}
+
+// AllowPrivateAIEndpoint 决定 AI 供应商出站是否放行解析到私网/回环地址的端点
+// （本机 Ollama、内网 vLLM 等）。默认关闭，且生产环境恒为 false：它是 SSRF 边界，
+// 放行等于让服务端可以读取内网，而模型列表探测会把远端响应回传。忘记撤销这个
+// 开关也不会在生产生效。
+func AllowPrivateAIEndpoint(cfg Config) bool {
+	if strings.EqualFold(cfg.AppEnv, "production") {
+		return false
+	}
+	return cfg.AIAllowPrivateEndpoint
 }
 
 // ShouldUseSecureCookie 决定 session/CSRF cookie 是否带 Secure 标志。

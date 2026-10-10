@@ -122,6 +122,66 @@ func TestServiceResetRestoresRecommendedDefaults(t *testing.T) {
 	}
 }
 
+// 运营者填过的供应商是资产：一键重置承诺的是「恢复推荐策略」，不是「清空配置」。
+func TestServiceResetKeepsProviderProfilesAndCostBindings(t *testing.T) {
+	current := supportai.RecommendedSettings()
+	current.Enabled = true
+	current.Gates.UserDailyQuota = 999
+	// 模拟运营者改过的自定义供应商：重置后必须原样保留，否则密钥引用会指向空配置
+	// 而 Secret Store 里的密钥仍在，界面就会显示「未配置」。
+	current.Profiles = []supportai.Profile{
+		{
+			ID:        "mine",
+			Label:     "自建网关",
+			Protocol:  supportai.ProtocolOpenAIChat,
+			BaseURL:   "https://llm.example.test/v1",
+			APIKeyRef: supportai.SecretReferencePrefix + "core/ai.mine.api_key",
+			Model:     "local-model",
+			CostClass: supportai.CostClassStandard,
+			Enabled:   true,
+		},
+	}
+	current.CostClassProfiles = map[string]string{
+		supportai.CostClassEconomy:  "mine",
+		supportai.CostClassStandard: "mine",
+		supportai.CostClassPremium:  "mine",
+	}
+	store := &stubSettings{stored: current}
+	service := modelsai.NewService(modelsai.Config{Settings: store})
+
+	reset, err := service.ResetSettings(context.Background(), managerActor())
+	if err != nil {
+		t.Fatalf("reset failed: %v", err)
+	}
+	if len(reset.Profiles) != 1 || reset.Profiles[0].ID != "mine" {
+		t.Fatalf("profiles were dropped by reset: %+v", reset.Profiles)
+	}
+	if reset.Profiles[0].APIKeyRef != current.Profiles[0].APIKeyRef {
+		t.Fatalf("credential reference changed: %q", reset.Profiles[0].APIKeyRef)
+	}
+	if reset.CostClassProfiles[supportai.CostClassPremium] != "mine" {
+		t.Fatalf("cost bindings were dropped: %+v", reset.CostClassProfiles)
+	}
+	// 策略字段仍然回到推荐默认：这是重置真正该做的事。
+	if reset.Gates.UserDailyQuota != supportai.RecommendedSettings().Gates.UserDailyQuota {
+		t.Fatalf("policy field not restored: %d", reset.Gates.UserDailyQuota)
+	}
+}
+
+// 没有任何已存供应商时（首次接入），重置应给出完整的推荐默认，而不是空面板。
+func TestServiceResetUsesRecommendedProfilesWhenNoneStored(t *testing.T) {
+	store := &stubSettings{stored: supportai.Settings{}}
+	service := modelsai.NewService(modelsai.Config{Settings: store})
+
+	reset, err := service.ResetSettings(context.Background(), managerActor())
+	if err != nil {
+		t.Fatalf("reset failed: %v", err)
+	}
+	if len(reset.Profiles) != len(supportai.BuiltinProfiles()) {
+		t.Fatalf("expected builtin profiles, got %d", len(reset.Profiles))
+	}
+}
+
 func TestServiceWorksWithoutOptionalStores(t *testing.T) {
 	service := modelsai.NewService(modelsai.Config{})
 	ctx := context.Background()

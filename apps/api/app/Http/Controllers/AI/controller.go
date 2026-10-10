@@ -60,6 +60,17 @@ type profileCredentialRequest struct {
 	APIKey string `json:"apiKey"`
 }
 
+// profileModelsRequest 是「获取模型列表」的探测载荷。三个字段都可缺省：缺省时
+// 用已保存的地址与密钥。带上它们是为了让运营者在保存之前就能看到列表。
+//
+// apiKey 同样只在本次请求里存在，不写库、不记录、不回传：写入密钥仍然只走
+// profile credential 端点。这是同一个信任级别（ai.manage 管理员的显式操作）。
+type profileModelsRequest struct {
+	BaseURL  string `json:"baseUrl"`
+	Protocol string `json:"protocol"`
+	APIKey   string `json:"apiKey"`
+}
+
 type profileCredentialResponse struct {
 	ProfileID string `json:"profileId"`
 	Version   int64  `json:"version"`
@@ -122,11 +133,42 @@ func (h *Controller) putProfileCredential(c fiber.Ctx) error {
 	if err := c.Bind().JSON(&request); err != nil || request.APIKey == "" {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "ai.credential_required")
 	}
+	// 没有加密能力时提前拒绝，让界面提示与保存结果一致：否则密钥会被透明
+	// cipher 以明文写入，运营者却以为它已加密。
+	if !h.encryptionEnabled() {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "ai.encryption_required")
+	}
 	version, err := h.service.SaveProfileCredential(c.Context(), actor, profileID, request.APIKey)
 	if err != nil {
 		return mapAIError(err)
 	}
 	return apphttp.OK(c, profileCredentialResponse{ProfileID: profileID, Version: version})
+}
+
+// listProfileModels 让运营者一键取得该端点可用的模型列表，再从中选择。
+// 密钥不存在或地址非法属于可判定的配置问题，直接以 4xx 回绝；供应商层面的失败
+// 作为结论返回（带原因码），由界面解释而不是报一个笼统的 500。
+func (h *Controller) listProfileModels(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	profileID := c.Params("profileId")
+	if profileID == "" {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "ai.settings_invalid")
+	}
+	var request profileModelsRequest
+	// 空 body 或非 JSON body 一律按「使用已保存的地址与密钥」处理。
+	_ = c.Bind().JSON(&request)
+	result, err := h.service.ListModels(c.Context(), actor, profileID, supportai.ModelListProbe{
+		BaseURL:  request.BaseURL,
+		Protocol: request.Protocol,
+		APIKey:   request.APIKey,
+	})
+	if err != nil {
+		return mapAIError(err)
+	}
+	return apphttp.OK(c, result)
 }
 
 func (h *Controller) updateSettings(c fiber.Ctx) error {
@@ -245,6 +287,8 @@ func mapAIError(err error) error {
 		return fiber.NewError(fiber.StatusNotFound, "ai.profile_not_found")
 	case errors.Is(err, supportai.ErrCredentialMissing):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "ai.credential_required")
+	case errors.Is(err, supportai.ErrCredentialEncryptionRequired):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "ai.encryption_required")
 	default:
 		return err
 	}

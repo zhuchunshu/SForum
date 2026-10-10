@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.gamification.route.admin.badge.response",
+  "title": "Single badge result",
+  "type": "object",
+  "properties": {
+    "slug": {
+      "type": "string"
+    },
+    "disabled": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "slug"
+  ]
+}

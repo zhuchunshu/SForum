@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.gamification.route.admin.levels.request",
+  "title": "Upsert level request",
+  "type": "object",
+  "properties": {
+    "minPoints": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "title": {
+      "type": "string"
+    },
+    "icon": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "minPoints",
+    "title"
+  ]
+}

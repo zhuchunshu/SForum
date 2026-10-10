@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { Component } from 'vue'
 import SFAdminAIProvidersTab from '~/components/admin/ai/tabs/SFAdminAIProvidersTab.vue'
+import SFAdminAIReplyPromptTab from '~/components/admin/ai/tabs/SFAdminAIReplyPromptTab.vue'
 import SFAdminAIDiagnoseTab from '~/components/admin/ai/tabs/SFAdminAIDiagnoseTab.vue'
 import SFAdminAIObservabilityTab from '~/components/admin/ai/tabs/SFAdminAIObservabilityTab.vue'
 import SFAdminFixedTabNav from '~/components/admin/settings/shared/SFAdminFixedTabNav.vue'
 import { ADMIN_AI_KEY, useAdminAI } from '~/composables/admin/useAdminAI'
+import { ADMIN_AI_DRAFT_KEY, useAdminAISettingsForm } from '~/composables/admin/useAdminAISettingsForm'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
 
 definePageMeta({
@@ -16,27 +18,34 @@ defineOptions({
   name: 'AdminAI'
 })
 
-type AITab = 'providers' | 'diagnose' | 'observability'
+type AITab = 'providers' | 'replyPrompt' | 'diagnose' | 'observability'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const adminPage = useAdminPage('/ai')
 // 页面壳是唯一的数据所有者：页签通过注入拿到同一份上下文，避免同一个
 // useAsyncData key 被多个组件持有而在卸载时被清理。
 const ai = useAdminAI()
 provide(ADMIN_AI_KEY, ai)
+// 可编辑草稿同样由页面壳持有：回复提示词与供应商是两个页签，但它们属于同一次保存。
+// 若各自持有一份副本，在提示词页签的改动切回供应商页签就消失了。
+const draft = useAdminAISettingsForm(ai)
+provide(ADMIN_AI_DRAFT_KEY, draft)
 
-const validTabs: AITab[] = ['providers', 'diagnose', 'observability']
+const validTabs: AITab[] = ['providers', 'replyPrompt', 'diagnose', 'observability']
 const activeTab = ref<AITab>(normalizeTab(route.query.tab))
 
 const tabs = computed(() => [
   { id: 'providers', label: t('admin.ai.tabs.providers'), icon: 'i-lucide-server' },
+  { id: 'replyPrompt', label: t('admin.ai.tabs.replyPrompt'), icon: 'i-lucide-message-square-text' },
   { id: 'diagnose', label: t('admin.ai.tabs.diagnose'), icon: 'i-lucide-stethoscope' },
   { id: 'observability', label: t('admin.ai.tabs.observability'), icon: 'i-lucide-activity' }
 ])
 
 const tabComponents: Record<AITab, Component> = {
   providers: SFAdminAIProvidersTab,
+  replyPrompt: SFAdminAIReplyPromptTab,
   diagnose: SFAdminAIDiagnoseTab,
   observability: SFAdminAIObservabilityTab
 }
@@ -48,10 +57,15 @@ function normalizeTab(value: unknown): AITab {
   return validTabs.includes(candidate as AITab) ? (candidate as AITab) : 'providers'
 }
 
-// 只切换本地状态。把页签写回 query 会触发完整路由导航（page:loading →
-// Suspense 重新挂载 → 重新 hydration），那是页签切换白屏的直接原因。
+// 只切换本地状态。用 router.push 把页签写回 query 会触发完整路由导航
+// （page:loading → Suspense 重新挂载 → 重新 hydration），那是页签切换白屏的
+// 直接原因；replace 只改地址栏，不触发导航，因此刷新与深链能落在对应页签。
 function setActiveTab(value: string) {
-  activeTab.value = normalizeTab(value)
+  const next = normalizeTab(value)
+  activeTab.value = next
+  if (route.query.tab !== next) {
+    void router.replace({ query: { ...route.query, tab: next } })
+  }
 }
 </script>
 
@@ -100,5 +114,17 @@ function setActiveTab(value: string) {
     <KeepAlive>
       <component :is="activeComponent" :key="activeTab" />
     </KeepAlive>
+
+    <!-- 保存属于整份配置而不是某一个页签：放在这里，任一页签的改动都能就地保存，
+         不需要先切回供应商页签。 -->
+    <div v-if="draft.canManage.value" class="flex flex-wrap items-center gap-2">
+      <UButton icon="i-lucide-save" :loading="ai.busy.value === 'settings'" :disabled="!draft.dirty.value" @click="draft.save">
+        {{ t('admin.ai.save') }}
+      </UButton>
+      <UButton icon="i-lucide-rotate-ccw" color="neutral" variant="outline" :loading="ai.busy.value === 'reset'" @click="ai.resetSettings">
+        {{ t('admin.ai.reset') }}
+      </UButton>
+      <span v-if="draft.dirty.value" class="text-xs text-amber-600 dark:text-amber-400">{{ t('admin.ai.dirtyHint') }}</span>
+    </div>
   </div>
 </template>

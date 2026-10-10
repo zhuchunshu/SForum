@@ -42,6 +42,7 @@ import {
 } from '~/utils/forum/forumTaxonomy'
 import { buildCommentActionLabels, buildCommentActionMenuItems, buildTopicActionLabels, buildTopicActionMenuItems } from '~/utils/forum/forumTopicPresentation'
 import { useForumContentTime } from '~/composables/forum/useForumContentTime'
+import { useTopicCommentClipboard } from '~/composables/forum/useTopicCommentClipboard'
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -55,6 +56,7 @@ const forumApi = useForumApi()
 const { can, canEditTopic, canDeleteTopic } = usePermissions()
 const { user: reportUser } = useAuthSession()
 const toast = useToast()
+const { copyCommentLink, copyCommentShortcode } = useTopicCommentClipboard()
 const replyActorName = computed(() => reportUser.value?.displayName || reportUser.value?.username || '')
 
 function showSuccessToast(title: string) {
@@ -648,8 +650,8 @@ function handleCommentClick(comment: ForumComment, value: string) {
   // 评论操作分发：由 SFComment 的 actions 触发，替代之前硬编码在模板里的按钮。
   if (value === 'reply') {
     startReply(comment)
-  } else if (value === 'link') {
-    void copyCommentLink(comment)
+  } else if (value === 'link' || value === 'quote-shortcode') {
+    void (value === 'link' ? copyCommentLink : copyCommentShortcode)(comment)
   } else if (value === 'edit') {
     startEditComment(comment)
   } else if (value === 'delete') {
@@ -820,19 +822,6 @@ function startTopLevelReply() {
     return
   }
   openAdvancedReply()
-}
-
-async function copyCommentLink(comment: ForumComment) {
-  if (!import.meta.client) {
-    return
-  }
-  const url = `${window.location.origin}${window.location.pathname}${window.location.search}#comment-${comment.id}`
-  try {
-    await navigator.clipboard.writeText(url)
-    showSuccessToast(t('topicDetail.commentLinkCopied'))
-  } catch {
-    window.prompt(t('topicDetail.copyLinkHint'), url)
-  }
 }
 
 async function shareTopic() {

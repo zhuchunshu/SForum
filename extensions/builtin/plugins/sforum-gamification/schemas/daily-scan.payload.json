@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.gamification.job.daily-scan.payload",
+  "title": "Gamification daily scan payload",
+  "type": "object",
+  "properties": {
+    "reason": { "type": "string" }
+  }
+}

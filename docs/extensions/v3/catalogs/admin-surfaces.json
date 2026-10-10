@@ -510,6 +510,23 @@
     "exporter": false
   },
   {
+    "id": "core.admin.page.gamification",
+    "source": "apps/web/app/pages/admin/gamification.vue",
+    "navigation": true,
+    "dashboard": false,
+    "list": true,
+    "columns": false,
+    "filters": false,
+    "rowActions": true,
+    "bulkActions": false,
+    "forms": false,
+    "notices": true,
+    "editorPanels": false,
+    "detailRegions": false,
+    "importer": true,
+    "exporter": false
+  },
+  {
     "id": "core.admin.page.dashboard",
     "source": "apps/web/app/pages/admin/index.vue",
     "navigation": true,

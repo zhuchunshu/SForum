@@ -27,12 +27,25 @@ type CredentialStore interface {
 	Configured(ctx context.Context, reference string) (bool, error)
 }
 
+// CredentialReader 把密钥引用解析为明文。它只服务于只读探测（列出供应商模型）：
+// 那一步需要已保存的密钥，但明文不得进入任何回传路径，也不得被缓存。
+type CredentialReader interface {
+	ResolveAIKey(ctx context.Context, reference string) (string, error)
+}
+
+// ModelLister 执行一次只读的模型列表探测。
+type ModelLister interface {
+	ListModels(ctx context.Context, profile supportai.Profile, apiKey string) (supportai.ModelList, error)
+}
+
 type Service struct {
 	settings    supportai.SettingsStore
 	gateway     *supportai.Gateway
 	usage       supportai.UsageStore
 	traces      supportai.ExecutionStore
 	credentials CredentialStore
+	reader      CredentialReader
+	models      ModelLister
 	botAccounts BotAccountReader
 }
 
@@ -44,7 +57,11 @@ type Config struct {
 	Usage       supportai.UsageStore
 	Traces      supportai.ExecutionStore
 	Credentials CredentialStore
-	BotAccounts BotAccountReader
+	// CredentialReader 与 Models 只服务「获取模型列表」这一条只读路径；缺省时该
+	// 能力报告不可用，其余配置功能不受影响。
+	CredentialReader CredentialReader
+	Models           ModelLister
+	BotAccounts      BotAccountReader
 }
 
 func NewService(cfg Config) *Service {
@@ -54,6 +71,8 @@ func NewService(cfg Config) *Service {
 		usage:       cfg.Usage,
 		traces:      cfg.Traces,
 		credentials: cfg.Credentials,
+		reader:      cfg.CredentialReader,
+		models:      cfg.Models,
 		botAccounts: cfg.BotAccounts,
 	}
 }
@@ -112,6 +131,10 @@ func (s *Service) UpdateSettings(ctx context.Context, actor identity.Actor, sett
 
 // ResetSettings 恢复推荐默认值。它不会清空 Secret Store 中的密钥：密钥值不在
 // 配置文档里，重置只影响引用与策略。
+//
+// 供应商结构与成本等级绑定刻意保留：它们是运营者填过的资产（base_url、model、
+// 单价），一键重置的承诺是「恢复推荐策略」，不是「清空我的配置」。只重置策略
+// 字段，profiles 与 costClassProfiles 原样保留。
 func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor) (supportai.Settings, error) {
 	if !actor.Can(identity.PermissionAIManage) {
 		return supportai.Settings{}, identity.ErrPermissionDenied
@@ -119,7 +142,17 @@ func (s *Service) ResetSettings(ctx context.Context, actor identity.Actor) (supp
 	if s == nil || s.settings == nil {
 		return supportai.RecommendedSettings().Normalized(), nil
 	}
-	return s.settings.ResetSettings(ctx, supportai.RecommendedSettings(), actor.ID)
+	current, err := s.settings.GetSettings(ctx)
+	if err != nil {
+		return supportai.Settings{}, err
+	}
+	reset := supportai.RecommendedSettings()
+	if len(current.Profiles) > 0 {
+		reset.Profiles = current.Profiles
+		// 成本绑定必须跟着保留的 profiles 走，否则界面会指向一个不存在的供应商。
+		reset.CostClassProfiles = current.CostClassProfiles
+	}
+	return s.settings.ResetSettings(ctx, reset, actor.ID)
 }
 
 // Usage 返回站点级用量，供成本看板展示。它不带发起方维度：那是 trace 的职责。
@@ -153,6 +186,24 @@ func (s *Service) SaveProfileCredential(ctx context.Context, actor identity.Acto
 	return s.credentials.Put(ctx, profile.APIKeyRef, plaintext, actorDisplayName(actor))
 }
 
+// resolveDiagnoseProfile 选出诊断要探测的 profile，顺序与成本等级的推荐使用
+// 顺序一致，并返回实际命中的等级。
+//
+// 只用 economy 会让「只绑定了 standard/premium」的站点得到一个与事实不符的
+// 结论：配置其实是能用的，诊断却说没有可用提供商。
+func resolveDiagnoseProfile(settings supportai.Settings) (supportai.Profile, string, error) {
+	if profile, err := settings.ResolveProfile(supportai.CostClassEconomy, ""); err == nil {
+		return profile, supportai.CostClassEconomy, nil
+	}
+	if profile, err := settings.ResolveProfile(supportai.CostClassStandard, ""); err == nil {
+		return profile, supportai.CostClassStandard, nil
+	}
+	if profile, err := settings.ResolveProfile(supportai.CostClassPremium, ""); err == nil {
+		return profile, supportai.CostClassPremium, nil
+	}
+	return supportai.Profile{}, "", supportai.ErrProfileUnavailable
+}
+
 // Diagnose 发一次真实的最小调用，回答「现在这套配置能不能用」。前三类问题
 // （开关关闭、没有可用提供商、密钥缺失）在本地就能判定，不必花钱发请求；
 // 剩下的一律走完整的网关路径，因此延迟、用量、失败原因都是真的。
@@ -176,7 +227,7 @@ func (s *Service) Diagnose(ctx context.Context, actor identity.Actor, message st
 	if !settings.Enabled {
 		return supportai.DiagnoseResult{Reason: supportai.DiagnoseReasonDisabled}, nil
 	}
-	profile, err := settings.ResolveProfile(supportai.CostClassEconomy, "")
+	profile, costClass, err := resolveDiagnoseProfile(settings)
 	if err != nil {
 		return supportai.DiagnoseResult{Reason: supportai.DiagnoseReasonNoProvider}, nil
 	}
@@ -184,6 +235,7 @@ func (s *Service) Diagnose(ctx context.Context, actor identity.Actor, message st
 		ProviderID: profile.ID,
 		Model:      profile.Model,
 		Protocol:   profile.Protocol,
+		CostClass:  costClass,
 	}
 	configured := false
 	if s.credentials != nil {
@@ -202,10 +254,10 @@ func (s *Service) Diagnose(ctx context.Context, actor identity.Actor, message st
 	}
 	completion, err := s.gateway.Execute(ctx, supportai.CompletionRequest{
 		Purpose:       supportai.DiagnosePurpose,
-		CostClass:     supportai.CostClassEconomy,
+		CostClass:     costClass,
 		System:        "这是一次连通性探测。严格按用户的要求回复，不要添加任何其它内容。",
 		Messages:      []supportai.Message{{Role: supportai.RoleUser, Parts: []supportai.Part{{Type: supportai.PartText, Text: probe}}}},
-		MaxTokens:     64,
+		MaxTokens:     supportai.DiagnoseMaxTokens,
 		PromptVersion: supportai.DiagnosePromptVersion,
 	})
 	if err != nil {
@@ -224,7 +276,29 @@ func (s *Service) Diagnose(ctx context.Context, actor identity.Actor, message st
 	result.LatencyMS = completion.LatencyMS
 	result.InputTokens = completion.Usage.InputTokens
 	result.OutputTokens = completion.Usage.OutputTokens
+	result.StopReason = completion.StopReason
+	// 调用成功但没有正文，仍然不是「连接正常」：界面上会出现一条空白的回复条，
+	// 运营者只会以为功能坏了。这里把它变成一条可解释的结论——停止原因说明
+	// 预算是否被推理消耗完，运营者据此调整预算而不是反复重试。
+	if strings.TrimSpace(completion.Text) == "" && len(completion.ToolCalls) == 0 {
+		result.Reason = supportai.DiagnoseReasonEmptyReply
+		result.Error = diagnoseEmptyReplyHint(completion.StopReason)
+	}
 	return result, nil
+}
+
+// diagnoseEmptyReplyHint 把「成功的空回复」翻译成一句可执行的建议。
+// finish_reason=length 是最常见的一种：推理模型先把预算花在思考上，等到写正文
+// 时预算已经耗尽。
+func diagnoseEmptyReplyHint(stopReason string) string {
+	switch stopReason {
+	case supportai.StopReasonLength:
+		return "模型在输出预算内结束了（finish_reason=length）：推理类模型通常先把预算消耗在思考上，因此没有产出正文。请提高该供应商的最大输出 token 后重试。"
+	case supportai.StopReasonFiltered:
+		return "模型输出被内容过滤拦下（finish_reason=content_filter），没有产生正文。"
+	default:
+		return "供应商返回了一次成功的调用，但没有正文内容。可能是该模型不兼容当前协议解析，或返回了空 completion。"
+	}
 }
 
 // ReplySystemPrompt 返回当前生效的回复系统指令（自定义或内置默认，含固定安全尾注）。

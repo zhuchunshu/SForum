@@ -19,6 +19,24 @@ const reasonText = computed(() => {
   return te(key) ? t(key) : reason
 })
 
+// 诊断可能走的是 standard/premium 绑定：把等级一起显示，否则运营者会以为
+// 测的就是全部配置，照着结论去改一份本来正确的设置。
+const costClassLabel = computed(() => {
+  const costClass = ai.diagnoseResult.value?.costClass
+  if (!costClass) return ''
+  const labels: Record<string, string> = {
+    economy: t('admin.ai.costEconomy'),
+    standard: t('admin.ai.costStandard'),
+    premium: t('admin.ai.costPremium')
+  }
+  return labels[costClass] ?? costClass
+})
+
+// 调用成功却没有正文，是推理类模型最常见的假故障：预算先被思考消耗完。
+// 这里必须给出可执行的解释，而不是渲染一条空白的回复条。
+const emptyReply = computed(() => Boolean(ai.diagnoseResult.value?.ok) && !ai.diagnoseResult.value?.reply?.trim())
+const showError = computed(() => Boolean(ai.diagnoseResult.value?.error))
+
 function runDiagnose() {
   void ai.diagnose(message.value)
 }
@@ -113,13 +131,27 @@ function runDiagnose() {
         </p>
         <span v-if="ai.diagnoseResult.value.providerId" class="text-xs text-slate-500">
           {{ ai.diagnoseResult.value.providerId }} · {{ ai.diagnoseResult.value.model }}
+          <template v-if="costClassLabel">
+            · {{ costClassLabel }}
+          </template>
         </span>
       </div>
 
       <p v-if="reasonText" class="mt-2 text-sm text-slate-700 dark:text-zinc-200">{{ reasonText }}</p>
-      <p v-if="ai.diagnoseResult.value.error" class="mt-1 break-all font-mono text-xs text-slate-500">{{ ai.diagnoseResult.value.error }}</p>
+      <p v-if="showError" class="mt-1 break-all font-mono text-xs text-slate-500">{{ ai.diagnoseResult.value.error }}</p>
 
-      <p v-if="ai.diagnoseResult.value.ok" class="mt-2 rounded-md bg-white/70 px-3 py-2 text-sm dark:bg-zinc-900/60">
+      <!-- 空正文必须显式说明：渲染一条空白条等于告诉运营者「功能坏了」。 -->
+      <p
+        v-if="emptyReply"
+        class="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+      >
+        {{ t('admin.ai.diagnose.emptyReply') }}
+      </p>
+
+      <p
+        v-if="ai.diagnoseResult.value.ok && !emptyReply"
+        class="mt-2 rounded-md bg-white/70 px-3 py-2 text-sm dark:bg-zinc-900/60"
+      >
         {{ ai.diagnoseResult.value.reply }}
       </p>
 

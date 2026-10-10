@@ -167,6 +167,12 @@ func parseAnthropicMessagesResponse(statusCode int, body []byte) (WireResponse, 
 		switch block.Type {
 		case "text":
 			text += block.Text
+		// thinking 是推理模式下的思考 block。正文为空时它是唯一的线索：
+		// 至少让调用方知道模型确实产出了内容，只是没落进 text block。
+		case "thinking":
+			if strings.TrimSpace(text) == "" {
+				text = block.Text
+			}
 		case "tool_use":
 			name := strings.TrimSpace(block.Name)
 			if name == "" || strings.TrimSpace(block.ID) == "" {

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.gamification.route.profile.achievements.response",
+  "title": "Public badge wall",
+  "type": "object",
+  "properties": {
+    "userId": {
+      "type": "integer"
+    },
+    "points": {
+      "type": "integer"
+    },
+    "level": {
+      "type": "object"
+    },
+    "badges": {
+      "type": "array"
+    }
+  },
+  "required": [
+    "userId",
+    "badges"
+  ]
+}

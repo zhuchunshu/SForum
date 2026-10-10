@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.gamification.route.admin.grant-log.response",
+  "title": "User grant log",
+  "type": "object",
+  "properties": {
+    "grants": {
+      "type": "array"
+    }
+  },
+  "required": [
+    "grants"
+  ]
+}

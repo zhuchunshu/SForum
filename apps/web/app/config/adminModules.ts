@@ -53,6 +53,13 @@ export const adminPageDefinitions = [
     closable: false
   },
   {
+    id: '/gamification',
+    labelKey: 'admin.nav.gamification',
+    icon: 'i-lucide-award',
+    componentName: 'AdminGamification',
+    requiredPermissions: ['sforum.gamification.manage']
+  },
+  {
     id: '/ai',
     labelKey: 'admin.nav.ai',
     icon: 'i-lucide-sparkles',

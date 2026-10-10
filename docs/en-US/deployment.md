@@ -113,6 +113,13 @@ real HTTPS URL and configure host-level Caddy or Nginx. The generated
 the official public key and key ID before enabling the official Marketplace.
 Never put its private key in the repository or containers.
 
+AI provider traffic goes through the same outbound guard: production allows
+`https` only and refuses endpoints resolving to private, loopback, or
+reserved addresses. `SFORUM_AI_ALLOW_PRIVATE_ENDPOINT=true` exists for
+development against a local model server (Ollama, vLLM, …) and is ignored in
+production. To reach an intranet model server in production, put an
+HTTPS-terminating reverse proxy in front of it.
+
 ## HTTPS reverse proxy
 
 SForum listens on loopback ports only; TLS is terminated by a host reverse

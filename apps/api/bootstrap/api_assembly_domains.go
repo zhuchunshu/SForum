@@ -375,7 +375,12 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	if extensionPlatform.hostPlatform != nil {
 		aiSecrets = extensionPlatform.hostPlatform.Secrets
 	}
-	aiProvider := providers.NewAIProvider(pool, aiSecrets, identityStore, authSessions)
+	// 出站策略与其它路径一致：非生产放行 http（生产只允许 https）。私网与回环地址
+	// 默认拒绝，只有显式配置 SFORUM_AI_ALLOW_PRIVATE_ENDPOINT 且非生产时才放行。
+	aiProvider := providers.NewAIProvider(pool, aiSecrets, identityStore, authSessions, providers.AIOutboundOptions{
+		AllowHTTP:    !strings.EqualFold(cfg.AppEnv, "production"),
+		AllowPrivate: config.AllowPrivateAIEndpoint(cfg),
+	})
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	systemUpdatesProvider := providers.NewSystemUpdatesProvider(
 		systemupdates.NewService(options.NewSystemUpdatesSource(optionsService), systemupdates.WithLogger(logger)),

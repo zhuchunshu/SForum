@@ -382,6 +382,64 @@ ApiResponseAIProfileCredential:
     data:
       "$ref": "#/AIProfileCredentialPayload"
 
+AIModelListRequest:
+  type: object
+  description: |
+    「获取模型列表」探测载荷。三个字段都可省略：省略时使用已保存的供应商地址与
+    Secret Store 中的密钥。携带它们，是为了让运营者在保存之前就能看到列表。
+  properties:
+    baseUrl:
+      type: string
+      description: 仅用于本次探测的 API 根地址，不写库。
+    protocol:
+      type: string
+      enum:
+      - openai-chat
+      - anthropic-messages
+      description: 仅用于本次探测的协议，不写库。
+    apiKey:
+      type: string
+      description: 仅用于本次探测的密钥明文，不写库、不回传。留空则使用已保存的密钥。
+
+AIModelListPayload:
+  type: object
+  description: 一次模型列表探测的结论。供应商层面的失败以原因码 + 说明返回，而不是 5xx。
+  properties:
+    profileId:
+      type: string
+    protocol:
+      type: string
+    models:
+      type: array
+      description: 供应商返回的模型标识，按供应商顺序去重后保留。
+      items:
+        type: string
+    count:
+      type: integer
+    truncated:
+      type: boolean
+      description: 供应商还有更多条目未展示（超过了上限，或供应商自身分页未取完）。
+    reason:
+      type: string
+      description: 稳定原因码，供前端选择文案；仅失败时出现。
+    error:
+      type: string
+      description: 给人看的失败说明；仅失败时出现。
+
+ApiResponseAIModelList:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AIModelListPayload"
+
 AIDiagnoseRequest:
   type: object
   properties:
@@ -403,6 +461,7 @@ AIDiagnosePayload:
       type: string
     reply:
       type: string
+      description: 模型返回的正文。调用成功但正文为空时为空字符串，此时 reason 为 empty_reply。
     latencyMs:
       type: integer
       format: int64
@@ -410,8 +469,12 @@ AIDiagnosePayload:
       type: integer
     outputTokens:
       type: integer
+    stopReason:
+      type: string
+      description: 协议无关的停止原因（end / length / filtered / tool / error）。正文为空时用于解释原因。
     reason:
       type: string
+      description: 稳定原因码：gateway_disabled、profile_unavailable、credential_missing、empty_reply、provider_failed、unsafe_target、budget_exceeded、rate_limited、quota_exceeded。
     error:
       type: string
 

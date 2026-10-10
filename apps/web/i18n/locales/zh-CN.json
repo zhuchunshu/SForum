@@ -245,7 +245,6 @@
       "unread": "未读",
       "ranking": "排行",
       "myTopics": "我的帖子",
-      "hot": "热门",
       "categories": "类别",
       "tags": "标签",
       "featured": "精华",
@@ -629,7 +628,7 @@
       "reset": "恢复推荐默认值",
       "resetDone": "已恢复推荐默认值。密钥不会被清除。",
       "dirtyHint": "有未保存的改动。",
-      "encryptionMissing": "当前部署没有可用的加密密钥，保存供应商密钥会失败。请先配置加密密钥再启用 AI。",
+      "encryptionMissing": "当前部署没有可用的加密密钥，保存供应商密钥会失败。请在部署环境变量中设置 APP_OPTION_ENC_KEY（32 字节 hex，可用 openssl rand -hex 32 生成）并重启 API。",
       "gateway": "AI 网关",
       "gatewayIntro": "总开关。默认关闭；关闭时不产生任何出站调用，也不产生任何费用。",
       "providers": "供应商",
@@ -647,6 +646,22 @@
       "protocol": "协议",
       "baseUrl": "API 根地址",
       "model": "模型",
+      "modelFetch": "获取模型列表",
+      "modelFetchHint": "用当前的地址与密钥读取该端点可用的模型，选中后保存配置即生效。",
+      "modelFetchNeedsBaseUrl": "填写 API 根地址后即可获取模型列表。",
+      "modelFetchNeedsCredential": "填写或保存 API 密钥后即可获取模型列表。",
+      "modelFetchFailed": "获取模型列表失败，请检查地址与密钥。",
+      "modelFetchDone": "已获取 {count} 个模型，请从列表中选择。",
+      "modelFetchReasons": {
+        "provider_failed": "供应商没有返回模型列表：地址、密钥或网络可能不对。",
+        "unsafe_target": "出站守卫拒绝了该地址：默认只允许公网地址，生产只允许 https。本机或内网模型服务需要在 .env 里设置 SFORUM_AI_ALLOW_PRIVATE_ENDPOINT=true（仅非生产生效）并重启 API。"
+      },
+      "modelSelectPlaceholder": "填写或选择模型",
+      "modelFetched": "已获取 {count} 个模型",
+      "modelTruncated": "供应商还有更多模型未展示。",
+      "modelManual": "手动输入",
+      "modelUseList": "使用列表",
+      "modelNotInList": "当前模型不在返回的列表里，保存后仍会使用它。",
       "costClass": "成本等级",
       "apiKeyRef": "密钥引用",
       "apiKeyRefHint": "由系统维护，无需填写。",
@@ -667,6 +682,7 @@
       "credentialSave": "保存密钥",
       "credentialSaved": "密钥已保存（版本 {version}）。",
       "credentialHint": "密钥保存在服务器的加密存储里，保存后无法再次查看；需要更换时直接粘贴新的即可。",
+      "credentialBlockedHint": "当前部署没有加密密钥，密钥只能以明文存储，因此已禁止保存。请先配置 APP_OPTION_ENC_KEY 并重启 API。",
       "costClassBinding": "成本等级绑定",
       "costClassBindingHint": "用途只声明成本等级，用哪个模型由这里决定。",
       "costEconomy": "经济",
@@ -680,12 +696,40 @@
       "monthlyBudget": "月度预算（元）",
       "toolCalls": "每次回复工具调用上限",
       "toolCallsHint": "推荐 3（未设置时按 3 生效），上限 5；0 表示停用工具调用，回复退化为纯文本。每一步都是一次独立模型调用；用户配额按一次回复结算，工具步数只计入站点与扩展口径。",
+      "toolCallsExplicitState": "当前：已显式设置。留空可恢复为“未设置”。",
+      "toolCallsDefaultState": "当前：未设置（按推荐值 3 生效，清空输入框即为此状态）。",
+      "toolCallsRestore": "恢复“未设置”",
       "usageMinute": "最近一分钟",
+      "autoAction": "自动裁决",
+      "autoActionIntro": "由 AI 直接执行 moderation 动作。开启前必须至少选择一个动作；删除类动作永不进入可选项。",
+      "autoActionEnabled": "启用自动裁决",
+      "autoActionThreshold": "置信度阈值",
+      "autoActionThresholdHint": "0 到 1，推荐 0.9。低于阈值的判定不会自动执行。",
+      "autoActionActions": "允许的动作",
+      "autoActionActionsHint": "仅这三类动作可自动执行：隐藏、打标签、驳回。",
+      "autoActionHide": "隐藏",
+      "autoActionTag": "打标签",
+      "autoActionReject": "驳回",
+      "autoActionNeedsActions": "启用自动裁决前请至少选择一个动作。",
+      "redaction": "内容脱敏",
+      "redactionIntro": "提交给供应商之前移除可识别信息。不会影响站内存储的内容。",
+      "redactionEnabled": "启用脱敏",
+      "redactEmail": "邮箱",
+      "redactPhone": "手机号",
+      "redactIp": "IP 地址",
       "usageToday": "今日调用",
       "usageTokens": "今日 token",
       "usageMonth": "本月花费",
       "budget": "预算使用",
       "budgetHint": "预算耗尽时网关降级到规则模式，并在此处与通知中提示。",
+      "budgetUnset": "未设置预算",
+      "budgetUnsetHint": "月度预算为 0 时预算闸门停用，花费不受限制。设置一个数值即可启用。",
+      "filterAll": "全部状态",
+      "filterStatus": "按状态筛选执行记录",
+      "statusSucceeded": "成功",
+      "statusFailed": "失败",
+      "statusDenied": "被拦截",
+      "executionsEmptyFiltered": "当前筛选条件下没有执行记录。",
       "executions": "执行记录",
       "executionsIntro": "每次调用的归因：用途、发起方、模型、状态与消耗。不含提示词与响应正文。",
       "executionsEmpty": "还没有执行记录。",
@@ -700,6 +744,7 @@
       "tabs": {
         "label": "AI 配置分区",
         "providers": "供应商与闸门",
+        "replyPrompt": "回复提示词",
         "diagnose": "连通性测试",
         "observability": "用量与执行记录"
       },
@@ -734,11 +779,15 @@
         "tokensIn": "输入 token",
         "tokensOut": "输出 token",
         "okToast": "AI 连接正常。",
+      "emptyReply": "供应商返回了一次成功的调用，但没有正文内容。",
+      "emptyReplyToast": "AI 调用成功，但模型没有返回正文。",
         "reasons": {
           "gateway_disabled": "AI 总开关处于关闭状态。",
           "profile_unavailable": "没有可用的提供商：可能没选中任何一个，或选中的配置不完整。",
           "credential_missing": "该提供商的 API 密钥还没配置。",
           "provider_failed": "请求已发出但没有成功，详情见下方错误。",
+      "empty_reply": "调用成功但模型没有返回正文：推理类模型通常先把输出预算消耗在思考上。请提高该供应商的最大输出 token 后重试。",
+          "unsafe_target": "出站守卫拒绝了该地址：默认只允许公网地址，生产只允许 https。本机或内网模型服务需要在 .env 里设置 SFORUM_AI_ALLOW_PRIVATE_ENDPOINT=true（仅非生产生效）并重启 API。",
           "budget_exceeded": "本月预算已用尽，请求被预算闸门拦截。",
           "rate_limited": "达到站点速率上限，请求被限流。",
           "quota_exceeded": "达到配额上限，请求被拦截。"
@@ -804,7 +853,8 @@
       "extensionPages": "页面注册表",
       "extensionComponentInspector": "组件检查器",
       "extensionNavigationInspector": "导航检查器",
-      "extensionRegistryCatalogs": "注册表目录"
+      "extensionRegistryCatalogs": "注册表目录",
+      "gamification": "徽章与成长值"
     },
     "avatar": {
       "metaTitle": "头像设置",
@@ -2247,7 +2297,11 @@
         "pluginRequired": "请先启用支持多实例的存储插件。",
         "loadFailed": "存储实例加载失败。",
         "schemaAfterFirstSave": "该插件暂未提供可渲染的实例配置字段。",
-        "status": { "unverified": "未测试", "ready": "可用", "error": "异常" }
+        "status": {
+          "unverified": "未测试",
+          "ready": "可用",
+          "error": "异常"
+        }
       },
       "compression": {
         "description": "管理 JPEG、PNG 图片上传后的异步优化策略。",
@@ -3270,7 +3324,12 @@
       "storedOnly": "仅保存",
       "hidden": "已隐藏",
       "extensionUnavailable": "待扩展发布后可用",
-      "sources": { "core": "系统内置", "operator": "运营", "extension": "扩展", "dynamic": "动态区块" },
+      "sources": {
+        "core": "系统内置",
+        "operator": "运营",
+        "extension": "扩展",
+        "dynamic": "动态区块"
+      },
       "moveTo": "移动到",
       "emptyLocation": "此位置暂无项目。",
       "add": "添加链接",
@@ -4614,9 +4673,22 @@
         "deliveryResult": "结果",
         "deliveryUpdated": "更新时间",
         "noProvider": "无提供商",
-        "availability": { "available": "可用", "unavailable": "不可用" },
-        "selection": { "default": "默认", "selected": "已选择", "stale": "已失效" },
-        "status": { "queued": "已排队", "sending": "发送中", "sent": "已发送", "failed": "失败", "skipped": "已跳过" }
+        "availability": {
+          "available": "可用",
+          "unavailable": "不可用"
+        },
+        "selection": {
+          "default": "默认",
+          "selected": "已选择",
+          "stale": "已失效"
+        },
+        "status": {
+          "queued": "已排队",
+          "sending": "发送中",
+          "sent": "已发送",
+          "failed": "失败",
+          "skipped": "已跳过"
+        }
       },
       "categories": {
         "conversation": "互动",
@@ -4975,6 +5047,137 @@
       "artifactDriftTitle": "制品已变更",
       "artifactDriftDescription": "当前激活意图绑定的制品摘要与 live 不一致。公开入口已失效，请在确认新制品后重新打开开关。",
       "actionFailed": "设置动作执行失败。"
+    },
+    "gamification": {
+      "title": "徽章与成长值",
+      "metaTitle": "徽章与成长值",
+      "intro": "管理徽章定义、等级称号、手动授予与历史回填。",
+      "loadFailed": "加载徽章配置失败。",
+      "openExtensions": "前往扩展管理",
+      "pluginDisabledTitle": "徽章插件未启用",
+      "pluginDisabled": "徽章系统由内置插件 sforum.gamification 提供。启用插件后才能创建徽章或授予。",
+      "tabs": {
+        "label": "徽章设置分区",
+        "badges": "徽章定义",
+        "levels": "等级称号",
+        "grants": "手动授予",
+        "backfill": "历史回填"
+      },
+      "rarity": {
+        "common": "普通",
+        "rare": "稀有",
+        "epic": "史诗",
+        "legendary": "传说"
+      },
+      "rule": {
+        "kindThreshold": "达到阈值自动授予",
+        "kindManual": "仅管理员手动授予",
+        "metricTopic": "主题数",
+        "metricComment": "评论数",
+        "metricDays": "注册天数",
+        "topicCount": "发布 {count} 个主题",
+        "commentCount": "发表 {count} 条评论",
+        "registeredDays": "注册满 {count} 天",
+        "manual": "管理员手动授予"
+      },
+      "badges": {
+        "title": "徽章定义",
+        "description": "说明",
+        "searchPlaceholder": "搜索徽章名称或标识",
+        "create": "新建徽章",
+        "edit": "编辑",
+        "disable": "停用",
+        "disabledBadge": "已停用",
+        "name": "名称",
+        "slug": "标识",
+        "slugInvalid": "标识需使用小写字母与连字符，例如 first-topic。",
+        "nameRequired": "请填写徽章名称。",
+        "rarity": "稀有度",
+        "icon": "图标",
+        "points": "成长值",
+        "sort": "排序",
+        "rule": "规则",
+        "ruleKind": "规则类型",
+        "metric": "统计指标",
+        "threshold": "阈值",
+        "thresholdInvalid": "阈值需大于等于 1。",
+        "actions": "操作",
+        "empty": "还没有徽章定义。",
+        "saved": "徽章已保存。",
+        "saveFailed": "保存徽章失败。",
+        "disabled": "徽章已停用。",
+        "disableFailed": "停用徽章失败。",
+        "seeded": "推荐默认已写入。",
+        "seedFailed": "写入推荐默认失败。",
+        "restoreRecommended": "恢复推荐默认徽章",
+        "restoredRecommended": "推荐徽章与等级已恢复，历史授予保持不变。",
+        "missingRecommendedTitle": "推荐徽章尚未齐全",
+        "missingRecommended": "还有 {count} 个推荐徽章未创建，可点右上角一键恢复。"
+      },
+      "levels": {
+        "title": "称号",
+        "description": "成长值累计到阈值即获得对应称号；成长值只升不降。",
+        "hintTitle": "成长值只增不减",
+        "hint": "等级由累计成长值查表得到，不需要维护当前等级字段。",
+        "create": "新增等级",
+        "edit": "编辑",
+        "minPoints": "所需成长值",
+        "icon": "图标",
+        "titleRequired": "请填写称号。",
+        "pointsInvalid": "所需成长值不能为负数。",
+        "empty": "还没有等级定义。",
+        "saved": "等级已保存。",
+        "saveFailed": "保存等级失败。",
+        "missingRecommendedTitle": "推荐等级尚未齐全",
+        "missingRecommended": "建议补齐 新芽 / 幼苗 / 小树 / 大树 / 守望者 五级阶梯。"
+      },
+      "grants": {
+        "title": "手动授予",
+        "description": "把仅手动授予的徽章发给指定用户；阈值徽章由规则自动发放。",
+        "hintTitle": "只有手动徽章可在此授予",
+        "hint": "阈值类徽章由引擎按统计规则自动发放，重复授予会被幂等拦下。",
+        "userId": "用户 ID",
+        "badge": "徽章",
+        "selectBadge": "选择徽章",
+        "grant": "授予",
+        "granted": "徽章已授予。",
+        "revoked": "徽章已撤销。",
+        "failed": "操作失败。",
+        "revoke": "撤销",
+        "loadLog": "查看授予记录",
+        "logTitle": "授予记录",
+        "logDescription": "用户 {userId} 已获得的徽章。",
+        "emptyLog": "该用户还没有徽章。",
+        "noManualBadges": "当前没有可手动授予的徽章，请先创建一个「仅手动授予」类型的徽章。",
+        "actor": "操作者 #{id}",
+        "source": {
+          "auto": "自动",
+          "manual": "手动"
+        }
+      },
+      "backfill": {
+        "title": "历史回填",
+        "description": "把存量发帖/评论数写入统计并补发成长值；语义为覆盖，重复执行安全。",
+        "warningTitle": "这是重建操作",
+        "warning": "回填会覆盖对应用户的统计计数（不是累加）。请确认数据来自可信来源。",
+        "payload": "回填数据（JSON）",
+        "payloadHint": "格式：users 数组，每项含 userId（必填正整数）、topicCount、commentCount。示例见“填入示例”按钮。",
+        "fillExample": "填入示例",
+        "run": "回填 {count} 个用户",
+        "done": "回填完成。",
+        "failed": "回填失败。",
+        "required": "请填写回填数据。",
+        "invalidJson": "JSON 格式不正确。",
+        "emptyUsers": "users 数组不能为空。",
+        "invalidUser": "每个用户都需要正整数 userId。"
+      },
+      "errors": {
+        "notManual": "该徽章不是手动授予类型。",
+        "payloadInvalid": "请求参数不完整。",
+        "badgeInvalid": "徽章定义不合法。",
+        "grantFailed": "授予失败。",
+        "unknown": "操作失败，请稍后重试。"
+      }
     }
   },
   "errors": {
@@ -5133,9 +5336,9 @@
       "loadFailed": "图片加载失败。"
     },
     "commentLink": "链接",
-    "copyShortcode": "引用 Shortcode",
-    "shortcodeCopied": "引用 Shortcode 已复制",
-    "copyShortcodeHint": "复制引用 Shortcode",
+    "copyShortcode": "引用",
+    "shortcodeCopied": "shortCode已复制",
+    "copyShortcodeHint": "复制引用",
     "commentMoreActions": "更多回复操作",
     "commentLinkCopied": "评论链接已复制",
     "replyFailed": "回复失败，请稍后重试。",
@@ -5621,8 +5824,17 @@
       "revoked": "已撤销浏览器订阅。",
       "revokeFailed": "无法撤销该浏览器订阅。",
       "privacy": "此处只显示推送服务来源和投递状态，端点与加密密钥始终隐藏。",
-      "permission": { "default": "尚未请求权限", "granted": "已允许", "denied": "已阻止", "unsupported": "不支持" },
-      "status": { "active": "有效", "revoked": "已撤销", "failed": "失败" }
+      "permission": {
+        "default": "尚未请求权限",
+        "granted": "已允许",
+        "denied": "已阻止",
+        "unsupported": "不支持"
+      },
+      "status": {
+        "active": "有效",
+        "revoked": "已撤销",
+        "failed": "失败"
+      }
     },
     "states": {
       "inherit": "继承站点选择",
@@ -6211,6 +6423,27 @@
         "body": "{name} v{version} 的公开组件可使用当前浏览器会话与页面权限调用其命名空间 API。这不是沙箱：仅在你信任该扩展时启用公开 L2。",
         "dismiss": "关闭说明"
       }
+    }
+  },
+  "badges": {
+    "title": "徽章墙",
+    "metaTitle": "{name} 的徽章",
+    "subtitle": "{name} 获得的徽章与成长等级",
+    "level": "当前等级",
+    "noLevel": "未定级",
+    "points": "成长值",
+    "earned": "已获得徽章",
+    "empty": "暂无徽章数据。",
+    "emptyBadges": "{name} 还没有获得徽章。",
+    "grantedAt": "获得于 {date}",
+    "loadFailed": "加载徽章墙失败。",
+    "unavailableTitle": "徽章功能未启用",
+    "unavailable": "徽章系统由内置插件提供，当前未启用。",
+    "rarity": {
+      "common": "普通",
+      "rare": "稀有",
+      "epic": "史诗",
+      "legendary": "传说"
     }
   }
 }

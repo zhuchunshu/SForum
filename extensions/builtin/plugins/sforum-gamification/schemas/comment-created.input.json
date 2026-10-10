@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.gamification.event.comment-created.input",
+  "title": "Gamification comment.created observe input",
+  "type": "object",
+  "properties": {
+    "commentId": { "type": "integer", "minimum": 1 },
+    "topicId": { "type": "integer", "minimum": 1 },
+    "authorUserId": { "type": "integer", "minimum": 1 },
+    "parentId": { "type": ["integer", "null"] }
+  },
+  "required": ["commentId", "topicId", "authorUserId"]
+}

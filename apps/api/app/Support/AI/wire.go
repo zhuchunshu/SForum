@@ -10,6 +10,10 @@ import (
 var (
 	// ErrCredentialMissing 表示 profile 指向的密钥未被解析出来。
 	ErrCredentialMissing = errors.New("ai: provider credential is missing")
+	// ErrCredentialEncryptionRequired 表示部署没有可用的加密密钥，因此不得写入
+	// 供应商密钥。透明 cipher 只服务于单元测试：运行期接受明文密钥会让运营者
+	// 误以为凭证是加密的。
+	ErrCredentialEncryptionRequired = errors.New("ai: provider credentials require an encryption key")
 	// ErrWire 表示协议层构造或解析失败。
 	ErrWire = errors.New("ai: provider wire error")
 )

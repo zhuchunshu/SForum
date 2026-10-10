@@ -198,7 +198,7 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 			PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
 			LatencyMS: int(latency), ErrorSummary: err.Error(),
 		})
-		return CompletionResult{}, &UnavailableError{Posture: posture, Reason: "provider_failed", Err: err}
+		return CompletionResult{}, &UnavailableError{Posture: posture, Reason: ReasonForProviderFailure(err), Err: err}
 	}
 	result.LatencyMS = latency
 	result.PromptVersion = request.PromptVersion

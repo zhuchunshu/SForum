@@ -197,3 +197,50 @@ func TestUnknownFinishReasonDegradesToEnd(t *testing.T) {
 		t.Fatalf("anthropic mapping = %q", got)
 	}
 }
+
+// 推理类模型把答案写在 reasoning_content 而不是 content。只读 content 会得到
+// 一次「调用成功但空回复」的假故障，因此空 content 必须回退读取思考字段。
+func TestParseOpenAIResponseFallsBackToReasoningContent(t *testing.T) {
+	body := []byte(`{"choices":[{"message":{"content":"","reasoning_content":"收到"},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":2}}`)
+	response, err := ai.ParseWireResponse(deepseekProfile(), 200, body)
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if response.Text != "收到" {
+		t.Fatalf("text = %q", response.Text)
+	}
+}
+
+func TestParseOpenAIResponseFallsBackToReasoningAlias(t *testing.T) {
+	body := []byte(`{"choices":[{"message":{"reasoning":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":2}}`)
+	response, err := ai.ParseWireResponse(deepseekProfile(), 200, body)
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if response.Text != "ok" {
+		t.Fatalf("text = %q", response.Text)
+	}
+}
+
+// 两个字段都有内容时正文优先：推理过程不是给用户看的答案。
+func TestParseOpenAIResponsePrefersContentOverReasoning(t *testing.T) {
+	body := []byte(`{"choices":[{"message":{"content":"answer","reasoning_content":"thinking"},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":2}}`)
+	response, err := ai.ParseWireResponse(deepseekProfile(), 200, body)
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if response.Text != "answer" {
+		t.Fatalf("text = %q", response.Text)
+	}
+}
+
+func TestParseAnthropicResponseFallsBackToThinkingBlock(t *testing.T) {
+	body := []byte(`{"content":[{"type":"thinking","text":"收到"}],"stop_reason":"end_turn","usage":{"input_tokens":7,"output_tokens":2}}`)
+	response, err := ai.ParseWireResponse(claudeProfile(), 200, body)
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if response.Text != "收到" {
+		t.Fatalf("text = %q", response.Text)
+	}
+}

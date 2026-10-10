@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { normalizedAISettingsForComparison, promptUsesDefault } from '../../app/utils/admin/adminAI'
+import { normalizedAISettingsForComparison, promptUsesDefault, toolCallsPerReplyUsesDefault } from '../../app/utils/admin/adminAI'
 
 const DEFAULT_PROMPT = '你是助手。\n\n要求：\n- 简短\n- 用中文'
 
@@ -35,5 +35,39 @@ describe('admin AI prompt comparison', () => {
     const customized = { reply: { systemPrompt: `${DEFAULT_PROMPT}\n- 另外补充一句` } }
     expect(JSON.stringify(normalizedAISettingsForComparison(customized, DEFAULT_PROMPT)))
       .not.toBe(JSON.stringify(normalizedAISettingsForComparison(stored, DEFAULT_PROMPT)))
+  })
+})
+
+describe('admin AI tool call budget default semantics', () => {
+  test('treats missing and null as unset', () => {
+    expect(toolCallsPerReplyUsesDefault(undefined)).toBe(true)
+    expect(toolCallsPerReplyUsesDefault(null)).toBe(true)
+    expect(toolCallsPerReplyUsesDefault(Number.NaN)).toBe(true)
+  })
+
+  test('distinguishes an explicit zero from unset', () => {
+    // 0 是「停用工具调用」，与「未设置按默认 3 生效」是两种语义。
+    expect(toolCallsPerReplyUsesDefault(0)).toBe(false)
+    expect(toolCallsPerReplyUsesDefault(3)).toBe(false)
+  })
+
+  test('drops unset tool calls so stored nil compares equal to form undefined', () => {
+    const stored = { gates: {} }
+    const form = { gates: { toolCallsPerReply: undefined } }
+    expect(JSON.stringify(normalizedAISettingsForComparison(form, DEFAULT_PROMPT)))
+      .toBe(JSON.stringify(normalizedAISettingsForComparison(stored, DEFAULT_PROMPT)))
+  })
+
+  test('keeps an explicit value from being collapsed into the default', () => {
+    // 显式 3 与未设置不同：前者会固化，后者会跟随后端默认值的调整。
+    const unset = { gates: {} }
+    const explicit = { gates: { toolCallsPerReply: 3 } }
+    expect(JSON.stringify(normalizedAISettingsForComparison(explicit, DEFAULT_PROMPT)))
+      .not.toBe(JSON.stringify(normalizedAISettingsForComparison(unset, DEFAULT_PROMPT)))
+  })
+
+  test('normalizes a numeric string to a number', () => {
+    expect(normalizedAISettingsForComparison({ gates: { toolCallsPerReply: '3' as never } }, DEFAULT_PROMPT).gates)
+      .toEqual({ toolCallsPerReply: 3 })
   })
 })

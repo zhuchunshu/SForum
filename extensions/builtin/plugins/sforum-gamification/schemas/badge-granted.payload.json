@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.gamification.notification.badge-granted",
+  "title": "Gamification badge granted notification payload",
+  "type": "object",
+  "properties": {
+    "badgeSlug": { "type": "string" },
+    "badgeName": { "type": "string" },
+    "icon": { "type": "string" },
+    "pointsGranted": { "type": "integer", "minimum": 0 },
+    "levelTitle": { "type": "string" }
+  },
+  "required": ["badgeSlug", "badgeName"]
+}

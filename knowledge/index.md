@@ -8,17 +8,35 @@ load archived sessions or completed plans as current context.
 
 ### Achievements / Gamification
 
-- Status: **active, M0 complete**; the design draft, Core event inventory,
-  pre-M0 detail decisions, and the M0 Extension Surface Matrix are accepted.
-  Key M0 finding: Phase 1 needs zero new Core framework contracts — the badge
-  wall rides the existing `forum.profile.tabs` contribution point, events/
-  notification types/permissions/schedules/host-managed plugin database are
-  all manifest-declared. Plugin id `sforum.gamification`, permission key
-  `sforum.gamification.manage`, OpenAPI fragment in-package. M1 (persistence
-  + store) is next; no implementation has started.
+- Status: **active, M0-M3 complete**; the protected builtin
+  `sforum.gamification` store layer and grant engine are proven end-to-end:
+  a real-subprocess integration test drives `Manager.Deliver` observe
+  envelopes (register/topic/comment) through the own_schema lease on the
+  Host-assigned physical schema and asserts registration snapshots, growth
+  credit, threshold badge grants, and River-style replay idempotency.
+  Schema v2 adds `user_registrations` snapshots feeding `RunDailyScan`.
+  `extension test`, unit + PG + e2e tests, and the architecture gate pass.
+  M4 + M4B are done: manifest declares the permission, 9 routes, the daily
+  scan job/schedule, and the settings schema; an admin integration test
+  proves seed defaults → manual grant → grant log → revoke through the real
+  Route Registry; the rendered admin page (`/gamification`) follows the Core
+  admin-settings geometry with four tabs and bilingual copy (typecheck +
+  1070 Web tests + architecture gate pass). Rendered desktop/390x844
+  Browser QA is still pending — the dev servers were not running in the
+  session that built it. M5 is done: the plugin declares the
+  `badge_granted` notification type (emitted through Host
+  notifications.emit@1 with a stable idempotency key) and the
+  `forum.profile.tabs` contribution; the public badge wall
+  (`/badges/{username}`) resolves its data from the profile
+  `extensionTabs` descriptor, so a disabled plugin fails closed with an
+  empty state. M5 finding: Core already shipped the whole profile-tabs
+  path — no Core change was needed; inline plugin rendering is not
+  supported (tabs are link/jump only). Remaining: rendered Browser QA and
+  the permission catalog/seed text (M6).
 - Plan: `plans/2026-10-10-achievements-gamification.md`
 - Decision: `decisions/2026-10-10-achievements-badges-design-draft.md`
 - Report: `reports/2026-10-10-achievements-m0-surface-matrix.md`
+- Handoff: `sessions/2026-10-11-achievements-m5-public-surfaces.md`
 
 ### Extension Authoring Speed And Controlled Power
 
@@ -192,10 +210,21 @@ load archived sessions or completed plans as current context.
 - Plan: `plans/2026-10-02-ai-assist-platform.md`,
   `plans/2026-10-03-ai-read-only-chat-tools.md`
 - Decision: `decisions/2026-10-02-ai-provider-gateway.md`,
-  `decisions/2026-10-03-ai-read-only-chat-tools.md`
-- Handoff: `sessions/2026-10-03-ai-read-only-tools-handoff.md`
-- Modules: `modules/extensions.md`, `modules/moderation.md`,
+  `decisions/2026-10-03-ai-read-only-chat-tools.md`,
+  `decisions/2026-10-11-ai-credentials-fail-closed-without-encryption-key.md`,
+  `decisions/2026-10-11-ai-reset-keeps-provider-profiles.md`,
+  `decisions/2026-10-11-ai-model-list-probe.md`,
+  `decisions/2026-10-11-ai-private-provider-endpoints.md`
+- Handoff: `sessions/2026-10-11-ai-model-list-probe-handoff.md`
+  (prior: `sessions/2026-10-03-ai-read-only-tools-handoff.md`)
+- Modules: `modules/ai.md`, `modules/extensions.md`, `modules/moderation.md`,
   `modules/notifications.md`
+- 2026-10-11 控制台修复已完成（M0-M6）：加密密钥配置、密钥保存 fail closed、
+  重置保留供应商、autoAction/redaction 设置 UI、toolCalls nil 语义、诊断按实际
+  绑定解析、观测页筛选与深链。计划：`plans/2026-10-11-ai-control-panel-remediation.md`
+- 2026-10-11 连接配置支持一键获取模型列表（`POST
+  /admin/ai/profiles/:profileId/models`，只读、不计费、不写执行记录；前端在下拉
+  里选择并保留手动输入出口）。仍待渲染 QA：需要管理员凭据。
 - Excluded by operator decision: embeddings/vector retrieval and multimodal
   input.
 
@@ -240,6 +269,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- AI 控制台连接配置支持一键获取模型列表（2026-10-11）：新增只读探测路由
+  `POST /admin/ai/profiles/:profileId/models`，用表单里的地址与密钥在保存前就能拿到
+  供应商模型列表，前端以下拉选择呈现并保留手动输入出口；探测不经过网关、不计费、
+  不写执行记录。回复提示词同时搬到独立页签（providers / replyPrompt / diagnose /
+  observability），可编辑草稿与保存操作条上移到页面壳，任一页签都能就地保存。
+  详见 `sessions/2026-10-11-ai-model-list-probe-handoff.md`。
 - 受保护短代码插入修复（2026-10-10）：校验失败的插入不再改动文档，五种失败
   原因拆分为可操作性文案；阶段二把包裹目标固定为顶层块并为引用插入加容器前置
   校验；阶段三空行可直接插入空脚手架（块内占位、发布门拦截、空块不进

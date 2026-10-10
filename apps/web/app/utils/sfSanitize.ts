@@ -12,7 +12,9 @@ export const SF_PURIFY_CONFIG = {
     'figure', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'ins',
     'kbd', 'li', 'mark', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span',
     'strong', 'sub', 'summary', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th',
-    'thead', 'tr', 'u', 'ul', 'var', 'input'
+    'thead', 'tr', 'u', 'ul', 'var', 'input',
+    // 服务端 shortcode 渲染输出的语义标签，剥掉后 CSS 选择器全部失效。
+    'article', 'time'
   ],
   ALLOWED_ATTR: [
     'href', 'title', 'alt', 'src', 'width', 'height', 'class', 'id',

@@ -2,7 +2,7 @@
 import type { AdminAIExecution } from '~/composables/admin/useAdminAI'
 import { ADMIN_AI_KEY, MICRO_PER_UNIT } from '~/composables/admin/useAdminAI'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const ai = inject(ADMIN_AI_KEY)!
 
 const site = computed(() => ai.siteUsage.value)
@@ -13,13 +13,22 @@ const budgetUsed = computed(() => {
 })
 
 function yuan(micros: number) {
-  return (micros / MICRO_PER_UNIT).toFixed(4)
+  return (micros / MICRO_PER_UNIT).toFixed(2)
 }
 
+// 明确 locale：toLocaleString() 不带参数时随运行环境变化，同一条记录在中英文
+// 环境下会显示成不同的时间格式。locale code 是 zh-CN / en（language 才是 en-US）。
 function stamp(value: string) {
   if (!value) return '-'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString(locale.value === 'en' ? 'en-US' : 'zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 function statusColor(status: AdminAIExecution['status']) {
@@ -27,6 +36,20 @@ function statusColor(status: AdminAIExecution['status']) {
   if (status === 'denied') return 'warning'
   return 'error'
 }
+
+// 执行记录最多 50 条且混合三种状态：排查失败时要在里面翻，筛选是刚需。
+const statusFilter = ref<'all' | AdminAIExecution['status']>('all')
+const statusOptions = computed(() => [
+  { label: t('admin.ai.filterAll'), value: 'all' as const },
+  { label: t('admin.ai.statusSucceeded'), value: 'succeeded' as const },
+  { label: t('admin.ai.statusFailed'), value: 'failed' as const },
+  { label: t('admin.ai.statusDenied'), value: 'denied' as const }
+])
+const filteredExecutions = computed(() =>
+  statusFilter.value === 'all'
+    ? ai.executions.value
+    : ai.executions.value.filter(item => item.status === statusFilter.value)
+)
 </script>
 
 <template>
@@ -53,16 +76,33 @@ function statusColor(status: AdminAIExecution['status']) {
     <section class="min-w-0 rounded-lg border border-slate-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.ai.budget') }}</p>
-        <span class="text-xs text-slate-500">{{ yuan(site.monthSpendMicros) }} / {{ yuan(budgetMicros) }}</span>
+        <span class="text-xs text-slate-500">
+          <template v-if="budgetMicros > 0">
+            {{ yuan(site.monthSpendMicros) }} / {{ yuan(budgetMicros) }}
+          </template>
+          <template v-else>
+            {{ t('admin.ai.budgetUnset') }}
+          </template>
+        </span>
       </div>
-      <UProgress class="mt-3" :model-value="budgetUsed" :color="budgetUsed >= 90 ? 'error' : 'primary'" />
-      <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.ai.budgetHint') }}</p>
+      <UProgress v-if="budgetMicros > 0" class="mt-3" :model-value="budgetUsed" :color="budgetUsed >= 90 ? 'error' : 'primary'" />
+      <p class="mt-2 text-xs text-slate-500 dark:text-zinc-400">
+        {{ budgetMicros > 0 ? t('admin.ai.budgetHint') : t('admin.ai.budgetUnsetHint') }}
+      </p>
     </section>
 
     <section class="min-w-0 rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-      <div class="border-b border-slate-200 px-4 py-3 dark:border-zinc-800">
-        <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.ai.executions') }}</p>
-        <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.ai.executionsIntro') }}</p>
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-zinc-800">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.ai.executions') }}</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.ai.executionsIntro') }}</p>
+        </div>
+        <USelect
+          v-model="statusFilter"
+          :items="statusOptions"
+          class="w-40"
+          :aria-label="t('admin.ai.filterStatus')"
+        />
       </div>
       <div class="overflow-x-auto">
         <table class="min-w-full text-left text-sm">
@@ -79,7 +119,7 @@ function statusColor(status: AdminAIExecution['status']) {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200 dark:divide-zinc-800">
-            <tr v-for="item in ai.executions.value" :key="item.id">
+            <tr v-for="item in filteredExecutions" :key="item.id">
               <td class="whitespace-nowrap px-3 py-3 text-xs text-slate-500">{{ stamp(item.createdAt) }}</td>
               <td class="px-3 py-3">
                 <p class="font-medium">{{ item.purpose }}</p>
@@ -98,8 +138,8 @@ function statusColor(status: AdminAIExecution['status']) {
             </tr>
           </tbody>
         </table>
-        <div v-if="!ai.executions.value.length && !ai.executionsPending.value" class="p-10 text-center text-sm text-slate-500">
-          {{ t('admin.ai.executionsEmpty') }}
+        <div v-if="!filteredExecutions.length && !ai.executionsPending.value" class="p-10 text-center text-sm text-slate-500">
+          {{ statusFilter === 'all' ? t('admin.ai.executionsEmpty') : t('admin.ai.executionsEmptyFiltered') }}
         </div>
       </div>
     </section>

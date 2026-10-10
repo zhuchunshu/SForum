@@ -50,6 +50,12 @@
       "path": "/api/v1/admin/ai/profiles/:profileId/credential"
     },
     {
+      "id": "core.route.ai.list_profile_models",
+      "contractVersion": "sforum.route.ai.list_profile_models@1",
+      "method": "POST",
+      "path": "/api/v1/admin/ai/profiles/:profileId/models"
+    },
+    {
       "id": "core.route.ai.diagnose",
       "contractVersion": "sforum.route.ai.diagnose@1",
       "method": "POST",
@@ -2158,6 +2164,116 @@
   ],
   "ui": [
     {
+      "id": "core.component.shared.sf_badge_wall",
+      "contractVersion": "sforum.component.shared.sf_badge_wall@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/profile/SFBadgeWall.vue"
+    },
+    {
+      "id": "core.component.page.badges.username",
+      "contractVersion": "sforum.component.page.badges.username@1",
+      "kind": "page",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/badges/[username].vue"
+    },
+    {
+      "id": "core.component.page.admin.gamification",
+      "contractVersion": "sforum.component.page.admin.gamification@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/gamification.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_gamification_backfill_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_gamification_backfill_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/gamification/tabs/SFAdminGamificationBackfillTab.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_gamification_badges_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_gamification_badges_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/gamification/tabs/SFAdminGamificationBadgesTab.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_gamification_grants_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_gamification_grants_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/gamification/tabs/SFAdminGamificationGrantsTab.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_gamification_levels_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_gamification_levels_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/gamification/tabs/SFAdminGamificationLevelsTab.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_auto_action_block",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_auto_action_block@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIAutoActionBlock.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_model_field",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_model_field@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIModelField.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_provider_picker",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_provider_picker@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIProviderPicker.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_redaction_block",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_redaction_block@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIRedactionBlock.vue"
+    },
+    {
       "id": "core.component.admin.sf_admin_ai_diagnose_tab",
       "contractVersion": "sforum.component.admin.sf_admin_ai_diagnose_tab@1",
       "kind": "component",
@@ -2186,6 +2302,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIProvidersTab.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_reply_prompt_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_reply_prompt_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIReplyPromptTab.vue"
     },
     {
       "id": "core.component.admin.sf_admin_site_client_tab",

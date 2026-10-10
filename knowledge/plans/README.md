@@ -20,6 +20,8 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
+| `2026-10-11-ai-control-panel-remediation.md` | **completed** -- AI 控制台修复 M0-M6 完成（fail-closed/重置语义/策略 UI/nil 语义/诊断对齐/观测打磨）；仅渲染 QA 待管理员凭据 |
+| `2026-10-10-achievements-gamification.md` | **ready** -- design + event inventory complete; M0 surface matrix and contracts first; no implementation started |
 | `2026-08-22-builtin-shortcodes.md` | **active / blocked** -- M10B parser conformance and focused gates pass; exact immutable active-artifact promotion and final lifecycle/browser leakage gate remain |
 | `2026-08-22-extension-authoring-speed-and-controlled-power.md` | **ready** -- M0 contract/call-chain/threat freeze is first; no implementation started |
 | `2026-10-03-ai-read-only-chat-tools.md` | **active** -- read-only chat tools for the reply bot landed (contract, adapters, loop, five built-in tools, admin settings); rendered QA and plugin-facing tool surface remain |

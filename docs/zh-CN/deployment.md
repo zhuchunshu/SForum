@@ -104,6 +104,11 @@ PostgreSQL、Redis、会话、验证码、身份 HMAC、敏感选项加密和 Ma
 接入官方 Marketplace 时必须替换为官方公钥与 key ID，私钥不得进入仓库或
 容器。
 
+AI 供应商出站遵循同一套出站守卫：生产只允许 `https`，并且拒绝解析到
+私网/回环/保留地址的端点。`SFORUM_AI_ALLOW_PRIVATE_ENDPOINT=true` 只用于
+开发环境直连本机模型服务（Ollama、vLLM 等），生产环境一律忽略。生产要接
+内网模型服务，请在前端放一个提供 HTTPS 的反向代理。
+
 ## HTTPS 反向代理
 
 SForum 只监听 loopback 端口，TLS 由宿主机反向代理终止。宿主机

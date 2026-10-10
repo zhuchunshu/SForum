@@ -205,7 +205,6 @@
       "unread": "Unread",
       "ranking": "Top",
       "myTopics": "My Topics",
-      "hot": "Hot",
       "categories": "Categories",
       "tags": "Tags",
       "featured": "Featured",
@@ -589,7 +588,7 @@
       "reset": "Restore recommended defaults",
       "resetDone": "Recommended defaults restored. Credentials are not cleared.",
       "dirtyHint": "There are unsaved changes.",
-      "encryptionMissing": "This deployment has no usable encryption key, so saving provider credentials will fail. Configure the encryption key before enabling AI.",
+      "encryptionMissing": "This deployment has no usable encryption key, so saving provider credentials will fail. Set APP_OPTION_ENC_KEY (32-byte hex; generate with openssl rand -hex 32) in the deployment environment and restart the API.",
       "gateway": "AI gateway",
       "gatewayIntro": "Master switch. Off by default; while off there are no outbound calls and no spend.",
       "providers": "Providers",
@@ -607,6 +606,22 @@
       "protocol": "Protocol",
       "baseUrl": "API base URL",
       "model": "Model",
+      "modelFetch": "Fetch models",
+      "modelFetchHint": "Reads the models this endpoint serves with the current URL and key. Picking one takes effect on save.",
+      "modelFetchNeedsBaseUrl": "Fill in the API base URL to fetch the model list.",
+      "modelFetchNeedsCredential": "Fill in or save an API key to fetch the model list.",
+      "modelFetchFailed": "Could not fetch the model list. Check the URL and the key.",
+      "modelFetchDone": "Fetched {count} models. Pick one from the list.",
+      "modelFetchReasons": {
+        "provider_failed": "The provider did not return a model list: the URL, the key, or the network may be wrong.",
+        "unsafe_target": "The outbound guard rejected this address: only public addresses are allowed by default, and production is https-only. A local or intranet model server needs SFORUM_AI_ALLOW_PRIVATE_ENDPOINT=true in .env (honoured outside production only), then an API restart."
+      },
+      "modelSelectPlaceholder": "Type or select a model",
+      "modelFetched": "{count} models fetched",
+      "modelTruncated": "The provider has more models than shown.",
+      "modelManual": "Type it instead",
+      "modelUseList": "Use the list",
+      "modelNotInList": "The current model is not in the returned list; it will still be used on save.",
       "costClass": "Cost class",
       "apiKeyRef": "Credential reference",
       "apiKeyRefHint": "Maintained by the system; nothing to fill in here.",
@@ -627,6 +642,7 @@
       "credentialSave": "Save key",
       "credentialSaved": "Key saved (version {version}).",
       "credentialHint": "The key is stored in the server's encrypted secret store and cannot be read back afterwards; paste a new one to replace it.",
+      "credentialBlockedHint": "This deployment has no encryption key, so credentials could only be stored as plaintext and saving is blocked. Configure APP_OPTION_ENC_KEY and restart the API first.",
       "costClassBinding": "Cost class bindings",
       "costClassBindingHint": "Purposes declare a cost class only; the model is decided here.",
       "costEconomy": "Economy",
@@ -640,12 +656,40 @@
       "monthlyBudget": "Monthly budget",
       "toolCalls": "Tool calls per reply",
       "toolCallsHint": "3 is recommended (and applies when unset), with a hard cap of 5; 0 disables tool calls so replies stay plain text. Each step is its own model call; the user quota counts one reply, while tool steps count against the site and extension scopes only.",
+      "toolCallsExplicitState": "Current: set explicitly. Clear the box to restore \"unset\".",
+      "toolCallsDefaultState": "Current: unset (the recommended 3 applies; clearing the box means this state).",
+      "toolCallsRestore": "Restore \"unset\"",
       "usageMinute": "Last minute",
+      "autoAction": "Automatic decisions",
+      "autoActionIntro": "Let AI execute moderation actions directly. At least one action must be selected; destructive actions are never offered.",
+      "autoActionEnabled": "Enable automatic decisions",
+      "autoActionThreshold": "Confidence threshold",
+      "autoActionThresholdHint": "0 to 1, 0.9 recommended. Decisions below the threshold are never executed automatically.",
+      "autoActionActions": "Allowed actions",
+      "autoActionActionsHint": "Only these three can run automatically: hide, tag, reject.",
+      "autoActionHide": "Hide",
+      "autoActionTag": "Tag",
+      "autoActionReject": "Reject",
+      "autoActionNeedsActions": "Select at least one action before enabling automatic decisions.",
+      "redaction": "Content redaction",
+      "redactionIntro": "Removes identifying information before it is sent to the provider. Stored site content is never changed.",
+      "redactionEnabled": "Enable redaction",
+      "redactEmail": "Email",
+      "redactPhone": "Phone",
+      "redactIp": "IP address",
       "usageToday": "Calls today",
       "usageTokens": "Tokens today",
       "usageMonth": "Spend this month",
       "budget": "Budget usage",
       "budgetHint": "When the budget runs out the gateway degrades to rules mode and says so here and in notifications.",
+      "budgetUnset": "No budget set",
+      "budgetUnsetHint": "With a monthly budget of 0 the budget gate is off and spend is uncapped. Set an amount to enable it.",
+      "filterAll": "All statuses",
+      "filterStatus": "Filter execution records by status",
+      "statusSucceeded": "Succeeded",
+      "statusFailed": "Failed",
+      "statusDenied": "Denied",
+      "executionsEmptyFiltered": "No execution records match the current filter.",
       "executions": "Execution records",
       "executionsIntro": "Attribution for every call: purpose, caller, model, status, and consumption. Never the prompt or the response body.",
       "executionsEmpty": "No executions recorded yet.",
@@ -660,6 +704,7 @@
       "tabs": {
         "label": "AI configuration sections",
         "providers": "Providers & gates",
+        "replyPrompt": "Reply prompt",
         "diagnose": "Connectivity test",
         "observability": "Usage & executions"
       },
@@ -694,11 +739,15 @@
         "tokensIn": "Input tokens",
         "tokensOut": "Output tokens",
         "okToast": "AI connection works.",
+      "emptyReply": "The provider returned a successful call, but it contained no text.",
+      "emptyReplyToast": "The AI call succeeded, but the model returned no text.",
         "reasons": {
           "gateway_disabled": "The AI master switch is off.",
           "profile_unavailable": "No usable provider: none is selected, or the selected one is incomplete.",
           "credential_missing": "The API key for this provider has not been configured.",
           "provider_failed": "The request went out but did not succeed; see the error below.",
+      "empty_reply": "The call succeeded but the model returned no text: reasoning models usually spend the output budget on thinking first. Raise the provider's max output tokens and retry.",
+          "unsafe_target": "The outbound guard rejected this address: only public addresses are allowed by default, and production is https-only. A local or intranet model server needs SFORUM_AI_ALLOW_PRIVATE_ENDPOINT=true in .env (honoured outside production only), then an API restart.",
           "budget_exceeded": "This month's budget is spent, so the budget gate blocked the request.",
           "rate_limited": "The site rate limit was reached and the request was throttled.",
           "quota_exceeded": "A quota limit was reached and the request was blocked."
@@ -764,7 +813,8 @@
       "extensionPages": "Page registry",
       "extensionComponentInspector": "Component inspector",
       "extensionNavigationInspector": "Navigation inspector",
-      "extensionRegistryCatalogs": "Registry catalogs"
+      "extensionRegistryCatalogs": "Registry catalogs",
+      "gamification": "Badges and growth"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -2207,7 +2257,11 @@
         "pluginRequired": "Enable a storage plugin that supports multiple instances first.",
         "loadFailed": "Storage instances could not be loaded.",
         "schemaAfterFirstSave": "This plugin does not currently expose renderable instance settings.",
-        "status": { "unverified": "Untested", "ready": "Ready", "error": "Error" }
+        "status": {
+          "unverified": "Untested",
+          "ready": "Ready",
+          "error": "Error"
+        }
       },
       "compression": {
         "description": "Manage asynchronous optimization for uploaded JPEG and PNG images.",
@@ -3230,7 +3284,12 @@
       "storedOnly": "Stored only",
       "hidden": "Hidden",
       "extensionUnavailable": "Unavailable until published",
-      "sources": { "core": "Built-in", "operator": "Operator", "extension": "Extension", "dynamic": "Dynamic" },
+      "sources": {
+        "core": "Built-in",
+        "operator": "Operator",
+        "extension": "Extension",
+        "dynamic": "Dynamic"
+      },
       "moveTo": "Move to",
       "emptyLocation": "No items in this location.",
       "add": "Add link",
@@ -4574,9 +4633,22 @@
         "deliveryResult": "Result",
         "deliveryUpdated": "Updated",
         "noProvider": "No provider",
-        "availability": { "available": "Available", "unavailable": "Unavailable" },
-        "selection": { "default": "Default", "selected": "Selected", "stale": "Stale" },
-        "status": { "queued": "Queued", "sending": "Sending", "sent": "Sent", "failed": "Failed", "skipped": "Skipped" }
+        "availability": {
+          "available": "Available",
+          "unavailable": "Unavailable"
+        },
+        "selection": {
+          "default": "Default",
+          "selected": "Selected",
+          "stale": "Stale"
+        },
+        "status": {
+          "queued": "Queued",
+          "sending": "Sending",
+          "sent": "Sent",
+          "failed": "Failed",
+          "skipped": "Skipped"
+        }
       },
       "categories": {
         "conversation": "Conversation",
@@ -4935,6 +5007,137 @@
       "artifactDriftTitle": "Artifact changed",
       "artifactDriftDescription": "Activation intent is bound to a package digest that no longer matches live. Public entry is ineffective until you re-enable against the new artifact.",
       "actionFailed": "Settings action failed."
+    },
+    "gamification": {
+      "title": "Badges and growth",
+      "metaTitle": "Badges and growth",
+      "intro": "Manage badge definitions, level titles, manual grants, and historical backfill.",
+      "loadFailed": "Failed to load the badge configuration.",
+      "openExtensions": "Open extensions",
+      "pluginDisabledTitle": "Badge plugin is not enabled",
+      "pluginDisabled": "Badges ship with the built-in sforum.gamification plugin. Enable it before creating or granting badges.",
+      "tabs": {
+        "label": "Badge sections",
+        "badges": "Definitions",
+        "levels": "Levels",
+        "grants": "Manual grants",
+        "backfill": "Backfill"
+      },
+      "rarity": {
+        "common": "Common",
+        "rare": "Rare",
+        "epic": "Epic",
+        "legendary": "Legendary"
+      },
+      "rule": {
+        "kindThreshold": "Auto-grant at threshold",
+        "kindManual": "Manual grant only",
+        "metricTopic": "Topics",
+        "metricComment": "Comments",
+        "metricDays": "Days registered",
+        "topicCount": "Publish {count} topics",
+        "commentCount": "Post {count} comments",
+        "registeredDays": "Registered for {count} days",
+        "manual": "Granted manually by an admin"
+      },
+      "badges": {
+        "title": "Badge definitions",
+        "description": "Description",
+        "searchPlaceholder": "Search by name or slug",
+        "create": "New badge",
+        "edit": "Edit",
+        "disable": "Disable",
+        "disabledBadge": "Disabled",
+        "name": "Name",
+        "slug": "Slug",
+        "slugInvalid": "Slug must be lowercase letters and hyphens, e.g. first-topic.",
+        "nameRequired": "A badge name is required.",
+        "rarity": "Rarity",
+        "icon": "Icon",
+        "points": "Growth value",
+        "sort": "Sort",
+        "rule": "Rule",
+        "ruleKind": "Rule type",
+        "metric": "Metric",
+        "threshold": "Threshold",
+        "thresholdInvalid": "Threshold must be at least 1.",
+        "actions": "Actions",
+        "empty": "No badge definitions yet.",
+        "saved": "Badge saved.",
+        "saveFailed": "Failed to save the badge.",
+        "disabled": "Badge disabled.",
+        "disableFailed": "Failed to disable the badge.",
+        "seeded": "Recommended defaults written.",
+        "seedFailed": "Failed to write recommended defaults.",
+        "restoreRecommended": "Restore recommended badges",
+        "restoredRecommended": "Recommended badges and levels restored; existing grants are unchanged.",
+        "missingRecommendedTitle": "Recommended set incomplete",
+        "missingRecommended": "{count} recommended badges are still missing — restore them with one click above."
+      },
+      "levels": {
+        "title": "Title",
+        "description": "A title unlocks when cumulative growth value reaches its threshold. Growth never decreases.",
+        "hintTitle": "Growth only goes up",
+        "hint": "Levels are a lookup over cumulative growth value; there is no current-level field to maintain.",
+        "create": "New level",
+        "edit": "Edit",
+        "minPoints": "Required growth",
+        "icon": "Icon",
+        "titleRequired": "A title is required.",
+        "pointsInvalid": "Required growth cannot be negative.",
+        "empty": "No levels yet.",
+        "saved": "Level saved.",
+        "saveFailed": "Failed to save the level.",
+        "missingRecommendedTitle": "Recommended ladder incomplete",
+        "missingRecommended": "Consider adding the five recommended tiers: Sprout, Seedling, Sapling, Tree, Warden."
+      },
+      "grants": {
+        "title": "Manual grants",
+        "description": "Award manual-only badges to a specific user; threshold badges are granted automatically.",
+        "hintTitle": "Only manual badges can be granted here",
+        "hint": "Threshold badges are granted by the engine from counters; duplicates are stopped by the idempotency key.",
+        "userId": "User ID",
+        "badge": "Badge",
+        "selectBadge": "Select a badge",
+        "grant": "Grant",
+        "granted": "Badge granted.",
+        "revoked": "Badge revoked.",
+        "failed": "The operation failed.",
+        "revoke": "Revoke",
+        "loadLog": "View grants",
+        "logTitle": "Grant log",
+        "logDescription": "Badges earned by user {userId}.",
+        "emptyLog": "This user has no badges yet.",
+        "noManualBadges": "No manual-only badge exists yet — create one with the manual rule type first.",
+        "actor": "Actor #{id}",
+        "source": {
+          "auto": "Auto",
+          "manual": "Manual"
+        }
+      },
+      "backfill": {
+        "title": "Historical backfill",
+        "description": "Write existing topic/comment counts into counters and credit growth value. Overwrite semantics — safe to rerun.",
+        "warningTitle": "This is a rebuild",
+        "warning": "Backfill overwrites counters (it never adds). Confirm the data comes from a trusted source.",
+        "payload": "Backfill payload (JSON)",
+        "payloadHint": "Format: a users array where each entry has userId (required positive integer), topicCount, and commentCount. Use the example button.",
+        "fillExample": "Fill example",
+        "run": "Backfill {count} users",
+        "done": "Backfill finished.",
+        "failed": "Backfill failed.",
+        "required": "A backfill payload is required.",
+        "invalidJson": "The JSON payload is invalid.",
+        "emptyUsers": "The users array cannot be empty.",
+        "invalidUser": "Each user needs a positive integer userId."
+      },
+      "errors": {
+        "notManual": "This badge is not a manual-grant badge.",
+        "payloadInvalid": "The request payload is incomplete.",
+        "badgeInvalid": "The badge definition is invalid.",
+        "grantFailed": "The grant failed.",
+        "unknown": "The operation failed. Please retry later."
+      }
     }
   },
   "errors": {
@@ -5093,9 +5296,9 @@
       "loadFailed": "The image could not be loaded."
     },
     "commentLink": "Link",
-    "copyShortcode": "Quote shortcode",
-    "shortcodeCopied": "Quote shortcode copied",
-    "copyShortcodeHint": "Copy quote shortcode",
+    "copyShortcode": "Quote",
+    "shortcodeCopied": "shortCode copied",
+    "copyShortcodeHint": "Copy quote",
     "commentMoreActions": "More reply actions",
     "commentLinkCopied": "Comment link copied",
     "replyFailed": "Reply failed, please try again.",
@@ -5581,8 +5784,17 @@
       "revoked": "Browser subscription revoked.",
       "revokeFailed": "Could not revoke this browser subscription.",
       "privacy": "Only the push service origin and delivery status are shown here. Endpoints and encryption keys remain hidden.",
-      "permission": { "default": "Permission not requested", "granted": "Allowed", "denied": "Blocked", "unsupported": "Unsupported" },
-      "status": { "active": "Active", "revoked": "Revoked", "failed": "Failed" }
+      "permission": {
+        "default": "Permission not requested",
+        "granted": "Allowed",
+        "denied": "Blocked",
+        "unsupported": "Unsupported"
+      },
+      "status": {
+        "active": "Active",
+        "revoked": "Revoked",
+        "failed": "Failed"
+      }
     },
     "states": {
       "inherit": "Inherit site choice",
@@ -6171,6 +6383,27 @@
         "body": "The public component from {name} v{version} can use the current browser session and page authority for its namespaced API. This is not a sandbox: enable public L2 only for extensions you trust.",
         "dismiss": "Dismiss"
       }
+    }
+  },
+  "badges": {
+    "title": "Badge wall",
+    "metaTitle": "{name}'s badges",
+    "subtitle": "Badges and growth level earned by {name}",
+    "level": "Current level",
+    "noLevel": "Unranked",
+    "points": "Growth",
+    "earned": "Earned badges",
+    "empty": "No badge data yet.",
+    "emptyBadges": "{name} has not earned any badges yet.",
+    "grantedAt": "Earned {date}",
+    "loadFailed": "Failed to load the badge wall.",
+    "unavailableTitle": "Badges are not enabled",
+    "unavailable": "Badges ship with a built-in plugin that is currently disabled.",
+    "rarity": {
+      "common": "Common",
+      "rare": "Rare",
+      "epic": "Epic",
+      "legendary": "Legendary"
     }
   }
 }

@@ -20,6 +20,7 @@ implementing or debugging.
 | `moderation.md` | Reports, pre-publication review, moderator workbench |
 | `jobs.md` | River queue, schedules, worker ops |
 | `localization.md` | i18n rules, locales, language packs |
+| `ai.md` | AI gateway contracts, credentials, admin console |
 | `extensions.md` | Plugins/themes, Manifest V3, trust, Host registries |
 
 ## Note structure

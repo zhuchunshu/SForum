@@ -73,9 +73,29 @@ if [ ! -f .env ]; then
   echo "Created .env from .env.example"
 fi
 
+# 首次初始化时补上本地开发用的加密密钥：没有它 Secret Store 走透明模式（明文存储），
+# AI 控制台会一直显示「缺少加密密钥」且拒绝保存供应商密钥。
+if ! grep -q '^APP_OPTION_ENC_KEY=.\+' .env; then
+  dev_enc_key="$(openssl rand -hex 32 2>/dev/null || od -An -N32 -tx1 /dev/urandom | tr -d '[:space:]')"
+  if [[ "$dev_enc_key" =~ ^[0-9a-f]{64}$ ]]; then
+    if grep -q '^APP_OPTION_ENC_KEY=' .env; then
+      sed -i "s|^APP_OPTION_ENC_KEY=.*|APP_OPTION_ENC_KEY=${dev_enc_key}|" .env
+    else
+      printf '\n# 本地开发加密密钥（首次初始化自动生成）\nAPP_OPTION_ENC_KEY=%s\n' "$dev_enc_key" >> .env
+    fi
+    echo "Generated APP_OPTION_ENC_KEY for local development"
+  else
+    echo "Warning: could not generate APP_OPTION_ENC_KEY; set it manually with 'openssl rand -hex 32'"
+  fi
+fi
+
 set -a
 . ./.env
 set +a
+
+if [ -z "${APP_OPTION_ENC_KEY:-}" ]; then
+  echo "Warning: APP_OPTION_ENC_KEY is empty; secrets are stored unencrypted and AI credential saving is blocked."
+fi
 
 COMPOSE_FILES=(-f compose.yaml -f compose.dev.yaml)
 # Meilisearch 为可选搜索引擎（compose profile search），默认不启动以省内存。

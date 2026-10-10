@@ -90,6 +90,24 @@
     }
   },
   {
+    "id": "core.route.ai.list_profile_models",
+    "contractVersion": "sforum.route.ai.list_profile_models@1",
+    "module": "ai",
+    "handler": "listProfileModels",
+    "method": "POST",
+    "path": "/api/v1/admin/ai/profiles/:profileId/models",
+    "source": "apps/api/app/Http/Controllers/AI/routes.go:17",
+    "access": "permission",
+    "policy": "ai.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "ai.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
     "id": "core.route.ai.get_settings",
     "contractVersion": "sforum.route.ai.get_settings@1",
     "module": "ai",

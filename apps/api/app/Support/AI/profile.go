@@ -118,6 +118,24 @@ func (p Profile) Normalized() Profile {
 	return p
 }
 
+// ValidateEndpointURL 校验 API 根地址：必须是 http(s)，且不得内嵌凭据。
+// 保存与只读探测（列出模型）共用它，两条路径对「什么算合法地址」不能有不同答案。
+func ValidateEndpointURL(raw string) error {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" {
+		return ErrProfileInvalid
+	}
+	if parsed.Scheme != "https" && parsed.Scheme != "http" {
+		return ErrProfileInvalid
+	}
+	// 凭据不得出现在 URL 中：密钥只能通过 Secret Store 引用提供，否则会随
+	// 设置文档、导出与日志一起泄漏。
+	if parsed.User != nil {
+		return ErrProfileInvalid
+	}
+	return nil
+}
+
 // Validate 只校验该 profile 自身。天花板越界一律拒绝，不给「我只想调大一点」
 // 留空间；需要更大的值应先修改 Host 常量并记录决策。
 func (p Profile) Validate() error {
@@ -131,16 +149,7 @@ func (p Profile) Validate() error {
 	if !ValidProtocol(p.Protocol) {
 		return ErrProfileInvalid
 	}
-	parsed, err := url.Parse(strings.TrimSpace(p.BaseURL))
-	if err != nil || parsed.Host == "" {
-		return ErrProfileInvalid
-	}
-	if parsed.Scheme != "https" && parsed.Scheme != "http" {
-		return ErrProfileInvalid
-	}
-	// 凭据不得出现在 URL 中：密钥只能通过 Secret Store 引用提供，否则会随
-	// 设置文档、导出与日志一起泄漏。
-	if parsed.User != nil {
+	if err := ValidateEndpointURL(p.BaseURL); err != nil {
 		return ErrProfileInvalid
 	}
 	ref := strings.TrimSpace(p.APIKeyRef)

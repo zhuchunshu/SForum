@@ -40,6 +40,12 @@ func (defaultResolver) LookupIPAddr(ctx context.Context, host string) ([]net.IPA
 type Options struct {
 	// AllowHTTP 为 false 时仅允许 https（生产默认）。开发可显式打开。
 	AllowHTTP bool
+	// AllowPrivate 放行解析到私网/回环/保留地址的目标。默认 false。
+	//
+	// 它是 SSRF 边界的一部分，只有「服务端要访问本机/内网资源」这类场景才需要，
+	// 因此调用方必须用显式、默认关闭、且在生产环境恒为 false 的开关打开它，并且
+	// 只在自己那条出站路径上打开——不要把它做成全局配置。
+	AllowPrivate bool
 	// Resolver 默认使用系统解析器。
 	Resolver Resolver
 	// MaxRedirects 默认 DefaultMaxRedirects。
@@ -54,7 +60,7 @@ func ValidatePublicURL(raw string, opts Options) error {
 	if err != nil {
 		return err
 	}
-	return validateHostPublic(context.Background(), opts.resolver(), parsed.Hostname())
+	return validateHostAllowed(context.Background(), opts.resolver(), parsed.Hostname(), opts.AllowPrivate)
 }
 
 // NewSafeClient 返回带 DialContext IP 校验与重定向校验的 http.Client。
@@ -83,7 +89,7 @@ func NewSafeClient(opts Options) *http.Client {
 			if err != nil {
 				return nil, fmt.Errorf("%w: %v", ErrUnsafeURL, err)
 			}
-			ips, err := resolvePublicIPs(ctx, resolver, host)
+			ips, err := resolveTargetIPs(ctx, resolver, host, opts.AllowPrivate)
 			if err != nil {
 				return nil, err
 			}
@@ -123,7 +129,7 @@ func NewSafeClient(opts Options) *http.Client {
 				stripWebhookAuthHeaders(req)
 			}
 			// 连接时 DialContext 会再校验 IP；此处再解析一次以尽早失败。
-			if err := validateHostPublic(req.Context(), resolver, req.URL.Hostname()); err != nil {
+			if err := validateHostAllowed(req.Context(), resolver, req.URL.Hostname(), opts.AllowPrivate); err != nil {
 				return err
 			}
 			return nil
@@ -178,19 +184,21 @@ func validateRequestURL(parsed *url.URL, opts Options) error {
 	return nil
 }
 
-func validateHostPublic(ctx context.Context, resolver Resolver, host string) error {
-	_, err := resolvePublicIPs(ctx, resolver, host)
+func validateHostAllowed(ctx context.Context, resolver Resolver, host string, allowPrivate bool) error {
+	_, err := resolveTargetIPs(ctx, resolver, host, allowPrivate)
 	return err
 }
 
-func resolvePublicIPs(ctx context.Context, resolver Resolver, host string) ([]net.IP, error) {
+// resolveTargetIPs 解析主机名并拒绝不允许的地址。allowPrivate 为 true 时只跳过
+// 「地址是否公网」这一条判断；scheme、userinfo 与解析失败的检查仍然生效。
+func resolveTargetIPs(ctx context.Context, resolver Resolver, host string, allowPrivate bool) ([]net.IP, error) {
 	host = strings.TrimSpace(host)
 	if host == "" {
 		return nil, fmt.Errorf("%w: empty host", ErrUnsafeURL)
 	}
 	// 字面量 IP：直接判断，不走 DNS。
 	if ip := net.ParseIP(host); ip != nil {
-		if IsForbiddenIP(ip) {
+		if !allowPrivate && IsForbiddenIP(ip) {
 			return nil, fmt.Errorf("%w: address %s not allowed", ErrUnsafeURL, ip)
 		}
 		return []net.IP{ip}, nil
@@ -208,7 +216,7 @@ func resolvePublicIPs(ctx context.Context, resolver Resolver, host string) ([]ne
 		if ip == nil {
 			continue
 		}
-		if IsForbiddenIP(ip) {
+		if !allowPrivate && IsForbiddenIP(ip) {
 			return nil, fmt.Errorf("%w: host %q resolves to disallowed address %s", ErrUnsafeURL, host, ip)
 		}
 		ips = append(ips, ip)

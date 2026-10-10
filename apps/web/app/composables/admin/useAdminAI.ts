@@ -89,15 +89,42 @@ export type AdminAIExecution = {
   errorSummary: string
 }
 
+// AdminAIModelList 是一次只读的模型列表探测结论。供应商层面的失败以 reason + error
+// 返回，而不是抛出：地址能连上但密钥无效，是运营者要读到的信息。
+export type AdminAIModelList = {
+  profileId?: string
+  protocol?: string
+  models: string[]
+  count: number
+  /** 供应商还有更多条目未展示（超过上限，或供应商自身分页未取完）。 */
+  truncated?: boolean
+  reason?: string
+  error?: string
+}
+
+// AdminAIModelProbe 是探测参数。三个可选字段都只在这一次请求里存在：带上它们，
+// 运营者才能在保存之前就看到模型列表；缺省时服务端使用已保存的地址与密钥。
+export type AdminAIModelProbe = {
+  profileId: string
+  baseUrl?: string
+  protocol?: AdminAIProtocol
+  apiKey?: string
+}
+
 export type AdminAIDiagnoseResult = {
   ok: boolean
   providerId?: string
   model?: string
   protocol?: string
-  reply?: string
+  /** 实际探测的成本等级绑定。运营者可能只绑定了其中一档，展示它避免误判。 */
+  costClass?: string
+  /** 模型返回的正文。成功但为空时是空字符串（不是缺失），界面据此提示而非渲染空白条。 */
+  reply: string
   latencyMs?: number
   inputTokens?: number
   outputTokens?: number
+  /** 协议无关的停止原因。正文为空时它解释「为什么一个字都没有」。 */
+  stopReason?: string
   reason?: string
   error?: string
 }
@@ -212,6 +239,27 @@ export function useAdminAI() {
   // 让人误以为是最新结论。
   const diagnoseResult = ref<AdminAIDiagnoseResult | null>(null)
 
+  // fetchModels 用当前的地址与密钥探测供应商的模型列表。它是一次只读探测：
+  // 不产生补全调用、不计费、不写执行记录。请求里携带的密钥明文只用于这一次探测，
+  // 不经过任何持久化路径（写入密钥仍然只走 saveCredential）。
+  //
+  // HTTP 层失败（401/403/422/网络）在这里提示并返回 null；供应商层面的失败会作为
+  // 结果返回，交给调用方就地在字段旁解释——那是运营者要读的信息，不是一个弹窗。
+  async function fetchModels(probe: AdminAIModelProbe): Promise<AdminAIModelList | null> {
+    busy.value = `models:${probe.profileId}`
+    try {
+      return await request<AdminAIModelList>(`/admin/ai/profiles/${encodeURIComponent(probe.profileId)}/models`, {
+        method: 'POST',
+        body: { baseUrl: probe.baseUrl, protocol: probe.protocol, apiKey: probe.apiKey }
+      })
+    } catch (error) {
+      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: `${error}`, duration: 0 })
+      return null
+    } finally {
+      busy.value = ''
+    }
+  }
+
   async function diagnose(message: string) {
     busy.value = 'diagnose'
     diagnoseResult.value = null
@@ -221,8 +269,12 @@ export function useAdminAI() {
         body: { message }
       })
       diagnoseResult.value = result
-      if (result.ok) {
+      // 调用成功但正文为空不是「连接正常」：推理模型的预算被思考耗尽时就会这样。
+      // 提示语必须区分，否则运营者看到成功提示却找不到回复内容。
+      if (result.ok && !result.reason) {
         toast.add({ color: 'success', icon: 'i-lucide-circle-check', title: t('admin.ai.diagnose.okToast'), duration: 10000 })
+      } else if (result.reason === 'empty_reply') {
+        toast.add({ color: 'warning', icon: 'i-lucide-message-square-warning', title: t('admin.ai.diagnose.emptyReplyToast'), duration: 10000 })
       }
       await executions.refresh()
       return result
@@ -250,6 +302,7 @@ export function useAdminAI() {
     executionsPending,
     diagnoseResult,
     diagnose,
+    fetchModels,
     busy,
     refresh,
     saveSettings,

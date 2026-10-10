@@ -293,6 +293,8 @@ paths:
     "$ref": "./openapi/paths/ai.yaml#/adminAIExecutions"
   "/admin/ai/profiles/{profileId}/credential":
     "$ref": "./openapi/paths/ai.yaml#/adminAIProfileCredential"
+  "/admin/ai/profiles/{profileId}/models":
+    "$ref": "./openapi/paths/ai.yaml#/adminAIProfileModels"
   "/admin/ai/diagnose":
     "$ref": "./openapi/paths/ai.yaml#/adminAIDiagnose"
   "/moderation/reports":

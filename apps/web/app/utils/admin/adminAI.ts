@@ -11,6 +11,18 @@
 
 export type AIComparableSettings = {
   reply?: { systemPrompt?: string }
+  gates?: { toolCallsPerReply?: number | null }
+}
+
+// DEFAULT_TOOL_CALLS_PER_REPLY 与后端 ai.DefaultToolCallsPerReply 一致，仅用于
+// 界面展示：真正的缺省仍然由服务端的 nil 语义决定。
+export const DEFAULT_TOOL_CALLS_PER_REPLY = 3
+
+// toolCallsPerReplyUsesDefault 判断工具步数是否等价于「未设置」。
+// 服务端用指针字段区分 nil（按默认 3 生效）与 0（停用工具调用）：一旦运营者碰过
+// 这个输入框，nil 就会被固化成一个数字，之后升级默认也影响不到这个站点。
+export function toolCallsPerReplyUsesDefault(value: number | null | undefined): boolean {
+  return value === undefined || value === null || Number.isNaN(value)
 }
 
 // promptUsesDefault 判断提示词是否等价于「使用内置默认」：空字符串，或忽略空白
@@ -24,8 +36,43 @@ export function promptUsesDefault(prompt: string | undefined, defaultPrompt: str
   return current === normalize(defaultPrompt ?? '')
 }
 
+export type AIModelOption = { label: string, value: string }
+
+export type AIModelSelection = {
+  options: AIModelOption[]
+  /** 当前模型是否出现在供应商返回的列表里。 */
+  currentListed: boolean
+}
+
+// modelOptionsForSelect 把供应商返回的模型列表变成下拉选项，并保证「当前值」始终
+// 在选项里：供应商可能已经下线了站点正在使用的模型，把它过滤掉会让下拉框看起来
+// 「什么都没选中」，而配置里明明写着一个模型。currentListed 让调用方能就这一点
+// 单独提示，而不是把差异藏起来。
+//
+// 顺序保持供应商给出的顺序（多数供应商把最新或最常用的排在前面），并去掉重复与
+// 空白条目——重复只会让下拉框变长，不会带来新信息。
+export function modelOptionsForSelect(models: readonly string[], current: string): AIModelSelection {
+  const seen = new Set<string>()
+  const options: AIModelOption[] = []
+  for (const entry of models ?? []) {
+    const value = typeof entry === 'string' ? entry.trim() : ''
+    if (!value || seen.has(value)) continue
+    seen.add(value)
+    options.push({ label: value, value })
+  }
+  const selected = (current ?? '').trim()
+  const currentListed = selected !== '' && seen.has(selected)
+  if (selected !== '' && !currentListed) {
+    options.push({ label: selected, value: selected })
+  }
+  return { options, currentListed }
+}
+
 // normalizedAISettingsForComparison 返回可逐字比较的副本：把「使用默认」的提示词
 // 统一写成空串，其余字段原样保留。
+//
+// toolCallsPerReply 必须显式对齐：JSON.stringify 会丢掉 undefined，nil（未设置）
+// 与 3（显式等于默认）在字符串层面不可区分，而它们对服务端是两种语义。
 export function normalizedAISettingsForComparison<T extends AIComparableSettings>(
   settings: T,
   defaultPrompt: string
@@ -34,6 +81,14 @@ export function normalizedAISettingsForComparison<T extends AIComparableSettings
   const prompt = typeof copy.reply?.systemPrompt === 'string' ? copy.reply.systemPrompt : ''
   if (promptUsesDefault(prompt, defaultPrompt)) {
     copy.reply = { systemPrompt: '' }
+  }
+  if (copy.gates && 'toolCallsPerReply' in copy.gates) {
+    if (toolCallsPerReplyUsesDefault(copy.gates.toolCallsPerReply)) {
+      delete copy.gates.toolCallsPerReply
+    } else {
+      // 显式值统一成数字，避免 "3" 与 3 被当成改动。
+      copy.gates.toolCallsPerReply = Number(copy.gates.toolCallsPerReply)
+    }
   }
   return copy
 }

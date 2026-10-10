@@ -683,3 +683,44 @@ func TestLoadDoesNotValidateSecretsInDevelopment(t *testing.T) {
 		t.Fatalf("expected stable identity subject hmac dev default, got %q", cfg.IdentitySubjectHMACSecret)
 	}
 }
+
+// AI 供应商的私网放行开关：默认关闭，非生产可显式打开，生产环境一律忽略。
+// 它是 SSRF 边界，忘记撤销开关也不该在生产生效。
+func TestAllowPrivateAIEndpointIsProductionClosed(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  Config
+		want bool
+	}{
+		{"non-production honours the opt-in", Config{AppEnv: "development", AIAllowPrivateEndpoint: true}, true},
+		{"test env honours the opt-in", Config{AppEnv: "test", AIAllowPrivateEndpoint: true}, true},
+		{"default stays closed", Config{AppEnv: "development"}, false},
+		{"production ignores the opt-in", Config{AppEnv: "production", AIAllowPrivateEndpoint: true}, false},
+		{"production case variants are still production", Config{AppEnv: "Production", AIAllowPrivateEndpoint: true}, false},
+	}
+	for _, item := range cases {
+		if got := AllowPrivateAIEndpoint(item.cfg); got != item.want {
+			t.Fatalf("%s: got %v want %v", item.name, got, item.want)
+		}
+	}
+}
+
+func TestLoadReadsAIAllowPrivateEndpoint(t *testing.T) {
+	t.Setenv("APP_ENV", "test")
+	t.Setenv("DATABASE_URL", "postgres://example:example@localhost:5432/example?sslmode=disable")
+	clearJobQueueEnv(t)
+	t.Setenv("SFORUM_AI_ALLOW_PRIVATE_ENDPOINT", "")
+
+	if cfg := Load(); cfg.AIAllowPrivateEndpoint {
+		t.Fatal("the switch must default to off")
+	}
+
+	t.Setenv("SFORUM_AI_ALLOW_PRIVATE_ENDPOINT", "true")
+	cfg := Load()
+	if !cfg.AIAllowPrivateEndpoint {
+		t.Fatal("SFORUM_AI_ALLOW_PRIVATE_ENDPOINT=true must be recorded")
+	}
+	if !AllowPrivateAIEndpoint(cfg) {
+		t.Fatal("the test environment is not production, so the opt-in must be effective")
+	}
+}

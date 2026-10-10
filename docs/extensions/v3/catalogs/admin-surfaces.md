@@ -34,6 +34,7 @@
 | `core.admin.page.forum_content` | `apps/web/app/pages/admin/forum/content.vue` | yes | no | yes | yes | yes | yes | no | yes | yes | yes | yes | yes | no |
 | `core.admin.page.forum_settings` | `apps/web/app/pages/admin/forum/settings.vue` | yes | no | yes | no | yes | no | no | no | yes | no | no | yes | no |
 | `core.admin.page.forum_tags` | `apps/web/app/pages/admin/forum/tags.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | yes | yes | no |
+| `core.admin.page.gamification` | `apps/web/app/pages/admin/gamification.vue` | yes | no | yes | no | no | yes | no | no | yes | no | no | yes | no |
 | `core.admin.page.dashboard` | `apps/web/app/pages/admin/index.vue` | yes | yes | yes | no | no | yes | no | no | yes | no | no | yes | no |
 | `core.admin.page.jobs` | `apps/web/app/pages/admin/jobs.vue` | yes | no | yes | no | yes | yes | no | yes | no | no | yes | yes | no |
 | `core.admin.page.moderation` | `apps/web/app/pages/admin/moderation.vue` | yes | no | yes | no | no | no | no | yes | yes | no | yes | yes | no |

@@ -24,24 +24,48 @@ type AIProvider struct {
 	service    *modelsai.Service
 }
 
+// AIOutboundOptions 是 AI 出站策略。两项都由部署环境决定，不由后台配置决定：
+// 它们属于 SSRF 边界，运营者不该在控制台里把它关掉。
+type AIOutboundOptions struct {
+	// AllowHTTP 允许 http:// 供应商地址（非生产）。
+	AllowHTTP bool
+	// AllowPrivate 放行解析到私网/回环地址的端点，供本机或内网模型服务使用。
+	// 只应在非生产环境显式打开：它等于允许服务端读取内网，而模型列表探测会把
+	// 远端响应的模型标识回传，因此放行就是一条真实的内网读取路径。
+	AllowPrivate bool
+}
+
 // NewAIProvider 装配 AI 网关：配置与用量存储、Secret Store 凭证解析、受控出站
 // 执行，以及权限感知的服务层。网关默认关闭：未显式启用前不产生任何出站调用。
-func NewAIProvider(pool *pgxpool.Pool, secrets *secretstore.Service, users identityStore, sessions *authsession.Manager) *AIProvider {
+//
+// allowHTTP 沿用仓库其它出站路径的同一约定（非生产允许 http，生产只允许 https）：
+// 供应商地址由运营者在后台填写，本地反代或内网网关常常只有 http。私网、回环与保留
+// 地址默认仍被拒绝，需要 outbound.AllowPrivate 显式放行。
+func NewAIProvider(pool *pgxpool.Pool, secrets *secretstore.Service, users identityStore, sessions *authsession.Manager, outbound AIOutboundOptions) *AIProvider {
 	store := supportai.NewPostgresStore(pool)
+	// 同一个受控出站实例同时服务补全与只读探测：SSRF 校验、超时与响应体上限
+	// 只有一处实现，探测不会成为绕过它们的旁路。
+	invoker := supportai.NewHTTPInvoker(supportai.HTTPInvokerOptions{
+		AllowHTTP:    outbound.AllowHTTP,
+		AllowPrivate: outbound.AllowPrivate,
+	})
+	resolver := supportai.NewSecretStoreResolver(secrets)
 	gateway := supportai.NewGateway(supportai.GatewayConfig{
 		Settings: store,
 		Usage:    store,
 		Traces:   store,
-		Creds:    supportai.NewSecretStoreResolver(secrets),
-		Invoker:  supportai.NewHTTPInvoker(supportai.HTTPInvokerOptions{}),
+		Creds:    resolver,
+		Invoker:  invoker,
 	})
 	service := modelsai.NewService(modelsai.Config{
-		Settings:    store,
-		Gateway:     gateway,
-		Usage:       store,
-		Traces:      store,
-		Credentials: supportai.NewCredentialWriter(secrets),
-		BotAccounts: users,
+		Settings:         store,
+		Gateway:          gateway,
+		Usage:            store,
+		Traces:           store,
+		Credentials:      supportai.NewCredentialWriter(secrets),
+		CredentialReader: resolver,
+		Models:           supportai.NewHTTPModelLister(invoker),
+		BotAccounts:      users,
 	})
 	return &AIProvider{controller: aicontroller.NewController(service, users, sessions, secrets), service: service}
 }

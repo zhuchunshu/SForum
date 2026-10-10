@@ -63,7 +63,13 @@ type openAIChatResponsePayload struct {
 	Choices []struct {
 		Message struct {
 			Content string `json:"content"`
-			// 兼容网关可能把 type 写成 function；这里只在有 name 时采纳。
+			// ReasoningContent 是推理类模型的思考正文。DeepSeek-R1、Qwen3、
+			// 各类兼容网关都会把它与 content 分开返回；模型把答案写进这个字段
+			// 时，只读 content 就会拿到一个「调用成功但空回复」的假故障。
+			ReasoningContent string `json:"reasoning_content"`
+			// Reasoning 是部分网关（含 Claude 兼容层）使用的同类字段名。
+			Reasoning string `json:"reasoning"`
+			// ToolCalls 只出现在 assistant 消息上：模型要求先执行这些工具。
 			ToolCalls []struct {
 				ID       string `json:"id"`
 				Type     string `json:"type"`
@@ -191,7 +197,7 @@ func parseOpenAIChatResponse(statusCode int, body []byte) (WireResponse, error) 
 		})
 	}
 	return WireResponse{
-		Text:       choice.Message.Content,
+		Text:       firstNonEmpty(choice.Message.Content, choice.Message.ReasoningContent, choice.Message.Reasoning),
 		ToolCalls:  calls,
 		StopReason: MapOpenAIFinishReason(choice.FinishReason),
 		Usage: Usage{
@@ -201,6 +207,17 @@ func parseOpenAIChatResponse(statusCode int, body []byte) (WireResponse, error) 
 		},
 		RawFinishReason: choice.FinishReason,
 	}, nil
+}
+
+// firstNonEmpty 返回第一个非空白的候选正文。推理类模型可能把答案写在
+// reasoning_content 而不是 content，空 content 不能被当成「没有回复」。
+func firstNonEmpty(candidates ...string) string {
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate) != "" {
+			return candidate
+		}
+	}
+	return ""
 }
 
 // openAIArguments 保证 assistant 消息里的 arguments 始终是可解析的 JSON 字符串。

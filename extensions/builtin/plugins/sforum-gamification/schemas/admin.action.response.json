@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.gamification.route.admin.action.response",
+  "title": "Admin action result",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "badges": {
+      "type": "integer"
+    },
+    "levels": {
+      "type": "integer"
+    },
+    "users": {
+      "type": "integer"
+    },
+    "points": {
+      "type": "integer"
+    },
+    "restored": {
+      "type": "boolean"
+    },
+    "revoked": {
+      "type": "boolean"
+    }
+  }
+}
