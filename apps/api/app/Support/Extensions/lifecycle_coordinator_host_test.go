@@ -747,6 +747,24 @@ func (b *lifecycleHostBoundaryTestDouble) RunLifecycleHostBoundary(
 
 type lifecycleHostContextKey struct{}
 
+// assertLifecycleHostDerivedContext 校验派生上下文保留了调用方上下文的值，
+// 并且除操作者数据库授权外没有别的派生内容。
+func assertLifecycleHostDerivedContext(t *testing.T, parent, derived context.Context, label string) {
+	t.Helper()
+	if derived == parent {
+		return
+	}
+	// 唯一允许的派生是启动期注入的操作者数据库授权。
+	if _, ok := extensions.DatabaseGrantAuthorityFrom(derived); !ok {
+		t.Fatalf("%s did not receive the caller context: unexpected derivation", label)
+	}
+	observed, _ := derived.Value(lifecycleHostContextKey{}).(string)
+	want, _ := parent.Value(lifecycleHostContextKey{}).(string)
+	if observed != want {
+		t.Fatalf("%s context values drifted: %q want %q", label, observed, want)
+	}
+}
+
 func lifecycleHostTestRequest(
 	t *testing.T,
 	operation extensions.LifecycleMachineOperation,
@@ -874,9 +892,10 @@ func assertLifecycleHostDispatch(
 			t.Fatalf("stage contexts = %d, want %d", len(runtime.stageContexts), count)
 		}
 		for _, actual := range runtime.stageContexts {
-			if actual != ctx {
-				t.Fatal("stage did not receive caller context")
-			}
+			// Prepare 阶段允许派生上下文：Host 会为目标进程的启动附加
+			// 操作者数据库授权（actor + 审计锚点），但调用方上下文的值必须
+			// 原样可见，且不得出现其它派生。
+			assertLifecycleHostDerivedContext(t, ctx, actual, "stage")
 		}
 	case lifecycleHostGateStarting:
 		wantRuntime["inspect"] = 1
@@ -964,3 +983,24 @@ func assertLifecycleHostCalls(t *testing.T, got []string, want ...string) {
 
 var _ LifecycleHostRuntime = (*lifecycleHostRuntimeTestDouble)(nil)
 var _ LifecycleHostBoundary = (*lifecycleHostBoundaryTestDouble)(nil)
+
+func TestLifecycleHostRuntimeStartContextCarriesOperatorGrantAuthority(t *testing.T) {
+	bound := lifecycleHostRuntimeStartContext(context.Background(), extensions.LifecycleCoordinatorGateRequest{
+		ActorUserID: 51, AuditEventID: 61,
+	})
+	authority, ok := extensions.DatabaseGrantAuthorityFrom(bound)
+	if !ok || authority.ActorUserID != 51 || authority.AuditEventID != 61 {
+		t.Fatalf("operator bound gate must carry the grant authority: %#v ok=%v", authority, ok)
+	}
+
+	// 恢复/重放步骤没有操作者，也没有归属的审计事件：保持 host 权威。
+	for _, request := range []extensions.LifecycleCoordinatorGateRequest{
+		{},
+		{ActorUserID: 51},
+		{AuditEventID: 61},
+	} {
+		if _, ok := extensions.DatabaseGrantAuthorityFrom(lifecycleHostRuntimeStartContext(context.Background(), request)); ok {
+			t.Fatalf("partial gate identity %#v must not produce an authority", request)
+		}
+	}
+}

@@ -2,6 +2,7 @@ package ai_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -139,5 +140,60 @@ func TestWarningsStayQuietUntilGatewayIsEnabled(t *testing.T) {
 	joined := strings.Join(warnings, ",")
 	if !strings.Contains(joined, "budget_gate_inactive") {
 		t.Fatalf("expected unpriced warning, got %v", warnings)
+	}
+}
+
+// 回复工具白名单的三态必须可区分：缺省（用用途声明）、显式空列表（不给任何工具）、
+// 显式列表（以站点配置为准）。把「未配置」和「配置为空」混起来，等于让一次保存动作
+// 意外关掉回复的全部工具能力。
+func TestReplyToolAllowlistDistinguishesUnsetFromEmpty(t *testing.T) {
+	unset := ai.ReplySettings{}
+	if names, configured := unset.ToolAllowlist(); configured || names != nil {
+		t.Fatalf("unset reply tools = %#v configured=%v", names, configured)
+	}
+	empty := ai.ReplySettings{Tools: &ai.ReplyToolSettings{}}
+	names, configured := empty.ToolAllowlist()
+	if !configured || len(names) != 0 {
+		t.Fatalf("empty reply tools = %#v configured=%v", names, configured)
+	}
+	list := ai.ReplySettings{Tools: &ai.ReplyToolSettings{Allowed: []string{" forum-search ", "vendor-plugin-tool"}}}
+	names, configured = list.ToolAllowlist()
+	if !configured || len(names) != 2 || names[0] != "forum-search" || names[1] != "vendor-plugin-tool" {
+		t.Fatalf("configured reply tools = %#v configured=%v", names, configured)
+	}
+}
+
+func TestSettingsValidateReplyToolAllowlistShape(t *testing.T) {
+	valid := ai.RecommendedSettings()
+	valid.Reply.Tools = &ai.ReplyToolSettings{Allowed: []string{"forum-search", "vendor-plugin-tool"}}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("well-formed allowlist must validate: %v", err)
+	}
+
+	cases := map[string][]string{
+		"invalid name charset": {"Forum Search"},
+		"dotted name":          {"vendor.plugin.tool"},
+		"duplicate":            {"forum-search", "forum-search"},
+		"empty entry":          {"forum-search", "  "},
+	}
+	for name, allowed := range cases {
+		t.Run(name, func(t *testing.T) {
+			settings := ai.RecommendedSettings()
+			settings.Reply.Tools = &ai.ReplyToolSettings{Allowed: allowed}
+			if err := settings.Validate(); !errors.Is(err, ai.ErrSettingsInvalid) {
+				t.Fatalf("%s must be rejected, got %v", name, err)
+			}
+		})
+	}
+
+	// 一次请求最多带 MaxToolsPerRequest 个工具：比它更长的白名单无法被满足，保存时就拒绝。
+	tooMany := ai.RecommendedSettings()
+	allowed := make([]string, 0, ai.MaxToolsPerRequest+1)
+	for index := 0; index <= ai.MaxToolsPerRequest; index++ {
+		allowed = append(allowed, fmt.Sprintf("tool-%d", index))
+	}
+	tooMany.Reply.Tools = &ai.ReplyToolSettings{Allowed: allowed}
+	if err := tooMany.Validate(); !errors.Is(err, ai.ErrSettingsInvalid) {
+		t.Fatalf("oversized allowlist must be rejected, got %v", err)
 	}
 }

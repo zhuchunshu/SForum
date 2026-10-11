@@ -193,6 +193,7 @@ type ManifestRegion = extensionmanifest.ManifestRegion
 type ManifestDependency = extensionmanifest.ManifestDependency
 type ManifestLifecycle = extensionmanifest.ManifestLifecycle
 type ManifestOpenAPIFragment = extensionmanifest.ManifestOpenAPIFragment
+type ManifestAITool = extensionmanifest.ManifestAITool
 type ManifestPackageFile = extensionmanifest.ManifestPackageFile
 type TopicActionContributionPayload = extensionmanifest.TopicActionContributionPayload
 type ContributionPointDefinition = extensionmanifest.ContributionPointDefinition

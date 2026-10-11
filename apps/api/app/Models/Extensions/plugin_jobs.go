@@ -41,6 +41,7 @@ func PluginJobContractForExtension(extension Extension, jobName string) (support
 			PayloadSchemaID: schemaID, PayloadSchemaVersion: schemaVersion,
 			RetryPolicy: declared.RetryPolicy, MaxAttempts: declared.MaxAttempts,
 			RetryDelaySeconds: declared.RetryDelaySeconds, ConcurrencyLimit: declared.ConcurrencyLimit,
+			Queue: declared.Queue,
 		}
 		contract = contract.Normalized()
 		if !ok || !contract.Valid() {

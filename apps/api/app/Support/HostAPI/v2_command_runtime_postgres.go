@@ -20,6 +20,12 @@ type PostgresProtocolV2CommandRuntimeConfig struct {
 	Moderation         *moderation.PostgresStore
 	AttachmentStatuses ProtocolV2AttachmentStatusMutator
 	IdentityAuthority  ProtocolV2IdentityAuthorityMutationGate
+	// Events 是插件发布自身事件的宿主事件总线。为 nil 时事件发布命令报告
+	// 不可用而不是被静默省略 —— 目录是密封的，缺依赖必须显式可见。
+	Events ProtocolV2EventPublisher
+	// AI 是插件发起补全的宿主网关。同样为 nil 时报告不可用：让插件悄悄退回
+	// 自建出站就等于把成本重新放回账外。
+	AI ProtocolV2AIGateway
 }
 
 // NewPostgresProtocolV2CommandRuntime publishes the complete immutable domain
@@ -49,6 +55,8 @@ func NewPostgresProtocolV2CommandRuntime(config PostgresProtocolV2CommandRuntime
 		newProtocolV2ExtensionSettingsUpdateCommandDefinition(),
 		newProtocolV2ExtensionSettingsActionCommandDefinition(),
 		newProtocolV2NotificationEmitCommandDefinition(config.Pool, config.Jobs),
+		newProtocolV2EventsEmitCommandDefinition(config.Events),
+		newProtocolV2AICompleteCommandDefinition(config.AI),
 	)
 	if err != nil {
 		return nil, err

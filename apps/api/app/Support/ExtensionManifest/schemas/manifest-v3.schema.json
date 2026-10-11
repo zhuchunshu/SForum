@@ -166,6 +166,9 @@
     "openapi": {
       "$ref": "#/$defs/openapi"
     },
+    "aiTools": {
+      "$ref": "#/$defs/aiTools"
+    },
     "packageFiles": {
       "$ref": "#/$defs/packageFiles"
     },
@@ -1193,6 +1196,13 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 16
+          },
+          "queue": {
+            "enum": [
+              "default",
+              "ai"
+            ],
+            "description": "Queue lane for this job. Omit or use \"default\" for ordinary work; \"ai\" is the site low-concurrency lane for slow model calls. Other Host queues are not open to extensions."
           }
         }
       }
@@ -3273,6 +3283,51 @@
         },
         "checkpointSchema": {
           "$ref": "#/$defs/schemaRef"
+        }
+      }
+    },
+    "aiTools": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "contractVersion",
+          "name",
+          "description",
+          "handler",
+          "timeoutMs"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "contractVersion": {
+            "$ref": "#/$defs/contract"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9_-]+$"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parameters": {},
+          "handler": {
+            "$ref": "#/$defs/handler"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000
+          }
         }
       }
     },

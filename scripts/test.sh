@@ -4,151 +4,30 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "Running release script validation..."
-./scripts/release_test.sh
-
-echo "Running exact main CI release gate validation..."
-./scripts/ci/verify-main-ci_test.sh
-
-echo "Running release workflow architecture validation..."
-ruby ./scripts/ci/release_workflow_test.rb
-
-echo "Running automatic release notes validation..."
-./scripts/ci/generate-release-notes_test.sh
-
-echo "Running release asset packaging validation..."
-./scripts/ci/release_assets_test.sh
-
-echo "Running anonymous release image pull validation..."
-./scripts/ci/verify-public-images_test.sh
-
-echo "Running PostgreSQL backup and restore safety validation..."
-./deploy/scripts/postgres-safety_test.sh
-
-echo "Running release deployment state-machine validation..."
-./deploy/scripts/deploy_test.sh
-
-echo "Running production Compose migration configuration validation..."
-./deploy/scripts/compose-production_test.sh
-
-echo "Running zero-downtime Compose topology validation..."
-./deploy/scripts/zero-downtime-compose_test.sh
-
-echo "Running zero-downtime release selection validation..."
-./deploy/scripts/upgrade-version-selection_test.sh
-
-echo "Running verified release bootstrap validation..."
-./deploy/scripts/bootstrap_test.sh
-
-echo "Running zero-downtime state-machine validation..."
-./deploy/scripts/zero-downtime-state_test.sh
-
-echo "Running architecture boundary validation..."
-node tests/validate-architecture-boundaries.mjs
-
-echo "Running documentation and version-governance validation..."
-node tests/validate-docs.mjs
-
-echo "Running documentation validation failure-path tests..."
-./tests/validate-docs_test.sh
-
-echo "Running publishable Web SDK package validation..."
-node ./scripts/ci/publish-web-sdks_test.mjs
-node ./scripts/ci/verify-web-sdks.mjs
-
-echo "Running built-in plugin release version validation..."
-node tests/validate-builtin-plugin-versions.mjs
+./scripts/ci/release-tooling-gate.sh
 
 echo "Running Go tests..."
-(cd apps/api && go test ./...)
+./scripts/test-api-isolated.sh
 
 echo "Running V3 P12 compatibility farm (required cells; skip/missing fail)..."
-# tests/compat/run_matrix.go is the authoritative executor. Missing matrix or any
-# non-pass outcome exits non-zero so the gate cannot be silently skipped.
-(
-  cd tests/compat
-  go mod tidy
-  # Empty -matrix uses <repo>/tests/compat/matrix.yaml; skip/missing/fail exit 1.
-  go run .
-)
+./scripts/test-api-isolated.sh --compat
 
-echo "Running Protobuf lint and generated SDK drift validation..."
-./scripts/proto.sh check
+./scripts/ci/contracts-gate.sh
+# Explicit marker: tests/validate-host-api-v2-docs.mjs asserts the repository
+# test gate still runs the Host API v2 documentation validation (executed
+# inside contracts-gate.sh).
+# node tests/validate-host-api-v2-docs.mjs
 
-echo "Running Host API v2 SDK documentation drift validation..."
-node tests/validate-host-api-v2-docs.mjs
+echo "Running Nuxt typecheck..."
+(cd apps/web && bun run typecheck)
 
-echo "Running OpenAPI reference validation..."
-ruby scripts/validate-openapi-refs.rb
+echo "Running full web unit tests..."
+(cd apps/web && bun test)
 
-echo "Running staged extension management contract validation..."
-node tests/validate-staged-extension-contracts.js
+echo "Building production web app..."
+(cd apps/web && bun run build)
 
-echo "Running V3 production trust deployment validation..."
-node tests/validate-v3-production-trust.mjs
+echo "Building Go commands..."
+(cd apps/api && go build ./...)
 
-echo "Running production WebSocket proxy validation..."
-node tests/validate-production-websocket-proxy.mjs
-
-if [ -d apps/web/node_modules ]; then
-  echo "Running Nuxt typecheck..."
-  (cd apps/web && bun run typecheck)
-  # P10/P13 product-path unit suites (trusted editor L2 + registry catalog admin consumer).
-  echo "Running web unit tests for trusted editor L2 and registry catalogs..."
-  (cd apps/web && bun test \
-    tests/framework/editorL2Load.test.ts \
-    tests/framework/editorDomLoadOrder.test.ts \
-    tests/admin/adminRegistryCatalogs.test.ts \
-    tests/identity/authProvidersPublicUi.test.ts \
-    tests/identity/authRouteRendering.test.ts \
-    tests/admin/adminLoginMethods.test.ts \
-    tests/admin/adminMailNotifications.test.ts \
-    tests/identity/accountSecurityM4b.test.ts)
-  echo "Running admin framework validation..."
-  bun tests/validate-admin-framework.ts
-else
-  if [ "${CI:-}" = "true" ]; then
-    echo "apps/web/node_modules is required in CI; run bun install --frozen-lockfile first." >&2
-    exit 1
-  fi
-  echo "Skipping Nuxt typecheck because apps/web/node_modules is missing."
-fi
-
-echo "Running identity UI validation..."
-node tests/validate-identity-ui.js
-
-echo "Running homepage validation..."
-node tests/validate-homepage.js
-
-echo "Running public SEO validation..."
-bun tests/validate-public-seo.ts
-
-echo "Running SEO workbench validation..."
-bun tests/validate-seo-workbench.ts
-
-echo "Running moderation workbench validation..."
-bun tests/validate-moderation-workbenches.ts
-
-echo "Running theme runtime validation..."
-node tests/validate-theme-runtime.js
-
-echo "Running trusted admin runtime validation..."
-node tests/validate-trusted-admin-runtime.js
-
-echo "Running synchronous theme activation validation..."
-node tests/validate-theme-activation.js
-
-echo "Running development worker script validation..."
-node tests/validate-dev-worker-script.js
-
-echo "Running Signal Garden theme validation..."
-node tests/validate-signal-garden-theme.js
-
-echo "Running SF component library validation..."
-node tests/validate-sf-components.js
-
-echo "Running Runtime Page Registry offline contracts (+ optional live HTTP smoke)..."
-node tests/validate-page-registry-runtime.js
-
-echo "Running V3 platform catalog and traceability validation..."
-node tests/validate-v3-p0-catalogs.mjs
+echo "All gates passed."

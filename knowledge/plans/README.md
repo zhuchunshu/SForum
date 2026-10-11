@@ -20,12 +20,14 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
+| `2026-10-11-ai-plugin-host-api-m1.md` | **landed** -- 插件 Host AI 命令（`sforum.ai.complete` + `ai.invoke`）、事件发布命令（`sforum.events.emit`）与 `ai.tool` 贡献路径（`aiTools[]`、保留 slot、装配登记、SDK 路由）已落地并端到端验证；M4 `ai.purpose` registry 也已落地（见 `sessions/2026-10-12-ai-purpose-registry-m4-handoff.md`）；剩余 M3/M5、按用途覆盖的控制台 UI 与缓存开关 |
 | `2026-10-11-ai-control-panel-remediation.md` | **completed** -- AI 控制台修复 M0-M6 完成（fail-closed/重置语义/策略 UI/nil 语义/诊断对齐/观测打磨）；仅渲染 QA 待管理员凭据 |
 | `2026-10-10-achievements-gamification.md` | **ready** -- design + event inventory complete; M0 surface matrix and contracts first; no implementation started |
 | `2026-08-22-builtin-shortcodes.md` | **active / blocked** -- M10B parser conformance and focused gates pass; exact immutable active-artifact promotion and final lifecycle/browser leakage gate remain |
 | `2026-08-22-extension-authoring-speed-and-controlled-power.md` | **ready** -- M0 contract/call-chain/threat freeze is first; no implementation started |
 | `2026-10-03-ai-read-only-chat-tools.md` | **active** -- read-only chat tools for the reply bot landed (contract, adapters, loop, five built-in tools, admin settings); rendered QA and plugin-facing tool surface remain |
 | `2026-10-02-ai-assist-platform.md` | **ready** -- Host AI gateway contracts and the plugin/provider split are approved; M0 kernel work may start |
+| `2026-10-12-ai-forward-ideas.md` | **blueprint** -- AI 前瞻想法池：两批共 35 条（首批 6 + T1-T4 15 + 第二批 14）；embedding/多模态相关项标注需重开 2026-10-02 排除决定 |
 | `2026-07-30-image-sticker-platform.md` | **active** -- Forum Canvas base editor verified; sticker M0 contract and remaining picker decisions are next |
 | `2026-07-13-trusted-plugin-theme-platform-v3.md` | **active** -- Protocol migration complete; theme-loader LTS residual and production-rewire honesty remain |
 | `2026-07-13-trusted-plugin-theme-platform-v3-progress.md` | **active** -- durable residual ledger; do not claim 100% |

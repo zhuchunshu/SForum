@@ -380,7 +380,12 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	aiProvider := providers.NewAIProvider(pool, aiSecrets, identityStore, authSessions, providers.AIOutboundOptions{
 		AllowHTTP:    !strings.EqualFold(cfg.AppEnv, "production"),
 		AllowPrivate: config.AllowPrivateAIEndpoint(cfg),
-	})
+	}, cache.NewRedisCache(sharedRedisClient))
+	// AI 网关在这里才可用（它需要 Secret Store，后者由扩展平台阶段产出），因此
+	// 命令目录冻结时拿到的是一个占位目标，此刻回填真实网关。
+	if extensionPlatform.commandDeferred != nil {
+		extensionPlatform.commandDeferred.AI.Set(aiProvider.Gateway())
+	}
 	optionsProvider := providers.NewOptionsProviderWithService(optionsService, identityStore, authSessions)
 	systemUpdatesProvider := providers.NewSystemUpdatesProvider(
 		systemupdates.NewService(options.NewSystemUpdatesSource(optionsService), systemupdates.WithLogger(logger)),
@@ -452,6 +457,23 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		Gateway:  aiProvider.Gateway(),
 		Registry: aiToolRegistry,
 	})
+	// 插件贡献的 AI 工具登记进同一张工具表，让「站内有哪些工具」只有一个可枚举
+	// 答案。登记不等于暴露：模型实际能看到哪些工具由用途自己的白名单决定
+	// （RunInput.ToolNames），Core 用途的白名单不含插件工具。
+	//
+	// 恢复模式与 Safe Mode 下插件运行时并未启动，此时登记只会造出「看得见、
+	// 调不动」的工具，因此直接跳过。
+	if !cfg.SafeMode && !pluginRuntimeRecovery.Active() {
+		pluginItems, listErr := extensionStore.List(ctx)
+		switch {
+		case listErr != nil:
+			logger.Warn("plugin AI tool registration skipped: list extensions failed", "error", listErr)
+		default:
+			for _, failure := range registerPluginAITools(aiToolRegistry, providers.NewAIToolInvoker(lifecycleRuntime), pluginItems) {
+				logger.Warn("plugin AI tool registration skipped", "error", failure)
+			}
+		}
+	}
 	pageModerationService := moderation.NewServiceWithWorkbench(
 		moderationStore, moderation.NewForumTargetValidator(forumStore), moderationStore, moderationStore,
 	)

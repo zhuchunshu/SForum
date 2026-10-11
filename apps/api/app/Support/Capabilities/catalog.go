@@ -20,6 +20,10 @@ const (
 	UsersRead        = "users.read"
 	AuditAppend      = "audit.append"
 	HostAPI          = "host.api"
+	// AIInvoke 允许插件经宿主 AI 网关发起补全：成本记账、限流与审计都归宿主。
+	AIInvoke = "ai.invoke"
+	// EventsEmit 允许插件向宿主事件通道发布自身命名空间下的事件。
+	EventsEmit = "events.emit"
 	// Trusted automation: process capabilities, never human RBAC or PAT scopes.
 	ExtensionsRead   = "extensions.read"
 	ExtensionsCall   = "extensions.call"
@@ -128,6 +132,20 @@ var catalog = []Definition{
 		LabelZH:     "管理受信任扩展",
 		LabelEN:     "Manage trusted extensions",
 		Description: "Perform allowlisted settings update/reset/action and disable of already-trusted non-system non-self plugins via Host Commands. Never replaces super_admin trust confirmation.",
+	},
+	{
+		Key:         AIInvoke,
+		Risk:        RiskMedium,
+		LabelZH:     "调用宿主 AI 网关",
+		LabelEN:     "Invoke Host AI gateway",
+		Description: "Send AI completion requests through the Host gateway so cost accounting, rate limits, and audit stay host-owned. Subject and cost gates still apply per request.",
+	},
+	{
+		Key:         EventsEmit,
+		Risk:        RiskLow,
+		LabelZH:     "发布自身命名空间事件",
+		LabelEN:     "Emit own-namespace events",
+		Description: "Publish events strictly under this extension's namespace through the Host event channel; core event names and other plugins' namespaces stay closed.",
 	},
 }
 

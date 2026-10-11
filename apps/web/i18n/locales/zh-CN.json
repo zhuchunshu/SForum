@@ -746,7 +746,8 @@
         "providers": "供应商与闸门",
         "replyPrompt": "回复提示词",
         "diagnose": "连通性测试",
-        "observability": "用量与执行记录"
+        "observability": "用量与执行记录",
+        "purposes": "AI 用途"
       },
       "replyPrompt": {
         "title": "回复提示词",
@@ -779,14 +780,14 @@
         "tokensIn": "输入 token",
         "tokensOut": "输出 token",
         "okToast": "AI 连接正常。",
-      "emptyReply": "供应商返回了一次成功的调用，但没有正文内容。",
-      "emptyReplyToast": "AI 调用成功，但模型没有返回正文。",
+        "emptyReply": "供应商返回了一次成功的调用，但没有正文内容。",
+        "emptyReplyToast": "AI 调用成功，但模型没有返回正文。",
         "reasons": {
           "gateway_disabled": "AI 总开关处于关闭状态。",
           "profile_unavailable": "没有可用的提供商：可能没选中任何一个，或选中的配置不完整。",
           "credential_missing": "该提供商的 API 密钥还没配置。",
           "provider_failed": "请求已发出但没有成功，详情见下方错误。",
-      "empty_reply": "调用成功但模型没有返回正文：推理类模型通常先把输出预算消耗在思考上。请提高该供应商的最大输出 token 后重试。",
+          "empty_reply": "调用成功但模型没有返回正文：推理类模型通常先把输出预算消耗在思考上。请提高该供应商的最大输出 token 后重试。",
           "unsafe_target": "出站守卫拒绝了该地址：默认只允许公网地址，生产只允许 https。本机或内网模型服务需要在 .env 里设置 SFORUM_AI_ALLOW_PRIVATE_ENDPOINT=true（仅非生产生效）并重启 API。",
           "budget_exceeded": "本月预算已用尽，请求被预算闸门拦截。",
           "rate_limited": "达到站点速率上限，请求被限流。",
@@ -798,7 +799,64 @@
         "no_enabled_profile_has_price": "已启用的供应商没有配置单价，预算闸门不会生效。",
         "monthly_budget_is_zero": "月度预算为 0，预算闸门停用。",
         "cost_class_unbound": "有成本等级没有绑定供应商，对应用途的调用会失败。"
-      }
+      },
+      "purposes": {
+        "tab": "AI 用途",
+        "title": "AI 用途",
+        "intro": "站内每一个 AI 用途都按这里的声明运行：它花哪一档模型、失败时怎么降级、模型能看见哪些工具。默认即推荐值，只有需要收窄能力时才改。",
+        "empty": "站内还没有声明任何 AI 用途。",
+        "columns": {
+          "purpose": "用途",
+          "cost": "成本等级",
+          "posture": "失败时的行为",
+          "tools": "模型可见工具"
+        },
+        "cost": {
+          "economy": "经济",
+          "standard": "标准",
+          "premium": "高成本"
+        },
+        "posture": {
+          "followDeclared": "跟随声明（{value}）",
+          "fail_open": "降级继续（不因 AI 不可用拦住用户）",
+          "fail_closed": "失败关闭（AI 不可用时拒绝该操作）",
+          "skip_ai": "跳过 AI（不回答，也不报错）",
+          "economyHint": "经济档用于高频、低难度任务；改模型请改成本等级绑定。"
+        },
+        "postureValue": {
+          "fail_open": "降级继续",
+          "fail_closed": "失败关闭",
+          "skip_ai": "跳过 AI"
+        },
+        "blastRadius": {
+          "title": "影响范围",
+          "single": "单次交互",
+          "batch": "一批资源",
+          "site": "全站可见内容"
+        },
+        "tools": {
+          "followDeclared": "跟随声明",
+          "followDeclaredHint": "使用该用途声明的默认工具列表（推荐）。",
+          "custom": "自定义",
+          "customHint": "以这里勾选的为准；一个都不勾表示该用途不能调用任何工具，回复会退化为纯文本。",
+          "declaredTitle": "声明默认",
+          "allowedTitle": "当前生效",
+          "declaredBadge": "声明",
+          "overriddenBadge": "已自定义",
+          "addPlaceholder": "输入工具名（例如插件贡献的工具）后回车",
+          "add": "添加",
+          "remove": "移除 {name}",
+          "unknownHint": "未注册的工具名会被服务端跳过；插件工具必须在这里点名才会对模型可见。",
+          "nameInvalid": "工具名只能包含小写字母、数字、连字符和下划线。",
+          "tooMany": "最多 {max} 个工具。"
+        },
+        "restore": "恢复声明默认",
+        "restoreDone": "已恢复该用途的声明默认值",
+        "resourceType": "资源类型：{value}",
+        "promptVersion": "提示词版本：{value}",
+        "dirtyHint": "改动尚未保存。"
+      },
+      "loading": "加载中…"
     },
     "nav": {
       "dashboard": "仪表盘",

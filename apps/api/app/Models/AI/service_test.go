@@ -198,3 +198,77 @@ func TestServiceWorksWithoutOptionalStores(t *testing.T) {
 		t.Fatalf("executions = %+v err = %v", items, err)
 	}
 }
+
+// 回复用途参数的来源语义：未配置时报告「没有覆盖」，让生成器回退到用途声明；
+// 配置了（哪怕为空）就以站点配置为准。这个区分是插件工具暴露策略的全部依据。
+func TestServiceReplyPurposeParametersReportOverrideState(t *testing.T) {
+	store := &stubSettings{stored: supportai.RecommendedSettings().Normalized()}
+	service := modelsai.NewService(modelsai.Config{Settings: store})
+	ctx := context.Background()
+
+	parameters, err := service.ReplyPurposeParameters(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parameters.ToolsOverride || len(parameters.ToolsAllowed) != len(supportai.CoreReplyToolAllowlist) {
+		t.Fatalf("unconfigured parameters = %#v", parameters)
+	}
+	if parameters.CostClass != supportai.CostClassEconomy || parameters.PromptVersion != supportai.CoreReplyPromptVersion {
+		t.Fatalf("declared parameters = %#v", parameters)
+	}
+
+	settings := supportai.RecommendedSettings().Normalized()
+	settings.Purposes = map[string]supportai.PurposeSettings{
+		supportai.CorePurposeForumReply: {Tools: &supportai.PurposeToolSettings{
+			Allowed: []string{"forum-search", "vendor-plugin-tool"},
+		}},
+	}
+	store.stored = settings
+	parameters, err = service.ReplyPurposeParameters(ctx)
+	if err != nil || !parameters.ToolsOverride || len(parameters.ToolsAllowed) != 2 || parameters.ToolsAllowed[1] != "vendor-plugin-tool" {
+		t.Fatalf("configured parameters = %#v err=%v", parameters, err)
+	}
+
+	settings.Purposes = map[string]supportai.PurposeSettings{
+		supportai.CorePurposeForumReply: {Tools: &supportai.PurposeToolSettings{Allowed: []string{}}},
+	}
+	store.stored = settings
+	parameters, err = service.ReplyPurposeParameters(ctx)
+	if err != nil || !parameters.ToolsOverride || len(parameters.ToolsAllowed) != 0 {
+		t.Fatalf("explicitly empty allowlist = %#v err=%v", parameters, err)
+	}
+}
+
+// 控制台按用途枚举 AI 行为：站内已声明的用途与当前生效参数必须能一次拿到，
+// 而不是让运营者从代码或特例字段里推断。
+func TestServicePurposeDetailsCarryDeclaredAndEffectiveParameters(t *testing.T) {
+	settings := supportai.RecommendedSettings().Normalized()
+	settings.Purposes = map[string]supportai.PurposeSettings{
+		supportai.CorePurposeForumReply: {
+			Tools:          &supportai.PurposeToolSettings{Allowed: []string{"forum-search"}},
+			FailurePosture: supportai.FailurePostureClosed,
+		},
+	}
+	service := modelsai.NewService(modelsai.Config{Settings: &stubSettings{stored: settings}})
+
+	details, err := service.PurposeDetails(context.Background(), managerActor())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(details) != 1 || details[0].Declaration.ID != supportai.CorePurposeForumReply {
+		t.Fatalf("purpose catalog = %+v", details)
+	}
+	if !details[0].ToolsOverridden || len(details[0].ToolsAllowed) != 1 || details[0].ToolsAllowed[0] != "forum-search" {
+		t.Fatalf("effective tools = %+v", details[0])
+	}
+	if len(details[0].Declaration.ToolAllowlist) != len(supportai.CoreReplyToolAllowlist) {
+		t.Fatalf("declared tools must stay visible next to the override: %+v", details[0].Declaration.ToolAllowlist)
+	}
+	if !details[0].FailurePostureOverridden || details[0].FailurePosture != supportai.FailurePostureClosed {
+		t.Fatalf("effective posture = %+v", details[0])
+	}
+
+	if _, err := service.PurposeDetails(context.Background(), memberActor()); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("purpose catalog requires ai.manage: %v", err)
+	}
+}

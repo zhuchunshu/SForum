@@ -68,6 +68,39 @@ type RedactionSettings struct {
 	RedactIP    bool `json:"redactIp"`
 }
 
+// PurposeSettings 是某个用途的站点覆盖。缺省（用途不在 map 里，或某项未设置）
+// 表示沿用用途自己的声明；显式给出则以站点配置为准。
+type PurposeSettings struct {
+	// Tools 覆盖该用途的模型可见工具白名单。nil 表示未覆盖（使用用途声明的
+	// 默认列表）；非 nil（含空列表）表示以站点配置为准。
+	Tools *PurposeToolSettings `json:"tools,omitempty"`
+	// FailurePosture 覆盖该用途的失败姿态。空表示未覆盖（使用用途声明 + 全局
+	// 默认）。它与旧的 purposeFailurePosture 平级，后者保留给未登记用途。
+	FailurePosture string `json:"failurePosture,omitempty"`
+}
+
+// PurposeToolSettings 是某个用途的工具白名单覆盖。
+type PurposeToolSettings struct {
+	Allowed []string `json:"allowed"`
+}
+
+// ToolAllowlist 返回该用途的白名单覆盖。第二个返回值为假表示「未覆盖」，
+// 调用方应回退到用途自己的声明；返回真时（包括空列表）以站点配置为准。
+func (p PurposeSettings) ToolAllowlist() ([]string, bool) {
+	if p.Tools == nil {
+		return nil, false
+	}
+	if p.Tools.Allowed == nil {
+		// {"tools":{}} 视为显式「不给任何工具」：字段存在即表示运营者接管了这一项。
+		return []string{}, true
+	}
+	names := make([]string, 0, len(p.Tools.Allowed))
+	for _, name := range p.Tools.Allowed {
+		names = append(names, strings.TrimSpace(name))
+	}
+	return names, true
+}
+
 // Settings 是站点 AI 配置。它覆盖策略层（全部可配）与受限层（可配但有硬
 // 天花板）。边界层（记账、trace、密钥处理、排序规则、契约版本）不在其中，
 // 也不可由插件或后台改变。
@@ -79,9 +112,14 @@ type Settings struct {
 	// CostClassProfiles 把成本等级映射到 profile id。用途只声明成本等级，
 	// 由配置决定实际使用哪个模型。
 	CostClassProfiles map[string]string `json:"costClassProfiles"`
-	// PurposeFailurePosture 覆盖单个用途的失败姿态；缺省为 fail_open。
+	// PurposeFailurePosture 覆盖单个用途的失败姿态；缺省为 fail_open。它是
+	// 未登记/插件用途的通用出口；已登记用途请优先使用 Purposes 的按用途配置。
 	PurposeFailurePosture map[string]string `json:"purposeFailurePosture"`
-	// Reply 是 AI 回复的可配置部分。零值即使用内置默认提示词。
+	// Purposes 是按用途的站点覆盖。键是用途 id；未列出的用途沿用自身声明。
+	// 它是「回复特例」的替代品：回复工具的覆盖现在写在 Purposes["forum.reply"]
+	// 下，与其它用途走同一条路径。
+	Purposes map[string]PurposeSettings `json:"purposes,omitempty"`
+	// Reply 是 AI 回复的可配置部分（提示词与旧版工具覆盖）。零值即使用内置默认。
 	Reply      ReplySettings      `json:"reply"`
 	AutoAction AutoActionSettings `json:"autoAction"`
 	Gates      GateSettings       `json:"gates"`
@@ -166,12 +204,138 @@ func (s Settings) Normalized() Settings {
 	if s.AutoAction.AllowedActions == nil {
 		s.AutoAction.AllowedActions = []string{}
 	}
+	if s.Reply.Tools != nil {
+		allowed := make([]string, 0, len(s.Reply.Tools.Allowed))
+		for _, name := range s.Reply.Tools.Allowed {
+			allowed = append(allowed, strings.TrimSpace(name))
+		}
+		s.Reply.Tools = &ReplyToolSettings{Allowed: allowed}
+	}
+	s.migrateLegacyReplyTools()
+	s.normalizePurposes()
 	return s
+}
+
+// migrateLegacyReplyTools 把旧版 reply.tools 覆盖搬进按用途的配置里。
+//
+// 旧字段只在「按用途配置里还没有回复用途」时生效：升级前的站点有这份配置，
+// 迁移后运营者的意图不变；已经用新路径配置过的站点不会被旧字段覆盖回去。
+// 旧字段本身保留（不清空），这样回滚到旧版本不会丢失配置。
+func (s *Settings) migrateLegacyReplyTools() {
+	if s.Reply.Tools == nil {
+		return
+	}
+	if s.Purposes == nil {
+		s.Purposes = map[string]PurposeSettings{}
+	}
+	if _, exists := s.Purposes[CorePurposeForumReply]; exists {
+		return
+	}
+	s.Purposes[CorePurposeForumReply] = PurposeSettings{
+		Tools: &PurposeToolSettings{Allowed: append([]string(nil), s.Reply.Tools.Allowed...)},
+	}
+}
+
+// normalizePurposes 去空白并丢弃「空覆盖」条目：一条什么都不覆盖的用途配置
+// 与没有这条配置等价，留着只会让控制台显示一个假的「已自定义」。
+func (s *Settings) normalizePurposes() {
+	if len(s.Purposes) == 0 {
+		s.Purposes = nil
+		return
+	}
+	normalized := make(map[string]PurposeSettings, len(s.Purposes))
+	for id, purpose := range s.Purposes {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		entry := PurposeSettings{
+			FailurePosture: strings.TrimSpace(purpose.FailurePosture),
+		}
+		if purpose.Tools != nil {
+			allowed := make([]string, 0, len(purpose.Tools.Allowed))
+			for _, name := range purpose.Tools.Allowed {
+				allowed = append(allowed, strings.TrimSpace(name))
+			}
+			entry.Tools = &PurposeToolSettings{Allowed: allowed}
+		}
+		if entry.Tools == nil && entry.FailurePosture == "" {
+			continue
+		}
+		normalized[id] = entry
+	}
+	if len(normalized) == 0 {
+		s.Purposes = nil
+		return
+	}
+	s.Purposes = normalized
 }
 
 // Validate 覆盖策略层与受限层。越界值直接拒绝，而不是截断到边界，避免静默
 // 改变运营者的意图。
+// validateReplyTools 校验回复工具白名单的形状。语义（这个工具是否真的存在）不在这里
+// 判定：登记表会随插件启停变化，配置保存时把它钉死会让「先配策略、后装插件」变成
+// 不可能；运行期由登记表跳过未注册的名字。
+//
+// 它同时服务于旧版 reply.tools 与按用途配置（Purposes[...].tools）：两处都是同一
+// 种「名称列表」形状，用同一条规则校验，避免两条路径出现不同口径。
+func validateToolNameList(allowed []string) error {
+	if len(allowed) == 0 {
+		return nil
+	}
+	if len(allowed) > MaxToolsPerRequest {
+		return ErrSettingsInvalid
+	}
+	seen := make(map[string]bool, len(allowed))
+	for _, name := range allowed {
+		name = strings.TrimSpace(name)
+		if !ValidToolName(name) || seen[name] {
+			return ErrSettingsInvalid
+		}
+		seen[name] = true
+	}
+	return nil
+}
+
+func (s Settings) validateReplyTools() error {
+	if s.Reply.Tools == nil {
+		return nil
+	}
+	return validateToolNameList(s.Reply.Tools.Allowed)
+}
+
+// validatePurposes 校验按用途配置的形状。与工具白名单同理，这里刻意不要求用途
+// 「已登记」：用途登记表会随版本与（后续的）插件用途变化，保存时把它钉死会让
+// 「先写策略、后上用途」变成不可能；运行期由 resolver 跳过未登记的用途并回退到
+// 自身默认值。
+func (s Settings) validatePurposes() error {
+	if len(s.Purposes) == 0 {
+		return nil
+	}
+	for id, purpose := range s.Purposes {
+		id = strings.TrimSpace(id)
+		if id == "" || len(id) > MaxPurposeIDLen || !validPurposeID(id) {
+			return ErrSettingsInvalid
+		}
+		if purpose.Tools != nil {
+			if err := validateToolNameList(purpose.Tools.Allowed); err != nil {
+				return err
+			}
+		}
+		if posture := strings.TrimSpace(purpose.FailurePosture); posture != "" && !ValidFailurePosture(posture) {
+			return ErrSettingsInvalid
+		}
+	}
+	return nil
+}
+
 func (s Settings) Validate() error {
+	if err := s.validateReplyTools(); err != nil {
+		return err
+	}
+	if err := s.validatePurposes(); err != nil {
+		return err
+	}
 	if len(s.Profiles) > MaxProfiles {
 		return ErrSettingsInvalid
 	}

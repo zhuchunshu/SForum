@@ -118,6 +118,9 @@ func newGatewayWithUsage(t *testing.T, settings ai.Settings, snapshot ai.UsageBy
 		Creds:    &fakeCreds{value: "sk-test"},
 		Invoker:  invoker,
 		Cache:    cache,
+		// 注入用途登记表：装配路径始终注入它，这里保持一致，否则测试不会覆盖
+		// 「未声明用途必须被拒」这条边界。
+		Purposes: ai.DefaultPurposeRegistry(),
 		Clock:    func() time.Time { return time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC) },
 	})
 	return gateway, usage, traces, invoker, cache
@@ -258,7 +261,7 @@ func TestGatewayReportsMissingCredential(t *testing.T) {
 
 func TestGatewayPropagatesProviderFailureWithPosture(t *testing.T) {
 	settings := enabledSettings()
-	settings.PurposeFailurePosture["moderation.review"] = ai.FailurePostureClosed
+	settings.PurposeFailurePosture[ai.CorePurposeForumReply] = ai.FailurePostureClosed
 	gateway, _, traces, invoker, _ := newGateway(t, settings)
 	invoker.err = errors.New("upstream 503")
 	_, err := gateway.Execute(context.Background(), validRequest())

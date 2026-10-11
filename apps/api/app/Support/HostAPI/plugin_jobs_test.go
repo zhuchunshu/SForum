@@ -157,3 +157,68 @@ func pluginJobArgsFixture() PluginJobArgs {
 		Payload: map[string]any{"page": 1}, EnqueuedAt: time.Now().UTC(),
 	}
 }
+
+type stubPluginJobContractSource struct {
+	contract supportjobs.PluginJobContract
+	err      error
+}
+
+func (s stubPluginJobContractSource) PluginJobContract(context.Context, string, string) (supportjobs.PluginJobContract, error) {
+	return s.contract, s.err
+}
+
+// 声明 queue: ai 的任务必须真的落在 AI 慢速通道上：这是「插件 AI 工作不再和
+// Core 日常任务抢 default worker」的唯一依据。
+func TestRiverJobEnqueuerRoutesDeclaredAIQueue(t *testing.T) {
+	client := &recordingPluginJobRiverClient{}
+	enqueuer := &RiverJobEnqueuer{Dispatcher: supportjobs.NewDispatcher(client)}
+	contract := supportjobs.PluginJobContract{
+		ExtensionID: "demo.plugin", ExtensionVersion: "1.0.0", ArtifactDigest: "digest-v1",
+		JobName: "demo.sync", JobContract: "demo.plugin.job.sync@1",
+		PayloadSchemaID: "demo.sync.payload", PayloadSchemaVersion: "1",
+		Queue: supportjobs.PluginJobQueueAI,
+	}
+	if err := enqueuer.EnqueueVersionedPluginJob(context.Background(), contract, "grant-1", map[string]any{"page": 1}); err != nil {
+		t.Fatal(err)
+	}
+	if client.opts == nil || client.opts.Queue != supportjobs.QueueAI {
+		t.Fatalf("river insert queue = %#v", client.opts)
+	}
+
+	// 未声明队列时保持既有行为（default）。
+	client = &recordingPluginJobRiverClient{}
+	enqueuer = &RiverJobEnqueuer{Dispatcher: supportjobs.NewDispatcher(client)}
+	contract.Queue = ""
+	if err := enqueuer.EnqueueVersionedPluginJob(context.Background(), contract, "grant-1", nil); err != nil {
+		t.Fatal(err)
+	}
+	if client.opts == nil || client.opts.Queue != supportjobs.QueueDefault {
+		t.Fatalf("undeclared river insert queue = %#v", client.opts)
+	}
+}
+
+// v1 路径不携带契约，因此尽力解析一次声明；解析失败必须安全回退到 default，
+// 而不是让一次 job 入队失败或者落到未知队列。
+func TestRiverJobEnqueuerLegacyPathResolvesDeclaredQueue(t *testing.T) {
+	client := &recordingPluginJobRiverClient{}
+	source := stubPluginJobContractSource{contract: supportjobs.PluginJobContract{Queue: supportjobs.PluginJobQueueAI}}
+	enqueuer := &RiverJobEnqueuer{Dispatcher: supportjobs.NewDispatcher(client), Contracts: source}
+	if err := enqueuer.EnqueuePluginJob(context.Background(), "demo.plugin", "demo.sync", map[string]any{"page": 1}); err != nil {
+		t.Fatal(err)
+	}
+	if client.opts == nil || client.opts.Queue != supportjobs.QueueAI {
+		t.Fatalf("legacy path river insert queue = %#v", client.opts)
+	}
+
+	client = &recordingPluginJobRiverClient{}
+	enqueuer = &RiverJobEnqueuer{
+		Dispatcher: supportjobs.NewDispatcher(client),
+		Contracts:  stubPluginJobContractSource{err: errors.New("extension not found")},
+	}
+	if err := enqueuer.EnqueuePluginJob(context.Background(), "demo.plugin", "demo.sync", nil); err != nil {
+		t.Fatal(err)
+	}
+	if client.opts == nil || client.opts.Queue != supportjobs.QueueDefault {
+		t.Fatalf("fallback river insert queue = %#v", client.opts)
+	}
+}

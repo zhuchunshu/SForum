@@ -2,10 +2,13 @@ package ai
 
 // 闸门拒绝原因。它们进入审计与 Admin 提示，因此是稳定字符串。
 const (
-	GateReasonDisabled       = "gateway_disabled"
-	GateReasonBudgetExceeded = "budget_exceeded"
-	GateReasonRateLimited    = "rate_limited"
-	GateReasonQuotaExceeded  = "quota_exceeded"
+	GateReasonDisabled         = "gateway_disabled"
+	GateReasonBudgetExceeded   = "budget_exceeded"
+	GateReasonRateLimited      = "rate_limited"
+	GateReasonQuotaExceeded    = "quota_exceeded"
+	GateReasonPurposeUnknown   = "purpose_unknown"
+	GateReasonPurposeInvalid   = "purpose_invalid"
+	GateReasonCostClassInvalid = "cost_class_invalid"
 )
 
 // 被哪个作用域拒绝。超限只影响该作用域，其他调用方不受牵连。

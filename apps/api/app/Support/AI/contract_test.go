@@ -10,7 +10,7 @@ import (
 
 func validRequest() ai.CompletionRequest {
 	return ai.CompletionRequest{
-		Purpose:   "moderation.review",
+		Purpose:   "forum.reply",
 		CostClass: ai.CostClassEconomy,
 		System:    "你是社区审核助手。",
 		Messages: []ai.Message{
@@ -60,10 +60,10 @@ func TestCompletionRequestRejectsContractViolations(t *testing.T) {
 
 func TestCompletionRequestNormalizedTrimsIdentifiers(t *testing.T) {
 	request := validRequest()
-	request.Purpose = "  moderation.review  "
+	request.Purpose = "  forum.reply  "
 	request.Metadata.ResourceID = " 42 "
 	normalized := request.Normalized()
-	if normalized.Purpose != "moderation.review" || normalized.Metadata.ResourceID != "42" {
+	if normalized.Purpose != "forum.reply" || normalized.Metadata.ResourceID != "42" {
 		t.Fatalf("unexpected normalization: %+v", normalized)
 	}
 }

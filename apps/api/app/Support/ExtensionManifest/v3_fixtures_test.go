@@ -15,11 +15,11 @@ func TestManifestV3AuthoritativeFixtures(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{
-		"admin-plugin.json", "dependency-base.json", "dependency-consumer.json",
-		"dependency-provider.json", "full-route-plugin.json", "identity-plugin.json",
-		"l2-plugin.json", "media-plugin.json", "minimal-theme.json",
-		"navigation-plugin.json", "query-plugin.json", "raw-db-plugin.json",
-		"safe-plugin.json", "trusted-application-plugin.json",
+		"admin-plugin.json", "ai-tool-plugin.json", "dependency-base.json",
+		"dependency-consumer.json", "dependency-provider.json", "full-route-plugin.json",
+		"identity-plugin.json", "l2-plugin.json", "media-plugin.json",
+		"minimal-theme.json", "navigation-plugin.json", "query-plugin.json",
+		"raw-db-plugin.json", "safe-plugin.json", "trusted-application-plugin.json",
 	}
 	got := make([]string, 0, len(paths))
 	manifests := map[string]Manifest{}

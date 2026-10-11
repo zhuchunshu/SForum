@@ -33,6 +33,8 @@ func newEmbeddedAIReplyGenerator(core *apiCoreStack) *aireply.Generator {
 	if forumService == nil || gateway == nil {
 		return nil
 	}
+	// AI 服务同时提供回复提示词与工具白名单两项配置来源：两者都住在同一份设置
+	// 文档里，且都在每次回复时读取，配置改完立即生效。
 	return providers.NewAIReplyGenerator(core.pool, core.identityStore, forumService, gateway, core.aiOrchestrator, core.aiProvider.Service())
 }
 

@@ -96,13 +96,47 @@ live in configuration, not in Core code.
   replying to but had nothing to pass to `user-profile-read`, so the tool was
   unreachable for exactly the users in the conversation.
 - `user-search` resolves a nickname to a handle; `user-profile-read` then reads
-  the public profile. Both are in `aireply.ReplyToolAllowlist`; an injected
-  prompt cannot reach a tool the purpose never advertised.
+  the public profile. Both are in the `forum.reply` purpose declaration
+  (`supportai.CoreReplyToolAllowlist`); an injected prompt cannot reach a tool the
+  purpose never advertised.
 - `profile.Service.SearchPublicUsers` is the only user directory read path the
   bot has: non-empty query required (an empty query would become `%%` and list
   every member), LIKE metacharacters escaped, active accounts only, bounded
   results, and a projection type with no email/status/role field. See
   `decisions/2026-10-11-ai-reply-endpoint-identity-and-user-search.md`.
+
+## Purposes
+
+- **用途是声明，不是调用点的细节。** `app/Support/AI/purpose.go` 的
+  `PurposeDeclaration` 记录 id、双语名称/说明、成本等级、失败姿态、默认工具白名单、
+  资源类型、提示词版本与影响范围（single/batch/site）；`PurposeRegistry` 拒绝重复 id
+  与任何不合规声明，装配期构造后只读。`forum.reply` 是当前唯一条目；
+  `DefaultPurposeRegistry()` 是进程单例，保证「回复用途声明了什么」在一个进程里
+  只有一个答案。
+- **解析优先级固定为「站点按用途覆盖 > 用途声明默认值」**，且不可反转：声明是 Core
+  （后续是插件）写下的能力边界，运营者只能在已声明的用途上做选择。
+  `PurposeResolver` 由网关（拒绝未声明用途）、服务层（回复参数）与控制台（用途清单）
+  共用，因此「控制台显示的生效值」与「运行期实际使用的值」不可能分叉。
+- **未声明的用途必须失败关闭**：`Gateway.Execute` 在总开关之后、闸门之前校验用途，
+  未声明即 `purpose_unknown` + denied trace + 零出站；站点关闭时答案仍然只有一个
+  `gateway_disabled`。`GatewayConfig.Purposes` 可缺省（老部署/单测兼容），装配路径
+  `Providers.NewAIProvider` 始终注入。
+- **站点配置 `settings.purposes`** 是登记表的镜像：缺省沿用声明默认；`tools` 出现
+  （含空列表）即运营者接管该用途的工具白名单；保存只校验形状，存在性在请求期解析
+  （用途集合会随版本与后续插件用途变化）。旧的 `reply.tools` 在 `Normalized()` 里
+  迁移进 `purposes["forum.reply"].tools`，旧字段保留可读（回滚不丢配置），新配置优先。
+- 回复生成器不再自带工具常量、成本等级或提示词版本：三者由一次
+  `ReplyParameterSource.ReplyPurposeParameters` 解析，杜绝「成本等级来自 A、工具来自
+  B」。解析失败回退到声明默认值（声明成本等级 + Core 工具列表 + 声明提示词版本），
+  绝不回退成「无白名单」或「全部工具」。
+- 控制台 `GET /admin/ai/settings` 返回 `purposes` 清单（声明与生效参数、覆盖标记），
+  `PATCH` 接受 `purposes`；`/control-panel/ai?tab=purposes` 的用途页签
+  （`blocks/SFAdminAIPurposesBlock.vue`）按用途提供失败姿态与工具白名单覆盖，
+  「跟随声明」与「自定义」是两种事实，声明默认与生效值并列展示，一键恢复声明默认。
+  页面壳 `await ai.ready` 后才渲染——AI 控制台所有页签共享的三个 useAsyncData 必须在
+  SSR 渲染前完成，否则服务端按空兜底渲染、客户端按真实载荷水合，hydration 必然
+  mismatch（2026-10-12 修复）。**窄屏渲染 QA 待做**（390x844）。决策：
+  `decisions/2026-10-12-ai-purpose-registry.md`。
 
 ## Defaults semantics
 
@@ -110,15 +144,54 @@ live in configuration, not in Core code.
   生效，0 = 停用工具调用。前端归一化显式区分两者（`JSON.stringify` 会抹平
   undefined，不能直接比较）。
 - `reply.systemPrompt` 为空表示使用内置默认；`ReplyPromptSafetyAppendix` 始终追加
-  且不可配置。
+  且不可配置。提示词暂时留在 `reply.*`：只有回复一个用途时，把提示词做成按用途字段
+  是在猜接口；第一个非回复用途落地时它移入用途声明（`purposes[id].systemPrompt`），
+  安全尾注对所有用途保持不可配置。
 - `autoAction.allowedActions` 只接受 hide/tag/reject；删除类动作永不进入白名单。
 
 ## Permissions
 
+- **插件面（M1/M1.5/M2，2026-10-11）**：`sforum.ai.complete@1`（`ai.invoke`，
+  service 模式，`Metadata.CallerExtensionID` 由 runtime 身份注入）是插件发起补全的
+  唯一入口；`sforum.events.emit@1`（`events.emit`）让插件发布自身命名空间事件；
+  清单 `aiTools[]` 让插件贡献工具，走保留 slot `sforum.ai.tool` 的 versioned
+  ProviderCall，装配期登记进同一张 Core 工具表（登记不等于暴露，插件工具不进任何
+  Core 用途白名单，也永不覆盖 Core 工具名）。任何插件调用宿主命令都需要清单声明
+  `database.grants: ["host_commands"]`，否则命令体之前即被拒为
+  `host.command_authority_denied`。子进程 fixture：
+  `extensions/fixtures/plugins/sforum-ai-command-reference/`（命令四路径）与
+  `sforum-ai-tool-reference/`（工具派发）。事件发布的子进程 fixture 是
+  `extensions/fixtures/plugins/sforum-events-command-reference/`；它的引入抓到了
+  事件命令「Preview 缺 Policy、Prepare 只带 private」导致无法通过 broker 规划的缺陷。
+- **出站脱敏**：`app/Support/AI/redaction.go` 的 `RedactText`/`ApplyRedaction` 在
+  `Gateway.Execute` 里于缓存键与出站之前执行，覆盖 system、消息正文与工具调用参数
+  （参数按 JSON 字符串值递归脱敏）；占位符 `[redacted-email]` / `[redacted-phone]`
+  / `[redacted-ip]`；匹配保守（@提及、订单号、版本号、时间戳、裸数字不动）；关闭或
+  未命中时零改写。决策：`decisions/2026-10-11-ai-outbound-redaction.md`。
+- **插件工具暴露**：用途的模型可见工具白名单来自站点设置
+  `purposes["<id>"].tools.allowed`（旧的 `reply.tools.allowed` 仍被接受并迁移；缺省＝
+  该用途声明的 Core 列表；显式列出即覆盖，空列表＝不允许任何工具）。插件贡献的工具
+  必须被运营者点名才会出现；保存只校验形状，存在性在请求期由登记表解析（未注册名
+  跳过）。决策：`decisions/2026-10-12-ai-plugin-tool-exposure-policy.md` 与
+  `decisions/2026-10-12-ai-purpose-registry.md`。
+- **结果缓存**：`app/Support/AI/result_cache.go` 把 `Support/Cache` 接到网关的
+  `ResultCache` 面上，生产用 Redis 装配（`Providers/ai.go`），默认 TTL 10 分钟；
+  `CacheKey` 含调用方/用途/profile/模型/提示词版本/配置 revision/工具/脱敏后正文，
+  因此改配置自然换键；命中不记账、不消耗额度，并在返回结果上写 `cacheHit: true`。
+  决策：`decisions/2026-10-11-ai-result-cache-wiring.md`。
+- 插件 job 可声明 `queue: "ai"`，进入与 Core AI 任务同一条低并发通道
+  （`JOB_QUEUE_AI_WORKERS`）；取值集合封闭，其余队列不向插件开放。决策：
+  `decisions/2026-10-12-plugin-job-queue-declaration.md`。
 - 所有 `/admin/ai/*` 路由要求 `ai.manage`。前端 `can('ai.manage')` 只是体验辅助，
   服务层校验才是权威。
 
 ## Extension surface
 
 - 扩展通过 Host API 与 provider slot 使用 AI 能力；用途（purpose）声明成本等级，
-  配额按站点/扩展/用户三个作用域分别结算。
+  配额按站点/扩展/用户三个作用域分别结算。插件调用宿主命令（含 `sforum.ai.complete`）
+  需要清单声明 `database.grants: ["host_commands"]`。
+- 插件 AI 工具的执行器适配层在 `app/Support/AI/toolplugin`（`PluginToolInvoker`、
+  `PluginTool`、`PluginToolRegistry`）。它曾是 `Support/AI` 的一个文件，而
+  `Support/AI` → `Models/Extensions` 与 `Models/Extensions` 测试 → `Support/HostAPI`
+  → `Support/AI` 构成测试期 import 环，导致 `Models/Extensions` 测试包完全无法编译；
+  移到子包即修复，依赖方向也正确（适配层依赖 AI 契约，反之不然）。

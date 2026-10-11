@@ -2,6 +2,7 @@
 import type { Component } from 'vue'
 import SFAdminAIProvidersTab from '~/components/admin/ai/tabs/SFAdminAIProvidersTab.vue'
 import SFAdminAIReplyPromptTab from '~/components/admin/ai/tabs/SFAdminAIReplyPromptTab.vue'
+import SFAdminAIPurposesTab from '~/components/admin/ai/tabs/SFAdminAIPurposesTab.vue'
 import SFAdminAIDiagnoseTab from '~/components/admin/ai/tabs/SFAdminAIDiagnoseTab.vue'
 import SFAdminAIObservabilityTab from '~/components/admin/ai/tabs/SFAdminAIObservabilityTab.vue'
 import SFAdminFixedTabNav from '~/components/admin/settings/shared/SFAdminFixedTabNav.vue'
@@ -18,7 +19,7 @@ defineOptions({
   name: 'AdminAI'
 })
 
-type AITab = 'providers' | 'replyPrompt' | 'diagnose' | 'observability'
+type AITab = 'providers' | 'replyPrompt' | 'purposes' | 'diagnose' | 'observability'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,18 +28,22 @@ const adminPage = useAdminPage('/ai')
 // 页面壳是唯一的数据所有者：页签通过注入拿到同一份上下文，避免同一个
 // useAsyncData key 被多个组件持有而在卸载时被清理。
 const ai = useAdminAI()
+// SSR 上等数据就绪再渲染：否则服务端按空兜底渲染、客户端按真实载荷水合，
+// 两边的 DOM 结构不同，hydration 必然 mismatch。
+await ai.ready
 provide(ADMIN_AI_KEY, ai)
 // 可编辑草稿同样由页面壳持有：回复提示词与供应商是两个页签，但它们属于同一次保存。
 // 若各自持有一份副本，在提示词页签的改动切回供应商页签就消失了。
 const draft = useAdminAISettingsForm(ai)
 provide(ADMIN_AI_DRAFT_KEY, draft)
 
-const validTabs: AITab[] = ['providers', 'replyPrompt', 'diagnose', 'observability']
+const validTabs: AITab[] = ['providers', 'replyPrompt', 'purposes', 'diagnose', 'observability']
 const activeTab = ref<AITab>(normalizeTab(route.query.tab))
 
 const tabs = computed(() => [
   { id: 'providers', label: t('admin.ai.tabs.providers'), icon: 'i-lucide-server' },
   { id: 'replyPrompt', label: t('admin.ai.tabs.replyPrompt'), icon: 'i-lucide-message-square-text' },
+  { id: 'purposes', label: t('admin.ai.tabs.purposes'), icon: 'i-lucide-blocks' },
   { id: 'diagnose', label: t('admin.ai.tabs.diagnose'), icon: 'i-lucide-stethoscope' },
   { id: 'observability', label: t('admin.ai.tabs.observability'), icon: 'i-lucide-activity' }
 ])
@@ -46,6 +51,7 @@ const tabs = computed(() => [
 const tabComponents: Record<AITab, Component> = {
   providers: SFAdminAIProvidersTab,
   replyPrompt: SFAdminAIReplyPromptTab,
+  purposes: SFAdminAIPurposesTab,
   diagnose: SFAdminAIDiagnoseTab,
   observability: SFAdminAIObservabilityTab
 }

@@ -289,6 +289,12 @@ func (v *v3Validator) validateHooksEventsJobsAndProviders() error {
 			job.ConcurrencyLimit < 1 || job.ConcurrencyLimit > PluginJobMaximumConcurrencyLimit {
 			return ErrInvalidManifest
 		}
+		// 队列是运营者的资源分配：插件只能选 Host 公开的两条道之一。
+		switch job.Queue {
+		case "", PluginJobQueueDefault, PluginJobQueueAI:
+		default:
+			return ErrInvalidManifest
+		}
 		switch job.RetryPolicy {
 		case "none", "exponential":
 			if job.RetryDelaySeconds != 0 {

@@ -35,6 +35,7 @@ type Server struct {
 	identityRegistry *IdentityProviderRegistry
 	seoRegistry      *SEORegistry
 	contentRegistry  *ContentRegistry
+	aiToolRegistry   *AIToolRegistry
 	commandRegistry  *CommandRegistry
 	jobRegistry      *JobRegistry
 	queryHandlers    QueryRuntimeHandlers
@@ -148,6 +149,18 @@ func (s *Server) WithContentRegistry(registry *ContentRegistry) *Server {
 	s.mu.Lock()
 	if !s.started {
 		s.contentRegistry = registry
+	}
+	s.mu.Unlock()
+	return s
+}
+
+// WithAIToolRegistry enables exact typed dispatch for Manifest aiTools[]
+// declarations through the reserved sforum.ai.tool slot. Declaration 与 handler
+// 是两份事实：清单告诉宿主「有哪些工具」，这个注册表决定「谁来执行」。
+func (s *Server) WithAIToolRegistry(registry *AIToolRegistry) *Server {
+	s.mu.Lock()
+	if !s.started {
+		s.aiToolRegistry = registry
 	}
 	s.mu.Unlock()
 	return s
@@ -310,6 +323,7 @@ func (s *Server) ProviderCall(ctx context.Context, request *pluginwire.ProviderC
 	identityRegistry := s.identityRegistry
 	seoRegistry := s.seoRegistry
 	contentRegistry := s.contentRegistry
+	aiToolRegistry := s.aiToolRegistry
 	identityNegotiated := hasExactIdentityRuntimeFeature(s.selectedFeatures)
 	contentNegotiated := hasExactContentRuntimeFeature(s.selectedFeatures)
 	s.mu.RUnlock()
@@ -347,6 +361,14 @@ func (s *Server) ProviderCall(ctx context.Context, request *pluginwire.ProviderC
 			return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)
 		}
 		return seoRegistry.ProviderCall(ctx, request)
+	}
+	// AI 工具是宿主保留的 slot：没有注册表时显式 Unimplemented，绝不能落到通用
+	// provider 命名空间，否则一个未声明 aiTools[] 的插件也可能被当成工具执行者。
+	if request.GetSlotId() == HostAIToolSlot {
+		if aiToolRegistry == nil {
+			return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)
+		}
+		return aiToolRegistry.ProviderCall(ctx, request)
 	}
 	if providerRegistry == nil {
 		return s.UnimplementedPluginRuntimeServiceServer.ProviderCall(ctx, request)

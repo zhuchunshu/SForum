@@ -161,6 +161,26 @@ does not rebuild Nuxt.
   Bootstrap ABI v1 cookie, while only the post-launch gRPC application contract
   is Protocol V2. Cross-built compatibility coverage prevents those version
   axes from drifting together.
+- **Operator-bound database grant provisioning (2026-10-12).** The extension
+  database runtime lease has two issuers: host (no operator present — boot
+  reconcile, recovery) which may only reuse an existing exact grant, and actor
+  (operator-initiated enable/upgrade) which may self-provision it.
+  `ProtocolStarter` previously hardcoded the host issuer, so no `own_schema`
+  plugin could be enabled through the normal flow. The authority now travels on
+  the start context (`extensions.WithDatabaseGrantAuthority`): the legacy
+  `ActivationCoordinator.Start` mints one `extension.database_grant` audit row
+  and attaches `{actor, auditEventID}` before `runtime.Start`, and the Lifecycle
+  V2 host attaches the same authority from the durable lifecycle ledger
+  (`LifecycleCoordinatorGateRequest`) before staging. An extension that only
+  declares `database.grants: ["host_commands"]` gets no anchor — that is a
+  command declaration, not a runtime lease. Failure to write the anchor degrades
+  to host authority (and therefore fails closed on a missing grant) rather than
+  creating an unattributable grant row. Revocation stays host-authorized. See
+  `decisions/2026-10-12-extension-database-grant-authority.md`; integration
+  coverage: `IntegrationTests/gamification_database_grant_enable_integration_test.go`
+  (operator-bound start provisions and the plugin schema is really initialized;
+  host start fails closed with `ErrExtensionDatabaseGrantNotFound` and leaves the
+  schema untouched).
 - Architecture debt M0-M12 is complete.
 - The 28 public-contract and joined-runtime black-box test files now live in
   `Support/Extensions/IntegrationTests`; the legacy package root retains only
@@ -383,6 +403,13 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   directory-discovered media, and one constant-size Manifest reference binds
   that catalog. Static install validates it without executing plugin code;
   lifecycle activation imports bytes into Core-owned immutable storage.
+- Manifest V3 also carries the plugin-facing AI surface: `aiTools[]` (plugin-only,
+  requires `backend.entry` + protocol version 2, namespaced `id`/`handler`,
+  `contractVersion == id@1`, model-safe unique `name`, JSON-Schema `parameters`,
+  explicit `timeoutMs`) and `jobs[].queue` (closed set `default`/`ai`, mapped by
+  `jobs.QueueForPluginDeclaration`). A plugin that calls any Host Command must
+  declare `database.grants: ["host_commands"]`; the reviewed impact document must
+  match it exactly.
 - Validation covers identity/version/compatibility, exact package-file hashes,
   dependencies/conflicts/provides, declarations, entry paths, migrations,
   capabilities, admin pages, theme assets/templates, and unsafe archive paths.

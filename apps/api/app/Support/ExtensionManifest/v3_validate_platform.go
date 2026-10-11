@@ -1,6 +1,9 @@
 package extensionmanifest
 
-import "strings"
+import (
+	"encoding/json"
+	"strings"
+)
 
 func knownProviderSlot(slot string) bool {
 	switch slot {
@@ -66,7 +69,108 @@ func (v *v3Validator) validatePlatform() error {
 	if err := v.validateDependenciesAndLifecycle(); err != nil {
 		return err
 	}
+	if err := v.validateAITools(); err != nil {
+		return err
+	}
 	return nil
+}
+
+// validateAITools 校验插件贡献的 AI 工具声明。清单侧与登记表（运行期）共用
+// 同一份边界：能通过校验的清单必须能注册，声明被拒的清单不能被执行。
+func (v *v3Validator) validateAITools() error {
+	if len(v.manifest.AITools) == 0 {
+		return nil
+	}
+	if v.manifest.Type != TypePlugin {
+		return ErrInvalidManifest
+	}
+	if v.manifest.Backend.Entry == "" || v.manifest.Backend.ProtocolVersion != 2 {
+		return ErrInvalidManifest
+	}
+	if len(v.manifest.AITools) > AIToolsMaximum {
+		return ErrInvalidManifest
+	}
+	names := make(map[string]struct{}, len(v.manifest.AITools))
+	for _, declaration := range v.manifest.AITools {
+		if declaration.ID == "" || declaration.ID != strings.TrimSpace(declaration.ID) ||
+			declaration.ContractVersion == "" || declaration.ContractVersion != strings.TrimSpace(declaration.ContractVersion) {
+			return ErrInvalidManifest
+		}
+		// 契约版本必须严格为 `<ID>@1`：声明粒度的首个契约就是 1，形状变更
+		// 通过新 ID 表达，而不是在同一声明上叠加版本。
+		if declaration.ContractVersion != declaration.ID+"@1" {
+			return ErrInvalidManifest
+		}
+		if err := v.versionedID(declaration.ID, declaration.ContractVersion, "ai_tool"); err != nil {
+			return err
+		}
+		if !IsOwnedID(v.manifest.ID, declaration.ID) {
+			return ErrInvalidManifest
+		}
+		if declaration.Name == "" || declaration.Name != strings.TrimSpace(declaration.Name) ||
+			len(declaration.Name) > AIToolNameMaximumLength || !validAIToolName(declaration.Name) {
+			return ErrInvalidManifest
+		}
+		if _, duplicate := names[declaration.Name]; duplicate {
+			// 模型无法区分同名工具：重复名在清单侧就拒绝。
+			return ErrInvalidManifest
+		}
+		names[declaration.Name] = struct{}{}
+		if declaration.Description == "" || declaration.Description != strings.TrimSpace(declaration.Description) ||
+			len(declaration.Description) > AIToolDescriptionMaximumBytes {
+			return ErrInvalidManifest
+		}
+		if !validAIToolParameters(declaration.Parameters) {
+			return ErrInvalidManifest
+		}
+		if declaration.TimeoutMS <= 0 || declaration.TimeoutMS > AIToolMaximumTimeoutMS {
+			return ErrInvalidManifest
+		}
+		if !IsOwnedID(v.manifest.ID, declaration.Handler) {
+			return ErrInvalidManifest
+		}
+	}
+	return nil
+}
+
+// validAIToolName 只接受供应商实际接受的模式：[a-z0-9_-]，不含点号。
+func validAIToolName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, char := range name {
+		switch {
+		case char >= 'a' && char <= 'z', char >= '0' && char <= '9', char == '-', char == '_':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// validAIToolParameters 只校验形状：合法 JSON、且顶层是对象。Core 不解释
+// schema 的语义；供应商会在请求层拒绝其它形状。
+func validAIToolParameters(raw json.RawMessage) bool {
+	if len(raw) == 0 {
+		return false
+	}
+	if len(raw) > AIToolSchemaMaximumBytes {
+		return false
+	}
+	var value any
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return false
+	}
+	_, ok := value.(map[string]any)
+	return ok
+}
+
+// contractVersionOf 提取 @version 段，用于严格校验「契约版本 = ID@version」。
+func contractVersionOf(contractVersion string) string {
+	if index := strings.LastIndex(contractVersion, "@"); index >= 0 {
+		return contractVersion[index+1:]
+	}
+	return ""
 }
 
 func (v *v3Validator) validateNotificationTypes() error {
@@ -771,4 +875,20 @@ func validAdminSurfaceKind(value string) bool {
 	default:
 		return false
 	}
+}
+
+// manifestHasPermission 判断清单是否声明了某个权限键（直接权限或权限定义）。
+// 它只服务校验路径，因此与被校验的声明族放在同一个文件里，不再占 manifest.go 的体量。
+func manifestHasPermission(manifest Manifest, permission string) bool {
+	for _, item := range manifest.Permissions {
+		if strings.TrimSpace(item) == permission {
+			return true
+		}
+	}
+	for _, item := range manifest.PermissionDefinitions {
+		if strings.TrimSpace(item.Key) == permission {
+			return true
+		}
+	}
+	return false
 }

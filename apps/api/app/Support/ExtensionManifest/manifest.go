@@ -37,8 +37,13 @@ const (
 	PluginJobDefaultBoundedAttempts     = 5
 	PluginJobDefaultExponentialAttempts = 10
 	PluginJobDefaultRetryDelaySeconds   = 30
-	PluginJobMaximumRetryDelaySeconds   = 3600
-	PluginCommandMaximumTimeoutMS       = 5000
+	// 插件可声明的队列名。封闭集合的理由是资源归属：default 与 Core 日常任务共享，
+	// ai 是站点给慢速模型调用留的低并发通道；其余队列（critical/mail/notifications/
+	// search/maintenance）承载 Core 自己的投递，不向插件开放。
+	PluginJobQueueDefault             = "default"
+	PluginJobQueueAI                  = "ai"
+	PluginJobMaximumRetryDelaySeconds = 3600
+	PluginCommandMaximumTimeoutMS     = 5000
 
 	// Manifest V3 的稳定标识、引用和单族声明上限也由运行时 Registry 复用。
 	// 预检与发布必须接受/拒绝同一份包，不能把边界分散成两套漂移的常量。
@@ -124,6 +129,7 @@ type Manifest struct {
 	Dependencies          []ManifestDependency           `json:"dependencies,omitempty"`
 	Lifecycle             *ManifestLifecycle             `json:"lifecycle,omitempty"`
 	OpenAPI               []ManifestOpenAPIFragment      `json:"openapi,omitempty"`
+	AITools               []ManifestAITool               `json:"aiTools,omitempty"`
 	PackageFiles          []ManifestPackageFile          `json:"packageFiles,omitempty"`
 }
 
@@ -235,6 +241,10 @@ type ManifestJob struct {
 	MaxAttempts       int    `json:"maxAttempts,omitempty"`
 	RetryDelaySeconds int    `json:"retryDelaySeconds,omitempty"`
 	ConcurrencyLimit  int    `json:"concurrencyLimit,omitempty"`
+	// Queue 让插件把慢任务放进宿主公开的慢速通道（默认 default，可选 ai）。
+	// 取值刻意封闭：critical/mail/notifications 这些队列承载 Core 自己的投递，
+	// 允许插件往那里塞任务等于让第三方决定站内邮件与通知的延迟。
+	Queue string `json:"queue,omitempty"`
 }
 
 type ManifestProvider struct {
@@ -895,20 +905,6 @@ func ResolvedCapabilities(manifest Manifest) (keys []string, implied map[string]
 // CapabilityGrants 返回启用审查用的能力列表。
 func CapabilityGrants(manifest Manifest) []capabilities.Grant {
 	return capabilities.GrantsFor(CapabilityResolveInput(manifest))
-}
-
-func manifestHasPermission(manifest Manifest, permission string) bool {
-	for _, item := range manifest.Permissions {
-		if strings.TrimSpace(item) == permission {
-			return true
-		}
-	}
-	for _, item := range manifest.PermissionDefinitions {
-		if strings.TrimSpace(item.Key) == permission {
-			return true
-		}
-	}
-	return false
 }
 
 func validHTTPURL(value string) bool {

@@ -102,7 +102,7 @@ function setActiveTab(value: string) {
   <div class="flex min-w-0 flex-col gap-4">
     <!-- 插件未启用：管理路由不存在，写操作必然失败，这里失败关闭并给出口。 -->
     <UAlert
-      v-if="!gamification.pluginEnabled.value"
+      v-if="gamification.pluginStatusResolved.value && !gamification.pluginEnabled.value"
       color="warning"
       variant="soft"
       icon="i-lucide-plug"

@@ -11,6 +11,7 @@ import (
 	extensionscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Extensions"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	toolplugin "github.com/zhuchunshu/sforum/apps/api/app/Support/AI/toolplugin"
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
@@ -266,3 +267,48 @@ func publicFrontendRuntimeMatches(
 		target.ExtensionVersion == exact.ExtensionVersion &&
 		target.ArtifactDigest == exact.PackageDigest
 }
+
+// aiToolRuntimeInvoker 把 Support/AI 的本地派发类型翻译成扩展运行时的传输请求。
+//
+// AI 包不能 import 扩展运行时（后者反向依赖命令层，会成环），因此边界上做一次
+// 显式翻译。翻译是逐字段的，没有隐式转换：任何一侧新增字段都必须同时改这里，
+// 否则「宿主以为发出去的」与「插件实际收到的」会悄悄分叉。
+//
+// 它放在这里（而不是装配代码旁边）是为了让「模型侧工具接口 → 真实子进程」这条
+// 链路只有一个翻译实现：bootstrap 装配与子进程集成测试用的是同一个适配器。
+type aiToolRuntimeInvoker struct {
+	runtime *extensionsruntime.AIToolRuntimeInvoker
+}
+
+// NewAIToolInvoker 把当前进程的插件运行时接到 Support/AI 的插件工具派发面上。
+// runtime 为 nil 时返回 nil，调用方必须显式处理「没有运行时可派发」。
+func NewAIToolInvoker(runtime *extensionsruntime.Manager) toolplugin.PluginToolInvoker {
+	if runtime == nil {
+		return nil
+	}
+	return &aiToolRuntimeInvoker{runtime: extensionsruntime.NewAIToolRuntimeInvoker(runtime)}
+}
+
+func (i *aiToolRuntimeInvoker) InvokeVersionedAITool(
+	ctx context.Context,
+	extension extensions.Extension,
+	call toolplugin.PluginToolCall,
+) (toolplugin.PluginToolResult, error) {
+	if i == nil || i.runtime == nil {
+		return toolplugin.PluginToolResult{}, errors.New("ai tool runtime is unavailable")
+	}
+	response, err := i.runtime.InvokeVersionedAITool(ctx, extension, extensionsruntime.VersionedAIToolRequest{
+		DeclarationID:   call.DeclarationID,
+		ContractVersion: call.ContractVersion,
+		Handler:         call.Handler,
+		Timeout:         call.Timeout,
+		Name:            call.Name,
+		Arguments:       call.Arguments,
+	})
+	if err != nil {
+		return toolplugin.PluginToolResult{}, err
+	}
+	return toolplugin.PluginToolResult{Content: response.Content, IsError: response.IsError}, nil
+}
+
+var _ toolplugin.PluginToolInvoker = (*aiToolRuntimeInvoker)(nil)

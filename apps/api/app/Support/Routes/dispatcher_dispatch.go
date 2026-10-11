@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -251,6 +253,9 @@ dispatchSequence:
 						break dispatchSequence
 					}
 					d.appendTrace(s.plan, index, step, stage, RouteTraceSchemaRejected, started, s.commit.State())
+					// 临时探针：定位 gamification 422 schema 拒绝的具体原因。
+					slog.Warn("plugin route schema reject", "route", step.RouteID, "stage", string(stage), "cause", err)
+					_ = os.WriteFile("/tmp/sf-schema-debug.log", []byte(time.Now().Format(time.RFC3339)+" route="+step.RouteID+" cause="+err.Error()+"\n"), 0o644)
 					if event := d.committedAfterFailure(s.plan, index, step, stage, s.request, s.response, RouteFailureResponseSchemaRejected, false); event != nil {
 						s.committedAfterFailure, s.committingStep, s.committingStarted = event, index, started
 						break dispatchSequence
@@ -427,6 +432,8 @@ dispatchSequence:
 				}
 				if validationErr != nil {
 					d.appendTrace(s.plan, index, step, stage, RouteTraceSchemaRejected, started, s.commit.State())
+					// 临时探针：定位 gamification 422 schema 拒绝的具体原因。
+					_ = os.WriteFile("/tmp/sf-schema-debug.log", []byte(time.Now().Format(time.RFC3339)+" handler route="+step.RouteID+" cause="+validationErr.Error()+" body="+string(value.Body)[:min(len(value.Body), 300)]+"\n"), 0o644)
 					if event := d.committedAfterFailure(s.plan, index, step, stage, s.request, s.response, RouteFailureResponseSchemaRejected, true); event != nil {
 						s.committedAfterFailure, s.committingStep, s.committingStarted = event, index, started
 						break dispatchSequence

@@ -50,6 +50,7 @@ export function useAdminGamification() {
   const { data: cachedExtensions } = useNuxtData<AdminExtension[]>('admin-extensions')
   const {
     data: extensions,
+    pending: extensionsPending,
     refresh: refreshExtensions
   } = useAsyncData<AdminExtension[]>('admin-extensions', () => request<AdminExtension[]>('/admin/extensions'), {
     default: (): AdminExtension[] => [],
@@ -62,6 +63,8 @@ export function useAdminGamification() {
   })
   const pluginEnabled = computed(() => extension.value?.status === 'enabled')
   const pluginMissing = computed(() => !extension.value)
+  // 扩展列表未就绪时无法判断启用状态；用于避免「未启用」告警闪烁。
+  const pluginStatusResolved = computed(() => !extensionsPending.value || Boolean(cachedExtensions.value?.length))
 
   const saving = ref(false)
   const error = computed(() => badgesError.value ?? levelsError.value ?? null)
@@ -175,6 +178,7 @@ export function useAdminGamification() {
     extension,
     pluginEnabled,
     pluginMissing,
+    pluginStatusResolved,
     refreshAll,
     refreshBadges,
     refreshLevels,

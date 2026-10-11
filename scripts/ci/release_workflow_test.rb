@@ -156,15 +156,21 @@ unless build_inputs["load"] == "${{ matrix.image == 'web' }}" &&
 end
 
 scan = container_steps.fetch(scan_index)
-fail!("CI image scan must run only for Web") unless scan["if"] == "matrix.image == 'web'"
+scan_condition = scan["if"].to_s
+fail!("CI image scan must run only for Web") unless scan_condition.include?("matrix.image == 'web'")
+fail!("CI image scan must cover pull requests and main pushes") unless
+  scan_condition.include?("github.event_name") && scan_condition.include?("pull_request")
 scan_inputs = scan.fetch("with")
 unless scan_inputs["scan-type"] == "image" &&
        scan_inputs["image-ref"] == "sforum-web:ci" &&
        scan_inputs["vuln-type"] == "os,library" &&
-       scan_inputs["severity"] == "CRITICAL,HIGH" &&
-       scan_inputs["exit-code"] == "1"
-  fail!("CI Web scan must block on vulnerabilities in the final runtime image")
+       scan_inputs["severity"] == "CRITICAL,HIGH"
+  fail!("CI Web scan must check CRITICAL/HIGH vulnerabilities in the final runtime image")
 end
+blocking_scan = container_steps.find do |step|
+  step["uses"].to_s.include?("aquasecurity/trivy-action") && step["with"]["exit-code"] == "1"
+end
+fail!("pull-request scan must block on findings") unless blocking_scan && blocking_scan["if"].to_s.include?("== 'pull_request'")
 
 cache_to = build_inputs["cache-to"].to_s
 unless cache_to.include?("github.event_name != 'pull_request'")

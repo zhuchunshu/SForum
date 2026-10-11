@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -489,6 +491,9 @@ func (d *Dispatcher) invokePlugin(
 		if stage == InvocationStageResponse && response != nil && routeCallerCancellation(ctx, err) {
 			return result, newRouteObservedCallerCancellation(ctx.Err())
 		}
+		// 临时可观察性探针：transport 失败 cause 目前只进 trace outcome，需定位 gamification 502。
+		slog.Warn("plugin route transport failure", "route", step.RouteID, "stage", string(stage), "cause", err)
+		_ = os.WriteFile("/tmp/sf-route-debug.log", []byte(time.Now().Format(time.RFC3339)+" route="+step.RouteID+" cause="+err.Error()+"\n"), 0o644)
 		return result, fmt.Errorf("%w: %w", ErrDispatchTransport, err)
 	}
 	return result, nil

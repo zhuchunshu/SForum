@@ -301,6 +301,194 @@ concurrency slot when a call ends, and stop sending after cancellation. Map
 expected failures to gRPC status plus the stable `ErrorDetail` contract where
 the response defines it.
 
+### Host Command prerequisite: the `host_commands` authority grant
+
+Any plugin that calls a Host Command — `notifications.emit@1`,
+`sforum.ai.complete@1`, `sforum.events.emit@1`, and the rest — must declare the
+`host_commands` database grant in its manifest:
+
+```json
+"database": {
+  "contractVersion": "vendor.plugin.database@1",
+  "grants": ["host_commands"],
+  "backup": { "required": false, "strategy": "pg_dump" },
+  "retention": { "onDisable": "retain", "onUninstall": "retain" }
+}
+```
+
+The declaration is what the exact-artifact trust review approves, and the
+reviewed impact document must match it exactly: the Host compares the manifest's
+`database.grants` with the live grant's recorded powers and refuses when they
+differ. Without the grant, every command call fails with
+`host.command_authority_denied` before the command body runs — the plugin's code
+never executes, the gateway is never entered, and nothing is billed.
+
+### AI completion command
+
+`sforum.ai.complete@1` is the only way a plugin requests an AI completion. The
+Go SDK exposes `AICompletionRequest` and `Complete`. It requires the `ai.invoke`
+process capability and runs under actorless service authority.
+
+A plugin declares a **purpose** and a **cost class** (`economy`, `standard`, or
+`premium`); the Host resolves which provider profile serves that cost class from
+site configuration. There is no profile, model, or endpoint field: letting a
+plugin address a profile would move the final decision on cost and quality out
+of the operator's console.
+
+The Host sets `Metadata.CallerExtensionID` from the verified runtime identity,
+never from request input, so per-extension quota and usage always attribute to
+the caller that actually ran. `subjectUserId` is accepted only against a
+Host-attested delegated actor for the same user; this command is service-mode
+and therefore rejects it today. A plugin cannot spend an arbitrary member's
+daily quota.
+
+Every call passes through the site switch, the monthly budget, the site rate
+limit, and the per-extension daily quota before any outbound request exists, and
+each attempt — including failures — writes an execution trace. Stable failure
+reasons are `ai.gateway_disabled`, `ai.purpose_invalid`,
+`ai.cost_class_invalid`, `ai.profile_unavailable`, `ai.credential_missing`,
+`ai.request_invalid`, `ai.quota_exceeded`, `ai.budget_exceeded`,
+`ai.rate_limited`, `ai.provider_failed`, and `ai.unsafe_target`, plus the
+assembly-time `ai.gateway_unavailable` (the Host AI gateway is not wired in this
+process role).
+
+Result integers (token counts, `configRevision`, `latencyMs`) are encoded as
+decimal strings because protobuf `Struct` holds only doubles and would lose
+64-bit precision. `Plan` output carries purpose, cost class, and sizes only —
+prompt text and message content never enter the plan, the impact summary, or the
+audit record.
+
+The command deadline is the standard Host RPC deadline. A slow model can exhaust
+it; a plugin doing long AI work should enqueue a job (preferably on the `ai`
+queue, see the authoring guide) rather than block a request-path call.
+
+Prompt content is subject to the site's outbound redaction settings (AI console →
+内容脱敏): when enabled, the Host replaces recognisable email addresses, phone
+numbers, and IP addresses in `system`, message text, and tool-call arguments with
+explicit placeholders (`[redacted-email]`, `[redacted-phone]`, `[redacted-ip]`)
+before the request reaches the provider, and the result cache is keyed on the
+redacted body. Do not rely on prompt text round-tripping byte-for-byte, and do not
+put secrets in a prompt expecting the site to hide them — redaction covers
+recognisable personal data, not credentials.
+
+Completions are also cached for a short TTL. The cache key covers the caller
+extension, purpose, profile, model, prompt version, config revision, tools, and the
+redacted request body, so two calls share an answer only when the provider would
+have received the same bytes. A served-from-cache result carries
+`cacheHit: true`; it consumed no quota and no budget, and it is not a fresh
+provider call — do not use a completion as a liveness probe for the vendor.
+
+### AI tool contributions (plugins as tool providers)
+
+A plugin can contribute tools that the Host's AI completion loop may call. The
+declaration is static: it lives in the manifest, so the Host knows which tools
+exist before a plugin process starts, and a tool list cannot change in the
+middle of one completion.
+
+```json
+{
+  "type": "plugin",
+  "backend": { "entry": "backend/plugin", "protocolVersion": 2 },
+  "aiTools": [
+    {
+      "id": "vendor.plugin.order_lookup",
+      "contractVersion": "vendor.plugin.order_lookup@1",
+      "name": "vendor-order-lookup",
+      "description": "Look up an order by its public number.",
+      "parameters": { "type": "object", "properties": { "orderNumber": { "type": "string" } }, "required": ["orderNumber"] },
+      "handler": "vendor.plugin.order_lookup",
+      "timeoutMs": 1000
+    }
+  ]
+}
+```
+
+Declaration rules (manifest validation rejects anything else):
+
+- `aiTools[]` is plugin-only; it requires `backend.entry` and protocol version 2.
+  At most 16 declarations per plugin.
+- `name` is what the model sees: `[a-z0-9_-]`, no dot, at most 64 bytes, and
+  unique inside the plugin. `id` is the stable dispatch identity and must be a
+  versioned id in the plugin's own namespace, with
+  `contractVersion == id + "@1"`.
+- `handler` must also be owned by the plugin: a plugin cannot register another
+  plugin's handler.
+- `parameters` is a JSON Schema object, at most 8192 bytes. The Host validates
+  the shape (valid JSON object) only and never re-interprets the schema, so the
+  model and the plugin cannot end up with two different readings of it.
+- `timeoutMs` is required (`1..5000`) and is never defaulted: the number in the
+  manifest is the bound the operator sees.
+
+Transport reuses the versioned `ProviderCall` family on the reserved slot
+`sforum.ai.tool` with operation `invoke`: request schema
+`sforum.ai.tool.invoke.request@1` carries `{name, arguments}` and response
+schema `sforum.ai.tool.invoke.response@1` carries `{content, isError}`. The Host
+dispatches only to a declaration frozen in that runtime's manifest, and the
+per-call deadline must equal the declared `timeoutMs` — a plugin cannot ask for
+a longer window than the manifest promised.
+
+Tool results are untrusted data in the same sense as any other tool output:
+`isError` distinguishes a failure the model may retry from a failure of the call
+itself. A Go error from the handler is recorded by the Host and the model only
+receives a generic line; plugin error text is never published to the community
+through the model.
+
+Contributing a tool does **not** require the `ai.invoke` capability. The tool
+provider does not spend site AI budget: the purpose that runs the completion
+loop does, and it keeps its own gates, quota, and traces. What a tool
+declaration does require is the normal exact-artifact trust review and Protocol
+V2.
+
+Being registered is not the same as being visible. Every declared tool enters
+the Host tool registry — one enumerable answer to "which AI tools exist on this
+site" — but the model only sees what the running purpose allows. Purposes carry
+their own allowlist (`RunInput.ToolNames`), and plugin tools never shadow a Core
+tool name.
+
+For the reply purpose that allowlist is the site's AI settings document
+(`reply.tools.allowed`): leaving it unset keeps the purpose's declared Core list,
+and listing names — Core or plugin — makes exactly those visible. A plugin tool
+therefore never becomes reachable just by installing the plugin; an operator has
+to name it. Names that are not registered at request time are skipped, so a
+configuration may be written before the plugin is installed. Tool registration
+happens during API assembly, so enabling or disabling a plugin takes effect for
+the AI tool list after an API restart.
+
+### Event publish command
+
+`sforum.events.emit@1` lets a plugin publish an event under its own namespace.
+It requires the `events.emit` process capability and runs under actorless
+service authority. Input is `sforum.events.emit.input@1` (`name`, `kind`,
+`payload`); output is `sforum.events.emit.result@1` (`delivered`, `failed`).
+
+Manifest V3 already allows a plugin to declare custom event names that start
+with `<extensionId>.`; the previous publish path only resolved the Core catalog,
+which produced a "can declare, cannot publish" split. Publish now resolves a
+caller-namespaced name as well, with two independent gates:
+
+- the command layer rejects the call unless the name is owned by the verified
+  runtime extension id, and unless the request's self-declared extension id
+  matches that runtime identity;
+- the event layer resolves either a Core catalog name or a caller-namespaced
+  name, and never lets one plugin publish another plugin's namespace or a
+  Core-owned name.
+
+`kind` is `observe` or `filter`. Limits: event name up to 160 bytes, payload up
+to 64 KiB with at most 64 top-level keys. The plan/preview view reports only the
+name and counts — payload values never enter the plan, the UI, or the audit
+record. Stable failure reasons are `events.namespace_forbidden`,
+`events.kind_invalid`, `events.payload_invalid`, and
+`events.publisher_unavailable` (a publish that cannot reach the event bus is
+reported as unavailable, never as success).
+
+The Go SDK exposes the typed helpers `EventEmitRequest` / `EmitEvent` plus
+`EventEmitDelivery`, which reads the delivery counters (decimal strings) and
+reports `ok=false` when the result document is missing or malformed instead of
+treating an unreadable result as a successful publish. The SDK validates only
+what an author can know locally (name shape, kind, payload size, idempotency
+key); namespace ownership stays a Host decision, so a plugin cannot "fix" a
+foreign name on its side.
+
 ## Non-Go implementation checklist
 
 A non-Go plugin is compatible only when its integration test proves all of the

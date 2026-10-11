@@ -12,7 +12,114 @@
 export type AIComparableSettings = {
   reply?: { systemPrompt?: string }
   gates?: { toolCallsPerReply?: number | null }
+  purposes?: Record<string, AIPurposeOverride>
 }
+
+// AIPurposeOverride 是某个用途的站点覆盖形状。两个字段都可省：缺省即沿用该用途
+// 自己的声明，而不是「空覆盖」。
+export type AIPurposeOverride = {
+  tools?: { allowed?: string[] }
+  failurePosture?: string
+}
+
+// 用途覆盖的三形态与「提示词是否使用默认」是同一类问题：字段存在与字段为空在服务端
+// 是两种语义，界面必须能把它们区分开，否则一次「点了恢复默认」会因为 JSON.stringify
+// 丢掉 undefined 而被判成「有未保存改动」。
+export const AI_FAILURE_POSTURES = ['fail_open', 'fail_closed', 'skip_ai'] as const
+export type AIFailurePosture = typeof AI_FAILURE_POSTURES[number]
+
+// 站点覆盖里显式接管工具白名单：tools 字段存在即表示以它为准（空列表 = 不允许任何
+// 工具），tools 缺失即表示沿用用途声明的默认列表。
+export function purposeToolsAreOverridden(override: AIPurposeOverride | undefined): boolean {
+  return Boolean(override && override.tools && Array.isArray(override.tools.allowed))
+}
+
+// purposeOverrideIsEmpty 判断一份覆盖是否什么都没覆盖。空覆盖与「没有这份配置」在
+// 服务端归一化后是同一个东西，界面若保留它只会显示一个假的「已自定义」。
+export function purposeOverrideIsEmpty(override: AIPurposeOverride | undefined): boolean {
+  if (!override) {
+    return true
+  }
+  const posture = typeof override.failurePosture === 'string' ? override.failurePosture.trim() : ''
+  return !purposeToolsAreOverridden(override) && posture === ''
+}
+
+// prunePurposeOverrides 去掉所有空覆盖，并在结果为空时返回 undefined（而不是空对象）：
+// 服务端用 omitempty 省略这个字段，两边形状必须一致，否则脏判定会永远为真。
+export function prunePurposeOverrides(
+  purposes: Record<string, AIPurposeOverride> | undefined
+): Record<string, AIPurposeOverride> | undefined {
+  if (!purposes) {
+    return undefined
+  }
+  const kept: Record<string, AIPurposeOverride> = {}
+  for (const [id, override] of Object.entries(purposes)) {
+    const key = id.trim()
+    if (!key || purposeOverrideIsEmpty(override)) {
+      continue
+    }
+    const entry: AIPurposeOverride = {}
+    if (purposeToolsAreOverridden(override)) {
+      entry.tools = { allowed: normalizePurposeToolNames(override.tools?.allowed) }
+    }
+    const posture = typeof override.failurePosture === 'string' ? override.failurePosture.trim() : ''
+    if (posture) {
+      entry.failurePosture = posture
+    }
+    kept[key] = entry
+  }
+  return Object.keys(kept).length > 0 ? kept : undefined
+}
+
+/**
+ * normalizePurposeToolNames 把界面上的工具名列表整理成服务端接受的形状：去空白、
+ * 丢弃空条目、去重并按字母序稳定排序。排序让「同样的集合」永远序列化成同一个字符串，
+ * 否则勾选顺序不同就会被当成未保存改动。
+ */
+export function normalizePurposeToolNames(names: readonly string[] | undefined): string[] {
+  const seen = new Set<string>()
+  for (const entry of names ?? []) {
+    const name = typeof entry === 'string' ? entry.trim() : ''
+    if (name) {
+      seen.add(name)
+    }
+  }
+  return [...seen].sort()
+}
+
+// MAX_TOOLS_PER_REQUEST 与后端 ai.MaxToolsPerRequest 一致：一次请求最多带这么多
+// 工具声明，更长的白名单无法被兑现，服务端会直接拒绝保存。
+export const MAX_TOOLS_PER_REQUEST = 16
+
+// TOOL_NAME_PATTERN 与后端 ai.ValidToolName 同源：供应商只接受这套字符集。
+export const TOOL_NAME_PATTERN = /^[a-z0-9_-]+$/
+
+export function isValidPurposeToolName(name: string | undefined): boolean {
+  const value = (name ?? '').trim()
+  return value.length > 0 && value.length <= 64 && TOOL_NAME_PATTERN.test(value)
+}
+
+// purposeToolOptions 汇总一个用途可勾选的工具：声明默认与运营者已输入的自定义名
+// 的并集，按字母序稳定排序。
+export function purposeToolOptions(
+  declared: readonly string[] | undefined,
+  selected: readonly string[] | undefined
+): string[] {
+  return normalizePurposeToolNames([...(declared ?? []), ...(selected ?? [])])
+}
+
+// selectedPurposeTools 返回界面上已勾选的工具：沿用声明时即声明默认（因为没有
+// 覆盖，声明就是生效值）。
+export function selectedPurposeTools(
+  declared: readonly string[] | undefined,
+  override: AIPurposeOverride | undefined
+): string[] {
+  if (!purposeToolsAreOverridden(override)) {
+    return normalizePurposeToolNames(declared)
+  }
+  return normalizePurposeToolNames(override?.tools?.allowed)
+}
+
 
 // DEFAULT_TOOL_CALLS_PER_REPLY 与后端 ai.DefaultToolCallsPerReply 一致，仅用于
 // 界面展示：真正的缺省仍然由服务端的 nil 语义决定。
@@ -89,6 +196,14 @@ export function normalizedAISettingsForComparison<T extends AIComparableSettings
       // 显式值统一成数字，避免 "3" 与 3 被当成改动。
       copy.gates.toolCallsPerReply = Number(copy.gates.toolCallsPerReply)
     }
+  }
+  // 用途覆盖同样要按服务端归一化后的形状对齐：空覆盖会被服务端丢弃，整个 map 为空
+  // 时字段被省略。不在这里对齐，界面就会在「什么都没改」时判定为脏。
+  const purposes = prunePurposeOverrides(copy.purposes)
+  if (purposes) {
+    copy.purposes = purposes
+  } else {
+    delete copy.purposes
   }
   return copy
 }

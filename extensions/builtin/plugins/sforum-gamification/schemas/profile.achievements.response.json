@@ -11,10 +11,12 @@
       "type": "integer"
     },
     "level": {
-      "type": "object"
+      "type": "string",
+      "description": "Serialized level object; TypedDocument values are primitives."
     },
     "badges": {
-      "type": "array"
+      "type": "string",
+      "description": "Serialized badge wall array; TypedDocument values are primitives."
     }
   },
   "required": [

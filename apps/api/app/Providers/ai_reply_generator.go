@@ -18,12 +18,12 @@ func NewAIReplyGenerator(
 	forumService *forum.Service,
 	gateway *supportai.Gateway,
 	orchestrator *supportai.Orchestrator,
-	prompts aireply.ReplyPromptSource,
+	parameters aireply.ReplyParameterSource,
 ) *aireply.Generator {
 	return aireply.NewGenerator(
 		aireply.NewPostgresReader(pool),
 		aireply.NewGatewayCompleter(gateway, orchestrator),
 		aireply.NewBotCommentPoster(users, forumService),
-		prompts,
+		parameters,
 	)
 }

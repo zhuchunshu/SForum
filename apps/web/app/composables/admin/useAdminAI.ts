@@ -18,12 +18,42 @@ export type AdminAIProfile = {
   supportsTools?: boolean
 }
 
+// AdminAIPurposeTools 是某个用途的工具白名单覆盖。字段存在（哪怕空列表）即表示
+// 运营者接管了这一项；字段缺失表示沿用该用途声明的默认列表。
+export type AdminAIPurposeTools = { allowed: string[] }
+
+// AdminAIPurposeOverride 是某个用途的站点覆盖（与后端 ai.PurposeSettings 对应）。
+export type AdminAIPurposeOverride = {
+  tools?: AdminAIPurposeTools
+  failurePosture?: string
+}
+
+// AdminAIValidatedPurpose 是控制台的用途目录条目：声明了什么，以及当前生效什么。
+// declaredTools 与 toolsAllowed 并列，让「覆盖成了什么」与「原本是什么」都能看见。
+export type AdminAIValidatedPurpose = {
+  id: string
+  label: { default: string, 'en-US'?: string }
+  description: { default: string, 'en-US'?: string }
+  costClass: AdminAICostClass
+  resourceType: string
+  promptVersion: string
+  blastRadius: 'single' | 'batch' | 'site' | string
+  failurePosture: string
+  failurePostureOverridden: boolean
+  declaredTools: string[]
+  toolsAllowed: string[]
+  toolsOverridden: boolean
+}
+
 export type AdminAISettings = {
   schemaVersion: string
   enabled: boolean
   profiles: AdminAIProfile[]
   costClassProfiles: Record<string, string>
   purposeFailurePosture: Record<string, string>
+  // purposes 是按用途的覆盖。缺省即沿用各用途自己的声明；它是 reply.tools 特例的
+  // 替代品（旧字段由服务端在归一化时迁移进来）。
+  purposes?: Record<string, AdminAIPurposeOverride>
   // reply.systemPrompt 为空表示使用内置默认提示词；一键恢复就是把这里清空。
   reply: { systemPrompt: string }
   autoAction: { enabled: boolean, confidenceThreshold: number, allowedActions: string[] }
@@ -47,6 +77,8 @@ export type AdminAISettingsPayload = {
   encryptionEnabled: boolean
   credentialStatus: Record<string, boolean>
   replyBot: AdminAIReplyBot
+  /** 站内已声明的 AI 用途清单（声明 + 当前生效参数）。 */
+  purposes: AdminAIValidatedPurpose[]
   /** 内置回复提示词（不含安全尾注）。编辑器用它预填，让默认值可见。 */
   defaultSystemPrompt: string
   /** 始终附加在提示词末尾的防注入声明，只读展示。 */
@@ -166,6 +198,11 @@ export function useAdminAI() {
   const payload = useAsyncData<AdminAISettingsPayload>('admin-ai-settings', () => request('/admin/ai/settings'))
   const usage = useAsyncData<AdminAIUsagePayload>('admin-ai-usage', () => request('/admin/ai/usage'))
   const executions = useAsyncData<{ items: AdminAIExecution[] }>('admin-ai-executions', () => request('/admin/ai/executions?limit=50'))
+  // 页面壳必须在 SSR 渲染前等这三个请求完成：useAdminAI 是同步组合式函数，若不
+  // await，SSR 首渲染拿到的 settings/purposes/usage 全是空兜底，而客户端水合时
+  // payload 已从 __NUXT_DATA__ 同步恢复——两边的分支（v-if/v-else、v-for 数量）
+  // 全部错位，hydration mismatch 由此而来（所有 AI 页签都受影响，不只是用途页签）。
+  const ready = Promise.all([payload, usage, executions]).then(() => undefined)
 
   // 请求失败时 data 是 undefined，而不是 default 的返回值：所有下游读取都必须
   // 经由这些经过保护的 computed，否则一次 401/500 就会让整页渲染抛错。
@@ -174,6 +211,7 @@ export function useAdminAI() {
   const warnings = computed(() => payload.data.value?.warnings ?? [])
   const encryptionEnabled = computed(() => payload.data.value?.encryptionEnabled ?? false)
   const replyBot = computed<AdminAIReplyBot>(() => payload.data.value?.replyBot ?? { configured: false })
+  const purposes = computed<AdminAIValidatedPurpose[]>(() => payload.data.value?.purposes ?? [])
   const defaultSystemPrompt = computed(() => payload.data.value?.defaultSystemPrompt ?? '')
   const safetyAppendix = computed(() => payload.data.value?.safetyAppendix ?? '')
   const loadFailed = computed(() => Boolean(payload.error.value))
@@ -287,11 +325,13 @@ export function useAdminAI() {
   }
 
   return {
+    ready,
     settings,
     credentialStatus,
     warnings,
     encryptionEnabled,
     replyBot,
+    purposes,
     defaultSystemPrompt,
     safetyAppendix,
     loadFailed,

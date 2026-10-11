@@ -126,3 +126,41 @@ func pluginJobContractFixture(version, digest, schema, schemaVersion string) Plu
 		PayloadSchemaID: schema, PayloadSchemaVersion: schemaVersion,
 	}
 }
+
+// 队列声明是封闭集合：只有 default 与 ai 两条道向插件开放，其余取值一律回到
+// default。一个笔误（或恶意清单）不能把插件任务塞进 Core 自己的关键队列。
+func TestPluginJobQueueMappingIsClosed(t *testing.T) {
+	open := []struct {
+		declared string
+		want     string
+	}{
+		{"", QueueDefault},
+		{"default", QueueDefault},
+		{"DEFAULT", QueueDefault},
+		{" ai ", QueueAI},
+		{"ai", QueueAI},
+		{"AI", QueueAI},
+	}
+	for _, item := range open {
+		if got := QueueForPluginDeclaration(item.declared); got != item.want {
+			t.Fatalf("QueueForPluginDeclaration(%q) = %q, want %q", item.declared, got, item.want)
+		}
+	}
+	for _, closed := range []string{"critical", "mail", "notifications", "search", "maintenance", "unknown"} {
+		if got := QueueForPluginDeclaration(closed); got != QueueDefault {
+			t.Fatalf("queue %q must not be reachable from a manifest, got %q", closed, got)
+		}
+	}
+}
+
+func TestPluginJobContractNormalizesDeclaredQueue(t *testing.T) {
+	contract := pluginJobContractFixture("1.0.0", "digest-v1", "demo.payload", "1")
+	contract.Queue = " AI "
+	if got := contract.Normalized().Queue; got != PluginJobQueueAI {
+		t.Fatalf("normalized queue = %q", got)
+	}
+	contract.Queue = ""
+	if got := contract.Normalized().Queue; got != "" {
+		t.Fatalf("absent queue must stay absent (default applies at enqueue), got %q", got)
+	}
+}

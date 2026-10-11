@@ -139,8 +139,9 @@ export function packSDKPackages(outputDirectory) {
       env: { ...process.env, npm_config_cache: cache }
     })
     const result = JSON.parse(stdout)
-    if (!Array.isArray(result) || result.length !== 1) fail(`npm pack returned an unexpected result for ${entry.name}`)
-    const metadata = result[0]
+    // npm 10 emits an array; npm >= 12 emits an object keyed by package name.
+    const metadata = Array.isArray(result) ? result[0] : result[entry.name]
+    if (!metadata) fail(`npm pack returned an unexpected result for ${entry.name}`)
     if (metadata.name !== entry.name || metadata.version !== entry.manifest.version) {
       fail(`npm pack identity mismatch for ${entry.name}`)
     }

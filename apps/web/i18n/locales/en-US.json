@@ -706,7 +706,8 @@
         "providers": "Providers & gates",
         "replyPrompt": "Reply prompt",
         "diagnose": "Connectivity test",
-        "observability": "Usage & executions"
+        "observability": "Usage & executions",
+        "purposes": "AI purposes"
       },
       "replyPrompt": {
         "title": "Reply prompt",
@@ -739,14 +740,14 @@
         "tokensIn": "Input tokens",
         "tokensOut": "Output tokens",
         "okToast": "AI connection works.",
-      "emptyReply": "The provider returned a successful call, but it contained no text.",
-      "emptyReplyToast": "The AI call succeeded, but the model returned no text.",
+        "emptyReply": "The provider returned a successful call, but it contained no text.",
+        "emptyReplyToast": "The AI call succeeded, but the model returned no text.",
         "reasons": {
           "gateway_disabled": "The AI master switch is off.",
           "profile_unavailable": "No usable provider: none is selected, or the selected one is incomplete.",
           "credential_missing": "The API key for this provider has not been configured.",
           "provider_failed": "The request went out but did not succeed; see the error below.",
-      "empty_reply": "The call succeeded but the model returned no text: reasoning models usually spend the output budget on thinking first. Raise the provider's max output tokens and retry.",
+          "empty_reply": "The call succeeded but the model returned no text: reasoning models usually spend the output budget on thinking first. Raise the provider's max output tokens and retry.",
           "unsafe_target": "The outbound guard rejected this address: only public addresses are allowed by default, and production is https-only. A local or intranet model server needs SFORUM_AI_ALLOW_PRIVATE_ENDPOINT=true in .env (honoured outside production only), then an API restart.",
           "budget_exceeded": "This month's budget is spent, so the budget gate blocked the request.",
           "rate_limited": "The site rate limit was reached and the request was throttled.",
@@ -758,7 +759,64 @@
         "no_enabled_profile_has_price": "An enabled provider has no price configured, so the budget gate stays inactive.",
         "monthly_budget_is_zero": "The monthly budget is zero, so the budget gate is inactive.",
         "cost_class_unbound": "A cost class has no provider bound; purposes using it will fail."
-      }
+      },
+      "purposes": {
+        "tab": "AI purposes",
+        "title": "AI purposes",
+        "intro": "Every AI use case on this site runs from the declaration shown here: which cost tier it spends, how it degrades when AI is unavailable, and which tools the model may see. The defaults are the recommendation — narrow a purpose only when you mean to.",
+        "empty": "No AI purpose is declared on this site yet.",
+        "columns": {
+          "purpose": "Purpose",
+          "cost": "Cost tier",
+          "posture": "Behaviour on failure",
+          "tools": "Model-visible tools"
+        },
+        "cost": {
+          "economy": "Economy",
+          "standard": "Standard",
+          "premium": "Premium"
+        },
+        "posture": {
+          "followDeclared": "Follow the declaration ({value})",
+          "fail_open": "Degrade gracefully (never block the user because AI is down)",
+          "fail_closed": "Fail closed (refuse the operation when AI is unavailable)",
+          "skip_ai": "Skip AI (no answer, no error)",
+          "economyHint": "Economy is for high-frequency, low-difficulty work; change models through the cost-tier binding."
+        },
+        "postureValue": {
+          "fail_open": "Degrade",
+          "fail_closed": "Fail closed",
+          "skip_ai": "Skip AI"
+        },
+        "blastRadius": {
+          "title": "Blast radius",
+          "single": "One interaction",
+          "batch": "A batch of resources",
+          "site": "Site-visible content"
+        },
+        "tools": {
+          "followDeclared": "Follow the declaration",
+          "followDeclaredHint": "Use the tool list this purpose declares (recommended).",
+          "custom": "Custom",
+          "customHint": "Only the tools ticked here are offered. Ticking none means this purpose may call no tools at all; the reply degrades to plain text.",
+          "declaredTitle": "Declared default",
+          "allowedTitle": "In effect",
+          "declaredBadge": "Declared",
+          "overriddenBadge": "Customised",
+          "addPlaceholder": "Type a tool name (for example a plugin tool), then press Enter",
+          "add": "Add",
+          "remove": "Remove {name}",
+          "unknownHint": "Unregistered tool names are skipped by the server; a plugin tool must be named here before the model can see it.",
+          "nameInvalid": "A tool name may contain only lowercase letters, digits, hyphens and underscores.",
+          "tooMany": "At most {max} tools."
+        },
+        "restore": "Restore declared default",
+        "restoreDone": "Restored this purpose's declared default",
+        "resourceType": "Resource type: {value}",
+        "promptVersion": "Prompt version: {value}",
+        "dirtyHint": "Changes are not saved yet."
+      },
+      "loading": "Loading…"
     },
     "nav": {
       "dashboard": "Dashboard",

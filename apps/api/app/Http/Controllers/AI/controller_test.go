@@ -92,3 +92,46 @@ func TestBuiltinProfilesRemainIndividuallyEnableable(t *testing.T) {
 		}
 	}
 }
+
+// 前端一直在 PUT 文档里带 `reply`（提示词与工具白名单），而 DTO 曾漏掉这个字段：
+// 保存设置会静默清空运营者写过的提示词，并让白名单配置根本无法落库。这条断言把
+// 「往返不丢回复相关字段」钉在控制台边界上。
+func TestUpdateSettingsRequestKeepsReplyOverrides(t *testing.T) {
+	settings := supportai.RecommendedSettings().Normalized()
+	settings.Reply.SystemPrompt = "只回答与本站相关的问题。"
+	settings.Reply.Tools = &supportai.ReplyToolSettings{Allowed: []string{"forum-search", "vendor-plugin-tool"}}
+
+	raw, err := json.Marshal(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request updateSettingsRequest
+	if err := json.Unmarshal(raw, &request); err != nil {
+		t.Fatal(err)
+	}
+	assembled := settingsFromRequest(request)
+	if assembled.Reply.SystemPrompt != settings.Reply.SystemPrompt {
+		t.Fatalf("reply prompt lost in round trip: %q", assembled.Reply.SystemPrompt)
+	}
+	names, configured := assembled.Reply.ToolAllowlist()
+	if !configured || len(names) != 2 || names[1] != "vendor-plugin-tool" {
+		t.Fatalf("reply tool allowlist lost in round trip: %#v configured=%v", names, configured)
+	}
+	if err := assembled.Validate(); err != nil {
+		t.Fatalf("well-formed reply overrides must stay savable: %v", err)
+	}
+
+	// 白名单形状校验必须走同一条保存路径：非法名字在保存时就该被拒。
+	settings.Reply.Tools = &supportai.ReplyToolSettings{Allowed: []string{"Vendor Tool"}}
+	raw, err = json.Marshal(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invalid updateSettingsRequest
+	if err := json.Unmarshal(raw, &invalid); err != nil {
+		t.Fatal(err)
+	}
+	if err := settingsFromRequest(invalid).Validate(); err == nil {
+		t.Fatal("an invalid tool name must be rejected before saving")
+	}
+}

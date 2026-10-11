@@ -9,6 +9,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
 	secretstore "github.com/zhuchunshu/sforum/apps/api/app/Support/SecretStore"
 )
 
@@ -41,7 +42,7 @@ type AIOutboundOptions struct {
 // allowHTTP 沿用仓库其它出站路径的同一约定（非生产允许 http，生产只允许 https）：
 // 供应商地址由运营者在后台填写，本地反代或内网网关常常只有 http。私网、回环与保留
 // 地址默认仍被拒绝，需要 outbound.AllowPrivate 显式放行。
-func NewAIProvider(pool *pgxpool.Pool, secrets *secretstore.Service, users identityStore, sessions *authsession.Manager, outbound AIOutboundOptions) *AIProvider {
+func NewAIProvider(pool *pgxpool.Pool, secrets *secretstore.Service, users identityStore, sessions *authsession.Manager, outbound AIOutboundOptions, cacheStore cache.Cache) *AIProvider {
 	store := supportai.NewPostgresStore(pool)
 	// 同一个受控出站实例同时服务补全与只读探测：SSRF 校验、超时与响应体上限
 	// 只有一处实现，探测不会成为绕过它们的旁路。
@@ -50,15 +51,22 @@ func NewAIProvider(pool *pgxpool.Pool, secrets *secretstore.Service, users ident
 		AllowPrivate: outbound.AllowPrivate,
 	})
 	resolver := supportai.NewSecretStoreResolver(secrets)
+	// 用途登记表是进程级只读声明：网关用它拒绝未声明的用途，服务层用它解析生效
+	// 参数并供控制台枚举。两处必须是同一实例，否则「网关认识的用途」与「控制台
+	// 列出的用途」会出现两个答案。
+	purposes := supportai.DefaultPurposeRegistry()
 	gateway := supportai.NewGateway(supportai.GatewayConfig{
 		Settings: store,
 		Usage:    store,
 		Traces:   store,
 		Creds:    resolver,
 		Invoker:  invoker,
+		Cache:    supportai.NewResultCache(cacheStore),
+		Purposes: purposes,
 	})
 	service := modelsai.NewService(modelsai.Config{
 		Settings:         store,
+		Purposes:         purposes,
 		Gateway:          gateway,
 		Usage:            store,
 		Traces:           store,

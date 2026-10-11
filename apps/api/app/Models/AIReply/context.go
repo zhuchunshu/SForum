@@ -97,10 +97,13 @@ type CompletionInput struct {
 	System        string
 	User          string
 	MaxTokens     int
+	// CostClass 是本次生成使用的成本等级。它由用途声明决定（见
+	// supportai.CorePurposeForumReply），调用方不能自选模型。
+	CostClass string
 	// SubjectUserID 是触发者，用于按用户计量配额。
 	SubjectUserID int64
 	// Tools 是本次生成允许调用的工具白名单；空表示纯文本补全。白名单由用途
-	// 声明（这里是回复用途），工具是否存在由 Host 的登记表决定。
+	// 声明 + 站点按用途覆盖共同决定，工具是否存在由 Host 的登记表决定。
 	Tools []string
 	// ToolContext 是工具调用可以依赖的会话事实。
 	ToolContext supportai.ToolContext

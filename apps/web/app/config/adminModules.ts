@@ -444,6 +444,7 @@ export const adminSidebarNavigation = [
       icon: 'i-lucide-message-square-text',
       children: [
         { type: 'page', pageId: '/moderation' },
+        { type: 'page', pageId: '/gamification' },
         { type: 'page', pageId: '/forum/categories' },
         { type: 'page', pageId: '/forum/tags' },
         { type: 'page', pageId: '/forum/settings' },

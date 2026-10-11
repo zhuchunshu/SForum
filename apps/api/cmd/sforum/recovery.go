@@ -44,6 +44,7 @@ type recoveryRepository interface {
 	Disable(context.Context, string) (recoveryExtension, error)
 	DisableAllThirdParty(context.Context) ([]recoveryExtension, error)
 	QuarantineProtected(context.Context, string, string, string) (recoveryExtension, error)
+	RecoverStaleBuiltin(context.Context, string, StaleBuiltinRecoveryExpectation) (recoveryExtension, error)
 }
 
 type postgresRecoveryRepository struct {

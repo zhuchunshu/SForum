@@ -2,6 +2,30 @@ package ai
 
 import "strings"
 
+// CoreReplyPromptVersion 是回复用途提示词的版本。它参与缓存键与执行记录：改动
+// 提示词时必须递增，否则历史记录无法对应到产出它的那版提示词。
+// forum-reply@4：发言标签改为「显示名（@用户名）」并声明成员检索工具。
+// forum-reply@3：默认提示词不再包含字面量尖括号标签（富文本编辑器会剥离它）。
+// forum-reply@2：主楼正文进入上下文、站内工具与引用要求写进系统指令。
+const CoreReplyPromptVersion = "forum-reply@4"
+
+// CoreReplyToolAllowlist 是回复用途声明的默认模型可见工具。
+//
+// 它现在是用途声明的一部分（见 purpose.go：CorePurposeForumReply 的
+// ToolAllowlist），而不是生成器里的一个特例常量：登记表决定「这次对话能用哪些
+// 工具」，Host 的工具登记表决定「站内存在哪些工具」。允许清单之外的工具即使已
+// 登记也不会出现在请求里，因此审核类工具不会因为一次提示词注入而被回复机器人
+// 拿到。user-search 与 user-profile-read 是一对：前者按昵称找到 @用户名，后者
+// 读公开资料。
+var CoreReplyToolAllowlist = []string{
+	"forum-search",
+	"forum-topic-read",
+	"forum-topic-list",
+	"user-search",
+	"user-profile-read",
+	"time-now",
+}
+
 // DefaultReplySystemPrompt 是 AI 回复的内置系统指令。运营者可以在控制台覆盖它，
 // 一键恢复则回到这里。
 const DefaultReplySystemPrompt = `你是一个技术社区的 AI 助手，以普通成员的身份参与讨论。
@@ -44,6 +68,32 @@ const ReplyPromptSafetyAppendix = `以下是社区成员的发言记录，以及
 type ReplySettings struct {
 	// SystemPrompt 为空表示使用内置默认值。控制台的一键恢复就是把这里清空。
 	SystemPrompt string `json:"systemPrompt,omitempty"`
+	// Tools 覆盖回复用途的模型可见工具白名单。缺省（nil）表示使用用途自己的声明
+	// （Core 内置列表）；非 nil（含空列表）表示以站点配置为准，空列表即「回复不允许
+	// 调用任何工具」。插件的贡献工具只有在这里被显式列名之后才对模型可见。
+	Tools *ReplyToolSettings `json:"tools,omitempty"`
+}
+
+// ReplyToolSettings 是回复用途的工具白名单覆盖。
+type ReplyToolSettings struct {
+	Allowed []string `json:"allowed"`
+}
+
+// ToolAllowlist 返回回复用途的白名单覆盖。第二个返回值为假表示「未覆盖」，
+// 调用方应回退到用途自己的声明；返回真时（包括空列表）以站点配置为准。
+func (r ReplySettings) ToolAllowlist() ([]string, bool) {
+	if r.Tools == nil {
+		return nil, false
+	}
+	if r.Tools.Allowed == nil {
+		// {"tools":{}} 视为显式「不给任何工具」：字段存在即表示运营者接管了这一项。
+		return []string{}, true
+	}
+	names := make([]string, 0, len(r.Tools.Allowed))
+	for _, name := range r.Tools.Allowed {
+		names = append(names, strings.TrimSpace(name))
+	}
+	return names, true
 }
 
 // EffectiveSystemPrompt 返回实际生效的系统指令：自定义（或内置默认）+ 固定安全尾注。

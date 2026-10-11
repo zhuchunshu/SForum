@@ -19,6 +19,7 @@ import (
 
 // 管理面与公开面路由声明 ID（与 manifest routes 一一对应）。
 const (
+	routeAdminBadgesList    = "sforum.gamification.route.admin.badges-list"
 	routeAdminBadges        = "sforum.gamification.route.admin.badges"
 	routeAdminBadgeBySlug   = "sforum.gamification.route.admin.badge"
 	routeAdminGrants        = "sforum.gamification.route.admin.grants"
@@ -70,10 +71,15 @@ func (p *gamificationPluginV2) InvokeRoute(ctx context.Context, request *pluginw
 		responseSchema = "sforum.gamification.route.admin.action.response@1"
 	}
 	if err != nil {
-		response.Error = &protocolwire.ErrorDetail{
-			Code: protocolwire.ErrorCode_ERROR_CODE_INTERNAL, Reason: "gamification.route_failed", Message: err.Error(),
+		// 业务错误必须以终端响应回传（声明契约内的 reason/message），而不是
+		// gRPC error：后者在宿主 dispatch 层不可校验，只会退化为 422。
+		if payload == nil {
+			payload = map[string]any{"reason": "gamification.route_failed", "message": err.Error()}
 		}
-		status = http.StatusInternalServerError
+		if status < http.StatusBadRequest {
+			status = http.StatusInternalServerError
+		}
+		responseSchema = "sforum.gamification.route.admin.action.response@1"
 	}
 	if payload == nil {
 		payload = map[string]any{"ok": status < http.StatusBadRequest}
@@ -83,6 +89,10 @@ func (p *gamificationPluginV2) InvokeRoute(ctx context.Context, request *pluginw
 		return nil, err
 	}
 	response.StatusCode = uint32(status)
+	// Host 响应契约校验要求恰好一个 JSON Content-Type。
+	response.Headers = []*protocolwire.Header{
+		{Name: "Content-Type", Values: []string{"application/json"}},
+	}
 	response.Body = document
 	return response, nil
 }
@@ -92,7 +102,7 @@ func (p *gamificationPluginV2) dispatchAdminRoute(ctx context.Context, routeID, 
 ) (int, map[string]any, error) {
 	engine := p.engine
 	switch routeID {
-	case routeAdminBadges:
+	case routeAdminBadgesList, routeAdminBadges:
 		switch method {
 		case http.MethodGet:
 			badges, err := engine.Store.ListBadges(ctx, true)
@@ -238,8 +248,10 @@ func (p *gamificationPluginV2) dispatchAdminRoute(ctx context.Context, routeID, 
 		userID, _ := strconv.ParseInt(strings.TrimSpace(pathParams["userId"]), 10, 64)
 		wall, err := engine.ProfileWall(ctx, userID)
 		if err != nil {
+			log.Printf("gamification achievements err user=%d: %v", userID, err)
 			return 0, nil, err
 		}
+		log.Printf("gamification achievements ok user=%d keys=%T level=%T badges=%T", userID, wall, wall["level"], wall["badges"])
 		return http.StatusOK, wall, nil
 	}
 	return http.StatusNotFound, map[string]any{"reason": "gamification.route_not_found"}, nil
@@ -335,7 +347,7 @@ func int64FromAny(value any) int64 {
 // routeResponseSchema 与 manifest routes[].responseSchema 一一对应。
 func routeResponseSchema(routeID string) string {
 	switch routeID {
-	case routeAdminBadges:
+	case routeAdminBadgesList, routeAdminBadges:
 		return "sforum.gamification.route.admin.badges.response@1"
 	case routeAdminBadgeBySlug:
 		return "sforum.gamification.route.admin.badge.response@1"

@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"strings"
+	"time"
 
 	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
@@ -110,8 +114,17 @@ func (b *PostgresLifecycleBoundaryRegistries) publishBoundRoutePublication(
 		}
 		bound, err := routes.BindRouteExecutionPolicies(publication, b.routeSchemas)
 		if err != nil {
+			slog.Warn("route publish: bind execution policies failed",
+				"plugins", len(publication.Plugins), "error", err)
 			return fmt.Errorf("bind lifecycle route policies: %w", err)
 		}
+		// 临时探针：定位 gamification enable 后路由未注册的问题。
+		pluginIDs := make([]string, 0, len(bound.Plugins))
+		for _, p := range bound.Plugins {
+			pluginIDs = append(pluginIDs, p.Artifact.ExtensionID+" routes="+fmt.Sprint(len(p.Routes)))
+		}
+		slog.Warn("route publish: reconcile attempt", "plugins", pluginIDs, "rev", snapshot.Revision)
+		_ = os.WriteFile("/tmp/sf-route-publish.log", []byte(time.Now().Format(time.RFC3339)+" plugins="+strings.Join(pluginIDs, ",")+" rev="+fmt.Sprint(snapshot.Revision)+"\n"), 0o644)
 		if _, err := b.routePublisher.PublishIfRevision(bound, snapshot.Revision); err == nil {
 			return nil
 		} else if !errors.Is(err, routes.ErrRevisionConflict) {

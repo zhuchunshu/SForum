@@ -55,6 +55,10 @@ const (
 	ActionExtensionAdminSurface          = "extension.admin_surface"
 	ActionExtensionActivationFailed      = "extension.activation_failed"
 	ActionExtensionActivationSkipped     = "extension.activation_skipped"
+	// ActionExtensionDatabaseGrant 记录一次由操作者发起的扩展数据库精确授权
+	// 供给（own_schema 等直接运行时权力的授权行）。它是 extension_database_grants
+	// 行的审计锚点：没有这条事件，运行时租约就不会自建授权。
+	ActionExtensionDatabaseGrant = "extension.database_grant"
 	// ActionExtensionBackendDenied 非 super_admin 试图引入/执行非内置后端插件。
 	ActionExtensionBackendDenied = "extension.backend_execution_denied"
 

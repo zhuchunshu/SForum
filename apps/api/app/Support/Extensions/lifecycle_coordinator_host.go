@@ -169,6 +169,10 @@ func (h *ExactLifecycleCoordinatorHost) prepareExactRuntimes(
 	result := extensions.LifecycleCoordinatorGateResult{
 		Checkpoint: request.Checkpoint, RevalidationPolicy: extensions.LifecycleGateRevalidationRequired,
 	}
+	// 目标进程的启动上下文携带本次操作的 actor 与审计锚点，运行时租约层因此
+	// 可以在操作者发起的启用里自建精确数据库授权；没有操作者的恢复/重放步骤
+	// 保持 host 权威（缺授权即失败关闭）。
+	ctx = lifecycleHostRuntimeStartContext(ctx, request)
 	if lifecycleHostRequiresSource(request.Operation) {
 		source := lifecycleHostSourceExtension(request)
 		snapshot, err := h.ensureRuntime(ctx, source, request.SourceBinding)
@@ -188,6 +192,20 @@ func (h *ExactLifecycleCoordinatorHost) prepareExactRuntimes(
 	return result, nil
 }
 
+// lifecycleHostRuntimeStartContext 把操作者授权注入目标运行时的启动上下文。
+// request 的 ActorUserID / AuditEventID 由 durable lifecycle ledger 决定，不是
+// 请求方可以填的输入；任一缺失即保持 host 权威。
+func lifecycleHostRuntimeStartContext(
+	ctx context.Context,
+	request extensions.LifecycleCoordinatorGateRequest,
+) context.Context {
+	if request.ActorUserID <= 0 || request.AuditEventID <= 0 {
+		return ctx
+	}
+	return extensions.WithDatabaseGrantAuthority(ctx, extensions.DatabaseGrantAuthority{
+		ActorUserID: request.ActorUserID, AuditEventID: request.AuditEventID,
+	})
+}
 func (h *ExactLifecycleCoordinatorHost) ensureRuntime(
 	ctx context.Context,
 	extension extensions.Extension,

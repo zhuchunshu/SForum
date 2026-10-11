@@ -1,0 +1,73 @@
+{
+  "manifestVersion": 3,
+  "id": "fixture.ai-tool",
+  "name": "AI Tool Plugin",
+  "description": "Fixture contributing two AI completion tools through the sforum.ai.tool slot.",
+  "url": "https://example.com/ai-tool",
+  "author": {
+    "name": "SForum"
+  },
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": "^1.0.0",
+  "capabilities": [
+    "ai.invoke"
+  ],
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host-api@2",
+    "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "aiTools": [
+    {
+      "id": "fixture.ai-tool.order.lookup",
+      "contractVersion": "fixture.ai-tool.order.lookup@1",
+      "name": "fixture-order-lookup",
+      "description": "Look up an order by its public order number.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "orderNumber": {
+            "type": "string",
+            "description": "Public order number."
+          }
+        },
+        "required": [
+          "orderNumber"
+        ]
+      },
+      "handler": "fixture.ai-tool.order.lookup",
+      "timeoutMs": 1500
+    },
+    {
+      "id": "fixture.ai-tool.inventory.level",
+      "contractVersion": "fixture.ai-tool.inventory.level@1",
+      "name": "fixture-inventory-level",
+      "description": "Report the stock level for a product SKU.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "description": "Product SKU."
+          }
+        },
+        "required": [
+          "sku"
+        ]
+      },
+      "handler": "fixture.ai-tool.inventory.level",
+      "timeoutMs": 1200
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "fixture.ai-tool.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ]
+}

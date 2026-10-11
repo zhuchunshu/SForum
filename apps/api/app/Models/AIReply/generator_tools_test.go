@@ -2,10 +2,12 @@ package aireply_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
+	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 )
 
 func TestGeneratePassesToolAllowlistAndToolContext(t *testing.T) {
@@ -84,5 +86,77 @@ func TestGenerateOmitsEmptyTopicBody(t *testing.T) {
 	}
 	if strings.Contains(completer.inputs[0].User, "主楼正文") {
 		t.Fatalf("empty body must not produce a heading:\n%s", completer.inputs[0].User)
+	}
+}
+
+// fakePurposeParameters 模拟「用途声明 + 站点覆盖」解析后的结果。
+type fakePurposeParameters struct {
+	parameters aireply.ReplyPurposeParameters
+	weighted   string
+	err        error
+}
+
+func (f fakePurposeParameters) ReplySystemPrompt(context.Context) (string, error) {
+	return f.weighted, nil
+}
+
+func (f fakePurposeParameters) ReplyPurposeParameters(context.Context) (aireply.ReplyPurposeParameters, error) {
+	return f.parameters, f.err
+}
+
+// 运营者显式列名之后，插件的贡献工具才会出现在请求里；Core 工具被移出配置也同样
+// 不可见——白名单是「这次对话能用哪些」，不是「站内存在哪些」。
+func TestGenerateUsesConfiguredToolAllowlist(t *testing.T) {
+	threads := &fakeThreads{thread: sampleThread()}
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "回答"}}
+	generator := aireply.NewGenerator(threads, completer, &fakePoster{}, fakePurposeParameters{
+		parameters: aireply.ReplyPurposeParameters{
+			CostClass: supportai.CostClassStandard, ToolsAllowed: []string{"forum-search", "vendor-plugin-tool"},
+			ToolsOverride: true, PromptVersion: "forum-reply@test",
+		},
+	})
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	input := completer.inputs[0]
+	if len(input.Tools) != 2 || input.Tools[0] != "forum-search" || input.Tools[1] != "vendor-plugin-tool" {
+		t.Fatalf("tools = %+v", input.Tools)
+	}
+}
+
+// 显式空列表是有效配置：回复不允许调用任何工具。
+func TestGenerateWithEmptyConfiguredAllowlistPassesNoTools(t *testing.T) {
+	threads := &fakeThreads{thread: sampleThread()}
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "回答"}}
+	generator := aireply.NewGenerator(threads, completer, &fakePoster{}, fakePurposeParameters{
+		parameters: aireply.ReplyPurposeParameters{ToolsAllowed: []string{}, ToolsOverride: true},
+	})
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	if tools := completer.inputs[0].Tools; len(tools) != 0 {
+		t.Fatalf("tools = %+v, want none", tools)
+	}
+}
+
+// 读配置失败回退到用途声明的默认列表（只有 Core 内置工具），而不是放开白名单：
+// 插件工具永远不能因为一次设置读取失败而意外进入模型可见面。
+func TestGenerateFallsBackToDeclaredAllowlistWhenSourceFails(t *testing.T) {
+	threads := &fakeThreads{thread: sampleThread()}
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "回答"}}
+	generator := aireply.NewGenerator(threads, completer, &fakePoster{}, fakePurposeParameters{
+		err: errors.New("settings unavailable"),
+	})
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	input := completer.inputs[0]
+	if len(input.Tools) != len(aireply.ReplyToolAllowlist) {
+		t.Fatalf("tools = %+v, want the declared default", input.Tools)
+	}
+	for index, name := range aireply.ReplyToolAllowlist {
+		if input.Tools[index] != name {
+			t.Fatalf("fallback allowlist drifted: %+v", input.Tools)
+		}
 	}
 }

@@ -11,6 +11,8 @@ import (
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
+	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
+	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
@@ -59,6 +61,74 @@ type protocolV2AttachmentStatusMutator struct {
 
 type protocolV2CommandRuntimeBinder func(*hostapi.Gateway) error
 
+// 命令目录必须在首个插件 broker 注册前冻结，而事件总线（Manager）与 AI 网关
+// （依赖 Secret Store）都在那之后才就绪。两个 deferred 目标就是这中间的占位：
+// 它们实现命令层需要的窄接口，未回填时显式报告不可用 —— 插件不会「以为发布
+// 成功了」也不会「以为补全没接线就自己直连供应商」。
+type deferredEventPublisher struct {
+	mu        sync.RWMutex
+	publisher hostapi.ProtocolV2EventPublisher
+}
+
+func (p *deferredEventPublisher) Set(publisher hostapi.ProtocolV2EventPublisher) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	p.publisher = publisher
+	p.mu.Unlock()
+}
+
+func (p *deferredEventPublisher) EmitFromExtension(
+	ctx context.Context,
+	extensionID string,
+	envelope appevents.Envelope,
+) appevents.Result {
+	if p == nil {
+		return appevents.Result{OK: false, Reason: "events.publisher_unavailable"}
+	}
+	p.mu.RLock()
+	publisher := p.publisher
+	p.mu.RUnlock()
+	if publisher == nil {
+		return appevents.Result{OK: false, Reason: "events.publisher_unavailable"}
+	}
+	return publisher.EmitFromExtension(ctx, extensionID, envelope)
+}
+
+type deferredAIGateway struct {
+	mu      sync.RWMutex
+	gateway hostapi.ProtocolV2AIGateway
+}
+
+func (g *deferredAIGateway) Set(gateway hostapi.ProtocolV2AIGateway) {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	g.gateway = gateway
+	g.mu.Unlock()
+}
+
+func (g *deferredAIGateway) Execute(ctx context.Context, request supportai.CompletionRequest) (supportai.CompletionResult, error) {
+	if g == nil {
+		return supportai.CompletionResult{}, supportai.ErrGatewayUnavailable
+	}
+	g.mu.RLock()
+	gateway := g.gateway
+	g.mu.RUnlock()
+	if gateway == nil {
+		return supportai.CompletionResult{}, supportai.ErrGatewayUnavailable
+	}
+	return gateway.Execute(ctx, request)
+}
+
+// protocolV2CommandRuntimeDeferred 把两个后填目标交给装配的后续阶段。
+type protocolV2CommandRuntimeDeferred struct {
+	Events *deferredEventPublisher
+	AI     *deferredAIGateway
+}
+
 func (m protocolV2AttachmentStatusMutator) MutateProtocolV2AttachmentStatus(
 	ctx context.Context,
 	tx pgx.Tx,
@@ -88,26 +158,32 @@ func bindPostgresProtocolV2CommandRuntime(
 	moderationStore *moderation.PostgresStore,
 	attachmentStore *attachments.PostgresStore,
 	identityAuthority identity.IdentityAuthorityMutationGate,
-) error {
+) (protocolV2CommandRuntimeDeferred, error) {
+	deferred := protocolV2CommandRuntimeDeferred{
+		Events: &deferredEventPublisher{},
+		AI:     &deferredAIGateway{},
+	}
 	if gateway == nil {
-		return fmt.Errorf("Host Command gateway is required")
+		return deferred, fmt.Errorf("Host Command gateway is required")
 	}
 	delegations, err := hostapi.NewProtocolV2ActorDelegationAuthority()
 	if err != nil {
-		return fmt.Errorf("create Host Command actor delegation authority: %w", err)
+		return deferred, fmt.Errorf("create Host Command actor delegation authority: %w", err)
 	}
 	runtime, err := hostapi.NewPostgresProtocolV2CommandRuntime(hostapi.PostgresProtocolV2CommandRuntimeConfig{
 		Pool: pool, ActorDelegations: delegations, Jobs: jobs, Moderation: moderationStore,
 		AttachmentStatuses: protocolV2AttachmentStatusMutator{store: attachmentStore},
 		IdentityAuthority:  identityAuthority,
+		Events:             deferred.Events,
+		AI:                 deferred.AI,
 	})
 	if err != nil {
-		return fmt.Errorf("create Host Command runtime: %w", err)
+		return deferred, fmt.Errorf("create Host Command runtime: %w", err)
 	}
 	if err := gateway.BindProtocolV2CommandRuntime(runtime); err != nil {
-		return fmt.Errorf("bind Host Command runtime: %w", err)
+		return deferred, fmt.Errorf("bind Host Command runtime: %w", err)
 	}
-	return nil
+	return deferred, nil
 }
 
 func postgresProtocolV2CommandRuntimeBinder(
@@ -117,7 +193,8 @@ func postgresProtocolV2CommandRuntimeBinder(
 	attachmentStore *attachments.PostgresStore,
 ) protocolV2CommandRuntimeBinder {
 	return func(gateway *hostapi.Gateway) error {
-		return bindPostgresProtocolV2CommandRuntime(gateway, pool, jobs, moderationStore, attachmentStore, nil)
+		_, err := bindPostgresProtocolV2CommandRuntime(gateway, pool, jobs, moderationStore, attachmentStore, nil)
+		return err
 	}
 }
 

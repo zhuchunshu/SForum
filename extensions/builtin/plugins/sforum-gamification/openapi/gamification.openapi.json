@@ -1,0 +1,832 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SForum Gamification",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/admin/gamification/badges": {
+      "get": {
+        "operationId": "sforum.gamification.route-admin-badges-list.get",
+        "x-sforum-route-id": "sforum.gamification.route.admin.badges-list",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.badges-list@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Badge list response",
+                  "type": "object",
+                  "properties": {
+                    "badges": {
+                      "type": "string",
+                      "description": "Serialized JSON object; TypedDocument values are primitives."
+                    }
+                  },
+                  "required": [
+                    "badges"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.badges.response@1"
+      },
+      "post": {
+        "operationId": "sforum.gamification.gamification.route-admin-badges.post",
+        "x-sforum-route-id": "sforum.gamification.route.admin.badges",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.badges@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Badge list response",
+                  "type": "object",
+                  "properties": {
+                    "badges": {
+                      "type": "string",
+                      "description": "Serialized JSON object; TypedDocument values are primitives."
+                    }
+                  },
+                  "required": [
+                    "badges"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Create/update badge request",
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "rarity": {
+                    "type": "string"
+                  },
+                  "rule": {
+                    "type": "object"
+                  },
+                  "icon": {
+                    "type": "string"
+                  },
+                  "grantsPoints": {
+                    "type": "integer"
+                  },
+                  "sort": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "rarity",
+                  "rule"
+                ]
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.badge.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.badges.response@1"
+      }
+    },
+    "/api/v1/admin/gamification/badges/{slug}": {
+      "patch": {
+        "operationId": "sforum.gamification.gamification.route-admin-badge.patch",
+        "x-sforum-route-id": "sforum.gamification.route.admin.badge",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.badge@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Single badge result",
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string"
+                    },
+                    "disabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "slug"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Create/update badge request",
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "rarity": {
+                    "type": "string"
+                  },
+                  "rule": {
+                    "type": "object"
+                  },
+                  "icon": {
+                    "type": "string"
+                  },
+                  "grantsPoints": {
+                    "type": "integer"
+                  },
+                  "sort": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "rarity",
+                  "rule"
+                ]
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.badge.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.badge.response@1"
+      },
+      "delete": {
+        "operationId": "sforum.gamification.gamification.route-admin-badge.delete",
+        "x-sforum-route-id": "sforum.gamification.route.admin.badge",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.badge@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Single badge result",
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string"
+                    },
+                    "disabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "slug"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Create/update badge request",
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "rarity": {
+                    "type": "string"
+                  },
+                  "rule": {
+                    "type": "object"
+                  },
+                  "icon": {
+                    "type": "string"
+                  },
+                  "grantsPoints": {
+                    "type": "integer"
+                  },
+                  "sort": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "rarity",
+                  "rule"
+                ]
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.badge.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.badge.response@1"
+      }
+    },
+    "/api/v1/admin/gamification/grants": {
+      "post": {
+        "operationId": "sforum.gamification.gamification.route-admin-grants.post",
+        "x-sforum-route-id": "sforum.gamification.route.admin.grants",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.grants@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Grant result",
+                  "type": "object",
+                  "properties": {
+                    "granted": {
+                      "type": "boolean"
+                    },
+                    "already": {
+                      "type": "boolean"
+                    },
+                    "badgeSlug": {
+                      "type": "string"
+                    },
+                    "userId": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "granted"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Manual grant request",
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "badgeSlug": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "userId",
+                  "badgeSlug"
+                ]
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.grants.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.grants.response@1"
+      }
+    },
+    "/api/v1/admin/gamification/users/{userId}/badges/{badgeSlug}": {
+      "delete": {
+        "operationId": "sforum.gamification.gamification.route-admin-grant.delete",
+        "x-sforum-route-id": "sforum.gamification.route.admin.grant",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.grant@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Admin action result",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "badges": {
+                      "type": "integer"
+                    },
+                    "levels": {
+                      "type": "integer"
+                    },
+                    "users": {
+                      "type": "integer"
+                    },
+                    "points": {
+                      "type": "integer"
+                    },
+                    "restored": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "badgeSlug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Admin action request",
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean"
+                  },
+                  "users": {
+                    "type": "string",
+                    "description": "Serialized JSON object; TypedDocument values are primitives."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.action.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.action.response@1"
+      }
+    },
+    "/api/v1/admin/gamification/users/{userId}/badges": {
+      "get": {
+        "operationId": "sforum.gamification.gamification.route-admin-grant-log.get",
+        "x-sforum-route-id": "sforum.gamification.route.admin.grant-log",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.grant-log@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "User grant log",
+                  "type": "object",
+                  "properties": {
+                    "grants": {
+                      "type": "string",
+                      "description": "Serialized JSON object; TypedDocument values are primitives."
+                    }
+                  },
+                  "required": [
+                    "grants"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Admin action request",
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean"
+                  },
+                  "users": {
+                    "type": "string",
+                    "description": "Serialized JSON object; TypedDocument values are primitives."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.action.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.grant-log.response@1"
+      }
+    },
+    "/api/v1/admin/gamification/levels": {
+      "get": {
+        "operationId": "sforum.gamification.gamification.route-admin-levels.get",
+        "x-sforum-route-id": "sforum.gamification.route.admin.levels",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.levels@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Level list",
+                  "type": "object",
+                  "properties": {
+                    "levels": {
+                      "type": "string",
+                      "description": "Serialized JSON object; TypedDocument values are primitives."
+                    }
+                  },
+                  "required": [
+                    "levels"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Upsert level request",
+                "type": "object",
+                "properties": {
+                  "minPoints": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "minPoints",
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.levels.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.levels.response@1"
+      },
+      "post": {
+        "operationId": "sforum.gamification.gamification.route-admin-levels.post",
+        "x-sforum-route-id": "sforum.gamification.route.admin.levels",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.levels@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Level list",
+                  "type": "object",
+                  "properties": {
+                    "levels": {
+                      "type": "string",
+                      "description": "Serialized JSON object; TypedDocument values are primitives."
+                    }
+                  },
+                  "required": [
+                    "levels"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Upsert level request",
+                "type": "object",
+                "properties": {
+                  "minPoints": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "minPoints",
+                  "title"
+                ]
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.levels.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.levels.response@1"
+      }
+    },
+    "/api/v1/admin/gamification/seed-defaults": {
+      "post": {
+        "operationId": "sforum.gamification.gamification.route-admin-seed-defaults.post",
+        "x-sforum-route-id": "sforum.gamification.route.admin.seed-defaults",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.seed-defaults@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Admin action result",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "badges": {
+                      "type": "integer"
+                    },
+                    "levels": {
+                      "type": "integer"
+                    },
+                    "users": {
+                      "type": "integer"
+                    },
+                    "points": {
+                      "type": "integer"
+                    },
+                    "restored": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Admin action request",
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean"
+                  },
+                  "users": {
+                    "type": "string",
+                    "description": "Serialized JSON object; TypedDocument values are primitives."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.action.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.action.response@1"
+      }
+    },
+    "/api/v1/admin/gamification/backfill": {
+      "post": {
+        "operationId": "sforum.gamification.gamification.route-admin-backfill.post",
+        "x-sforum-route-id": "sforum.gamification.route.admin.backfill",
+        "x-sforum-contract-version": "sforum.gamification.route.admin.backfill@1",
+        "x-sforum-guard": "core.guard.permission",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Admin action result",
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "badges": {
+                      "type": "integer"
+                    },
+                    "levels": {
+                      "type": "integer"
+                    },
+                    "users": {
+                      "type": "integer"
+                    },
+                    "points": {
+                      "type": "integer"
+                    },
+                    "restored": {
+                      "type": "boolean"
+                    },
+                    "revoked": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-permission": "sforum.gamification.manage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Admin action request",
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean"
+                  },
+                  "users": {
+                    "type": "string",
+                    "description": "Serialized JSON object; TypedDocument values are primitives."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-sforum-request-schema": "sforum.gamification.route.admin.action.request@1",
+        "x-sforum-response-schema": "sforum.gamification.route.admin.action.response@1"
+      }
+    },
+    "/gamification/users/{userId}/achievements": {
+      "get": {
+        "operationId": "sforum.gamification.gamification.route-profile-achievements.get",
+        "x-sforum-route-id": "sforum.gamification.route.profile.achievements",
+        "x-sforum-contract-version": "sforum.gamification.route.profile.achievements@1",
+        "x-sforum-guard": "core.guard.public",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Public badge wall",
+                  "type": "object",
+                  "properties": {
+                    "userId": {
+                      "type": "integer"
+                    },
+                    "points": {
+                      "type": "integer"
+                    },
+                    "level": {
+                      "type": "string",
+                      "description": "Serialized level object."
+                    },
+                    "badges": {
+                      "type": "string",
+                      "description": "Serialized badges array."
+                    }
+                  },
+                  "required": [
+                    "userId",
+                    "badges"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Plugin error response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "reason"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "x-sforum-response-schema": "sforum.gamification.route.profile.achievements.response@1"
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.events-command-reference",
+  "name": "SForum Events Command Reference",
+  "description": "Protocol V2 fixture proving plugin-namespaced event publication enters the Host event bus and that foreign namespaces and Core-owned names are refused.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {"name": "SForum", "url": "https://github.com/zhuchunshu/sforum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["events.emit"],
+  "database": {
+    "contractVersion": "sforum.events-command-reference.database@1",
+    "grants": ["host_commands"],
+    "backup": {"required": false, "strategy": "pg_dump"},
+    "retention": {"onDisable": "retain", "onUninstall": "retain"}
+  },
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host-api@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "events": [
+    {
+      "id": "sforum.events-command-reference.event.custom",
+      "contractVersion": "sforum.events-command-reference.event.custom@1",
+      "name": "sforum.events-command-reference.custom-requested",
+      "kind": "observe",
+      "handler": "sforum.events-command-reference.event.custom",
+      "inputSchema": "sforum.events-command-reference.event.custom.input@1",
+      "timeoutMs": 2000
+    }
+  ],
+  "hooks": [
+    {
+      "id": "sforum.events-command-reference.hook.emit",
+      "contractVersion": "sforum.events-command-reference.hook.emit@1",
+      "name": "sforum.events-command-reference.emit-requested",
+      "kind": "observe",
+      "handler": "sforum.events-command-reference.hook.emit",
+      "inputSchema": "sforum.events-command-reference.hook.emit.input@1",
+      "resultSchema": "sforum.events-command-reference.hook.emit.result@1",
+      "execution": "sync",
+      "failurePolicy": "fail_closed",
+      "timeoutMs": 5000
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.events-command-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    }
+  ]
+}

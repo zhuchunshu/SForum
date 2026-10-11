@@ -1,0 +1,47 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.ai-command-reference",
+  "name": "SForum AI Command Reference",
+  "description": "Protocol V2 fixture proving plugin-initiated AI completions enter the Host gateway, gates, and accounting instead of a parallel outbound path.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {"name": "SForum", "url": "https://github.com/zhuchunshu/sforum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "capabilities": ["ai.invoke"],
+  "database": {
+    "contractVersion": "sforum.ai-command-reference.database@1",
+    "grants": ["host_commands"],
+    "backup": {"required": false, "strategy": "pg_dump"},
+    "retention": {"onDisable": "retain", "onUninstall": "retain"}
+  },
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host-api@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "hooks": [
+    {
+      "id": "sforum.ai-command-reference.hook.complete",
+      "contractVersion": "sforum.ai-command-reference.hook.complete@1",
+      "name": "sforum.ai-command-reference.complete-requested",
+      "kind": "observe",
+      "handler": "sforum.ai-command-reference.hook.complete",
+      "inputSchema": "sforum.ai-command-reference.hook.complete.input@1",
+      "resultSchema": "sforum.ai-command-reference.hook.complete.result@1",
+      "execution": "sync",
+      "failurePolicy": "fail_closed",
+      "timeoutMs": 5000
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.ai-command-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    }
+  ]
+}

@@ -11,44 +11,48 @@ import (
 )
 
 const (
-	// ReplyPurpose 是回复生成的用途标识。它出现在执行记录与用量归属里，让运营者
-	// 能把机器人开销和别的 AI 用途分开看。
-	ReplyPurpose = "forum.reply"
-	// ReplyPromptVersion 参与缓存键与执行记录。改动提示词时必须递增它，否则历史
-	// 记录无法对应到产出它的那版提示词。forum-reply@4：发言标签改为
-	// 「显示名（@用户名）」并声明成员检索工具——只有昵称时，模型知道谁在说话却
-	// 无从查询这个人。forum-reply@3：默认提示词不再包含字面量尖括号标签——富文本
-	// 编辑器会把它剥离，导致面板把默认值误判成「已自定义」。
-	// forum-reply@2：主楼正文进入上下文、站内工具与引用要求写进系统指令。
-	ReplyPromptVersion = "forum-reply@4"
+	// ReplyPurpose 是回复生成的用途标识。它与 Host 的用途登记表里那一条声明
+	// 是同一个 id（supportai.CorePurposeForumReply）：成本等级、工具白名单、
+	// 失败姿态都由那条声明与站点覆盖决定，这里不再自带常量。
+	ReplyPurpose = supportai.CorePurposeForumReply
+	// ReplyPromptVersion 是回复提示词的版本，用于缓存键与执行记录。它是用途声明
+	// 里的值的别名，保持这个导出名是为了让调用方与历史记录读到同一个字符串。
+	ReplyPromptVersion = supportai.CoreReplyPromptVersion
 	// ReplyMaxTokens 是单次回复的输出上限。
 	ReplyMaxTokens = 512
 )
 
-// ReplyToolAllowlist 是回复用途允许模型调用的工具白名单。
+// ReplyToolAllowlist 是回复用途声明的默认工具白名单。
 //
-// 它是用途自己的声明：Host 的工具登记表决定「站内存在哪些工具」，这里决定
-// 「这次对话能用哪些」。允许清单之外的工具即使已登记也不会出现在请求里，
-// 因此审核类工具不会因为一次提示词注入而被回复机器人拿到。
-// user-search 与 user-profile-read 是一对：前者按昵称找到 @用户名，后者读公开资料。
-var ReplyToolAllowlist = []string{
-	"forum-search",
-	"forum-topic-read",
-	"forum-topic-list",
-	"user-search",
-	"user-profile-read",
-	"time-now",
-}
+// 它是 supportai 里那条用途声明的别名：白名单现在属于用途声明，不再是生成器的
+// 私有常量。保留这个导出名是为了让「回复默认能用哪些工具」有一个显而易见的读法，
+// 而不必记住登记表的键。
+var ReplyToolAllowlist = supportai.CoreReplyToolAllowlist
 
 var (
 	ErrGeneratorUnavailable = errors.New("aireply: generator is not wired")
 	ErrEmptyReply           = errors.New("aireply: model returned an empty reply")
 )
 
-// ReplyPromptSource 提供当前生效的系统指令。它在每次生成时读取，这样运营者改完
-// 提示词不需要重启或重建生成器。
-type ReplyPromptSource interface {
+// ReplyParameterSource 提供回复用途当前生效的参数：提示词、成本等级、工具
+// 白名单。
+//
+// 三个值都来自同一个地方——用途声明 + 站点覆盖——因此它们是同一次解析的结果
+// 而不是三个独立的读取：成本等级与工具边界必须对应同一份声明，分开读会出现
+// 「用 A 声明的成本等级配 B 声明的工具」这种无法解释的组合。
+type ReplyParameterSource interface {
+	// ReplySystemPrompt 返回当前生效的系统指令（自定义或内置默认，含固定尾注）。
 	ReplySystemPrompt(ctx context.Context) (string, error)
+	// ReplyPurposeParameters 返回回复用途当前生效的参数。
+	ReplyPurposeParameters(ctx context.Context) (ReplyPurposeParameters, error)
+}
+
+// ReplyPurposeParameters 是一次解析后的回复用途参数。
+type ReplyPurposeParameters struct {
+	CostClass     string
+	ToolsAllowed  []string
+	ToolsOverride bool
+	PromptVersion string
 }
 
 // Generator 把一次待生成的回复变成真正的评论。
@@ -56,12 +60,62 @@ type Generator struct {
 	threads   ThreadReader
 	completer Completer
 	poster    CommentPoster
-	// prompts 可为 nil：那时使用内置默认提示词。
-	prompts ReplyPromptSource
+	// parameters 可为 nil：那时使用内置默认提示词与用途声明的默认参数。
+	parameters ReplyParameterSource
 }
 
-func NewGenerator(threads ThreadReader, completer Completer, poster CommentPoster, prompts ReplyPromptSource) *Generator {
-	return &Generator{threads: threads, completer: completer, poster: poster, prompts: prompts}
+func NewGenerator(threads ThreadReader, completer Completer, poster CommentPoster, parameters ReplyParameterSource) *Generator {
+	return &Generator{threads: threads, completer: completer, poster: poster, parameters: parameters}
+}
+
+// defaultReplyParameters 是没有任何配置来源时生效的参数：用途声明的成本等级与
+// 工具白名单。它同时也是读配置失败时的回退值。
+func defaultReplyParameters() ReplyPurposeParameters {
+	declaration, ok := supportai.DefaultPurposeRegistry().Lookup(ReplyPurpose)
+	if !ok {
+		return ReplyPurposeParameters{CostClass: supportai.CostClassEconomy}
+	}
+	return ReplyPurposeParameters{
+		CostClass:     declaration.CostClass,
+		ToolsAllowed:  append([]string(nil), declaration.ToolAllowlist...),
+		PromptVersion: declaration.PromptVersion,
+	}
+}
+
+// resolveParameters 决定这次回复实际生效的参数。
+//
+// 读配置失败时回退到用途声明的默认值（成本等级 + Core 内置工具列表），而不是
+// 变成「无白名单」或「全部工具」：插件工具必须由配置显式列名才能出现，Core
+// 工具也不该因为一次设置读取失败而消失。
+func (g *Generator) resolveParameters(ctx context.Context) (ReplyPurposeParameters, string) {
+	fallback := defaultReplyParameters()
+	if g == nil || g.parameters == nil {
+		return fallback, ""
+	}
+	parameters, err := g.parameters.ReplyPurposeParameters(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "aireply: load purpose parameters failed; using the declared default",
+			"err", err)
+		parameters = fallback
+	}
+	if strings.TrimSpace(parameters.CostClass) == "" {
+		parameters.CostClass = fallback.CostClass
+	}
+	if parameters.ToolsAllowed == nil {
+		parameters.ToolsAllowed = fallback.ToolsAllowed
+	}
+	if strings.TrimSpace(parameters.PromptVersion) == "" {
+		parameters.PromptVersion = fallback.PromptVersion
+	}
+	// 读配置失败不该让整次回复失败：退回内置默认提示词仍然是有用的回答。
+	systemOverride := ""
+	if value, err := g.parameters.ReplySystemPrompt(ctx); err != nil {
+		slog.WarnContext(ctx, "aireply: load configured system prompt failed; using the default",
+			"err", err)
+	} else {
+		systemOverride = value
+	}
+	return parameters, systemOverride
 }
 
 // Generate 执行一次完整的生成：读上下文 → 组装提示词 → 调用模型 → 以机器人
@@ -77,26 +131,17 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 	if err != nil {
 		return fmt.Errorf("load reply context: %w", err)
 	}
-	// 读配置失败不该让整次回复失败：退回内置默认提示词仍然是有用的回答。
-	systemOverride := ""
-	if g.prompts != nil {
-		value, err := g.prompts.ReplySystemPrompt(ctx)
-		if err != nil {
-			slog.WarnContext(ctx, "aireply: load configured system prompt failed; using the default",
-				"err", err)
-		} else {
-			systemOverride = value
-		}
-	}
+	parameters, systemOverride := g.resolveParameters(ctx)
 	system, user := buildReplyPrompt(thread, systemOverride)
 	completion, err := g.completer.Complete(ctx, CompletionInput{
 		Purpose:       ReplyPurpose,
-		PromptVersion: ReplyPromptVersion,
+		CostClass:     parameters.CostClass,
+		PromptVersion: parameters.PromptVersion,
 		System:        system,
 		User:          user,
 		MaxTokens:     ReplyMaxTokens,
 		SubjectUserID: input.TriggerUserID,
-		Tools:         ReplyToolAllowlist,
+		Tools:         append([]string(nil), parameters.ToolsAllowed...),
 		// 工具以提问者视角取数：可见性判定用触发者身份，位置信息用于限定
 		// 「当前这栋楼」。
 		ToolContext: supportai.ToolContext{

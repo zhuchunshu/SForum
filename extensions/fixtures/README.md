@@ -14,6 +14,7 @@ Parent layout map (not product install): [../README.md](../README.md).
 | `plugins/sforum-commerce-workflow-ext` | Required dependency plus cross-plugin hook and service extension |
 | `plugins/sforum-contract-events` | Manifest-only events + `forum.topic.actions` contribution |
 | `plugins/sforum-contract-schedules` | Manifest-only reminder that schedules stay host-owned |
+| `plugins/sforum-events-command-reference` | Plugin-namespaced `sforum.events.emit@1` publication through the real Host event bus, plus foreign/Core namespace refusals |
 | `plugins/sforum-custom-content` | Entity, Content, Editor, Query, Navigation, and Region registries |
 | `plugins/sforum-media-optimize` | Media Pipeline MIME policy, transforms, background jobs, and fallback |
 | `plugins/sforum-membership-reference` | Identity, permission, auth, profile, recovery, session, and risk surfaces |

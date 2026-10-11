@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -229,8 +230,17 @@ func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConf
 		boundary.routes.WithPluginAdmission(func(artifact routes.PluginArtifact) bool {
 			identity := RuntimeInstanceIdentity{ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID}
 			snapshot, err := boundary.manager.InspectRuntimeInstance(identity)
-			return err == nil && snapshot.ExtensionVersion == artifact.ExtensionVersion &&
+			admitted := err == nil && snapshot.ExtensionVersion == artifact.ExtensionVersion &&
 				snapshot.ArtifactDigest == artifact.PackageDigest && boundary.manager.RuntimeInstanceAvailable(identity)
+			if artifact.ExtensionID == "sforum.gamification" {
+				slog.Warn("route admission probe",
+					"extension", artifact.ExtensionID, "instanceID", artifact.RuntimeInstanceID,
+					"inspectErr", err, "snapshotVersion", snapshot.ExtensionVersion,
+					"artifactVersion", artifact.ExtensionVersion,
+					"snapshotDigest", snapshot.ArtifactDigest, "artifactDigest", artifact.PackageDigest,
+					"admitted", admitted)
+			}
+			return admitted
 		})
 	}
 	if boundary.queries != nil && boundary.manager != nil {
@@ -333,12 +343,21 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 			if item.Type != extensions.TypePlugin || item.Status != extensions.StatusEnabled ||
 				strings.TrimSpace(item.Manifest.Backend.Entry) == "" ||
 				(len(item.Manifest.Routes) == 0 && len(item.Manifest.OpenAPI) == 0) {
+				if item.Type == extensions.TypePlugin && item.ID == "sforum.gamification" {
+					slog.Warn("route restore: gamification filtered out",
+						"status", item.Status, "backendEntry", item.Manifest.Backend.Entry != "",
+						"routes", len(item.Manifest.Routes), "openapi", len(item.Manifest.OpenAPI),
+						"activeVersionID", item.ActiveVersionID, "version", item.Version)
+				}
 				continue
 			}
 			runtime, err := b.manager.ActiveRuntimeInstance(item.ID)
 			if err != nil {
 				// Failed or boot-loop-suppressed plugins remain closed without
 				// preventing Host startup or publishing stale package routes.
+				slog.Warn("route restore: skip plugin without active runtime",
+					"extension", item.ID, "routes", len(item.Manifest.Routes),
+					"openapi", len(item.Manifest.OpenAPI), "error", err)
 				continue
 			}
 			if !runtimeInstanceMatchesExtension(runtime, item) || !b.manager.RuntimeInstanceAvailable(runtime.Identity) {

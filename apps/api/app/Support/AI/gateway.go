@@ -13,6 +13,9 @@ import (
 var (
 	// ErrGatewayDisabled 表示站点总开关关闭，不产生任何出站调用。
 	ErrGatewayDisabled = errors.New("ai: gateway is disabled")
+	// ErrGatewayUnavailable 表示网关或供应商通道当前不可用（装配缺失、
+	// 供应商槽位未选择等）。命令层据此返回稳定的 ai.gateway_unavailable。
+	ErrGatewayUnavailable = errors.New("ai: gateway is unavailable")
 )
 
 // CredentialResolver 从 Secret Store 解析 profile 的密钥引用。网关只拿引用，
@@ -66,6 +69,9 @@ type GatewayConfig struct {
 	Creds    CredentialResolver
 	Invoker  ProviderInvoker
 	Cache    ResultCache
+	// Purposes 是用途登记表。为 nil 时不校验用途（老部署与单元测试的兼容路径）；
+	// 装配路径应当始终注入它——「用途必须先声明」是这次的边界规则。
+	Purposes *PurposeRegistry
 	// Clock 可注入，便于测试窗口行为。
 	Clock func() time.Time
 	// CacheTTL 为 0 时使用 DefaultCacheTTL。
@@ -85,6 +91,7 @@ type Gateway struct {
 	creds    CredentialResolver
 	invoker  ProviderInvoker
 	cache    ResultCache
+	purposes *PurposeRegistry
 	clock    func() time.Time
 	cacheTTL time.Duration
 }
@@ -105,6 +112,7 @@ func NewGateway(config GatewayConfig) *Gateway {
 		creds:    config.Creds,
 		invoker:  config.Invoker,
 		cache:    config.Cache,
+		purposes: config.Purposes,
 		clock:    clock,
 		cacheTTL: ttl,
 	}
@@ -141,6 +149,22 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 		return CompletionResult{}, &UnavailableError{Posture: posture, Reason: GateReasonDisabled, Err: ErrGatewayDisabled}
 	}
 
+	// 用途必须先声明：登记表决定这次调用的成本等级与工具边界，未登记的用途
+	// 意味着没有人声明过这些事实。它在总开关之后、闸门之前判定——站点关闭时
+	// 「为什么没有出站」的答案仍然只有一个（gateway_disabled）。
+	if purposeErr := g.ValidatePurpose(request.Purpose); purposeErr != nil {
+		g.record(ctx, ExecutionRecord{
+			Purpose: request.Purpose, CostClass: request.CostClass,
+			CallerExtensionID: request.Metadata.CallerExtensionID, Status: ExecutionStatusDenied,
+			GateReason: GateReasonPurposeUnknown, GateScope: GateScopeSite,
+			PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
+			ErrorSummary: purposeErr.Error(),
+		})
+		return CompletionResult{}, &UnavailableError{
+			Posture: posture, Reason: GateReasonPurposeUnknown, Err: purposeErr,
+		}
+	}
+
 	now := g.clock()
 	decision, err := g.gate(ctx, settings, request, now)
 	if err != nil {
@@ -170,7 +194,15 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 		return CompletionResult{}, &UnavailableError{Posture: posture, Reason: "profile_unavailable", Err: ErrProfileUnavailable}
 	}
 
+	// 出站脱敏在缓存键与 provider 调用之前完成：所有带内容的出站都经过 Execute，
+	// 因此没有第二条能绕过脱敏的路径；缓存也按脱敏后的正文对齐。
+	request = ApplyRedaction(settings.Redaction, request)
+
 	if cached, ok := g.cached(ctx, request, profile, settings.Revision); ok {
+		// 命中的结果必须自己带上 cacheHit：它是结果契约的一部分，插件与观测页据此
+		// 区分「这次真的调用了供应商」与「从这里取回的旧答案」。缓存里存的永远是
+		// 一次真实调用的结果，因此标记只在返回路径上加。
+		cached.CacheHit = true
 		g.record(ctx, ExecutionRecord{
 			Purpose: request.Purpose, CostClass: request.CostClass,
 			CallerExtensionID: request.Metadata.CallerExtensionID, ProfileID: profile.ID,

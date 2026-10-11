@@ -28,19 +28,47 @@ func NewController(service *modelsai.Service, users identity.ActorStore, session
 // updateSettingsRequest 刻意不接受 revision / updatedBy / updatedAt：
 // 它们由服务端权威决定，客户端提交只会被忽略或造成假象。
 type updateSettingsRequest struct {
-	Enabled               bool                         `json:"enabled"`
-	Profiles              []supportai.Profile          `json:"profiles"`
-	CostClassProfiles     map[string]string            `json:"costClassProfiles"`
-	PurposeFailurePosture map[string]string            `json:"purposeFailurePosture"`
-	AutoAction            supportai.AutoActionSettings `json:"autoAction"`
-	Gates                 supportai.GateSettings       `json:"gates"`
-	Redaction             supportai.RedactionSettings  `json:"redaction"`
+	Enabled               bool                `json:"enabled"`
+	Profiles              []supportai.Profile `json:"profiles"`
+	CostClassProfiles     map[string]string   `json:"costClassProfiles"`
+	PurposeFailurePosture map[string]string   `json:"purposeFailurePosture"`
+	// Purposes 是按用途的站点覆盖（工具白名单、失败姿态）。它是回复特例的替代：
+	// reply.tools 仍然接受（服务端会迁移到 Purposes["forum.reply"]），但新配置
+	// 走这一项，与其它用途同一条路径。
+	Purposes   map[string]supportai.PurposeSettings `json:"purposes"`
+	AutoAction supportai.AutoActionSettings         `json:"autoAction"`
+	Gates      supportai.GateSettings               `json:"gates"`
+	Redaction  supportai.RedactionSettings          `json:"redaction"`
+	// Reply 承载回复提示词与旧版工具白名单覆盖。前端一直在发这一项，但 DTO 此前
+	// 没有它，保存设置会静默丢掉运营者写过的提示词——这里补齐，并让工具白名单
+	// 走同一条经过校验的路径。
+	Reply supportai.ReplySettings `json:"reply"`
+}
+
+// purposeCatalogEntry 是控制台渲染用途清单所需的事实：这个用途是什么、花哪一档、
+// 失败时怎么降级、模型默认能用哪些工具，以及站点当前是否覆盖了它们。
+type purposeCatalogEntry struct {
+	ID                       string                          `json:"id"`
+	Label                    supportai.LocalizedPurposeLabel `json:"label"`
+	Description              supportai.LocalizedPurposeLabel `json:"description"`
+	CostClass                string                          `json:"costClass"`
+	ResourceType             string                          `json:"resourceType"`
+	PromptVersion            string                          `json:"promptVersion"`
+	BlastRadius              string                          `json:"blastRadius"`
+	FailurePosture           string                          `json:"failurePosture"`
+	FailurePostureOverridden bool                            `json:"failurePostureOverridden"`
+	DeclaredTools            []string                        `json:"declaredTools"`
+	ToolsAllowed             []string                        `json:"toolsAllowed"`
+	ToolsOverridden          bool                            `json:"toolsOverridden"`
 }
 
 type settingsResponse struct {
 	Settings supportai.Settings `json:"settings"`
 	// Warnings 是非阻断提示（例如未配置单价导致预算闸门不生效）。
 	Warnings []string `json:"warnings"`
+	// Purposes 是站内已声明的 AI 用途清单（含生效参数）。运营者按用途而不是按
+	// 某一项特例来理解和配置 AI 行为。
+	Purposes []purposeCatalogEntry `json:"purposes"`
 	// EncryptionEnabled 表示 Secret Store 是否具备加密能力；为 false 时不应保存真实密钥。
 	EncryptionEnabled bool `json:"encryptionEnabled"`
 	// CredentialStatus 按 profile id 报告密钥是否已配置。它不含密钥值。
@@ -109,9 +137,31 @@ func (h *Controller) settingsPayload(c fiber.Ctx, actor identity.Actor, settings
 	if err != nil {
 		return mapAIError(err)
 	}
+	details, err := h.service.PurposeDetails(c.Context(), actor)
+	if err != nil {
+		return mapAIError(err)
+	}
+	catalog := make([]purposeCatalogEntry, 0, len(details))
+	for _, detail := range details {
+		catalog = append(catalog, purposeCatalogEntry{
+			ID:                       detail.Declaration.ID,
+			Label:                    detail.Declaration.Label,
+			Description:              detail.Declaration.Description,
+			CostClass:                detail.Declaration.CostClass,
+			ResourceType:             detail.Declaration.ResourceType,
+			PromptVersion:            detail.Declaration.PromptVersion,
+			BlastRadius:              detail.Declaration.BlastRadius,
+			FailurePosture:           detail.FailurePosture,
+			FailurePostureOverridden: detail.FailurePostureOverridden,
+			DeclaredTools:            append([]string(nil), detail.Declaration.ToolAllowlist...),
+			ToolsAllowed:             detail.ToolsAllowed,
+			ToolsOverridden:          detail.ToolsOverridden,
+		})
+	}
 	return apphttp.OK(c, settingsResponse{
 		Settings:            settings,
 		Warnings:            settings.Warnings(),
+		Purposes:            catalog,
 		EncryptionEnabled:   h.encryptionEnabled(),
 		CredentialStatus:    status,
 		ReplyBot:            bot,
@@ -271,9 +321,11 @@ func settingsFromRequest(request updateSettingsRequest) supportai.Settings {
 		Profiles:              request.Profiles,
 		CostClassProfiles:     request.CostClassProfiles,
 		PurposeFailurePosture: request.PurposeFailurePosture,
+		Purposes:              request.Purposes,
 		AutoAction:            request.AutoAction,
 		Gates:                 request.Gates,
 		Redaction:             request.Redaction,
+		Reply:                 request.Reply,
 	}.Normalized()
 }
 

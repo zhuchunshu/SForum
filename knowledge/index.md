@@ -204,17 +204,30 @@ load archived sessions or completed plans as current context.
   identity), and **read-only chat tools** (contract `tools[]`/`toolCalls[]`,
   both protocol adapters, Host-owned orchestration loop with a per-reply step
   budget, five Core built-in read-only tools, admin settings) are in production
-  code. Remaining: rendered admin QA for the two new settings fields, M2
-  moderation assistant, M4 content purposes, and the plugin-facing `ai.tool`
-  manifest surface.
+  code. The plugin-facing surfaces landed with the AI plugin Host API work
+  (`sforum.ai.complete@1`, `sforum.events.emit@1`, manifest `aiTools[]`);
+  outbound redaction and the completion result cache are wired, and plugin jobs
+  can declare the `ai` queue. **M4 purpose registry landed (2026-10-12)**: a
+  purpose is now a declaration (id, bilingual label, cost class, failure
+  posture, tool allowlist, resource type, blast radius, prompt version) held in
+  one read-only registry, `forum.reply` is its first entry and replaced the
+  `reply.*` special case, site configuration mirrors it as `purposes`, and an
+  undeclared purpose is denied before any outbound call. Remaining: the
+  per-purpose override UI (needs rendered QA after an API restart), M2
+  moderation assistant, content purposes, the `ai.provider` slot (M3),
+  completion hooks (M5), and an operator control for the result cache.
 - Plan: `plans/2026-10-02-ai-assist-platform.md`,
-  `plans/2026-10-03-ai-read-only-chat-tools.md`
+  `plans/2026-10-03-ai-read-only-chat-tools.md`,
+  `plans/2026-10-12-ai-forward-ideas.md`（blueprint：前瞻想法池，未排期）
 - Decision: `decisions/2026-10-02-ai-provider-gateway.md`,
   `decisions/2026-10-03-ai-read-only-chat-tools.md`,
+  `decisions/2026-10-12-ai-purpose-registry.md`,
+  `decisions/2026-10-12-extension-database-grant-authority.md`,
   `decisions/2026-10-11-ai-credentials-fail-closed-without-encryption-key.md`,
   `decisions/2026-10-11-ai-reset-keeps-provider-profiles.md`,
   `decisions/2026-10-11-ai-model-list-probe.md`,
-  `decisions/2026-10-11-ai-private-provider-endpoints.md`
+  `decisions/2026-10-11-ai-private-provider-endpoints.md`,
+  `decisions/2026-10-12-ai-scope-mcp-skills-streaming.md`
 - Handoff: `sessions/2026-10-11-ai-model-list-probe-handoff.md`
   (prior: `sessions/2026-10-03-ai-read-only-tools-handoff.md`)
 - Modules: `modules/ai.md`, `modules/extensions.md`, `modules/moderation.md`,
@@ -268,6 +281,65 @@ load archived sessions or completed plans as current context.
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
+
+- AI 用途登记表 M4 + 两个阻塞清除（2026-10-12）：① `.github/dependabot.yml` 补上
+  gamification backend 条目（`validate-docs.mjs` 唯一失败项消除）；② 扩展数据库精确授权
+  的操作者绑定供给从此真的存在——`ProtocolStarter` 此前恒用 host 权威，导致任何
+  `own_schema` 插件都无法通过正常启用流程跑起来；现在启动上下文携带
+  `{actor, auditEventID}`（旧的 `ActivationCoordinator.Start` 写一条
+  `extension.database_grant` 审计锚点并盖章，Lifecycle V2 host 从 durable ledger 取同一
+  权威），缺锚点即退回 host 权威并失败关闭，撤销仍恒为 host 权威；顺带修掉
+  `Support/AI` ↔ `Models/Extensions` 的**测试期 import 环**（AI 工具适配层移到
+  `Support/AI/toolplugin`，`Models/Extensions` 测试包才重新可编译）。③ M4
+  `ai.purpose` registry：用途成为声明（id/成本等级/失败姿态/工具白名单/资源类型/影响
+  范围/提示词版本），`forum.reply` 是唯一条目并取代 `reply.*` 特例；站点配置新增
+  `purposes`（旧 `reply.tools` 归一化时迁移）；未声明用途被网关拒为
+  `purpose_unknown`（零出站 + denied trace），站点关闭仍只有一个答案
+  `gateway_disabled`；回复生成器不再自带工具常量/成本等级/提示词版本。契约与 OpenAPI
+  已同步补齐（含此前缺失的 `reply.tools`/`replyBot`/`defaultSystemPrompt`/
+  `safetyAppendix`）。验证：构建、聚焦套件、架构门禁、OpenAPI/Host API/文档校验、隔离
+  集群端到端（含 gamification 授权供给两用例）全绿；Web 侧 `bun test` 1119 pass（2 个
+  gamification 侧栏失败属并行工作流）、typecheck、生产构建（需
+  `NODE_OPTIONS=--max-old-space-size=6144`）全绿；用途页签在真实浏览器完成端到端
+  （含持久化/回显/恢复默认闭环），并修掉三处渲染缺陷（USelect 空值选项哨兵化、
+  value-key/label-key 补齐、以及**所有 AI 页签共有的 hydration mismatch**——三个
+  useAsyncData 从未被 await，SSR 按空兜底渲染、客户端按真实载荷水合）。
+  **遗留：390x844 窄屏渲染 QA。** 详见
+  `sessions/2026-10-12-ai-purpose-registry-m4-handoff.md`、
+  `decisions/2026-10-12-ai-purpose-registry.md`、
+  `decisions/2026-10-12-extension-database-grant-authority.md`。
+
+- AI 插件 Host API（M1 命令 / M1.5 事件 / M2 工具）落地并接线，外加两项 M1 遗留
+  收口（出站脱敏、结果缓存）与插件 job 队列声明（2026-10-11/12）：插件发起补全走
+  `sforum.ai.complete@1`（`ai.invoke`），发布自身事件走 `sforum.events.emit@1`
+  （`events.emit`），贡献工具走清单 `aiTools[]` + 保留 slot `sforum.ai.tool`（登记
+  不等于暴露：不进任何 Core 用途白名单）；脱敏在 `Gateway.Execute` 于缓存键与出站
+  之前执行；结果缓存接 Redis、命中零成本并回报 `cacheHit`；`jobs[].queue: "ai"` 让
+  慢任务进入 AI 低并发通道。两处基线按棘轮调整（`manifest.go` 920→916 下调、
+  `Support/Extensions` 扁平目录 145→147）。验证：`go build ./...`、聚焦 Go 套件、
+  架构门禁、目录文档同步、Host API 文档校验全绿；隔离集群上跑通插件命令端到端
+  （成功记账 / 配额用尽 / 站点关闭 / 能力未授予）、AI 工具子进程派发，以及事件发布
+  端到端——后者当场抓到 `sforum.events.emit@1` 无法通过 broker 规划的缺陷（Preview
+  缺 Policy、Prepare 只带 private），已修并加单测钉住。插件工具的暴露也定案并落地：
+  回复用途的白名单来自站点配置 `reply.tools.allowed`（缺省＝用途声明的 Core 列表，
+  插件工具必须被点名才对模型可见），同时修掉了「设置 DTO 丢 reply 字段导致保存清空
+  提示词」的既有缺陷。详见
+  `sessions/2026-10-11-ai-plugin-host-api-m2-handoff.md`、
+  `plans/2026-10-11-ai-plugin-host-api-m1.md` 与
+  `decisions/2026-10-11-ai-tool-contribution-m2.md`、
+  `decisions/2026-10-11-ai-outbound-redaction.md`、
+  `decisions/2026-10-11-ai-result-cache-wiring.md`、
+  `decisions/2026-10-12-plugin-job-queue-declaration.md`。
+  注：本工作流在 2026-10-12 00:28 遭遇一次工作树回滚（tracked 改动被恢复到 HEAD），
+  恢复清单见 `sessions/2026-10-12-ai-host-api-recovery-note.md`。
+- 插件运行时全量恢复与测试隔离（2026-10-12）：集成测试污染开发库导致
+  `sforum.gamification` 精确数据库授权丢失、全站 503。已通过正式生命周期恢复
+  （rev 29 applied）、身份注册表 tip active、公开接口全部 200；新增
+  `scripts/test-api-isolated.sh` 独立测试集群 + 包级连接守卫 + AGENTS.md Agent
+  约束；修复插件响应契约（TypedDocument 字符串）、OpenAPI 片段声明与并行
+  M1.5 会话的编译断点。遗留：成就公开路由 422（M6 rendered QA 未做，需插件侧
+  调试）、并行会话两处架构基线残留。详见
+  `sessions/2026-10-12-plugin-runtime-recovery-and-test-isolation.md`。
 
 - AI 回复的身份标识与成员检索（2026-10-11）：提示词里的每条发言从「只有昵称」改为
   `显示名（@用户名）`（`AuthorRef`，主楼作者也补上了），并新增第六个内置只读工具

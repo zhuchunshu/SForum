@@ -28,6 +28,14 @@ export function useAdminAISettingsForm(ai: AdminAIContext) {
   const selectedProviderId = ref('')
 
   watch(ai.settings, (next) => {
+    // 载荷未就绪（或读取失败）时保持 form=null：用空兜底值落草稿会让「已保存基准」
+    // 与草稿在 SSR/客户端两处不一致——SSR 上 watch(immediate) 先跑、客户端水合后
+    // 载荷才到位，dirty 提示于是只在一侧渲染，直接造成 hydration mismatch。
+    // 各页签的 v-if="form" 与页面壳的加载态本来就该在无载荷时不渲染表单。
+    if (ai.loading.value || ai.loadFailed.value) {
+      form.value = null
+      return
+    }
     form.value = JSON.parse(JSON.stringify(next)) as AdminAISettings
     // 已保存的文档可能来自引入 reply 之前的版本，那时这个字段不存在。
     // 先补全再绑定，否则任何 .trim() 都会炸在 undefined 上。
@@ -74,7 +82,10 @@ export function useAdminAISettingsForm(ai: AdminAIContext) {
   }
 
   const dirty = computed(() => {
-    if (!form.value) return false
+    // 载荷未就绪时没有「已保存基准」可比：此时草稿是空兜底的复制，任何 dirty=true
+    // 都是假的。它还会造成 hydration mismatch——SSR 渲染出「有未保存的改动」，
+    // 客户端水合后载荷到位、dirty 变 false，同一节点两种结果。
+    if (!form.value || ai.loading.value) return false
     return JSON.stringify(normalizedForComparison(form.value)) !== JSON.stringify(normalizedForComparison(ai.settings.value))
   })
 

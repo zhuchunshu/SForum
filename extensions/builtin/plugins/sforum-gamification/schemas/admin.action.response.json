@@ -24,6 +24,12 @@
     },
     "revoked": {
       "type": "boolean"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
     }
   }
 }

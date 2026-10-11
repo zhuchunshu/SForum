@@ -1,0 +1,43 @@
+{
+  "manifestVersion": 3,
+  "id": "sforum.ai-tool-reference",
+  "name": "SForum AI Tool Reference",
+  "description": "Protocol V2 fixture proving an exact-artifact plugin AI tool reaches the Host completion loop through the reserved sforum.ai.tool slot.",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "author": {"name": "SForum", "url": "https://github.com/zhuchunshu/sforum"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "backend": {
+    "entry": "backend/plugin",
+    "rpc": "hashicorp-go-plugin",
+    "protocolVersion": 2,
+    "hostApiVersion": "sforum.host-api@2",
+    "digest": "__BACKEND_DIGEST__"
+  },
+  "aiTools": [
+    {
+      "id": "sforum.ai-tool-reference.order_lookup",
+      "contractVersion": "sforum.ai-tool-reference.order_lookup@1",
+      "name": "sforum-order-lookup",
+      "description": "Look up an order by its public number.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "orderNumber": {"type": "string", "description": "Public order number."}
+        },
+        "required": ["orderNumber"]
+      },
+      "handler": "sforum.ai-tool-reference.order_lookup",
+      "timeoutMs": 1000
+    }
+  ],
+  "packageFiles": [
+    {
+      "id": "sforum.ai-tool-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin",
+      "digest": "__BACKEND_DIGEST__"
+    }
+  ]
+}

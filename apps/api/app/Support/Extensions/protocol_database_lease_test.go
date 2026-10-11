@@ -198,8 +198,7 @@ func (r *protocolDatabaseLeaseRegistry) IssueRuntimeLease(
 ) (ExtensionDatabaseRuntimeCredential, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.lease.Status == ExtensionDatabaseLeaseActive || request.Authority.Kind != ExtensionDatabaseLeaseIssuerHost ||
-		request.Authority.AuditEventID != 0 {
+	if r.lease.Status == ExtensionDatabaseLeaseActive || !r.accepts(request.Authority) {
 		return ExtensionDatabaseRuntimeCredential{}, ErrExtensionDatabaseRuntimeLeaseConflict
 	}
 	now := time.Now().UTC()
@@ -296,6 +295,19 @@ func (r *protocolDatabaseLeaseRegistry) InspectRuntimeLease(
 	return r.lease, nil
 }
 
+// accepts 复刻真实注册表的权威校验：host 权威不带 actor，actor 权威必须同时
+// 带 actor 与审计事件 id。
+func (r *protocolDatabaseLeaseRegistry) accepts(authority ExtensionDatabaseLeaseAuthority) bool {
+	switch authority.Kind {
+	case ExtensionDatabaseLeaseIssuerHost:
+		return authority.ActorUserID == 0 && authority.AuditEventID == 0
+	case ExtensionDatabaseLeaseIssuerActor:
+		return authority.ActorUserID > 0 && authority.AuditEventID > 0
+	default:
+		return false
+	}
+}
+
 func (r *protocolDatabaseLeaseRegistry) matches(ref ExtensionDatabaseRuntimeLeaseRef) bool {
 	return r.lease.LeaseID == ref.LeaseID && r.lease.Artifact == ref.Artifact &&
 		r.lease.RuntimeInstanceID == ref.RuntimeInstanceID
@@ -326,3 +338,69 @@ func waitProtocolDatabaseLease(t *testing.T, predicate func() bool) {
 }
 
 var _ RuntimeDatabaseLeaseRegistry = (*protocolDatabaseLeaseRegistry)(nil)
+
+func TestProtocolDatabaseLeaseAuthorityFollowsTheStartContext(t *testing.T) {
+	cases := []struct {
+		name string
+		ctx  context.Context
+		want ExtensionDatabaseLeaseAuthority
+	}{
+		{
+			name: "host start",
+			ctx:  context.Background(),
+			want: ExtensionDatabaseLeaseAuthority{Kind: ExtensionDatabaseLeaseIssuerHost},
+		},
+		{
+			name: "operator bound start",
+			ctx: extensions.WithDatabaseGrantAuthority(context.Background(), extensions.DatabaseGrantAuthority{
+				ActorUserID: 31, AuditEventID: 77,
+			}),
+			want: ExtensionDatabaseLeaseAuthority{
+				Kind: ExtensionDatabaseLeaseIssuerActor, ActorUserID: 31, AuditEventID: 77,
+			},
+		},
+		{
+			name: "half authority stays host",
+			ctx:  extensions.WithDatabaseGrantAuthority(context.Background(), extensions.DatabaseGrantAuthority{ActorUserID: 31}),
+			want: ExtensionDatabaseLeaseAuthority{Kind: ExtensionDatabaseLeaseIssuerHost},
+		},
+	}
+	for _, item := range cases {
+		t.Run(item.name, func(t *testing.T) {
+			if got := protocolDatabaseLeaseAuthority(item.ctx); got != item.want {
+				t.Fatalf("authority=%#v want %#v", got, item.want)
+			}
+		})
+	}
+}
+
+func TestProtocolStarterIssuesOperatorBoundLeaseWhenContextCarriesAuthority(t *testing.T) {
+	registry := newProtocolDatabaseLeaseRegistry()
+	starter := NewProtocolStarter(ProtocolStarterConfig{
+		Trust:                          protocolDatabaseTrust{},
+		DatabaseLeases:                 registry,
+		DatabaseLeaseHeartbeatInterval: time.Hour,
+		DatabaseLeaseOperationTimeout:  time.Second,
+	})
+	extension := protocolDatabaseLeaseExtension(t, true)
+	ctx := extensions.WithDatabaseGrantAuthority(context.Background(), extensions.DatabaseGrantAuthority{
+		ActorUserID: 17, AuditEventID: 23,
+	})
+	target, err := starter.Start(ctx, extension)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if registry.issue.Authority.Kind != ExtensionDatabaseLeaseIssuerActor ||
+		registry.issue.Authority.ActorUserID != 17 || registry.issue.Authority.AuditEventID != 23 {
+		t.Fatalf("issued lease authority=%#v", registry.issue.Authority)
+	}
+	if err := starter.Stop(context.Background(), extension); err != nil {
+		t.Fatal(err)
+	}
+	if registry.revokeCount != 1 {
+		t.Fatalf("lease must be drained and revoked exactly once: %d", registry.revokeCount)
+	}
+	if target.InstanceID == "" {
+		t.Fatal("operator-bound start must still produce an exact instance")
+	}
+}

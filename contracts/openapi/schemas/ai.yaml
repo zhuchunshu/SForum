@@ -167,6 +167,17 @@ AISettings:
         - fail_open
         - fail_closed
         - skip_ai
+    purposes:
+      type: object
+      description: |
+        Per-purpose site overrides. Keys are purpose ids declared by the Host
+        purpose registry; a purpose that is not listed keeps its own declared
+        defaults. An entry whose `tools` field is present (even with an empty
+        list) takes over the model-visible tool allowlist for that purpose.
+      additionalProperties:
+        "$ref": "#/AIPurposeSettings"
+    reply:
+      "$ref": "#/AIReplySettings"
     autoAction:
       "$ref": "#/AIAutoActionSettings"
     gates:
@@ -209,6 +220,10 @@ AISettingsUpdateRequest:
         - fail_open
         - fail_closed
         - skip_ai
+    purposes:
+      type: object
+      additionalProperties:
+        "$ref": "#/AIPurposeSettings"
     autoAction:
       "$ref": "#/AIAutoActionSettings"
     gates:
@@ -217,6 +232,87 @@ AISettingsUpdateRequest:
       "$ref": "#/AIRedactionSettings"
     reply:
       "$ref": "#/AIReplySettings"
+
+AIPurposeSettings:
+  type: object
+  description: |
+    Site override for one declared AI purpose. Both fields are optional: an
+    omitted field keeps the purpose's declared default.
+  properties:
+    tools:
+      type: object
+      description: |
+        Model-visible tool allowlist override. An empty `allowed` list is a valid
+        configuration meaning "this purpose may call no tools at all".
+      properties:
+        allowed:
+          type: array
+          items:
+            type: string
+    failurePosture:
+      type: string
+      enum:
+      - fail_open
+      - fail_closed
+      - skip_ai
+
+AIValidatedPurpose:
+  type: object
+  description: |
+    One declared purpose plus the parameters currently in effect for it. This is
+    the console's catalog: it says what the purpose is, which cost class it
+    declares, how it degrades, and which tools the model may see right now.
+  properties:
+    id:
+      type: string
+    label:
+      "$ref": "#/AILocalizedText"
+    description:
+      "$ref": "#/AILocalizedText"
+    costClass:
+      type: string
+      enum:
+      - economy
+      - standard
+      - premium
+    resourceType:
+      type: string
+    promptVersion:
+      type: string
+    blastRadius:
+      type: string
+      enum:
+      - single
+      - batch
+      - site
+    failurePosture:
+      type: string
+      enum:
+      - fail_open
+      - fail_closed
+      - skip_ai
+    failurePostureOverridden:
+      type: boolean
+    declaredTools:
+      type: array
+      description: The tool allowlist the purpose declares.
+      items:
+        type: string
+    toolsAllowed:
+      type: array
+      description: The tool allowlist in effect after site overrides.
+      items:
+        type: string
+    toolsOverridden:
+      type: boolean
+
+AILocalizedText:
+  type: object
+  properties:
+    default:
+      type: string
+    en-US:
+      type: string
 
 AIReplySettings:
   type: object
@@ -229,6 +325,17 @@ AIReplySettings:
     systemPrompt:
       type: string
       description: Custom system instructions. Blank means the built-in default.
+    tools:
+      type: object
+      description: |
+        Legacy tool allowlist override for the reply purpose. Normalization
+        migrates it into `purposes["forum.reply"].tools`; new configurations
+        should use the per-purpose field.
+      properties:
+        allowed:
+          type: array
+          items:
+            type: string
 
 AISettingsPayload:
   type: object
@@ -240,6 +347,13 @@ AISettingsPayload:
       description: 非阻断提示，例如未配置单价导致预算闸门不生效。
       items:
         type: string
+    purposes:
+      type: array
+      description: |
+        站内已声明的 AI 用途清单（含当前生效参数）。运营者按用途而不是按某一项
+        特例来理解和配置 AI 行为。
+      items:
+        "$ref": "#/AIValidatedPurpose"
     encryptionEnabled:
       type: boolean
       description: Secret Store 是否具备加密能力；为 false 时不应保存真实密钥。
@@ -248,6 +362,23 @@ AISettingsPayload:
       description: 按 profile id 报告密钥是否已配置。永不含密钥值。
       additionalProperties:
         type: boolean
+    replyBot:
+      type: object
+      description: 当前充当 AI 助手的账号；configured 为 false 表示站内还没有机器人。
+      properties:
+        userId:
+          type: integer
+          format: int64
+        username:
+          type: string
+        configured:
+          type: boolean
+    defaultSystemPrompt:
+      type: string
+      description: 内置的回复系统指令（不含安全尾注），供控制台预填编辑器。
+    safetyAppendix:
+      type: string
+      description: 始终附加在提示词末尾的防注入声明，只读展示，不可配置。
 
 AIUsageSnapshot:
   type: object

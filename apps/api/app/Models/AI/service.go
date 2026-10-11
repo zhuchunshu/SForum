@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 )
@@ -47,12 +48,18 @@ type Service struct {
 	reader      CredentialReader
 	models      ModelLister
 	botAccounts BotAccountReader
+	// purposes 是用途登记表：解析生效参数（成本等级、工具白名单、失败姿态）并
+	// 供控制台枚举。它是进程级只读声明，不是可配置项。
+	purposes *supportai.PurposeRegistry
 }
 
 // Config 汇总服务层依赖。除 Settings 外均可缺省，缺省时对应视图返回空结果
 // 而不是报错，让一个尚未接入存储的部署仍能打开配置页。
 type Config struct {
-	Settings    supportai.SettingsStore
+	Settings supportai.SettingsStore
+	// Purposes 是用途登记表。缺省时使用 Core 内置用途，保证服务层不会因为少传
+	// 一个可选依赖就失去用途语义。
+	Purposes    *supportai.PurposeRegistry
 	Gateway     *supportai.Gateway
 	Usage       supportai.UsageStore
 	Traces      supportai.ExecutionStore
@@ -65,8 +72,13 @@ type Config struct {
 }
 
 func NewService(cfg Config) *Service {
+	purposes := cfg.Purposes
+	if purposes == nil {
+		purposes = supportai.DefaultPurposeRegistry()
+	}
 	return &Service{
 		settings:    cfg.Settings,
+		purposes:    purposes,
 		gateway:     cfg.Gateway,
 		usage:       cfg.Usage,
 		traces:      cfg.Traces,
@@ -301,8 +313,16 @@ func diagnoseEmptyReplyHint(stopReason string) string {
 	}
 }
 
+// Purposes 返回用途登记表，供控制台枚举站内已声明的 AI 用途。
+func (s *Service) Purposes() []supportai.PurposeDeclaration {
+	if s == nil || s.purposes == nil {
+		return supportai.BuiltinPurposes()
+	}
+	return s.purposes.Purposes()
+}
+
 // ReplySystemPrompt 返回当前生效的回复系统指令（自定义或内置默认，含固定安全尾注）。
-// 它实现 aireply.ReplyPromptSource：生成器在每次回复时读取，配置改完立即生效。
+// 它实现 aireply.ReplyParameterSource：生成器在每次回复时读取，配置改完立即生效。
 func (s *Service) ReplySystemPrompt(ctx context.Context) (string, error) {
 	if s == nil || s.settings == nil {
 		return "", nil
@@ -312,6 +332,67 @@ func (s *Service) ReplySystemPrompt(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return settings.Reply.EffectiveSystemPrompt(), nil
+}
+
+// ReplyPurposeParameters 返回回复用途当前生效的参数（成本等级、工具白名单、提示词
+// 版本）。它实现 aireply.ReplyParameterSource：生成器在每次回复时读取，配置改完
+// 立即生效。
+//
+// 解析顺序由用途解析器统一决定：站点按用途覆盖 > 用途声明的默认值。回复不再是
+// 特例——它的工具覆盖来自 Purposes["forum.reply"]，与其它用途同一条路径。
+func (s *Service) ReplyPurposeParameters(ctx context.Context) (aireply.ReplyPurposeParameters, error) {
+	if s == nil || s.settings == nil {
+		return aireply.ReplyPurposeParameters{}, nil
+	}
+	settings, err := s.settings.GetSettings(ctx)
+	if err != nil {
+		return aireply.ReplyPurposeParameters{}, err
+	}
+	declaration, ok := s.purposes.Lookup(aireply.ReplyPurpose)
+	if !ok {
+		// 登记表必定包含回复用途（DefaultPurposeRegistry 是编译期常量）。真缺失
+		// 时如实报错，由生成器回退到内置默认参数，而不是伪造一份声明。
+		return aireply.ReplyPurposeParameters{}, supportai.ErrPurposeUnknown
+	}
+	allowed, overridden := declaration.ToolAllowlist, false
+	if configured, exists := settings.Purposes[declaration.ID]; exists {
+		if names, over := configured.ToolAllowlist(); over {
+			allowed, overridden = names, true
+		}
+	}
+	return aireply.ReplyPurposeParameters{
+		CostClass:     declaration.CostClass,
+		ToolsAllowed:  append([]string(nil), allowed...),
+		ToolsOverride: overridden,
+		PromptVersion: declaration.PromptVersion,
+	}, nil
+}
+
+// PurposeDetails 返回按用途的生效参数，供控制台按用途展示与配置。
+func (s *Service) PurposeDetails(ctx context.Context, actor identity.Actor) ([]supportai.ValidatedPurpose, error) {
+	if !actor.Can(identity.PermissionAIManage) {
+		return nil, identity.ErrPermissionDenied
+	}
+	if s == nil || s.purposes == nil {
+		return nil, nil
+	}
+	settings, err := s.GetSettings(ctx, actor)
+	if err != nil {
+		return nil, err
+	}
+	// 解析与生成器走同一个解析器：控制台看到的「生效值」与运行期实际使用的
+	// 值不可能分叉。
+	resolver := supportai.NewPurposeResolver(s.purposes, func() supportai.Settings { return settings })
+	declarations := s.purposes.Purposes()
+	out := make([]supportai.ValidatedPurpose, 0, len(declarations))
+	for _, declaration := range declarations {
+		resolution, err := resolver.Resolve(declaration.ID)
+		if err != nil {
+			continue
+		}
+		out = append(out, resolution)
+	}
+	return out, nil
 }
 
 // CredentialStatus 返回每个 profile 的密钥配置状态，供控制台显示「已配置」。

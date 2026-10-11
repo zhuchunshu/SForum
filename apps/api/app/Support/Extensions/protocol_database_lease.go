@@ -69,7 +69,7 @@ func (s *ProtocolStarter) issueProtocolDatabaseLease(
 	}
 	credential, err := s.databaseLeases.IssueRuntimeLease(ctx, ExtensionDatabaseRuntimeLeaseIssue{
 		Artifact: artifact, RuntimeInstanceID: instanceID,
-		Authority: ExtensionDatabaseLeaseAuthority{Kind: ExtensionDatabaseLeaseIssuerHost},
+		Authority: protocolDatabaseLeaseAuthority(ctx),
 	})
 	if err != nil {
 		return nil, nil, err
@@ -89,6 +89,24 @@ func (s *ProtocolStarter) issueProtocolDatabaseLease(
 		},
 		revision: credential.Revision, expiresAt: credential.ExpiresAt.UTC(),
 	}, env, nil
+}
+
+// protocolDatabaseLeaseAuthority 决定这次启动用哪种权威签发租约。
+//
+// 只有操作者发起的启动会在 context 上携带 actor + 审计锚点，此时才允许自建
+// 精确授权行；其余启动（进程重启、Reconcile、恢复）一律走 host 权威，只能复用
+// 既有授权，缺行失败关闭。
+func protocolDatabaseLeaseAuthority(ctx context.Context) ExtensionDatabaseLeaseAuthority {
+	if ctx != nil {
+		if authority, ok := extensions.DatabaseGrantAuthorityFrom(ctx); ok {
+			return ExtensionDatabaseLeaseAuthority{
+				Kind:         ExtensionDatabaseLeaseIssuerActor,
+				ActorUserID:  authority.ActorUserID,
+				AuditEventID: authority.AuditEventID,
+			}
+		}
+	}
+	return ExtensionDatabaseLeaseAuthority{Kind: ExtensionDatabaseLeaseIssuerHost}
 }
 
 func protocolDatabaseLeaseEnv(credential ExtensionDatabaseRuntimeCredential) ([]string, error) {

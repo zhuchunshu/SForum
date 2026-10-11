@@ -20,22 +20,25 @@ import (
 )
 
 type apiExtensionPlatform struct {
-	infrastructure               *apiInfrastructure
-	executableTrustService       *extensions.ExecutableTrustService
-	frontendService              *extensions.FrontendService
-	pageRegistry                 *pages.Registry
-	themeRuntime                 *pages.ThemeRuntimeRegistry
-	extensionService             *extensions.Service
-	hostAPIGateway               *hostapi.Gateway
-	extensionRuntime             extensionRuntime
-	lifecycleRuntime             *extensionsruntime.Manager
-	hostCacheRuntime             *productionHostCache
-	lifecycleStack               *productionLifecycleStack
-	productionSEO                *productionSEORegistry
-	identityReviewStore          identityregistry.Store
-	hostPlatform                 *productionHostPlatform
-	pluginRuntimeCoordinator     *pluginRuntimeCoordinatorRuntime
-	pluginRuntimeRecovery        *health.RecoveryRequirement
+	infrastructure           *apiInfrastructure
+	executableTrustService   *extensions.ExecutableTrustService
+	frontendService          *extensions.FrontendService
+	pageRegistry             *pages.Registry
+	themeRuntime             *pages.ThemeRuntimeRegistry
+	extensionService         *extensions.Service
+	hostAPIGateway           *hostapi.Gateway
+	extensionRuntime         extensionRuntime
+	lifecycleRuntime         *extensionsruntime.Manager
+	hostCacheRuntime         *productionHostCache
+	lifecycleStack           *productionLifecycleStack
+	productionSEO            *productionSEORegistry
+	identityReviewStore      identityregistry.Store
+	hostPlatform             *productionHostPlatform
+	pluginRuntimeCoordinator *pluginRuntimeCoordinatorRuntime
+	pluginRuntimeRecovery    *health.RecoveryRequirement
+	// commandDeferred 收集目录冻结时尚未就绪的宿主目标（事件总线、AI 网关）。
+	// 扩展平台阶段回填事件总线；AI 网关由领域阶段在拿到 Secret Store 后回填。
+	commandDeferred              *protocolV2CommandRuntimeDeferred
 	pluginRuntimeStopTimeout     time.Duration
 	stopPluginRuntimeCoordinator func()
 	closePluginRuntime           func()
@@ -122,7 +125,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	// F2.2 Host API 与 ProtocolStarter 共用 extensionService；错误密钥不得降级读取 store。
 	hostAPIService := hostapi.New(hostapi.Config{
 		Settings: extensionService,
-		Jobs:     &hostapi.RiverJobEnqueuer{Dispatcher: jobDispatcher},
+		Jobs:     &hostapi.RiverJobEnqueuer{Dispatcher: jobDispatcher, Contracts: extensionService},
 		Auditor:  auditWriter,
 	})
 	hostAPIGateway := hostapi.NewGateway(hostAPIService)
@@ -155,9 +158,10 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	}
 	// 六域 Host Command 必须在首个插件 broker 注册前冻结；否则同一启动中
 	// 已运行插件会看到缺失目录，而后启动插件看到另一份能力集合。
-	if err := bindPostgresProtocolV2CommandRuntime(
+	commandDeferred, err := bindPostgresProtocolV2CommandRuntime(
 		hostAPIGateway, pool, jobDispatcher, moderationStore, attachmentStore, identityAuthorityGate,
-	); err != nil {
+	)
+	if err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
 		}
@@ -180,6 +184,10 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	serviceAdmission := newPluginServiceProviderAdmission(extensionRuntime)
 	hostAPIService.BindServiceProviderAdmission(serviceAdmission)
 	lifecycleRuntime, err := requireProductionExtensionRuntime(extensionRuntime)
+	if err == nil && commandDeferred.Events != nil {
+		// 事件总线随 Manager 就绪：命令目录已冻结，这里只回填发布目标。
+		commandDeferred.Events.Set(extensionsruntime.NewExtensionEventPublisher(lifecycleRuntime))
+	}
 	if err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -428,6 +436,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		themeRuntime:                 themeRuntime,
 		extensionService:             extensionService,
 		hostAPIGateway:               hostAPIGateway,
+		commandDeferred:              &commandDeferred,
 		extensionRuntime:             extensionRuntime,
 		lifecycleRuntime:             lifecycleRuntime,
 		hostCacheRuntime:             hostCacheRuntime,

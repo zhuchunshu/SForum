@@ -22,6 +22,7 @@ cd apps/api && go run ./cmd/sforum extension docs generate --check
 | `admin` | object \| null | no | yes |
 | `adminPages` | array \| null | no | yes |
 | `adminSurfaces` | array \| null | no | yes |
+| `aiTools` | array \| null | no | no |
 | `assets` | array \| null | no | yes |
 | `author` | object | yes | no |
 | `backend` | object \| null | no | no |

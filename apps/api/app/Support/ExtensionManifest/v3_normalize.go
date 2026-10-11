@@ -29,6 +29,14 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.Digest = normalizeDigest(item.Digest)
 		item.Transaction = strings.ToLower(strings.TrimSpace(item.Transaction))
 	}
+	for index := range manifest.AITools {
+		item := &manifest.AITools[index]
+		item.ID = strings.TrimSpace(item.ID)
+		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
+		item.Name = strings.TrimSpace(item.Name)
+		item.Description = strings.TrimSpace(item.Description)
+		item.Handler = strings.TrimSpace(item.Handler)
+	}
 	for index := range manifest.Routes {
 		item := &manifest.Routes[index]
 		item.ID = NormalizeID(item.ID)
@@ -113,6 +121,7 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.Handler = strings.TrimSpace(item.Handler)
 		item.PayloadSchema = strings.TrimSpace(item.PayloadSchema)
 		item.RetryPolicy = strings.ToLower(strings.TrimSpace(item.RetryPolicy))
+		item.Queue = strings.ToLower(strings.TrimSpace(item.Queue))
 		if item.ConcurrencyLimit == 0 {
 			item.ConcurrencyLimit = PluginJobDefaultConcurrencyLimit
 		}

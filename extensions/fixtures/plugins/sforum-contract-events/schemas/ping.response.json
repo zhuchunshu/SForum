@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sforum.contract.events.route.ping.response",
+  "title": "Contract ping response",
+  "type": "object",
+  "properties": {
+    "pong": { "type": "boolean" }
+  }
+}

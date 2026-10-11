@@ -38,6 +38,27 @@ type PluginJobContract struct {
 	MaxAttempts          int    `json:"maxAttempts,omitempty"`
 	RetryDelaySeconds    int    `json:"retryDelaySeconds,omitempty"`
 	ConcurrencyLimit     int    `json:"concurrencyLimit,omitempty"`
+	// Queue 是清单声明的队列名（"default"/"ai"，空值等同 default）。
+	// 它只影响任务落在哪条通道，不改变准入、租约与重试语义。
+	Queue string `json:"queue,omitempty"`
+}
+
+// 插件可声明的队列名与 River 队列名的映射。清单侧的封闭集合在这里落地：
+// 只有 default 与 ai 两条道，其余取值一律回到 default，绝不因为一个笔误把
+// 插件任务塞进 Core 自己的关键队列。
+const (
+	PluginJobQueueDefault = "default"
+	PluginJobQueueAI      = "ai"
+)
+
+// QueueForPluginDeclaration 把清单声明的队列映射为实际 River 队列。
+func QueueForPluginDeclaration(declared string) string {
+	switch strings.ToLower(strings.TrimSpace(declared)) {
+	case PluginJobQueueAI:
+		return QueueAI
+	default:
+		return QueueDefault
+	}
 }
 
 func (c PluginJobContract) Valid() bool {
@@ -61,6 +82,7 @@ func (c PluginJobContract) Equal(other PluginJobContract) bool {
 // cannot silently alter already queued work.
 func (c PluginJobContract) Normalized() PluginJobContract {
 	c.RetryPolicy = strings.ToLower(strings.TrimSpace(c.RetryPolicy))
+	c.Queue = strings.ToLower(strings.TrimSpace(c.Queue))
 	if c.RetryPolicy == "" {
 		c.RetryPolicy = PluginJobRetryBounded
 	}

@@ -820,6 +820,10 @@ implementation.
 | Own HTTP API under the host proxy | manifest `routes` + backend `InvokeRoute`/`RouteTarget` — see [routes.md](./routes.md) |
 | Build a backend binary / frontend assets and load them | [build-and-load.md](./build-and-load.md) |
 | Call host from the plugin process | Host API + declared `capabilities` |
+| Request an AI completion | Host Command `sforum.ai.complete@1` + `ai.invoke` (never a direct vendor call) |
+| Give the model a tool of your own | manifest `aiTools[]` + `sforum.ai.tool` provider slot; the operator then lists the tool name in the site AI settings (see [host-api-v2.md](./host-api-v2.md)) |
+| Publish an event under your own namespace | Host Command `sforum.events.emit@1` + `events.emit` |
+| Run slow, model-calling background work | declare `jobs[].queue: "ai"` so the job uses the site's low-concurrency AI lane |
 | End-to-end **workflow** sample | enable `sforum.content-policy` (this section) |
 | End-to-end **mail provider** sample | enable `sforum.smtp` + select in Mail settings |
 | End-to-end **storage provider** sample | enable `sforum.storage-fs` + select in Attachment settings |
@@ -849,7 +853,24 @@ implementation.
    use the published generated catalogs.
 10. **Notifications** — namespaced inert types bind an exact schema file;
     runtime emission uses `notifications.emit@1`, never raw tables or broadcast.
-11. **Operator defaults** — settings include safe defaults and reset-friendly
+11. **AI calls** — request completions through `sforum.ai.complete@1` with the
+    `ai.invoke` capability so the call enters the site gates, usage accounting,
+    and execution trace. Opening your own outbound connection to a model vendor
+    bypasses all of it and leaves the operator unable to explain AI cost.
+12. **AI tools** — declare tool contributions in `aiTools[]` with a namespaced
+    `id`/`handler`, a versioned `contractVersion` matching `id@1`, a model-safe
+    `name` (`[a-z0-9_-]`, no dot), a JSON-Schema `parameters` object, and an
+    explicit `timeoutMs`. Answer them through the reserved `sforum.ai.tool`
+    slot; the declared timeout is the only runtime freedom. Contributing a tool
+    needs no `ai.invoke` — the purpose that runs the loop pays — and a declared
+    tool is not automatically visible to the model.
+13. **Events** — declare custom event names in your own namespace and publish
+    them through `sforum.events.emit@1`; never publish another plugin's
+    namespace or a Core-owned name.
+14. **Host Commands** — anything that calls a Host Command needs the
+    `host_commands` database grant in the manifest, and the reviewed impact
+    document must match it exactly.
+15. **Operator defaults** — settings include safe defaults and reset-friendly
     recommended values so first-time operators are not blocked.
 
 ## Host API methods (v1)
@@ -891,6 +912,42 @@ SDK helpers: `pluginsdk.Ping`, `GetSettings`, `CheckPermission`, `EnqueueOwnJob`
 | Side effects after commit | `user.registered`, `topic.created`, `topic.updated`, `comment.created`, `attachment.uploaded`, … | observe | — | Async; do not use for rejection |
 
 Reject with a stable `reason` code (mapped to the API error envelope as 422). Do not put passwords, raw file bytes, or stack traces in filter/validate payloads or messages.
+
+## Job queues
+
+Declared jobs run on the `default` River queue unless the manifest says
+otherwise:
+
+```json
+{
+  "jobs": [
+    {
+      "id": "vendor.plugin.job.summarize",
+      "contractVersion": "vendor.plugin.job.summarize@1",
+      "name": "vendor.plugin.summarize",
+      "handler": "vendor.plugin.job.summarize",
+      "payloadSchema": "vendor.plugin.job.summarize.payload@1",
+      "retryPolicy": "bounded",
+      "queue": "ai"
+    }
+  ]
+}
+```
+
+- `queue` is optional and its accepted values are a deliberately closed set:
+  omit it (or write `"default"`) for ordinary work, `"ai"` for slow,
+  model-calling work. Nothing else is accepted — `critical`, `mail`,
+  `notifications`, `search`, and `maintenance` carry Core's own delivery, and a
+  plugin must not be able to decide how long a site waits for its mail or
+  notifications.
+- The `ai` lane is the same queue Core's AI jobs use, so its concurrency is
+  capped by `JOB_QUEUE_AI_WORKERS` (default 2). Choosing it means your jobs stop
+  competing with ordinary work for the default workers — it does not mean more
+  parallelism.
+- Queue choice changes nothing else: admission, exact-artifact contract checks,
+  retry policy, and the per-extension concurrency limit all still apply.
+- Scheduled jobs inherit the queue declared by the job they tick, so a scheduled
+  model-calling job does not fall back onto the default queue.
 
 ## Schedules
 

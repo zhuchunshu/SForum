@@ -28,6 +28,10 @@ const (
 	MaxModelLen     = 128
 	MaxLabelLen     = 64
 
+	// 用途标识长度。用途 id 进入执行记录与用量归属，并与 provider profile 的
+	// 命名空间分离，因此允许点号（forum.reply）。
+	MaxPurposeIDLen = 64
+
 	// 工具声明上限。工具声明会随每次请求进入供应商输入，因此在契约层设死上限，
 	// 避免一个用途把整站上下文成本推高到无法解释。
 	MaxToolsPerRequest      = 16

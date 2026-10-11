@@ -56,9 +56,11 @@ func (a PluginJobArgs) validEnvelope() bool {
 		a.Contract().Valid() && a.TrustGrantID != "" && !a.EnqueuedAt.IsZero()
 }
 
-// RiverJobEnqueuer 把插件 job 写入 River default 队列。
+// RiverJobEnqueuer 把插件 job 写入 River 队列。默认是 default 队列；清单里
+// 声明 queue: ai 的任务进入 AI 慢速通道。Contracts 可缺省（v1 路径的回退）。
 type RiverJobEnqueuer struct {
 	Dispatcher *supportjobs.Dispatcher
+	Contracts  PluginJobContractSource
 }
 
 func (e *RiverJobEnqueuer) EnqueuePluginJob(ctx context.Context, extensionID, kind string, payload map[string]any) error {
@@ -71,9 +73,15 @@ func (e *RiverJobEnqueuer) EnqueuePluginJob(ctx context.Context, extensionID, ki
 		Payload:     payload,
 		EnqueuedAt:  time.Now().UTC(),
 	}
-	_, err := e.Dispatcher.Enqueue(ctx, args, supportjobs.EnqueueOptions{
-		Queue: supportjobs.QueueDefault,
-	})
+	// v1 路径没有携带清单契约，因此尽力解析一次声明队列：解析失败时回退到默认
+	// 队列（v1 服务在调用前已经校验过 kind 是否声明，这里只影响通道选择）。
+	queue := supportjobs.QueueDefault
+	if e.Contracts != nil {
+		if contract, contractErr := e.Contracts.PluginJobContract(ctx, extensionID, kind); contractErr == nil {
+			queue = supportjobs.QueueForPluginDeclaration(contract.Queue)
+		}
+	}
+	_, err := e.Dispatcher.Enqueue(ctx, args, supportjobs.EnqueueOptions{Queue: queue})
 	return err
 }
 
@@ -103,7 +111,9 @@ func (e *RiverJobEnqueuer) EnqueueVersionedPluginJob(
 		Payload: payload, EnqueuedAt: time.Now().UTC(),
 	}
 	_, err := e.Dispatcher.Enqueue(ctx, args, supportjobs.EnqueueOptions{
-		Queue: supportjobs.QueueDefault, MaxAttempts: contract.MaxAttempts,
+		// 慢任务（例如要调模型的）声明 queue: ai 后进入站点给 AI 留的低并发通道，
+		// 不再和 Core 的日常任务抢 default 队列的 worker。
+		Queue: supportjobs.QueueForPluginDeclaration(contract.Queue), MaxAttempts: contract.MaxAttempts,
 	})
 	return err
 }
