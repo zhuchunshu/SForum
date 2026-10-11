@@ -6,6 +6,16 @@ Member public profiles and current-user profile settings.
 
 - `apps/api/app/Models/Profile` package: types, store interface, service,
   postgres store.
+- `Service.SearchPublicUsers` / `Store.SearchPublicUsers` is the bounded public
+  member lookup (default 8, max 20, query max 80 runes) used by the AI reply
+  bot's `user-search` tool. It requires a non-empty query (an empty one would
+  become a `%%` LIKE pattern and list every member), escapes LIKE
+  metacharacters, matches `username_lower` and `lower(display_name)` on active
+  accounts only, and returns `UserSearchHit{UserID, Username, DisplayName}`
+  with no email/status/role field. It has no HTTP route of its own; the
+  authenticated composer picker (`/api/v1/composer/references?kind=user`) stays
+  the only browser-facing user lookup. Rationale:
+  `decisions/2026-10-11-ai-reply-endpoint-identity-and-user-search.md`.
 - `user_profiles` table (migration `202607070004_user_profiles.sql`):
   `user_id` PK referencing `users(id)` cascade delete; `bio`, `signature`,
   `location`, `website_url` text; `avatar_attachment_id` nullable reference to

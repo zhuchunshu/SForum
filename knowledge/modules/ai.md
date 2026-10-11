@@ -82,6 +82,28 @@ live in configuration, not in Core code.
 - 上限 `MaxModelListEntries=500`：超出或供应商自身分页未取完时 `truncated=true`，
   界面必须说明「这不是全部」。模型顺序保持供应商给出的顺序（最新/最常用通常在前）。
 
+## Reply bot and built-in read-only tools
+
+- `app/Models/AIReply` owns the trigger (comment.created → enqueue), the thread
+  snapshot (`ReplyContext`), the prompt assembly and the generator;
+  `app/Models/AITools` owns the six Core built-in tools
+  (`forum-search`, `forum-topic-read`, `forum-topic-list`, `user-profile-read`,
+  `user-search`, `time-now`). The step budget, gates, accounting and truncation
+  live in `Support/AI.Orchestrator`, not in the tools.
+- **Identity, not just nicknames, reaches the prompt.** Every quoted utterance
+  carries `AuthorRef{Username, DisplayName}` and renders as
+  `显示名（@用户名）`. Without the handle the model could name the member it was
+  replying to but had nothing to pass to `user-profile-read`, so the tool was
+  unreachable for exactly the users in the conversation.
+- `user-search` resolves a nickname to a handle; `user-profile-read` then reads
+  the public profile. Both are in `aireply.ReplyToolAllowlist`; an injected
+  prompt cannot reach a tool the purpose never advertised.
+- `profile.Service.SearchPublicUsers` is the only user directory read path the
+  bot has: non-empty query required (an empty query would become `%%` and list
+  every member), LIKE metacharacters escaped, active accounts only, bounded
+  results, and a projection type with no email/status/role field. See
+  `decisions/2026-10-11-ai-reply-endpoint-identity-and-user-search.md`.
+
 ## Defaults semantics
 
 - `gates.toolCallsPerReply` 是指针字段：nil = 按 `DefaultToolCallsPerReply`(3)

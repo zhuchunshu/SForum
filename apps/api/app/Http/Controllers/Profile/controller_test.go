@@ -302,6 +302,11 @@ func (s *profileFakeStore) GetProfileStats(context.Context, int64) (profile.Prof
 	return s.stats, nil
 }
 
+// 公开检索当前没有 HTTP 路由；这个 fake 只需要满足 Store 接口。
+func (s *profileFakeStore) SearchPublicUsers(context.Context, string, int) ([]profile.UserSearchHit, error) {
+	return nil, nil
+}
+
 func (s *profileFakeStore) ListRecentTopics(context.Context, int64, int) ([]forum.TopicSummary, error) {
 	return s.recent, nil
 }

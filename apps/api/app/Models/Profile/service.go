@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
@@ -101,6 +102,37 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string) (Public
 		JoinedAt:      user.JoinedAt,
 		ExtensionTabs: tabs,
 	}, nil
+}
+
+// SearchPublicUsers 按昵称/用户名检索可公开访问的活跃用户。
+//
+// 它是一条公开展示面的只读入口，因此三条约束在这里定死，调用方不必重复判断：
+// 查询词必须非空（空查询等于「导出成员目录」）、结果只含用户名与显示名、条数有上
+// 限。不可用的输入返回 ErrProfileInvalid，而不是一个空列表——空列表的含义是
+// 「没有这个用户」，两者不该混。
+func (s *Service) SearchPublicUsers(ctx context.Context, input SearchUsersInput) (UserSearchResult, error) {
+	query := strings.TrimSpace(input.Query)
+	if query == "" || utf8.RuneCountInString(query) > UserSearchMaxQueryRunes {
+		return UserSearchResult{}, ErrProfileInvalid
+	}
+	if s == nil || s.store == nil {
+		return UserSearchResult{}, ErrProfileInvalid
+	}
+	limit := input.Limit
+	if limit <= 0 {
+		limit = UserSearchDefaultLimit
+	}
+	if limit > UserSearchMaxLimit {
+		limit = UserSearchMaxLimit
+	}
+	items, err := s.store.SearchPublicUsers(ctx, query, limit)
+	if err != nil {
+		return UserSearchResult{}, err
+	}
+	if items == nil {
+		items = []UserSearchHit{}
+	}
+	return UserSearchResult{Items: items}, nil
 }
 
 // ListPublicActivities 按 kind 分页返回公开主题或回复活动。

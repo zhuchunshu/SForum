@@ -269,6 +269,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- AI 回复的身份标识与成员检索（2026-10-11）：提示词里的每条发言从「只有昵称」改为
+  `显示名（@用户名）`（`AuthorRef`，主楼作者也补上了），并新增第六个内置只读工具
+  `user-search`（昵称 → @用户名 + 主页链接），使 `user-profile-read` 真正可用；
+  `profile.Service.SearchPublicUsers` 是这条路径的公开读取面——空查询直接拒绝
+  （否则 `%%` 会列出全站成员）、LIKE 元字符转义、只匹配 active、只投影
+  id/username/displayName。提示词版本 `forum-reply@4`。详见
+  `sessions/2026-10-11-ai-reply-user-identity-handoff.md` 与
+  `decisions/2026-10-11-ai-reply-endpoint-identity-and-user-search.md`。
 - 通知深链定位修复（2026-10-11）：通知点击进帖子定位失败/加载不出新回复的
   两处根因——深链不带评论页码（跨页目标 SSR 永远先渲染第 1 页）、同页新回复
   不触发评论缓存重取。后端 `ResolveNotificationTarget` 输出

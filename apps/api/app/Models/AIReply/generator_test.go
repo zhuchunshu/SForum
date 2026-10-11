@@ -56,11 +56,12 @@ func (f *fakePoster) PostBotComment(_ context.Context, botUserID int64, input ai
 
 func sampleThread() aireply.ReplyContext {
 	return aireply.ReplyContext{
-		TopicTitle:       "如何配置 PostgreSQL 连接池",
-		ParentAuthorName: "alice",
-		ParentContent:    "这个参数应该设多大？",
+		TopicTitle:    "如何配置 PostgreSQL 连接池",
+		TopicAuthor:   aireply.AuthorRef{Username: "carol", DisplayName: "卡罗尔"},
+		ParentAuthor:  aireply.AuthorRef{Username: "alice", DisplayName: "Alice"},
+		ParentContent: "这个参数应该设多大？",
 		RecentComments: []aireply.ThreadComment{
-			{AuthorName: "bob", Content: "我们线上用的是 20。"},
+			{Author: aireply.AuthorRef{Username: "bob", DisplayName: "Bob"}, Content: "我们线上用的是 20。"},
 		},
 	}
 }
@@ -185,17 +186,54 @@ func TestPromptDeclaresCommunityTextAsUntrusted(t *testing.T) {
 	if strings.Contains(input.System, "如何配置 PostgreSQL 连接池") {
 		t.Fatal("community content must not be mixed into the system instructions")
 	}
-	for _, want := range []string{"如何配置 PostgreSQL 连接池", "alice", "这个参数应该设多大？", "bob"} {
+	for _, want := range []string{"如何配置 PostgreSQL 连接池", "Alice（@alice）", "这个参数应该设多大？", "Bob（@bob）"} {
 		if !strings.Contains(input.User, want) {
 			t.Fatalf("user prompt is missing %q:\n%s", want, input.User)
 		}
 	}
 }
 
+// 提示词里的发言人必须带 @用户名：只有昵称时，模型知道「谁在说话」，却拿不到任何
+// 能查询到这个人的标识，站内工具也就无从下手。
+func TestPromptCarriesAuthorHandlesForTools(t *testing.T) {
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "ok"}}
+	generator := aireply.NewGenerator(&fakeThreads{thread: sampleThread()}, completer, &fakePoster{}, nil)
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	user := completer.inputs[0].User
+	for _, want := range []string{"主楼作者：卡罗尔（@carol）", "你正在回复 Alice（@alice）", "Bob（@bob）"} {
+		if !strings.Contains(user, want) {
+			t.Fatalf("user prompt is missing %q:\n%s", want, user)
+		}
+	}
+}
+
+// 身份缺失时不能退化成空标签：提示词里出现「：内容」这种没有主语的发言，模型会
+// 把上一行的作者当成这一行的作者。
+func TestPromptFallsBackWhenAuthorIdentityIsMissing(t *testing.T) {
+	thread := sampleThread()
+	thread.ParentAuthor = aireply.AuthorRef{}
+	thread.TriggerAuthor = aireply.AuthorRef{}
+	thread.TriggerContent = "帮我看看这段代码"
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "ok"}}
+	generator := aireply.NewGenerator(&fakeThreads{thread: thread}, completer, &fakePoster{}, nil)
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	user := completer.inputs[0].User
+	if !strings.Contains(user, "你正在回复 这条发言：") {
+		t.Fatalf("a missing parent author needs an explicit fallback:\n%s", user)
+	}
+	if !strings.Contains(user, "某位成员：帮我看看这段代码") {
+		t.Fatalf("a missing trigger author needs an explicit fallback:\n%s", user)
+	}
+}
+
 // 机器人自己的历史发言要标注出来，否则它会把自己的上一句当成提问来回答。
 func TestPromptLabelsTheBotsOwnEarlierReplies(t *testing.T) {
 	thread := sampleThread()
-	thread.RecentComments = append(thread.RecentComments, aireply.ThreadComment{AuthorName: "sforum_ai", Content: "之前的回答", IsBot: true})
+	thread.RecentComments = append(thread.RecentComments, aireply.ThreadComment{Author: aireply.AuthorRef{Username: "sforum_ai", DisplayName: "sforum_ai"}, Content: "之前的回答", IsBot: true})
 	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "ok"}}
 	generator := aireply.NewGenerator(&fakeThreads{thread: thread}, completer, &fakePoster{}, nil)
 	if err := generator.Generate(context.Background(), jobInput()); err != nil {

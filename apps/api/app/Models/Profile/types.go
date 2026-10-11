@@ -153,6 +153,35 @@ type UpdateProfileInput struct {
 	AvatarAttachmentID *int64
 }
 
+// 公开用户检索的边界。查询词必须非空：空查询等于「列出全站用户」，
+// 那是成员目录而不是检索，任何调用方都不该得到它。
+const (
+	UserSearchDefaultLimit  = 8
+	UserSearchMaxLimit      = 20
+	UserSearchMaxQueryRunes = 80
+)
+
+// SearchUsersInput 是公开用户检索输入。
+type SearchUsersInput struct {
+	Query string
+	Limit int
+}
+
+// UserSearchHit 是一条公开可达的用户结果。
+//
+// 它刻意只带 id / username / displayName：邮箱、状态、角色、封禁历史都不参与
+// 检索也不出现在结果里，因此这条读取路径在类型层面就无法泄露非公开字段。
+type UserSearchHit struct {
+	UserID      int64  `json:"userId"`
+	Username    string `json:"username"`
+	DisplayName string `json:"displayName"`
+}
+
+// UserSearchResult 是公开用户检索结果。
+type UserSearchResult struct {
+	Items []UserSearchHit `json:"items"`
+}
+
 // UserProfileSummary 是 store 层返回的用户基本信息（来自 users 表）。
 type UserProfileSummary struct {
 	UserID      int64

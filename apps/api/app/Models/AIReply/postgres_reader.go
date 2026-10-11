@@ -31,15 +31,19 @@ func (r *PostgresReader) ReplyContext(ctx context.Context, topicID int64, parent
 	}
 	var thread ReplyContext
 	err := r.pool.QueryRow(ctx, `
-		SELECT topics.title, COALESCE(posts.plain_text, '')
+		SELECT topics.title,
+		  COALESCE(authors.username, ''),
+		  COALESCE(authors.display_name, ''),
+		  COALESCE(posts.plain_text, '')
 		FROM topics
 		JOIN categories ON categories.id = topics.category_id
 		JOIN posts ON posts.id = topics.content_id
+		LEFT JOIN users authors ON authors.id = topics.author_user_id
 		WHERE topics.id = $1
 		  AND topics.status IN ('active', 'locked')
 		  AND topics.deleted_at IS NULL
 		  AND categories.visibility = 'public'
-	`, topicID).Scan(&thread.TopicTitle, &thread.TopicBody)
+	`, topicID).Scan(&thread.TopicTitle, &thread.TopicAuthor.Username, &thread.TopicAuthor.DisplayName, &thread.TopicBody)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ReplyContext{}, fmt.Errorf("reply context: topic %d is not publicly visible", topicID)
 	}
@@ -54,20 +58,20 @@ func (r *PostgresReader) ReplyContext(ctx context.Context, topicID int64, parent
 	thread.RecentComments = recent
 
 	if parentCommentID > 0 {
-		name, content, isBot, err := r.comment(ctx, parentCommentID)
+		author, content, isBot, err := r.comment(ctx, parentCommentID)
 		if err != nil {
 			return ReplyContext{}, err
 		}
-		thread.ParentAuthorName = name
+		thread.ParentAuthor = author
 		thread.ParentContent = content
 		thread.ParentIsBot = isBot
 	}
 	if triggerCommentID > 0 && triggerCommentID != parentCommentID {
-		name, content, _, err := r.comment(ctx, triggerCommentID)
+		author, content, _, err := r.comment(ctx, triggerCommentID)
 		if err != nil {
 			return ReplyContext{}, err
 		}
-		thread.TriggerAuthor = name
+		thread.TriggerAuthor = author
 		thread.TriggerContent = content
 	}
 	return thread, nil
@@ -75,9 +79,13 @@ func (r *PostgresReader) ReplyContext(ctx context.Context, topicID int64, parent
 
 // recentComments 取最近若干条公开评论并按时间正序返回：提示词需要的是对话
 // 顺序，而不是倒序的查询结果。
+//
+// 每条都取用户的 username 与显示名：昵称用于阅读，@用户名用于调用站内工具。
 func (r *PostgresReader) recentComments(ctx context.Context, topicID int64) ([]ThreadComment, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT COALESCE(NULLIF(users.display_name, ''), users.username, ''), COALESCE(posts.plain_text, ''), users.kind
+		SELECT COALESCE(users.username, ''),
+		  COALESCE(users.display_name, ''),
+		  COALESCE(posts.plain_text, ''), users.kind
 		FROM comments
 		JOIN posts ON posts.id = comments.content_id
 		LEFT JOIN users ON users.id = comments.author_user_id
@@ -91,15 +99,16 @@ func (r *PostgresReader) recentComments(ctx context.Context, topicID int64) ([]T
 	defer rows.Close()
 	collected := make([]ThreadComment, 0, RecentCommentWindow)
 	for rows.Next() {
-		var name, content string
+		var author AuthorRef
+		var content string
 		var kind *string
-		if err := rows.Scan(&name, &content, &kind); err != nil {
+		if err := rows.Scan(&author.Username, &author.DisplayName, &content, &kind); err != nil {
 			return nil, err
 		}
 		collected = append(collected, ThreadComment{
-			AuthorName: name,
-			Content:    content,
-			IsBot:      kind != nil && identity.UserKind(*kind).IsBot(),
+			Author:  author,
+			Content: content,
+			IsBot:   kind != nil && identity.UserKind(*kind).IsBot(),
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -112,21 +121,24 @@ func (r *PostgresReader) recentComments(ctx context.Context, topicID int64) ([]T
 	return collected, nil
 }
 
-func (r *PostgresReader) comment(ctx context.Context, commentID int64) (string, string, bool, error) {
-	var name, content string
+func (r *PostgresReader) comment(ctx context.Context, commentID int64) (AuthorRef, string, bool, error) {
+	var author AuthorRef
+	var content string
 	var kind *string
 	err := r.pool.QueryRow(ctx, `
-		SELECT COALESCE(NULLIF(users.display_name, ''), users.username, ''), COALESCE(posts.plain_text, ''), users.kind
+		SELECT COALESCE(users.username, ''),
+		  COALESCE(users.display_name, ''),
+		  COALESCE(posts.plain_text, ''), users.kind
 		FROM comments
 		JOIN posts ON posts.id = comments.content_id
 		LEFT JOIN users ON users.id = comments.author_user_id
 		WHERE comments.id = $1 AND comments.status = 'active'
-	`, commentID).Scan(&name, &content, &kind)
+	`, commentID).Scan(&author.Username, &author.DisplayName, &content, &kind)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", false, fmt.Errorf("reply context: comment %d is not publicly visible", commentID)
+		return AuthorRef{}, "", false, fmt.Errorf("reply context: comment %d is not publicly visible", commentID)
 	}
 	if err != nil {
-		return "", "", false, fmt.Errorf("load comment: %w", err)
+		return AuthorRef{}, "", false, fmt.Errorf("load comment: %w", err)
 	}
-	return name, content, kind != nil && identity.UserKind(*kind).IsBot(), nil
+	return author, content, kind != nil && identity.UserKind(*kind).IsBot(), nil
 }

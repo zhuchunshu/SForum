@@ -3,7 +3,10 @@
 Status: **active** - contract, adapters, gateway loop, five built-in tools, the
 reply integration and the admin settings landed together; verification is
 partially complete (see Verification), and plugin-contributed tools remain a
-separate step.
+separate step. Later change (2026-10-11): a sixth built-in tool `user-search`
+and author handles in the prompt were added because nickname-only context left
+`user-profile-read` unreachable — see
+`decisions/2026-10-11-ai-reply-endpoint-identity-and-user-search.md`.
 
 Date: 2026-10-03
 Last updated: 2026-10-03

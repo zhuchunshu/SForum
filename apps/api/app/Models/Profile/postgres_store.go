@@ -198,6 +198,55 @@ func (s *PostgresStore) GetUserSummaryByID(ctx context.Context, userID int64) (U
 	return summary, nil
 }
 
+// SearchPublicUsers 按昵称或用户名检索公开可达的活跃用户。
+//
+// 过滤口径与论坛 composer 的提及候选一致（活跃用户、用户名或昵称匹配），但结果
+// 只投影 id / username / 显示名：邮箱与非公开状态既不参与匹配也不进入结果。
+// 排序把完全匹配排在最前，其余按昵称字典序，因此同名候选的顺序是稳定的。
+func (s *PostgresStore) SearchPublicUsers(ctx context.Context, query string, limit int) ([]UserSearchHit, error) {
+	normalized := strings.TrimSpace(query)
+	if normalized == "" || limit <= 0 {
+		return nil, nil
+	}
+	lowered := strings.ToLower(normalized)
+	pattern := "%" + escapeUserSearchLike(lowered) + "%"
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, username, COALESCE(NULLIF(BTRIM(display_name), ''), username)
+		FROM users
+		WHERE status = 'active'
+		  AND (username_lower ILIKE $1 ESCAPE E'\\' OR LOWER(display_name) ILIKE $1 ESCAPE E'\\')
+		ORDER BY (username_lower = $2) DESC,
+		         (LOWER(COALESCE(NULLIF(BTRIM(display_name), ''), username)) = $2) DESC,
+		         LOWER(COALESCE(NULLIF(BTRIM(display_name), ''), username)) ASC,
+		         id ASC
+		LIMIT $3
+	`, pattern, lowered, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search public users: %w", err)
+	}
+	defer rows.Close()
+	items := make([]UserSearchHit, 0, limit)
+	for rows.Next() {
+		var item UserSearchHit
+		if err := rows.Scan(&item.UserID, &item.Username, &item.DisplayName); err != nil {
+			return nil, fmt.Errorf("scan public user hit: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate public user hits: %w", err)
+	}
+	return items, nil
+}
+
+// escapeUserSearchLike 转义 LIKE 元字符：用户输入的 % 与 _ 是字面量，不是通配符，
+// 否则一次 `%` 查询就变回「列出全站用户」。
+func escapeUserSearchLike(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
+	value = strings.ReplaceAll(value, `%`, `\%`)
+	return strings.ReplaceAll(value, `_`, `\_`)
+}
+
 func (s *PostgresStore) GetProfileStats(ctx context.Context, userID int64) (ProfileStats, error) {
 	var stats ProfileStats
 	// 公开主题数（active/locked + public 分类）。

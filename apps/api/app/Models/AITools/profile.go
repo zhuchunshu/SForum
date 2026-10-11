@@ -30,8 +30,9 @@ func NewUserProfileTool(profiles ProfileReader, links SiteLinks) *UserProfileToo
 
 func (t *UserProfileTool) Definition() supportai.ToolDefinition {
 	return supportai.ToolDefinition{
-		Name:        "user-profile-read",
-		Description: "读取站内用户的公开资料：加入时间、主题与评论数量、近期主题。回答「这位用户是谁」「他写过什么」这类问题时使用。",
+		Name: "user-profile-read",
+		Description: "读取站内用户的公开资料：加入时间、主题与评论数量、近期主题。回答「这位用户是谁」" +
+			"「他写过什么」这类问题时使用。username 用发言标签里的 @用户名；只有昵称时先用 user-search 换到用户名。",
 		Parameters: json.RawMessage(`{
   "type": "object",
   "properties": {

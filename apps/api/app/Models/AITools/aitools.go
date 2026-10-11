@@ -50,6 +50,11 @@ type ProfileReader interface {
 	GetPublicProfile(ctx context.Context, username string) (profile.PublicProfile, error)
 }
 
+// UserSearcher 按关键词检索可公开访问的活跃用户，由 profile.Service 实现。
+type UserSearcher interface {
+	SearchPublicUsers(ctx context.Context, input profile.SearchUsersInput) (profile.UserSearchResult, error)
+}
+
 // SiteLinks 把站内路径拼成链接。SiteURL 为空时退回相对路径：站内评论里的相对
 // 链接同样可点，绝对地址则更适合被复制到站外。
 type SiteLinks struct {
@@ -83,11 +88,12 @@ type Deps struct {
 	Comments CommentReader
 	Lister   TopicLister
 	Profiles ProfileReader
+	Users    UserSearcher
 	SiteURL  func(ctx context.Context) string
 	Clock    func() time.Time
 }
 
-// NewBuiltinRegistry 注册 Core 内置的五个只读工具。
+// NewBuiltinRegistry 注册 Core 内置的六个只读工具。
 func NewBuiltinRegistry(deps Deps) (*supportai.ToolRegistry, error) {
 	registry := supportai.NewToolRegistry()
 	links := SiteLinks{SiteURL: deps.SiteURL}
@@ -107,6 +113,9 @@ func NewBuiltinRegistry(deps Deps) (*supportai.ToolRegistry, error) {
 		return nil, err
 	}
 	if err := register(NewUserProfileTool(deps.Profiles, links), deps.Profiles != nil); err != nil {
+		return nil, err
+	}
+	if err := register(NewUserSearchTool(deps.Users, links), deps.Users != nil); err != nil {
 		return nil, err
 	}
 	if err := register(NewTimeTool(deps.Clock), true); err != nil {

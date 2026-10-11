@@ -62,11 +62,21 @@ type fakeProfiles struct {
 	profile  profile.PublicProfile
 	err      error
 	lastName string
+	hits     []profile.UserSearchHit
+	last     profile.SearchUsersInput
 }
 
 func (f *fakeProfiles) GetPublicProfile(_ context.Context, username string) (profile.PublicProfile, error) {
 	f.lastName = username
 	return f.profile, f.err
+}
+
+func (f *fakeProfiles) SearchPublicUsers(_ context.Context, input profile.SearchUsersInput) (profile.UserSearchResult, error) {
+	f.last = input
+	if f.err != nil {
+		return profile.UserSearchResult{}, f.err
+	}
+	return profile.UserSearchResult{Items: f.hits}, nil
 }
 
 func testLinks() aitools.SiteLinks {
@@ -80,15 +90,17 @@ func TestBuiltinRegistryRegistersAvailableTools(t *testing.T) {
 		Comments: &fakeComments{},
 		Lister:   &fakeLister{},
 		Profiles: &fakeProfiles{},
+		Users:    &fakeProfiles{},
 		SiteURL:  testLinks().SiteURL,
 	})
 	if err != nil {
 		t.Fatalf("registry failed: %v", err)
 	}
-	descriptors := registry.Descriptors([]string{
-		"forum-search", "forum-topic-read", "forum-topic-list", "user-profile-read", "time-now",
-	})
-	if len(descriptors) != 5 {
+	allowlist := []string{
+		"forum-search", "forum-topic-read", "forum-topic-list", "user-profile-read", "user-search", "time-now",
+	}
+	descriptors := registry.Descriptors(allowlist)
+	if len(descriptors) != 6 {
 		t.Fatalf("descriptors = %+v", descriptors)
 	}
 	for _, descriptor := range descriptors {
@@ -101,7 +113,7 @@ func TestBuiltinRegistryRegistersAvailableTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("registry failed: %v", err)
 	}
-	if got := empty.Descriptors([]string{"forum-search", "forum-topic-read", "forum-topic-list", "user-profile-read", "time-now"}); len(got) != 1 || got[0].Name != "time-now" {
+	if got := empty.Descriptors(allowlist); len(got) != 1 || got[0].Name != "time-now" {
 		t.Fatalf("empty registry descriptors = %+v", got)
 	}
 }
@@ -289,6 +301,76 @@ func TestUserProfileToolReportsMissingUser(t *testing.T) {
 	}
 	if !result.IsError || !strings.Contains(result.Content, "没有这个用户") {
 		t.Fatalf("result = %+v", result)
+	}
+}
+
+// 成员检索存在的理由：提示词里的发言人只有昵称，模型必须能把它换成 @用户名，
+// 否则 user-profile-read 永远打不开。
+func TestUserSearchToolFormatsHitsWithHandlesAndLinks(t *testing.T) {
+	profiles := &fakeProfiles{hits: []profile.UserSearchHit{
+		{UserID: 7, Username: "zhangsan", DisplayName: "张三"},
+		{UserID: 8, Username: "zhang-san"},
+	}}
+	tool := aitools.NewUserSearchTool(profiles, testLinks())
+	result, err := tool.Invoke(context.Background(), supportai.ToolCall{Name: "user-search", Arguments: `{"query":"  张  "}`}, supportai.ToolContext{})
+	if err != nil {
+		t.Fatalf("invoke failed: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error result: %+v", result)
+	}
+	if !strings.Contains(result.Content, "张三（@zhangsan）") ||
+		!strings.Contains(result.Content, "https://forum.test/u/zhangsan") ||
+		!strings.Contains(result.Content, "（@zhang-san）") {
+		t.Fatalf("content = %s", result.Content)
+	}
+	if profiles.last.Query != "张" || profiles.last.Limit != 8 {
+		t.Fatalf("search input = %+v", profiles.last)
+	}
+}
+
+func TestUserSearchToolRejectsEmptyQuery(t *testing.T) {
+	profiles := &fakeProfiles{}
+	tool := aitools.NewUserSearchTool(profiles, testLinks())
+	result, err := tool.Invoke(context.Background(), supportai.ToolCall{Arguments: `{"query":"   "}`}, supportai.ToolContext{})
+	if err != nil {
+		t.Fatalf("invoke failed: %v", err)
+	}
+	if !result.IsError || !strings.Contains(result.Content, "query") {
+		t.Fatalf("result = %+v", result)
+	}
+	// 空查询必须止步于工具：它等于「列出全站成员」。
+	if profiles.last.Query != "" || profiles.last.Limit != 0 {
+		t.Fatalf("an empty query must not reach the directory: %+v", profiles.last)
+	}
+}
+
+func TestUserSearchToolReportsNoMatch(t *testing.T) {
+	tool := aitools.NewUserSearchTool(&fakeProfiles{}, testLinks())
+	result, err := tool.Invoke(context.Background(), supportai.ToolCall{Arguments: `{"query":"ghost"}`}, supportai.ToolContext{})
+	if err != nil {
+		t.Fatalf("invoke failed: %v", err)
+	}
+	if result.IsError || !strings.Contains(result.Content, "没有找到") {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestUserSearchToolReportsInvalidQueryAsModelFacingError(t *testing.T) {
+	tool := aitools.NewUserSearchTool(&fakeProfiles{err: profile.ErrProfileInvalid}, testLinks())
+	result, err := tool.Invoke(context.Background(), supportai.ToolCall{Arguments: `{"query":"x"}`}, supportai.ToolContext{})
+	if err != nil {
+		t.Fatalf("an invalid query must not fail the reply: %v", err)
+	}
+	if !result.IsError || !strings.Contains(result.Content, "关键词") {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestUserSearchToolPropagatesInternalFailures(t *testing.T) {
+	tool := aitools.NewUserSearchTool(&fakeProfiles{err: errors.New("db down")}, testLinks())
+	if _, err := tool.Invoke(context.Background(), supportai.ToolCall{Arguments: `{"query":"alice"}`}, supportai.ToolContext{}); err == nil {
+		t.Fatal("internal failure must propagate so the orchestrator can log it")
 	}
 }
 

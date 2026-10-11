@@ -439,6 +439,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		Comments: forumProvider.Service(),
 		Lister:   forumProvider.Service(),
 		Profiles: pageProfileService,
+		Users:    pageProfileService,
 		SiteURL: func(ctx context.Context) string {
 			value, _ := optionsService.WebOption(ctx, "site.url")
 			return value

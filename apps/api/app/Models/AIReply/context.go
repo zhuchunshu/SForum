@@ -7,10 +7,38 @@ import (
 	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 )
 
+// AuthorRef 是一条发言的作者身份快照。
+//
+// 两个字段各有各的用途，缺一不可：DisplayName 是模型在正文里看到的称呼，
+// Username（@ 后面的部分）才是它能拿去调用站内工具的唯一标识。只有昵称时，模型
+// 知道「谁在说话」，却无法查询这个人的任何信息——那正是这层标识存在的理由。
+type AuthorRef struct {
+	Username    string
+	DisplayName string
+}
+
+// Label 返回提示词里使用的作者标签：显示名（@用户名）。缺一侧时降级为剩下的一侧；
+// 两侧都空时返回空串，由调用方决定兜底措辞。显示名与用户名完全相同时只写一次——
+// 站内很多账号把显示名设成用户名，重复写成「alice（@alice）」只是噪声。
+func (a AuthorRef) Label() string {
+	username := strings.TrimSpace(a.Username)
+	display := strings.TrimSpace(a.DisplayName)
+	switch {
+	case username == "" && display == "":
+		return ""
+	case username == "":
+		return display
+	case display == "" || display == username:
+		return "@" + username
+	default:
+		return display + "（@" + username + "）"
+	}
+}
+
 // ThreadComment 是线程里的一条发言快照。
 type ThreadComment struct {
-	AuthorName string
-	Content    string
+	Author  AuthorRef
+	Content string
 	// IsBot 让提示词能区分「这是机器人自己的话」和「这是人在说话」。机器人不该
 	// 把自己的上一句当成用户的提问来回答。
 	IsBot bool
@@ -19,12 +47,15 @@ type ThreadComment struct {
 // ReplyContext 是一次回复生成所需的全部输入。
 type ReplyContext struct {
 	TopicTitle string
+	// TopicAuthor 是主楼作者：机器人常被要求「他另外写过什么」，而只有昵称时它
+	// 连该查谁都不知道。
+	TopicAuthor AuthorRef
 	// TopicBody 是主楼正文（纯文本）。没有它，机器人看不到帖子本身在讲什么，
 	// 只能凭标题猜——而「主楼里那段代码为什么报错」这类提问都落在正文里。
-	TopicBody        string
-	TopicAuthorName  string
-	ParentAuthorName string
-	// ParentContent 是被回复的那条评论；机器人要正面回应它。
+	TopicBody string
+	// ParentAuthor 是被回复那条发言的作者，也是机器人要正面回应的人。
+	ParentAuthor AuthorRef
+	// ParentContent 是被回复的那条评论。
 	ParentContent string
 	ParentIsBot   bool
 	// RecentComments 是主题内的近期发言，按时间正序。
@@ -32,7 +63,7 @@ type ReplyContext struct {
 	// TriggerContent 是唤起本次回复的原话。它可能等于 ParentContent（回复机器人时），
 	// 也可能是另一条提及了机器人的评论。
 	TriggerContent string
-	TriggerAuthor  string
+	TriggerAuthor  AuthorRef
 }
 
 // ThreadReader 读取生成所需的线程快照。它必须只返回当前访客就能看到的内容：
@@ -103,13 +134,17 @@ func buildReplyPrompt(thread ReplyContext, systemOverride string) (string, strin
 
 	var builder strings.Builder
 	builder.WriteString("主题：" + strings.TrimSpace(thread.TopicTitle) + "\n")
+	if author := thread.TopicAuthor.Label(); author != "" {
+		builder.WriteString("主楼作者：" + author + "\n")
+	}
 	if body := strings.TrimSpace(thread.TopicBody); body != "" {
 		builder.WriteString("\n主楼正文：\n" + truncateForPrompt(body, TopicBodyRuneLimit) + "\n")
 	}
 	if len(thread.RecentComments) > 0 {
 		builder.WriteString("\n最近的讨论（按时间顺序）：\n")
 		for _, comment := range thread.RecentComments {
-			label := comment.AuthorName
+			// 每一条发言都带上 @用户名：模型据此才能把「张三说的」变成一个可查的账号。
+			label := commentLabel(comment.Author, "某位成员")
 			if comment.IsBot {
 				label += "（你之前的回复）"
 			}
@@ -117,25 +152,21 @@ func buildReplyPrompt(thread ReplyContext, systemOverride string) (string, strin
 		}
 	}
 	builder.WriteString("\n你正在回复 ")
-	if strings.TrimSpace(thread.ParentAuthorName) == "" {
-		builder.WriteString("这条发言")
-	} else {
-		builder.WriteString(thread.ParentAuthorName)
-	}
+	builder.WriteString(commentLabel(thread.ParentAuthor, "这条发言"))
 	builder.WriteString("：\n" + truncateForPrompt(thread.ParentContent, 1200) + "\n")
 	if trigger := strings.TrimSpace(thread.TriggerContent); trigger != "" && trigger != strings.TrimSpace(thread.ParentContent) {
 		builder.WriteString("\n另有成员向你发起了对话：\n")
-		builder.WriteString(triggerAuthorLabel(thread.TriggerAuthor) + "：" + truncateForPrompt(trigger, 600) + "\n")
+		builder.WriteString(commentLabel(thread.TriggerAuthor, "某位成员") + "：" + truncateForPrompt(trigger, 600) + "\n")
 	}
 	return system, builder.String()
 }
 
-func triggerAuthorLabel(name string) string {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return "某位成员"
+// commentLabel 取作者标签，缺失身份时用调用方给的兜底措辞（「某位成员」「这条发言」）。
+func commentLabel(author AuthorRef, fallback string) string {
+	if label := author.Label(); label != "" {
+		return label
 	}
-	return name
+	return fallback
 }
 
 // truncateForPrompt 按字符边界截断，避免在 UTF-8 中间切断。

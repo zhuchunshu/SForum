@@ -73,6 +73,65 @@ func TestServiceGetPublicProfileRejectsEmptyUsername(t *testing.T) {
 	}
 }
 
+// 公开用户检索的三条约束都在服务层定死：查询词必须非空、条数有上限、结果里只有
+// 用户名与显示名。这些测试固定的是「AI 工具拿到的是不是同一条公开读取路径」。
+func TestServiceSearchPublicUsersBoundsLimitAndReturnsHits(t *testing.T) {
+	store := &fakeStore{searchHits: []UserSearchHit{{UserID: 7, Username: "alice", DisplayName: "Alice"}}}
+	service := NewService(store)
+
+	result, err := service.SearchPublicUsers(context.Background(), SearchUsersInput{Query: "  alice  ", Limit: 999})
+	if err != nil {
+		t.Fatalf("SearchPublicUsers error: %v", err)
+	}
+	if store.searchQuery != "alice" || store.searchLimit != UserSearchMaxLimit {
+		t.Fatalf("store input = %q/%d", store.searchQuery, store.searchLimit)
+	}
+	if len(result.Items) != 1 || result.Items[0].Username != "alice" {
+		t.Fatalf("unexpected hits: %#v", result.Items)
+	}
+}
+
+func TestServiceSearchPublicUsersAppliesDefaultLimit(t *testing.T) {
+	store := &fakeStore{}
+	if _, err := NewService(store).SearchPublicUsers(context.Background(), SearchUsersInput{Query: "alice"}); err != nil {
+		t.Fatalf("SearchPublicUsers error: %v", err)
+	}
+	if store.searchLimit != UserSearchDefaultLimit {
+		t.Fatalf("limit = %d, want the default", store.searchLimit)
+	}
+}
+
+// 空查询等于「列出全站成员」，那是成员目录导出，不是检索——必须直接拒绝，而且不能
+// 让空模式落到存储层。
+func TestServiceSearchPublicUsersRejectsEmptyQuery(t *testing.T) {
+	store := &fakeStore{}
+	_, err := NewService(store).SearchPublicUsers(context.Background(), SearchUsersInput{Query: "   "})
+	if !errors.Is(err, ErrProfileInvalid) {
+		t.Fatalf("expected ErrProfileInvalid, got %v", err)
+	}
+	if store.searchQuery != "" {
+		t.Fatalf("an invalid query must not reach the store: %q", store.searchQuery)
+	}
+}
+
+func TestServiceSearchPublicUsersRejectsOverlongQuery(t *testing.T) {
+	store := &fakeStore{}
+	query := strings.Repeat("a", UserSearchMaxQueryRunes+1)
+	if _, err := NewService(store).SearchPublicUsers(context.Background(), SearchUsersInput{Query: query}); !errors.Is(err, ErrProfileInvalid) {
+		t.Fatalf("expected ErrProfileInvalid, got %v", err)
+	}
+}
+
+func TestServiceSearchPublicUsersReturnsAnEmptyListNotNil(t *testing.T) {
+	result, err := NewService(&fakeStore{}).SearchPublicUsers(context.Background(), SearchUsersInput{Query: "ghost"})
+	if err != nil {
+		t.Fatalf("SearchPublicUsers error: %v", err)
+	}
+	if result.Items == nil {
+		t.Fatal("a miss must serialize as an empty array, not null")
+	}
+}
+
 func TestServiceUpdateMyProfileRequiresActor(t *testing.T) {
 	service := NewService(&fakeStore{
 		user:    UserProfileSummary{UserID: 7, Username: "alice", DisplayName: "Alice"},
@@ -288,6 +347,9 @@ type fakeStore struct {
 	recent                []forum.TopicSummary
 	activityTopics        []forum.TopicSummary
 	comments              []ProfileCommentActivity
+	searchHits            []UserSearchHit
+	searchQuery           string
+	searchLimit           int
 	upserted              Profile
 	avatarAttachment      AvatarAttachment
 	setAvatarAttachmentID *int64
@@ -332,6 +394,15 @@ func (s *fakeStore) GetUserSummaryByID(context.Context, int64) (UserProfileSumma
 
 func (s *fakeStore) GetProfileStats(context.Context, int64) (ProfileStats, error) {
 	return s.stats, nil
+}
+
+func (s *fakeStore) SearchPublicUsers(_ context.Context, query string, limit int) ([]UserSearchHit, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	s.searchQuery = query
+	s.searchLimit = limit
+	return s.searchHits, nil
 }
 
 func (s *fakeStore) ListRecentTopics(context.Context, int64, int) ([]forum.TopicSummary, error) {

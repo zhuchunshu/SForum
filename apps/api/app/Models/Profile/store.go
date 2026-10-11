@@ -19,6 +19,9 @@ type Store interface {
 	GetUserSummaryByUsername(ctx context.Context, username string) (UserProfileSummary, error)
 	// GetUserSummaryByID 按用户 ID 加载用户基本信息。
 	GetUserSummaryByID(ctx context.Context, userID int64) (UserProfileSummary, error)
+	// SearchPublicUsers 按昵称/用户名检索可公开访问的活跃用户。它不返回邮箱或其他
+	// 非公开字段，因此调用方拿不到「能泄露的东西」。
+	SearchPublicUsers(ctx context.Context, query string, limit int) ([]UserSearchHit, error)
 	// GetProfileStats 统计用户的公开主题数与评论数。
 	GetProfileStats(ctx context.Context, userID int64) (ProfileStats, error)
 	// ListRecentTopics 列出用户最近的公开主题。

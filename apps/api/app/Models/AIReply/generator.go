@@ -15,10 +15,12 @@ const (
 	// 能把机器人开销和别的 AI 用途分开看。
 	ReplyPurpose = "forum.reply"
 	// ReplyPromptVersion 参与缓存键与执行记录。改动提示词时必须递增它，否则历史
-	// 记录无法对应到产出它的那版提示词。forum-reply@3：默认提示词不再包含字面量
-	// 尖括号标签——富文本编辑器会把它剥离，导致面板把默认值误判成「已自定义」。
+	// 记录无法对应到产出它的那版提示词。forum-reply@4：发言标签改为
+	// 「显示名（@用户名）」并声明成员检索工具——只有昵称时，模型知道谁在说话却
+	// 无从查询这个人。forum-reply@3：默认提示词不再包含字面量尖括号标签——富文本
+	// 编辑器会把它剥离，导致面板把默认值误判成「已自定义」。
 	// forum-reply@2：主楼正文进入上下文、站内工具与引用要求写进系统指令。
-	ReplyPromptVersion = "forum-reply@3"
+	ReplyPromptVersion = "forum-reply@4"
 	// ReplyMaxTokens 是单次回复的输出上限。
 	ReplyMaxTokens = 512
 )
@@ -28,10 +30,12 @@ const (
 // 它是用途自己的声明：Host 的工具登记表决定「站内存在哪些工具」，这里决定
 // 「这次对话能用哪些」。允许清单之外的工具即使已登记也不会出现在请求里，
 // 因此审核类工具不会因为一次提示词注入而被回复机器人拿到。
+// user-search 与 user-profile-read 是一对：前者按昵称找到 @用户名，后者读公开资料。
 var ReplyToolAllowlist = []string{
 	"forum-search",
 	"forum-topic-read",
 	"forum-topic-list",
+	"user-search",
 	"user-profile-read",
 	"time-now",
 }
