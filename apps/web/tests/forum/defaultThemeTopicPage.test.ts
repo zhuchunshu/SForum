@@ -79,6 +79,9 @@ describe('default theme V32 topic page contract', () => {
     expect(source).toContain("includes('text/html')")
     expect(source).toContain('if (!topic.value || !canNormalizeTopicURL)')
     expect(source).toContain('navigateTo(target, { redirectCode: 301 })')
+    // 通知深链 /t/{id}/page/{N}#comment-{id} 在 id_slug/slug 模式下走 slug 规范化重定向；
+    // 重定向目标必须携带 page 段，否则跨页通知丢失页码、退化为只定位第 1 页。
+    expect(source).toContain('forumTopicPath(topic.value, topicUrlMode.value, commentPage.value)')
     expect(source).toContain('useSForumSeo(computed(')
     expect(source).toContain('sanitizeHtml(topic.content.htmlContent)')
     expect(source).toContain('v-highlight')
@@ -229,6 +232,11 @@ describe('default theme V32 topic page contract', () => {
     expect(anchor).toContain('async function focusCreatedComment(comment: ForumComment)')
     expect(anchor).toContain('await forumApi.resolveCommentPage(id, comment.id)')
     expect(anchor).toContain('hash: `#comment-${comment.id}`')
+    // 同页深链兜底：目标评论应在当前页却不在旧列表（新回复未刷新）时，
+    // 页码不变不会触发重取，必须强制刷新一次再让 watch 完成滚动/高亮。
+    expect(anchor).toContain('refreshComments: () => Promise<unknown>')
+    expect(anchor).toContain('await options.refreshComments()')
+    expect(source).toContain('refreshComments,')
     // 定位只在发布成功后发生：待审回复不在列表里，不能跳。
     expect(submission).toContain('await options.focusCreatedComment?.(created)')
     const pendingStart = submission.indexOf("created.status === 'pending'")

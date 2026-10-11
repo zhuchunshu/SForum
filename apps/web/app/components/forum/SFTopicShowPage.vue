@@ -111,11 +111,9 @@ const urlTopicID = computed(() => {
 // 从 URL 解析显式页码：路径段优先（/page/N），回退 query.page（旧链接兼容）。
 // 二者均无时返回 0 表示"未显式指定"，交由 SSR 反查决定。
 const explicitCommentPage = computed(() => {
-  // 路径段：parseTopicPath 已剥离 page/N 并返回 page。
+  // 路径段：parseTopicPath 已剥离 page/N 并返回 page（1 = 无显式段）。
   const fromPath = parsedPath.value?.page
-  if (fromPath && fromPath > 0) {
-    return fromPath
-  }
+  if (fromPath && fromPath > 0) return fromPath
   // 旧 query 形式 ?page=N（规范化前的兼容入口）。
   // 严格解析：非法值（?page=abc / 数组）不能回落成"显式第 1 页"，
   // 否则会错误抑制锚点反查，第 2 页之后的目标评论永远定位不到。
@@ -320,12 +318,12 @@ watchEffect(() => {
     return
   }
   // 1. slug/mode 规范化：比较不含 page 的基础路径。
-  //    必须保留 hash：通知/外部深链是无 slug 的 /t/{id}#comment-{id}，全部走本分支；
-  //    丢掉 fragment 会让重挂载后的实例拿不到锚点，滚动/高亮全部失效。
+  //    必须保留 hash 与 page 段：通知深链 /t/{id}/page/{N}#comment-{id} 在 id_slug/slug
+  //    模式下必走本分支；丢 page 会让跨页通知退化为只定位第 1 页，丢 hash 则滚动/高亮失效。
   const basePath = localePath(forumTopicPath(topic.value, topicUrlMode.value))
   const routeBase = route.path.replace(/\/page\/\d+$/, '')
   if (basePath !== routeBase) {
-    const target = { path: basePath, hash: route.hash }
+    const target = { path: localePath(forumTopicPath(topic.value, topicUrlMode.value, commentPage.value)), hash: route.hash }
     if (import.meta.server) {
       navigateTo(target, { redirectCode: 301 })
     } else {
@@ -390,6 +388,7 @@ const { flashCommentId, focusCreatedComment } = useTopicCommentAnchor({
   topicId: loadedTopicID,
   commentList: commentData,
   commentsPending,
+  refreshComments,
   pageTo: commentPageTo
 })
 

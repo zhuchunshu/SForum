@@ -212,6 +212,18 @@ actor's `moderation.review` permission and open the stable pre-publication
 workbench query. Losing review authority makes the target unavailable even when
 the recipient still owns the historical notification row.
 
+Comment deep links carry the flat-view page number: `ResolveNotificationTarget`
+emits `/t/{topic}/page/{N}#comment-{id}` for page N>1 (page 1 keeps the legacy
+`/t/{topic}#comment-{id}` form), computed with the same public-scope
+`CountCommentsBefore` + `comments_per_page` + `MaxTopicPage` clamp as
+`ResolveCommentPage` and profile activity links. The topic page's slug/mode
+normalization redirect preserves both the `/page/N` segment and the hash so
+id_slug/slug sites do not drop the page for cross-page notification clicks.
+The same-page stale-list gap is closed in `useTopicCommentAnchor`: when the
+anchor target should be on the current page but is missing from the loaded
+list (a new reply arrived without a live append), the composable forces one
+`refreshComments()` per anchor id, letting its watch then scroll and flash.
+
 Admin policy and external-channel management live as tabs under the unified
 `/control-panel/settings/mail` surface; the old
 `/control-panel/settings/notifications` URL redirects to the corresponding

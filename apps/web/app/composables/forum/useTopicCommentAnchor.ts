@@ -12,6 +12,8 @@ type TopicCommentAnchorOptions = {
   /** 评论列表数据；对象身份变化代表一次刷新完成。 */
   commentList: Ref<ForumCommentList>
   commentsPending: Ref<boolean>
+  /** 目标评论应在当前页却不在已加载列表时，强制重取当前页（每锚点最多一次）。 */
+  refreshComments: () => Promise<unknown>
   /** 页码 → 规范路径（含 /page/N 段与 locale 前缀）。 */
   pageTo: (page: number) => string
 }
@@ -80,7 +82,13 @@ export function useTopicCommentAnchor(options: TopicCommentAnchorOptions) {
       const resolved = await forumApi.resolveCommentPage(id, commentId)
       if (resolved.page > 0 && resolved.page !== options.commentPage.value) {
         await navigateTo({ path: options.pageTo(resolved.page), hash: `#comment-${commentId}` }, { replace: true })
+        return
       }
+      // 目标就在当前页却不在已加载列表里：本地列表是旧数据（新回复到达后未刷新，
+      // 例如实时胶囊提示未点「加载新回复」），而页码不变不会触发 useAsyncData 重取。
+      // 强制刷新一次；列表更新后上方 watch 会再次触发并完成滚动/高亮。
+      // anchorFallbackTriedId 保证每个锚点最多补一次，评论已删除等场景静默失效。
+      await options.refreshComments()
     } catch {
       // 评论不存在/对当前用户不可见：保持当前页，锚点静默失效。
     }

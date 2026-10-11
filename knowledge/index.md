@@ -269,6 +269,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 通知深链定位修复（2026-10-11）：通知点击进帖子定位失败/加载不出新回复的
+  两处根因——深链不带评论页码（跨页目标 SSR 永远先渲染第 1 页）、同页新回复
+  不触发评论缓存重取。后端 `ResolveNotificationTarget` 输出
+  `/t/{id}/page/{N}#comment-{id}`，话题页规范化重定向保留 page 段，
+  `useTopicCommentAnchor` 对"目标应在当前页但不在旧列表"强制刷新一次。
+  dev API 目前被 gamification 插件路由目录问题阻塞（与本修复无关），浏览器
+  端到端复验待其恢复。详见
+  `sessions/2026-10-11-notification-comment-deeplink-page-handoff.md`。
 - AI 控制台连接配置支持一键获取模型列表（2026-10-11）：新增只读探测路由
   `POST /admin/ai/profiles/:profileId/models`，用表单里的地址与密钥在保存前就能拿到
   供应商模型列表，前端以下拉选择呈现并保留手动输入出口；探测不经过网关、不计费、
