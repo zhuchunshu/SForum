@@ -50,6 +50,7 @@ func TestInsertOnlyClientAllowsUnregisteredJobKinds(t *testing.T) {
 		MailWorkers:          1,
 		NotificationsWorkers: 1,
 		MaintenanceWorkers:   1,
+		AIWorkers:            1,
 	}
 	args := unregisteredIntegrationArgs{ID: time.Now().UnixNano()}
 	checkedClient, err := NewClient(pool, cfg, river.NewWorkers())
