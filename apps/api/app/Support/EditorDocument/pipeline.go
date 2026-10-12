@@ -306,7 +306,10 @@ func normalizedImageDimension(value any) (int, bool) {
 		return integer, typed == float64(integer) && integer > 0 && integer <= maxImageDimension
 	case json.Number:
 		integer, err := strconv.ParseInt(string(typed), 10, 64)
-		return int(integer), err == nil && integer > 0 && integer <= maxImageDimension
+		if err != nil || integer <= 0 || integer > maxImageDimension {
+			return 0, false
+		}
+		return int(integer), true
 	default:
 		return 0, false
 	}
@@ -334,7 +337,10 @@ func normalizedOrderedListStart(value any) (int, bool) {
 		return integer, typed == float64(integer) && integer >= math.MinInt32 && integer <= math.MaxInt32
 	case json.Number:
 		integer, err := strconv.ParseInt(string(typed), 10, 64)
-		return int(integer), err == nil && integer >= math.MinInt32 && integer <= math.MaxInt32
+		if err != nil || integer < math.MinInt32 || integer > math.MaxInt32 {
+			return 0, false
+		}
+		return int(integer), true
 	default:
 		return 0, false
 	}
