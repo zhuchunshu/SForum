@@ -38,11 +38,20 @@ cid="$(docker run -d --name "$container" --label "com.sforum.test-owner=$owner" 
   -e POSTGRES_DB=sforum_test_suite -e POSTGRES_USER=sforum -e POSTGRES_PASSWORD=sforum \
   -e POSTGRES_HOST_AUTH_METHOD=scram-sha-256 \
   -p 127.0.0.1::5432 "$image")"
+# postgres 官方镜像首次启动会跑 initdb 然后重启一次；pg_isready 在重启前的
+# 临时实例上就可能返回 0，紧接着的 psql 会撞上 shutdown。用真实认证连接做
+# 就绪判定，并要求连续两次成功，避开首次启动的重启窗口。
 ready=0
+stable=0
 for _ in {1..60}; do
-  if docker exec "$cid" pg_isready -U sforum -d sforum_test_suite >/dev/null 2>&1; then
-    ready=1
-    break
+  if docker exec -e PGPASSWORD=sforum "$cid" psql -U sforum -d sforum_test_suite -tAc 'SELECT 1' >/dev/null 2>&1; then
+    stable=$((stable + 1))
+    if [[ "$stable" == 2 ]]; then
+      ready=1
+      break
+    fi
+  else
+    stable=0
   fi
   sleep 1
 done
