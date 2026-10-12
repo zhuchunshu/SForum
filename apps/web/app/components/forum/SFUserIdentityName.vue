@@ -60,7 +60,7 @@ const asLink = computed(() => props.linked && Boolean(props.to))
 .sf-user-identity-name--inline {
   flex-direction: row;
   align-items: baseline;
-  gap: 6px;
+  gap: 5px;
   max-width: 100%;
 }
 
@@ -69,6 +69,14 @@ const asLink = computed(() => props.linked && Boolean(props.to))
   flex-direction: column;
   min-width: 0;
   text-decoration: none;
+}
+
+/* 单行模式下 link 也保持横排，昵称与 handle 同一行 */
+.sf-user-identity-name--inline .sf-user-identity-name__link {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
 }
 
 /* 字号/配色交给宿主上下文：默认值只保证独立使用时可读。 */
@@ -98,10 +106,13 @@ const asLink = computed(() => props.linked && Boolean(props.to))
   }
 }
 
-/* 单行模式下 handle 字号随上下文，不做窄屏隐藏（评论头部空间由 flex-wrap 兜底） */
+/* 单行模式 handle：小号弱化、可压缩截断，窄屏不隐藏（由宿主 flex-wrap 兜底） */
 .sf-user-identity-name--inline .sf-user-identity-name__handle {
-  font-size: 12px;
+  font-size: 0.72em;
   font-weight: 400;
+  letter-spacing: 0.01em;
   flex: 0 1 auto;
+  min-width: 3ch;
+  opacity: 0.85;
 }
 </style>

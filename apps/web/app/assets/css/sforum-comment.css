@@ -80,6 +80,12 @@
   font-size: 0.86rem;
   font-weight: 800;
   text-decoration: none;
+  min-width: 0;
+}
+
+/* inline 身份（昵称 @username 单行）：昵称继承 author 字重，整块限宽截断，头部保持单行 */
+.sf-comment__author .sf-user-identity-name--inline .sf-user-identity-name__name {
+  font-weight: 800;
 }
 
 .sf-comment__author-trigger:hover,
