@@ -91,10 +91,9 @@ jobs:
         with:
           repo-checkout: false
           # 扫描用的工具链需覆盖已修复的 stdlib 版本（如 GO-2026-6617 修于
-          # go1.26.9）；check-latest 让 setup-go 解析 go.mod 约束内的最新
-          # patch 版本，避免硬编码漂移。
-          go-version-file: apps/api/go.mod
-          check-latest: true
+          # go1.26.9）；stable 始终解析到最新 Go，避免硬编码漂移，也不与
+          # action 默认的 go-version 输入叠加产生告警。
+          go-version-input: stable
           cache-dependency-path: apps/api/go.sum
           work-dir: apps/api
           go-package: ./...
