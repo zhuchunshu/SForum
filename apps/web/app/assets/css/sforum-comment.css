@@ -120,28 +120,15 @@
   min-width: 0;
 }
 
-.sf-comment-user-preview__name {
-  overflow: hidden;
-  color: var(--sf-fg);
+/* 名字 + @username 双行由 SFUserIdentityName 渲染；此处只定字号层级。 */
+.sf-comment-user-preview__identity-names {
   font-size: 14px;
   font-weight: 750;
-  line-height: 1.3;
-  text-decoration: none;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.sf-comment-user-preview__name:hover,
-.sf-comment-user-preview__name:focus-visible {
-  color: var(--sf-accent);
-}
-
-.sf-comment-user-preview__username {
-  overflow: hidden;
-  color: var(--sf-public-text-muted);
+.sf-comment-user-preview__identity-names .sf-user-identity-name__handle {
   font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 400;
 }
 
 .sf-comment-user-preview__bio,

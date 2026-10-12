@@ -1,0 +1,107 @@
+<script setup lang="ts">
+import { userDisplayName, type ForumUserRef } from '~/utils/forum/userDisplay'
+
+/**
+ * 统一身份呈现：展示名 + 可选小字 @username 双行模式。
+ *
+ * 展示名负责"认人"，@username 负责"唯一身份"；两者同指向资料页（调用方传 to）。
+ * 窄屏经 CSS 隐藏 handle；不需要链接的场景（纯文本上下文）传 linked=false。
+ */
+const props = withDefaults(defineProps<{
+  user: ForumUserRef
+  /** 资料页地址；提供时名字与 handle 都是链接。 */
+  to?: string
+  /** 是否展示 @username 小字；评论行等空间充裕的场景默认展示。 */
+  showHandle?: boolean
+  /** 渲染为纯文本（不可点）的上下文，如通知头像旁的 alt。 */
+  linked?: boolean
+  /** user 为空时的回退文案。 */
+  fallback?: string
+  /** 单行模式：昵称与 @username 横排（评论区头部等紧凑场景）；默认双行。 */
+  inline?: boolean
+}>(), {
+  to: undefined,
+  showHandle: true,
+  linked: true,
+  fallback: '',
+  inline: false
+})
+
+const name = computed(() => userDisplayName(props.user, props.fallback))
+const handle = computed(() => props.user?.username?.trim() || '')
+const showHandleLine = computed(() => props.showHandle && handle.value && handle.value !== name.value)
+const asLink = computed(() => props.linked && Boolean(props.to))
+</script>
+
+<template>
+  <span class="sf-user-identity-name" :class="{ 'sf-user-identity-name--inline': inline }">
+    <template v-if="asLink">
+      <NuxtLink :to="to" class="sf-user-identity-name__link">
+        <span class="sf-user-identity-name__name">{{ name }}</span>
+        <span v-if="showHandleLine" class="sf-user-identity-name__handle">@{{ handle }}</span>
+      </NuxtLink>
+    </template>
+    <template v-else>
+      <span class="sf-user-identity-name__name">{{ name }}</span>
+      <span v-if="showHandleLine" class="sf-user-identity-name__handle">@{{ handle }}</span>
+    </template>
+  </span>
+</template>
+
+<style scoped>
+.sf-user-identity-name {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.sf-user-identity-name--inline {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.sf-user-identity-name__link {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+  text-decoration: none;
+}
+
+/* 字号/配色交给宿主上下文：默认值只保证独立使用时可读。 */
+.sf-user-identity-name__name {
+  font-weight: inherit;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sf-user-identity-name__link:hover .sf-user-identity-name__name,
+.sf-user-identity-name__link:focus-visible .sf-user-identity-name__name {
+  color: var(--sf-accent, currentColor);
+}
+
+.sf-user-identity-name__handle {
+  color: var(--sf-public-text-muted, rgb(from currentColor r g b / 0.6));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .sf-user-identity-name__handle {
+    display: none;
+  }
+}
+
+/* 单行模式下 handle 字号随上下文，不做窄屏隐藏（评论头部空间由 flex-wrap 兜底） */
+.sf-user-identity-name--inline .sf-user-identity-name__handle {
+  font-size: 12px;
+  font-weight: 400;
+  flex: 0 1 auto;
+}
+</style>

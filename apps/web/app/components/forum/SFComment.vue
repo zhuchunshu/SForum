@@ -9,6 +9,7 @@ export const COMMENT_EDITOR_RENDERER_KEY = 'sforum-comment-editor-renderer'
 <script setup lang="ts">
 import SFCommentUserPreview from '~/components/forum/SFCommentUserPreview.vue'
 import SFMentionContent from '~/components/forum/SFMentionContent.vue'
+import SFUserIdentityName from '~/components/forum/SFUserIdentityName.vue'
 import {
   forumAuthorName,
   type ForumComment,
@@ -304,7 +305,12 @@ const InlineEditorHost = () => {
             :aria-controls="userPreviewOpen ? userPreviewId : undefined"
             @click="toggleUserPreview"
           >
-            {{ author }}
+            <SFUserIdentityName
+              :user="{ username: previewUsername, displayName: comment?.author?.displayName }"
+              :to="authorLink"
+              :fallback="author"
+              inline
+            />
           </button>
           <NuxtLink v-else-if="authorLink" :to="authorLink" class="sf-comment__author">
             {{ author }}

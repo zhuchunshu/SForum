@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useProfileApi, type AvatarView, type PublicProfile } from '~/composables/profile/useProfileApi'
+import { useProfileApi, type PublicProfile } from '~/composables/profile/useProfileApi'
 import { apiErrorStatusCode } from '~/composables/useApiClient'
 import { userDisplayName, type ForumUserRef } from '~/utils/forum/userDisplay'
+import SFUserIdentityName from '~/components/forum/SFUserIdentityName.vue'
 
 const props = defineProps<{
   /** 列表场景已有的用户摘要：名字与头像直接消费，网络资料只做增强。 */
@@ -61,12 +62,11 @@ onMounted(() => {
   >
     <div class="sf-comment-user-preview__identity">
       <SFAvatar :name="displayName" :avatar="displayAvatar" size="md" />
-      <span class="sf-comment-user-preview__names">
-        <NuxtLink :to="profilePath" class="sf-comment-user-preview__name">
-          {{ displayName }}
-        </NuxtLink>
-        <span class="sf-comment-user-preview__username">@{{ previewUsername }}</span>
-      </span>
+      <SFUserIdentityName
+        :user="{ username: previewUsername, displayName }"
+        :to="profilePath"
+        class="sf-comment-user-preview__names sf-comment-user-preview__identity-names"
+      />
     </div>
 
     <SFSkeleton v-if="pending" width="88%" height="0.75rem" class="sf-comment-user-preview__skeleton" />
