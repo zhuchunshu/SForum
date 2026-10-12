@@ -56,14 +56,14 @@ go run ./cmd/sforum make:plugin \
 后端 import 公共 SDK，而 SDK 位于宿主模块
 `github.com/zhuchunshu/sforum/apps/api` 内。该模块没有发布为带版本号的依赖，
 因此仓库内每个包都用 `replace` 指令指向本地 checkout。工具链版本以宿主
-`go.mod` 为准（当前 Go 1.26.6）。
+`go.mod` 为准（当前 Go 1.26.9）。
 
 `backend/go.mod`（仓库内包）：
 
 ```go
 module github.com/zhuchunshu/sforum/extensions/builtin/plugins/sforum-smtp/backend
 
-go 1.26.6
+go 1.26.9
 
 require github.com/zhuchunshu/sforum/apps/api v0.0.0-00010101000000-000000000000
 

@@ -61,14 +61,14 @@ The backend imports the public SDK, which lives in the host module
 `github.com/zhuchunshu/sforum/apps/api`. Because that module is not published
 as a versioned dependency, every in-repo package uses a `replace` directive to
 a local checkout. The toolchain version is anchored by the host `go.mod`
-(currently Go 1.26.6).
+(currently Go 1.26.9).
 
 `backend/go.mod` (in-repo package):
 
 ```go
 module github.com/zhuchunshu/sforum/extensions/builtin/plugins/sforum-smtp/backend
 
-go 1.26.6
+go 1.26.9
 
 require github.com/zhuchunshu/sforum/apps/api v0.0.0
 
