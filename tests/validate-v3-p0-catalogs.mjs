@@ -227,9 +227,10 @@ assert(exactFrontendConfirmationRoutes.length === 1 && exactFrontendConfirmation
 
 const ui = load('docs/extensions/v3/catalogs/ui-surfaces.json')
 const retiredUI = load('docs/extensions/v3/catalogs/ui-retired-identities.json')
-// Reviewed email-verification and mobile user-drawer identities expand the
-// stable surface catalog without changing public/admin ownership semantics.
-assert(ui.length === 309, `UI inventory must contain exactly 309 reviewed surfaces: ${ui.length}`)
+// Reviewed email-verification, mobile user-drawer, and user-identity-name
+// identities expand the stable surface catalog without changing public/admin
+// ownership semantics.
+assert(ui.length === 310, `UI inventory must contain exactly 310 reviewed surfaces: ${ui.length}`)
 assert(JSON.stringify(retiredUI) === JSON.stringify(retiredIdentities), 'generated retired UI reservation catalog drifted from its reviewed ledger')
 const activeUIIdentities = identities.ui.filter(item => item.state === 'active')
 assert(activeUIIdentities.length === ui.length, 'active reviewed UI identity map must cover every current UI surface')

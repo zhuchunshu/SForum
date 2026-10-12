@@ -164,8 +164,11 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.cache_scope }}
           cache-to: ${{ matrix.cache_writer && github.event_name != 'pull_request' && format('type=gha,mode=max,scope={0}', matrix.cache_scope) || '' }}
 
-      - name: Scan Web runtime image (report on main pushes)
-        if: matrix.image == 'web' && github.event_name != 'pull_request'
+      # 统一只报告不阻断：第三方基础镜像 CVE 不属于 PR 作者改动范围，
+      # 不应阻塞无关 PR；Security workflow 的 dependency-review 已覆盖
+      # PR 引入的新增依赖漏洞。
+      - name: Scan Web runtime image (report only)
+        if: matrix.image == 'web'
         uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
         with:
           scan-type: image
@@ -175,15 +178,3 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "0"
-
-      - name: Scan Web runtime image (block on pull requests)
-        if: matrix.image == 'web' && github.event_name == 'pull_request'
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
-        with:
-          scan-type: image
-          image-ref: sforum-web:ci
-          scanners: vuln
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"

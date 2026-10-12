@@ -204,6 +204,7 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/navigation-inspector': 'apps/web/app/pages/admin/extensions/navigation-inspector.vue',
   '/extensions/registry-catalogs': 'apps/web/app/pages/admin/extensions/registry-catalogs.vue',
   '/extensions/provider-slots': 'apps/web/app/pages/admin/extensions/provider-slots.vue',
+  '/ai': 'apps/web/app/pages/admin/ai.vue',
   '/jobs': 'apps/web/app/pages/admin/jobs.vue',
   '/schedules': 'apps/web/app/pages/admin/schedules.vue',
   '/webhooks': 'apps/web/app/pages/admin/webhooks.vue',
@@ -318,7 +319,7 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/login-methods,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search',
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/login-methods,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search,/ai',
   'System folder should keep the approved settings submenu order without ops tools'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/settings/notifications'), 'Notification settings should be tabs inside the unified Mail and Notifications page')

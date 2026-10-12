@@ -133,7 +133,9 @@ func TestT1C_MemoryStore_ConcurrentCAS(t *testing.T) {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			prio := n
+			// 初始行 priority=0；从 1 起步保证每个并发写入都是真实变更，
+		// 避免 n=0 抢先命中 no-mutation 语义导致计数不确定。
+		prio := n + 1
 			_, err := store.Upsert(ctx, ProviderActivationInput{
 				ProviderID: "p1", OwnerExtensionID: "ext.p1", OwnerPackageDigest: digest,
 				ExpectedRevision: 1, Priority: &prio,

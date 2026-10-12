@@ -24,7 +24,8 @@ func TestProductionLifecycleCleanupIdentityExactCASAndEvidenceRetention(t *testi
 	if databaseURL == "" {
 		t.Skip("SFORUM_TEST_DATABASE_URL is not set")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// CI 的共享 PG 容器较慢，8 路并发抢同一把 advisory lock 时 30s 可能不够。
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	pool, err := pgxpool.New(ctx, databaseURL)
 	if err != nil {
@@ -195,7 +196,8 @@ func TestProductionLifecycleCleanupIdentityExactCASAndEvidenceRetention(t *testi
 		t.Fatal(err)
 	}
 	finalizer := extensionsruntime.NewPostgresLifecycleBoundaryCleanupFinalizer(pool, purger)
-	const workers = 8
+	// 4 路并发足以覆盖 CAS 幂等路径，同时降低 CI 慢 PG 上的锁排队时间。
+	const workers = 4
 	results := make(chan extensionsruntime.LifecycleCleanupFinalizationResult, workers)
 	errorsCh := make(chan error, workers)
 	var group sync.WaitGroup

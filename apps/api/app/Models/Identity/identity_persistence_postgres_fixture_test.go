@@ -209,7 +209,9 @@ func seedIdentityPersistenceTestBaseTables(ctx context.Context, db *sql.DB) erro
 			email_verified_at TIMESTAMPTZ,
 			status TEXT NOT NULL DEFAULT 'active'
 			  CHECK (status IN ('active', 'disabled', 'banned')),
-			current_token_version BIGINT NOT NULL DEFAULT 0
+			current_token_version BIGINT NOT NULL DEFAULT 0,
+			kind TEXT NOT NULL DEFAULT 'human'
+			  CHECK (kind IN ('human', 'bot'))
 		);
 		CREATE TABLE roles (
 			id BIGSERIAL PRIMARY KEY,

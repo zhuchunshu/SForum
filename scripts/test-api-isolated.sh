@@ -35,8 +35,8 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 cid="$(docker run -d --name "$container" --label "com.sforum.test-owner=$owner" \
-  -e POSTGRES_DB=sforum_test_suite -e POSTGRES_USER=sforum \
-  -e POSTGRES_HOST_AUTH_METHOD=trust \
+  -e POSTGRES_DB=sforum_test_suite -e POSTGRES_USER=sforum -e POSTGRES_PASSWORD=sforum \
+  -e POSTGRES_HOST_AUTH_METHOD=scram-sha-256 \
   -p 127.0.0.1::5432 "$image")"
 ready=0
 for _ in {1..60}; do
@@ -50,7 +50,7 @@ if [[ "$ready" != 1 ]]; then
   docker logs "$cid" >&2
   exit 1
 fi
-docker exec "$cid" psql -U sforum -d postgres -v ON_ERROR_STOP=1 \
+docker exec -e PGPASSWORD=sforum "$cid" psql -U sforum -d postgres -v ON_ERROR_STOP=1 \
   -c "COMMENT ON DATABASE postgres IS 'sforum.disposable-test-cluster.v1';" >/dev/null
 binding="$(docker port "$cid" 5432/tcp)"
 if [[ "$binding" != 127.0.0.1:* || "$binding" == *$'\n'* ]]; then
@@ -58,7 +58,7 @@ if [[ "$binding" != 127.0.0.1:* || "$binding" == *$'\n'* ]]; then
   exit 1
 fi
 port="${binding##*:}"
-export DATABASE_URL="postgres://sforum@127.0.0.1:${port}/sforum_test_suite?sslmode=disable"
+export DATABASE_URL="postgres://sforum:sforum@127.0.0.1:${port}/sforum_test_suite?sslmode=disable"
 export SFORUM_TEST_DATABASE_URL="$DATABASE_URL"
 export SFORUM_COMPAT_DATABASE_URL="$DATABASE_URL"
 printf 'Disposable test cluster: %s, database: sforum_test_suite, port: %s\n' "$container" "$port"

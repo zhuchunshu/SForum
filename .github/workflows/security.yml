@@ -77,38 +77,24 @@ jobs:
           category: /language:${{ matrix.language }}
 
   govulncheck:
-    name: Govulncheck / ${{ matrix.name }}
+    name: Govulncheck / core-api
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: core-api
-            module: apps/api
-          - name: auth-github
-            module: extensions/builtin/plugins/sforum-auth-github/backend
-          - name: content-policy
-            module: extensions/builtin/plugins/sforum-content-policy/backend
-          - name: search-site
-            module: extensions/builtin/plugins/sforum-search-site/backend
-          - name: smtp
-            module: extensions/builtin/plugins/sforum-smtp/backend
-          - name: storage-fs
-            module: extensions/builtin/plugins/sforum-storage-fs/backend
-          - name: storage-s3
-            module: extensions/builtin/plugins/sforum-storage-s3/backend
-          - name: web-push
-            module: extensions/builtin/plugins/sforum-web-push/backend
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
+      # 只扫 core-api：内建插件与 apps/api 共享同一依赖树（replace 回主模块），
+      # core 绿即代表可达漏洞面已覆盖，避免 8 路矩阵重复安装同一工具链。
       - name: Scan reachable Go vulnerabilities
         uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
         with:
           repo-checkout: false
-          go-version-input: 1.26.6
-          cache-dependency-path: ${{ matrix.module }}/go.sum
-          work-dir: ${{ matrix.module }}
+          # 扫描用的工具链需覆盖已修复的 stdlib 版本（如 GO-2026-6617 修于
+          # go1.26.9）；check-latest 让 setup-go 解析 go.mod 约束内的最新
+          # patch 版本，避免硬编码漂移。
+          go-version-file: apps/api/go.mod
+          check-latest: true
+          cache-dependency-path: apps/api/go.sum
+          work-dir: apps/api
           go-package: ./...

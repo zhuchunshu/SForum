@@ -3166,6 +3166,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.shared.sf_user_identity_name",
+    "contractVersion": "sforum.component.shared.sf_user_identity_name@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFUserIdentityName.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfuser_mention_preview",
     "contractVersion": "sforum.component.shared.sfuser_mention_preview@1",
     "kind": "component",
