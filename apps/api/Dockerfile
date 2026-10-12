@@ -24,6 +24,8 @@ RUN cd /app/extensions/builtin/plugins/sforum-smtp/backend && \
 	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
 	cd /app/extensions/builtin/plugins/sforum-web-push/backend && \
 	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
+	cd /app/extensions/builtin/plugins/sforum-shortcodes/backend && \
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o plugin . && \
 	cd /app/apps/api && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-smtp && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-smtp && \
@@ -39,7 +41,9 @@ RUN cd /app/extensions/builtin/plugins/sforum-smtp/backend && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-auth-github && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-auth-github && \
 	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-web-push && \
-	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-web-push
+	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-web-push && \
+	CGO_ENABLED=0 go run ./cmd/sforum extension digest --write /app/extensions/builtin/plugins/sforum-shortcodes && \
+	CGO_ENABLED=0 go run ./cmd/sforum extension test /app/extensions/builtin/plugins/sforum-shortcodes
 
 FROM base AS dev
 
