@@ -23,8 +23,13 @@ const notFound = ref(false)
 const previewUsername = computed(() => props.username || props.user?.username || '')
 const profile = computed(() => profileCache.value[previewUsername.value] || null)
 // 名字与头像优先取调用方传入的 UserSummary（与评论行内展示一致，避免闪变）；
-// 网络资料仅在本地没有 displayName 时补齐（例如纯 @username 的提及占位）。
-const displayName = computed(() => props.user?.displayName || profile.value?.displayName || previewUsername.value)
+// 但调用方用 username 充当占位 displayName 时不算真昵称，让网络资料补齐。
+// 网络资料仅在本地没有真 displayName 时生效（例如纯 @username 的提及占位）。
+const localDisplayName = computed(() => {
+  const name = props.user?.displayName?.trim()
+  return name && name !== previewUsername.value ? name : ''
+})
+const displayName = computed(() => localDisplayName.value || profile.value?.displayName || previewUsername.value)
 const displayAvatar = computed(() => props.user?.avatar || profile.value?.profile.avatar || null)
 const bio = computed(() => profile.value?.profile.bio?.trim() || profile.value?.profile.signature?.trim() || '')
 

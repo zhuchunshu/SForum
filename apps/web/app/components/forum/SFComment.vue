@@ -134,6 +134,26 @@ function toggleBranch() {
   branchExpanded.value = !branchExpanded.value
 }
 
+// 触发按钮内层是 NuxtLink（SFUserIdentityName 渲染的资料页链接）。
+// NuxtLink 的 onClick 不检查 defaultPrevented，preventDefault 拦不住它的 router.push；
+// 因此用捕获阶段监听：在内层链接的 onClick 之前阻止其导航，同时由本函数自行开卡片
+//（stopPropagation 会连按钮的 toggle 冒泡监听一起吞掉，所以这里直接负责 toggle）。
+// 修饰键/中键仍放行，保留「新标签打开资料页」。
+function toggleUserPreviewCapture(event: MouseEvent) {
+  if (!canPreviewUser.value) {
+    return
+  }
+  if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+    const anchor = (event.target as Element | null)?.closest?.('a')
+    if (anchor) {
+      event.preventDefault()
+      event.stopPropagation()
+      lastPreviewTrigger.value = event.currentTarget as HTMLElement
+      userPreviewOpen.value = !userPreviewOpen.value
+    }
+  }
+}
+
 function toggleUserPreview(event: MouseEvent) {
   if (!canPreviewUser.value) {
     return
@@ -303,6 +323,7 @@ const InlineEditorHost = () => {
             aria-haspopup="dialog"
             :aria-expanded="userPreviewOpen"
             :aria-controls="userPreviewOpen ? userPreviewId : undefined"
+            @click.capture="toggleUserPreviewCapture"
             @click="toggleUserPreview"
           >
             <SFUserIdentityName

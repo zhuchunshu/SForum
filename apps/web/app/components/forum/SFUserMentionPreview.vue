@@ -17,7 +17,8 @@ const { state, layerRef } = useForumMentionPreviewHost()
       :style="state.style"
     >
       <SFCommentUserPreview
-        :user="{ username: state.target.username, displayName: state.target.displayName, avatar: state.target.avatar ?? null }"
+        :user="{ username: state.target.username, avatar: state.target.avatar ?? null }"
+        :username="state.target.username"
         :profile-path="state.target.profilePath"
       />
     </div>
