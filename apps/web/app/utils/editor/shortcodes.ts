@@ -752,9 +752,9 @@ function opaqueSourceLines(lines: string[]) {
       result[index] = true
       continue
     }
-    const htmlMatch = trimmed.toLowerCase().match(/^<(script|style|pre|textarea)(?:\s|>)/)
+    const htmlMatch = trimmed.match(/^<(script|style|pre|textarea)(?:\s|>)/i)
     if (htmlMatch) {
-      htmlClose = `</${htmlMatch[1]}>`
+      htmlClose = `</${(htmlMatch[1] ?? '').toLowerCase()}>`
       result[index] = true
       if (trimmed.toLowerCase().includes(htmlClose)) htmlClose = ''
       continue

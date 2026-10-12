@@ -97,6 +97,12 @@ func RenderShortcodeFallbackHTML(node Node, schema Schema, locale string) string
 	return RenderHTMLForLocale(Document{Type: "doc", Content: []Node{node}}, schema, locale)
 }
 
+// writeAttr writes one ` name="value"` attribute with HTML escaping, keeping
+// dynamic values out of string-concatenation quoting patterns.
+func writeAttr(builder *strings.Builder, name, value string) {
+	builder.WriteString(` ` + name + `="` + html.EscapeString(value) + `"`)
+}
+
 func renderNode(builder *strings.Builder, node Node, schema Schema, plan *shortcodeRenderPlanState, shortcodeDepth int, locale string) {
 	switch node.Type {
 	case "paragraph":
@@ -128,7 +134,7 @@ func renderNode(builder *strings.Builder, node Node, schema Schema, plan *shortc
 		lang, _ := node.Attrs["language"].(string)
 		builder.WriteString("<pre><code")
 		if lang != "" {
-			builder.WriteString(` class="language-` + html.EscapeString(lang) + `"`)
+			writeAttr(builder, "class", "language-"+lang)
 		}
 		builder.WriteString(">")
 		for _, child := range node.Content {
@@ -181,8 +187,16 @@ func renderNode(builder *strings.Builder, node Node, schema Schema, plan *shortc
 			viewerSrc = "/media/attachments/" + publicID + "/original"
 		}
 
-		builder.WriteString(`<a href="` + html.EscapeString(viewerSrc) + `" class="sf-content-image-link" data-sforum-image-viewer="1" data-sforum-image-size="` + displaySize + `" target="_blank" rel="noopener noreferrer">`)
-		builder.WriteString(`<img src="` + html.EscapeString(src) + `" alt="` + html.EscapeString(alt) + `" data-sforum-image-size="` + displaySize + `"`)
+		builder.WriteString(`<a`)
+		writeAttr(builder, "href", viewerSrc)
+		writeAttr(builder, "class", "sf-content-image-link")
+		builder.WriteString(` data-sforum-image-viewer="1"`)
+		writeAttr(builder, "data-sforum-image-size", displaySize)
+		builder.WriteString(` target="_blank" rel="noopener noreferrer">`)
+		builder.WriteString(`<img`)
+		writeAttr(builder, "src", src)
+		writeAttr(builder, "alt", alt)
+		writeAttr(builder, "data-sforum-image-size", displaySize)
 		if widthOK && heightOK {
 			builder.WriteString(` width="` + strconv.Itoa(width) + `" height="` + strconv.Itoa(height) + `"`)
 			if height >= width*5/2 {
@@ -197,9 +211,14 @@ func renderNode(builder *strings.Builder, node Node, schema Schema, plan *shortc
 		if native == "" {
 			native = ":" + name + ":"
 		}
-		builder.WriteString(`<span class="sf-editor-emoji-node" data-sforum-emoji="` + html.EscapeString(name) +
-			`" data-label="` + html.EscapeString(label) + `" title="` + html.EscapeString(label) + `">` +
-			html.EscapeString(native) + `</span>`)
+		builder.WriteString(`<span`)
+		writeAttr(builder, "class", "sf-editor-emoji-node")
+		writeAttr(builder, "data-sforum-emoji", name)
+		writeAttr(builder, "data-label", label)
+		writeAttr(builder, "title", label)
+		builder.WriteString(`>`)
+		builder.WriteString(html.EscapeString(native))
+		builder.WriteString(`</span>`)
 	case ShortcodeRefNode:
 		if plan != nil {
 			placeholder := "<!--sforum-shortcode-slot:" + strconv.Itoa(len(plan.slots)) + "-->"
