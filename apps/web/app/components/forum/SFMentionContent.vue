@@ -1,19 +1,22 @@
 <script setup lang="ts">
-import { forumUserProfilePath } from '~/utils/forum/forumTaxonomy'
+import { forumUserProfilePath, type ForumUserSummary } from '~/utils/forum/forumTaxonomy'
 import { mentionAnchorFromEvent, mentionUsernameFromEvent } from '~/utils/forum/forumMentions'
 import {
   openForumMentionPreview,
   useForumMentionPreview
 } from '~/composables/forum/useForumMentionPreview'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 
 /**
  * 正文容器：渲染后端已净化的 HTML，并把 @提及 链接化 / 可点。
  * 宿主页面挂载 SFUserMentionPreview 后，点击 @ 会弹出与该用户头像预览同款的资料卡片；
  * 未挂载宿主的页面（组件预览页等）保持普通链接行为。
  */
-defineProps<{
+const props = defineProps<{
   /** 后端已净化并渲染好的正文 HTML。 */
   html: string
+  /** 宿主已加载的 username -> UserSummary 映射；命中时卡片直接吃已有数据，避免占位闪变。 */
+  userLookup?: Map<string, ForumUserSummary>
 }>()
 
 const localePath = useLocalePath()
@@ -38,10 +41,11 @@ function onContentClick(event: MouseEvent) {
   }
   const anchor = mentionAnchorFromEvent(event.target)
   event.preventDefault()
+  const known = props.userLookup?.get(username.toLowerCase())
   openForumMentionPreview({
     username,
-    displayName: username,
-    avatar: null,
+    displayName: userDisplayName(known, username),
+    avatar: known?.avatar || null,
     profilePath: mentionHref(username)
   }, anchor)
 }

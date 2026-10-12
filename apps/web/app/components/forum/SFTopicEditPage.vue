@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumContentLimits } from '~/composables/forum/useForumContentLimits'
@@ -330,7 +331,7 @@ const editStateLabel = computed(() => {
 })
 
 const tagPolicyLabel = computed(() => t(`composer.tagPolicy.${limits.value.tagCreationMode}`))
-const actorName = computed(() => user.value?.displayName || user.value?.username || t('composer.currentAccount'))
+const actorName = computed(() => userDisplayName(user.value, t('composer.currentAccount')))
 const staffReasonTooLong = computed(() => (
   runeLength(staffReason.value.trim()) > editReasonMaxRunes
 ))

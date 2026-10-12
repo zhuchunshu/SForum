@@ -147,5 +147,6 @@
   这不是本会话的改动，没有回退；任何 `tests/validate-host-api-v2-docs.mjs` 自检失败
   都源于此（该脚本会断言 `scripts/test.sh` 调用它）。
 
-工作树里有并行工作流（gamification、shortcodes CSS、控制台修复等），不要 revert
+工作树里有并行工作流（当时为 gamification、shortcodes CSS、控制台修复等；
+gamification 已于 2026-10-12 整体移除），不要 revert
 非本会话改动；`tests/architecture-boundaries-baseline.json` 也被并行工作流重排过格式。

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useForumContentLimits } from '~/composables/forum/useForumContentLimits'
@@ -176,7 +177,7 @@ const canSubmit = computed(() => {
   return !validateTopicTitle(title.value) && !validateTopicBody(bodyMarkdown.value) && !validateTagCount(tagDraft.value.length)
 })
 
-const actorName = computed(() => user.value?.displayName || user.value?.username || t('composer.currentAccount'))
+const actorName = computed(() => userDisplayName(user.value, t('composer.currentAccount')))
 const selectedCategory = computed(() => categories.value.find(category => category.slug === selectedCategorySlug.value))
 const defaultCategory = computed(() => categories.value.find(category => category.slug === limits.value.defaultCategorySlug))
 const summaryCategory = computed(() => selectedCategory.value || defaultCategory.value || null)

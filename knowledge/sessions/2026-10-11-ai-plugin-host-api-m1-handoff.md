@@ -61,5 +61,5 @@
 
 ## 工作树注意
 
-工作树里有并行工作流（gamification、shortcodes CSS 等），不要 revert 非本会话
-改动。
+工作树里有并行工作流（当时为 gamification、shortcodes CSS 等；gamification 已于
+2026-10-12 整体移除），不要 revert 非本会话改动。

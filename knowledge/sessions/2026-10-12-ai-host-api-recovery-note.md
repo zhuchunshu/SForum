@@ -102,4 +102,9 @@ cd /home/inkedus/Code/github/SForum && node tests/validate-architecture-boundari
 （untracked，幸存）引用了被回滚掉的 tracked 符号
 `extensions.WithDatabaseGrantAuthority`、`extensions.DatabaseGrantAuthority`、
 `audit.ActionExtensionDatabaseGrant`，因此该包在它的 tracked 侧恢复前无法编译。
+
+**2026-10-12 更新**：该文件已随 gamification 插件整体移除（连同其宿主包一起删除），
+此处遗留问题不再存在。`WithDatabaseGrantAuthority` / `DatabaseGrantAuthority` /
+`audit.ActionExtensionDatabaseGrant` 三个符号本身保留在 Core，见
+`sessions/2026-10-12-gamification-removal.md`。
 本次验证时临时把该文件移到 /tmp（校验 md5 后原样放回，内容未改）。

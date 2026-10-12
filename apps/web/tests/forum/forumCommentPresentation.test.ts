@@ -156,7 +156,7 @@ describe('SFComment presentation contract', () => {
     expect(comment).toContain("document.addEventListener('pointerdown', onDocumentPointerDown)")
     expect(comment).toContain("event.key === 'Escape'")
     expect(comment).toContain('<SFCommentUserPreview')
-    expect(preview).toContain('profileApi.getPublicProfile(props.username)')
+    expect(preview).toContain('profileApi.getPublicProfile(previewUsername.value)')
     expect(preview).toContain("useState<Record<string, PublicProfile>>('profile:comment-user-preview-cache'")
     expect(preview).toContain(':to="profilePath"')
     expect(preview).not.toContain('follow')

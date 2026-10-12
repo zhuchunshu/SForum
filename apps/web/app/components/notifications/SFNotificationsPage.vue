@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useNotifications } from '~/composables/notifications/useNotifications'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
@@ -363,9 +364,9 @@ onBeforeUnmount(() => stopRealtime())
               >
                 <SFAvatar
                   v-if="item.actor"
-                  :name="item.actor.displayName || item.actor.username"
+                  :name="userDisplayName(item.actor)"
                   :avatar="item.actor.avatar"
-                  :alt="item.actor.displayName || item.actor.username"
+                  :alt="userDisplayName(item.actor)"
                   size="list"
                 />
                 <span

@@ -911,8 +911,7 @@
       "extensionPages": "页面注册表",
       "extensionComponentInspector": "组件检查器",
       "extensionNavigationInspector": "导航检查器",
-      "extensionRegistryCatalogs": "注册表目录",
-      "gamification": "徽章与成长值"
+      "extensionRegistryCatalogs": "注册表目录"
     },
     "avatar": {
       "metaTitle": "头像设置",
@@ -5105,137 +5104,6 @@
       "artifactDriftTitle": "制品已变更",
       "artifactDriftDescription": "当前激活意图绑定的制品摘要与 live 不一致。公开入口已失效，请在确认新制品后重新打开开关。",
       "actionFailed": "设置动作执行失败。"
-    },
-    "gamification": {
-      "title": "徽章与成长值",
-      "metaTitle": "徽章与成长值",
-      "intro": "管理徽章定义、等级称号、手动授予与历史回填。",
-      "loadFailed": "加载徽章配置失败。",
-      "openExtensions": "前往扩展管理",
-      "pluginDisabledTitle": "徽章插件未启用",
-      "pluginDisabled": "徽章系统由内置插件 sforum.gamification 提供。启用插件后才能创建徽章或授予。",
-      "tabs": {
-        "label": "徽章设置分区",
-        "badges": "徽章定义",
-        "levels": "等级称号",
-        "grants": "手动授予",
-        "backfill": "历史回填"
-      },
-      "rarity": {
-        "common": "普通",
-        "rare": "稀有",
-        "epic": "史诗",
-        "legendary": "传说"
-      },
-      "rule": {
-        "kindThreshold": "达到阈值自动授予",
-        "kindManual": "仅管理员手动授予",
-        "metricTopic": "主题数",
-        "metricComment": "评论数",
-        "metricDays": "注册天数",
-        "topicCount": "发布 {count} 个主题",
-        "commentCount": "发表 {count} 条评论",
-        "registeredDays": "注册满 {count} 天",
-        "manual": "管理员手动授予"
-      },
-      "badges": {
-        "title": "徽章定义",
-        "description": "说明",
-        "searchPlaceholder": "搜索徽章名称或标识",
-        "create": "新建徽章",
-        "edit": "编辑",
-        "disable": "停用",
-        "disabledBadge": "已停用",
-        "name": "名称",
-        "slug": "标识",
-        "slugInvalid": "标识需使用小写字母与连字符，例如 first-topic。",
-        "nameRequired": "请填写徽章名称。",
-        "rarity": "稀有度",
-        "icon": "图标",
-        "points": "成长值",
-        "sort": "排序",
-        "rule": "规则",
-        "ruleKind": "规则类型",
-        "metric": "统计指标",
-        "threshold": "阈值",
-        "thresholdInvalid": "阈值需大于等于 1。",
-        "actions": "操作",
-        "empty": "还没有徽章定义。",
-        "saved": "徽章已保存。",
-        "saveFailed": "保存徽章失败。",
-        "disabled": "徽章已停用。",
-        "disableFailed": "停用徽章失败。",
-        "seeded": "推荐默认已写入。",
-        "seedFailed": "写入推荐默认失败。",
-        "restoreRecommended": "恢复推荐默认徽章",
-        "restoredRecommended": "推荐徽章与等级已恢复，历史授予保持不变。",
-        "missingRecommendedTitle": "推荐徽章尚未齐全",
-        "missingRecommended": "还有 {count} 个推荐徽章未创建，可点右上角一键恢复。"
-      },
-      "levels": {
-        "title": "称号",
-        "description": "成长值累计到阈值即获得对应称号；成长值只升不降。",
-        "hintTitle": "成长值只增不减",
-        "hint": "等级由累计成长值查表得到，不需要维护当前等级字段。",
-        "create": "新增等级",
-        "edit": "编辑",
-        "minPoints": "所需成长值",
-        "icon": "图标",
-        "titleRequired": "请填写称号。",
-        "pointsInvalid": "所需成长值不能为负数。",
-        "empty": "还没有等级定义。",
-        "saved": "等级已保存。",
-        "saveFailed": "保存等级失败。",
-        "missingRecommendedTitle": "推荐等级尚未齐全",
-        "missingRecommended": "建议补齐 新芽 / 幼苗 / 小树 / 大树 / 守望者 五级阶梯。"
-      },
-      "grants": {
-        "title": "手动授予",
-        "description": "把仅手动授予的徽章发给指定用户；阈值徽章由规则自动发放。",
-        "hintTitle": "只有手动徽章可在此授予",
-        "hint": "阈值类徽章由引擎按统计规则自动发放，重复授予会被幂等拦下。",
-        "userId": "用户 ID",
-        "badge": "徽章",
-        "selectBadge": "选择徽章",
-        "grant": "授予",
-        "granted": "徽章已授予。",
-        "revoked": "徽章已撤销。",
-        "failed": "操作失败。",
-        "revoke": "撤销",
-        "loadLog": "查看授予记录",
-        "logTitle": "授予记录",
-        "logDescription": "用户 {userId} 已获得的徽章。",
-        "emptyLog": "该用户还没有徽章。",
-        "noManualBadges": "当前没有可手动授予的徽章，请先创建一个「仅手动授予」类型的徽章。",
-        "actor": "操作者 #{id}",
-        "source": {
-          "auto": "自动",
-          "manual": "手动"
-        }
-      },
-      "backfill": {
-        "title": "历史回填",
-        "description": "把存量发帖/评论数写入统计并补发成长值；语义为覆盖，重复执行安全。",
-        "warningTitle": "这是重建操作",
-        "warning": "回填会覆盖对应用户的统计计数（不是累加）。请确认数据来自可信来源。",
-        "payload": "回填数据（JSON）",
-        "payloadHint": "格式：users 数组，每项含 userId（必填正整数）、topicCount、commentCount。示例见“填入示例”按钮。",
-        "fillExample": "填入示例",
-        "run": "回填 {count} 个用户",
-        "done": "回填完成。",
-        "failed": "回填失败。",
-        "required": "请填写回填数据。",
-        "invalidJson": "JSON 格式不正确。",
-        "emptyUsers": "users 数组不能为空。",
-        "invalidUser": "每个用户都需要正整数 userId。"
-      },
-      "errors": {
-        "notManual": "该徽章不是手动授予类型。",
-        "payloadInvalid": "请求参数不完整。",
-        "badgeInvalid": "徽章定义不合法。",
-        "grantFailed": "授予失败。",
-        "unknown": "操作失败，请稍后重试。"
-      }
     }
   },
   "errors": {
@@ -6481,27 +6349,6 @@
         "body": "{name} v{version} 的公开组件可使用当前浏览器会话与页面权限调用其命名空间 API。这不是沙箱：仅在你信任该扩展时启用公开 L2。",
         "dismiss": "关闭说明"
       }
-    }
-  },
-  "badges": {
-    "title": "徽章墙",
-    "metaTitle": "{name} 的徽章",
-    "subtitle": "{name} 获得的徽章与成长等级",
-    "level": "当前等级",
-    "noLevel": "未定级",
-    "points": "成长值",
-    "earned": "已获得徽章",
-    "empty": "暂无徽章数据。",
-    "emptyBadges": "{name} 还没有获得徽章。",
-    "grantedAt": "获得于 {date}",
-    "loadFailed": "加载徽章墙失败。",
-    "unavailableTitle": "徽章功能未启用",
-    "unavailable": "徽章系统由内置插件提供，当前未启用。",
-    "rarity": {
-      "common": "普通",
-      "rare": "稀有",
-      "epic": "史诗",
-      "legendary": "传说"
     }
   }
 }

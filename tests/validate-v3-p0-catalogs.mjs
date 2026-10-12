@@ -182,18 +182,18 @@ assertIdentityMutationRejected('UI id collision', changed => {
 }, 'duplicate core.component')
 assertIdentityMutationRejected('retired UI id reuse', (changed, changedRetired) => {
   changedRetired.ui.push(retiredUITombstone)
-  changed.ui[0].id = retiredUIIdentity.id
+  changed.ui[changed.ui.findIndex(item => item.state === 'active')].id = retiredUIIdentity.id
 }, 'reuses a retired id')
 assertIdentityMutationRejected('retired UI contract reuse', (changed, changedRetired) => {
   changedRetired.ui.push(retiredUITombstone)
-  changed.ui[0].contractVersion = retiredUIIdentity.contractVersion
+  changed.ui[changed.ui.findIndex(item => item.state === 'active')].contractVersion = retiredUIIdentity.contractVersion
 }, 'reuses retired contract')
 assertIdentityMutationRejected('UI owner drift', changed => {
   const item = changed.ui.find(candidate => candidate.id === 'core.component.admin.sfadmin_footer')
   item.owners = ['public']
 }, 'ownership drift')
 assertIdentityMutationRejected('UI source drift', changed => {
-  changed.ui[0].source = 'apps/web/app/components/Moved.vue'
+  changed.ui[changed.ui.findIndex(item => item.state === 'active')].source = 'apps/web/app/components/Moved.vue'
 }, 'new or moved UI surface')
 
 assert(routes.length === 360, `route inventory must contain exactly 360 reviewed routes: ${routes.length}`)
@@ -229,7 +229,7 @@ const ui = load('docs/extensions/v3/catalogs/ui-surfaces.json')
 const retiredUI = load('docs/extensions/v3/catalogs/ui-retired-identities.json')
 // Reviewed email-verification and mobile user-drawer identities expand the
 // stable surface catalog without changing public/admin ownership semantics.
-assert(ui.length === 314, `UI inventory must contain exactly 314 reviewed surfaces: ${ui.length}`)
+assert(ui.length === 309, `UI inventory must contain exactly 309 reviewed surfaces: ${ui.length}`)
 assert(JSON.stringify(retiredUI) === JSON.stringify(retiredIdentities), 'generated retired UI reservation catalog drifted from its reviewed ledger')
 const activeUIIdentities = identities.ui.filter(item => item.state === 'active')
 assert(activeUIIdentities.length === ui.length, 'active reviewed UI identity map must cover every current UI surface')

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useNotifications, type NotificationPreviewContent } from '~/composables/notifications/useNotifications'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useForumApi } from '~/composables/forum/useForumApi'
 import { apiErrorMessage, apiErrorStatusCode } from '~/composables/useApiClient'
@@ -83,7 +84,7 @@ const actionLabel = computed(() => {
 })
 
 function authorName(content?: NotificationPreviewContent) {
-  return content?.author?.displayName || content?.author?.username || t('notifications.detailPage.unknownAuthor')
+  return userDisplayName(content?.author, t('notifications.detailPage.unknownAuthor'))
 }
 
 function contextHeading(content?: NotificationPreviewContent) {

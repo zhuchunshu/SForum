@@ -7,6 +7,8 @@
 - **dependabot 覆盖缺失**：`.github/dependabot.yml` 补上
   `/extensions/builtin/plugins/sforum-gamification/backend` 的 gomod 条目。
   `node tests/validate-docs.mjs` 现在全绿（这是 contracts-gate 此前的唯一失败项）。
+  - **2026-10-12 更新**：该条目随 gamification 插件整体移除而删除（同日的
+    `sessions/2026-10-12-gamification-removal.md`）；`validate-docs.mjs` 仍全绿。
 - **gamification 的 tracked 符号恢复**：`IntegrationTests` 包此前无法编译
   （untracked 测试引用被回滚掉的三个符号）。符号从头实现，不是「让它编译过去」：
   - `audit.ActionExtensionDatabaseGrant = "extension.database_grant"`（`Support/Audit`）。
@@ -134,9 +136,10 @@ user-search）；下拉四项齐全可选中；改姿态 → toast → 持久化
   context carrier 合并进 `activation.go`，避免把 95 顶上去）
 - `ruby scripts/validate-openapi-refs.rb` ✅（2775 refs）
 - `node tests/validate-host-api-v2-docs.mjs` ✅、`node tests/validate-docs.mjs` ✅
-- Web：`bun run typecheck` ✅；`bun test` ✅ 1119 pass / 3 fail（gamification 侧栏 2 项
+- Web：`bun run typecheck` ✅；`bun test` ✅ 1119 pass / 3 fail（当时 gamification 侧栏 2 项
   与 forum 侧栏 1 项均属并行工作流 03:21/03:56 对 `adminModules.ts` 等文件的改动，
-  `adminAIPurposes.test.ts` 20 项全绿）；`bun run build` ✅
+  `adminAIPurposes.test.ts` 20 项全绿；**2026-10-12 更新**：`adminGamificationNav.test.ts`
+  与 gamification 侧栏条目本身已随插件移除而删除）；`bun run build` ✅
   （**陷阱**：默认 Node 堆会 OOM 崩溃，需 `NODE_OPTIONS=--max-old-space-size=6144`）。
   untracked 的 `tests/admin/adminGamificationNav.test.ts`，属 gamification 工作流——
   `app/config/adminModules` 里的 gamification 侧栏条目与其页面尚未对齐，同样导致
@@ -144,8 +147,11 @@ user-search）；下拉四项齐全可选中；改姿态 → toast → 持久化
   （**陷阱**：默认 Node 堆会 OOM 崩溃，需 `NODE_OPTIONS=--max-old-space-size=6144`）。
 - **隔离集群端到端** ✅ `./scripts/test-api-isolated.sh -run '...' ./app/Support/Extensions/IntegrationTests`：
   AI 命令四路径、AI 工具子进程派发、事件发布、notification reference、
-  **gamification 授权供给两用例**（操作者绑定的启动真的建出授权行并跑起插件；
-  host 启动缺授权失败关闭且插件 schema 未被初始化）。
+  ~~gamification 授权供给两用例~~（操作者绑定的启动真的建出授权行并跑起插件；
+  host 启动缺授权失败关闭且插件 schema 未被初始化）——**2026-10-12 更新**：该两用例
+  随 gamification 插件移除；own_schema 授权矩阵仍由
+  `extension_database_raw_core_integration_test.go` 与
+  `protocol_database_lease_test.go` 钉住，端到端启用路径的 fixture 对位仍待补。
 
 ## Decisions
 

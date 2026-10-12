@@ -871,8 +871,7 @@
       "extensionPages": "Page registry",
       "extensionComponentInspector": "Component inspector",
       "extensionNavigationInspector": "Navigation inspector",
-      "extensionRegistryCatalogs": "Registry catalogs",
-      "gamification": "Badges and growth"
+      "extensionRegistryCatalogs": "Registry catalogs"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -5065,137 +5064,6 @@
       "artifactDriftTitle": "Artifact changed",
       "artifactDriftDescription": "Activation intent is bound to a package digest that no longer matches live. Public entry is ineffective until you re-enable against the new artifact.",
       "actionFailed": "Settings action failed."
-    },
-    "gamification": {
-      "title": "Badges and growth",
-      "metaTitle": "Badges and growth",
-      "intro": "Manage badge definitions, level titles, manual grants, and historical backfill.",
-      "loadFailed": "Failed to load the badge configuration.",
-      "openExtensions": "Open extensions",
-      "pluginDisabledTitle": "Badge plugin is not enabled",
-      "pluginDisabled": "Badges ship with the built-in sforum.gamification plugin. Enable it before creating or granting badges.",
-      "tabs": {
-        "label": "Badge sections",
-        "badges": "Definitions",
-        "levels": "Levels",
-        "grants": "Manual grants",
-        "backfill": "Backfill"
-      },
-      "rarity": {
-        "common": "Common",
-        "rare": "Rare",
-        "epic": "Epic",
-        "legendary": "Legendary"
-      },
-      "rule": {
-        "kindThreshold": "Auto-grant at threshold",
-        "kindManual": "Manual grant only",
-        "metricTopic": "Topics",
-        "metricComment": "Comments",
-        "metricDays": "Days registered",
-        "topicCount": "Publish {count} topics",
-        "commentCount": "Post {count} comments",
-        "registeredDays": "Registered for {count} days",
-        "manual": "Granted manually by an admin"
-      },
-      "badges": {
-        "title": "Badge definitions",
-        "description": "Description",
-        "searchPlaceholder": "Search by name or slug",
-        "create": "New badge",
-        "edit": "Edit",
-        "disable": "Disable",
-        "disabledBadge": "Disabled",
-        "name": "Name",
-        "slug": "Slug",
-        "slugInvalid": "Slug must be lowercase letters and hyphens, e.g. first-topic.",
-        "nameRequired": "A badge name is required.",
-        "rarity": "Rarity",
-        "icon": "Icon",
-        "points": "Growth value",
-        "sort": "Sort",
-        "rule": "Rule",
-        "ruleKind": "Rule type",
-        "metric": "Metric",
-        "threshold": "Threshold",
-        "thresholdInvalid": "Threshold must be at least 1.",
-        "actions": "Actions",
-        "empty": "No badge definitions yet.",
-        "saved": "Badge saved.",
-        "saveFailed": "Failed to save the badge.",
-        "disabled": "Badge disabled.",
-        "disableFailed": "Failed to disable the badge.",
-        "seeded": "Recommended defaults written.",
-        "seedFailed": "Failed to write recommended defaults.",
-        "restoreRecommended": "Restore recommended badges",
-        "restoredRecommended": "Recommended badges and levels restored; existing grants are unchanged.",
-        "missingRecommendedTitle": "Recommended set incomplete",
-        "missingRecommended": "{count} recommended badges are still missing — restore them with one click above."
-      },
-      "levels": {
-        "title": "Title",
-        "description": "A title unlocks when cumulative growth value reaches its threshold. Growth never decreases.",
-        "hintTitle": "Growth only goes up",
-        "hint": "Levels are a lookup over cumulative growth value; there is no current-level field to maintain.",
-        "create": "New level",
-        "edit": "Edit",
-        "minPoints": "Required growth",
-        "icon": "Icon",
-        "titleRequired": "A title is required.",
-        "pointsInvalid": "Required growth cannot be negative.",
-        "empty": "No levels yet.",
-        "saved": "Level saved.",
-        "saveFailed": "Failed to save the level.",
-        "missingRecommendedTitle": "Recommended ladder incomplete",
-        "missingRecommended": "Consider adding the five recommended tiers: Sprout, Seedling, Sapling, Tree, Warden."
-      },
-      "grants": {
-        "title": "Manual grants",
-        "description": "Award manual-only badges to a specific user; threshold badges are granted automatically.",
-        "hintTitle": "Only manual badges can be granted here",
-        "hint": "Threshold badges are granted by the engine from counters; duplicates are stopped by the idempotency key.",
-        "userId": "User ID",
-        "badge": "Badge",
-        "selectBadge": "Select a badge",
-        "grant": "Grant",
-        "granted": "Badge granted.",
-        "revoked": "Badge revoked.",
-        "failed": "The operation failed.",
-        "revoke": "Revoke",
-        "loadLog": "View grants",
-        "logTitle": "Grant log",
-        "logDescription": "Badges earned by user {userId}.",
-        "emptyLog": "This user has no badges yet.",
-        "noManualBadges": "No manual-only badge exists yet — create one with the manual rule type first.",
-        "actor": "Actor #{id}",
-        "source": {
-          "auto": "Auto",
-          "manual": "Manual"
-        }
-      },
-      "backfill": {
-        "title": "Historical backfill",
-        "description": "Write existing topic/comment counts into counters and credit growth value. Overwrite semantics — safe to rerun.",
-        "warningTitle": "This is a rebuild",
-        "warning": "Backfill overwrites counters (it never adds). Confirm the data comes from a trusted source.",
-        "payload": "Backfill payload (JSON)",
-        "payloadHint": "Format: a users array where each entry has userId (required positive integer), topicCount, and commentCount. Use the example button.",
-        "fillExample": "Fill example",
-        "run": "Backfill {count} users",
-        "done": "Backfill finished.",
-        "failed": "Backfill failed.",
-        "required": "A backfill payload is required.",
-        "invalidJson": "The JSON payload is invalid.",
-        "emptyUsers": "The users array cannot be empty.",
-        "invalidUser": "Each user needs a positive integer userId."
-      },
-      "errors": {
-        "notManual": "This badge is not a manual-grant badge.",
-        "payloadInvalid": "The request payload is incomplete.",
-        "badgeInvalid": "The badge definition is invalid.",
-        "grantFailed": "The grant failed.",
-        "unknown": "The operation failed. Please retry later."
-      }
     }
   },
   "errors": {
@@ -6441,27 +6309,6 @@
         "body": "The public component from {name} v{version} can use the current browser session and page authority for its namespaced API. This is not a sandbox: enable public L2 only for extensions you trust.",
         "dismiss": "Dismiss"
       }
-    }
-  },
-  "badges": {
-    "title": "Badge wall",
-    "metaTitle": "{name}'s badges",
-    "subtitle": "Badges and growth level earned by {name}",
-    "level": "Current level",
-    "noLevel": "Unranked",
-    "points": "Growth",
-    "earned": "Earned badges",
-    "empty": "No badge data yet.",
-    "emptyBadges": "{name} has not earned any badges yet.",
-    "grantedAt": "Earned {date}",
-    "loadFailed": "Failed to load the badge wall.",
-    "unavailableTitle": "Badges are not enabled",
-    "unavailable": "Badges ship with a built-in plugin that is currently disabled.",
-    "rarity": {
-      "common": "Common",
-      "rare": "Rare",
-      "epic": "Epic",
-      "legendary": "Legendary"
     }
   }
 }

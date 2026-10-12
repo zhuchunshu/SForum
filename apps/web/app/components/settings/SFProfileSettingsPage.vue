@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { useProfileApi } from '~/composables/profile/useProfileApi'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
@@ -72,7 +73,7 @@ const fieldErrors = ref<Record<string, string[]>>({})
 let successTimer: ReturnType<typeof setTimeout> | undefined
 
 const currentAvatar = computed(() => profile.value?.profile.avatar || null)
-const displayName = computed(() => profile.value?.displayName || profile.value?.username || '')
+const displayName = computed(() => userDisplayName(profile.value))
 const publicProfilePath = computed(() => profile.value ? localePath(`/u/${profile.value.username}`) : undefined)
 const publicProfilePrefix = computed(() => `${siteDomain.value}/u/`)
 const joinedLabel = computed(() => profile.value ? formatDateOnly(profile.value.joinedAt) : '')

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ForumRevisionSummary } from '~/utils/admin/adminForumContent'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 
 const props = defineProps<{
   revisions: ForumRevisionSummary[]
@@ -18,7 +19,7 @@ const { t } = useI18n()
 const { format: formatSiteDateTime } = useSiteDateTime()
 
 function actorName(revision: ForumRevisionSummary) {
-  return revision.actor?.displayName || revision.actor?.username || t('admin.forum.content.history.unknownActor')
+  return userDisplayName(revision.actor, t('admin.forum.content.history.unknownActor'))
 }
 </script>
 

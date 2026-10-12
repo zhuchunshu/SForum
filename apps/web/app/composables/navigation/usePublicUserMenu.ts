@@ -1,4 +1,5 @@
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { useApiClient } from '~/composables/useApiClient'
@@ -37,7 +38,7 @@ export function usePublicUserMenu() {
   const { webOption } = useWebOptions()
   const adminRoutes = useAdminRoutes()
 
-  const displayName = computed(() => user.value?.displayName || user.value?.username || '')
+  const displayName = computed(() => userDisplayName(user.value))
   const emailVerificationRequired = computed(() => normalizeEnabledOption(
     webOption('identity.registration.require_email_verification', 'off'),
     false

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useNotifications, type NotificationDetail, type NotificationItem } from '~/composables/notifications/useNotifications'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import {
   limitNotificationPreviewItems,
   NOTIFICATION_PREVIEW_LIMIT,
@@ -320,7 +321,7 @@ onBeforeUnmount(() => {
           >
             <SFAvatar
               v-if="item.actor"
-              :name="item.actor.displayName || item.actor.username"
+              :name="userDisplayName(item.actor)"
               :avatar="item.actor.avatar"
               :alt="''"
               size="list"

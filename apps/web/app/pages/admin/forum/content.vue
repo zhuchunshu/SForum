@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { usePermissions } from '~/composables/identity/usePermissions'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { useAdminForumContent } from '~/composables/admin/useAdminForumContent'
 import SFTopicEditor from '~/components/forum/SFTopicEditor.vue'
 import type {
@@ -454,7 +455,7 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
                   <span class="mt-0.5 block truncate text-xs text-slate-500 dark:text-zinc-400">{{ row.excerpt || t('admin.forum.content.noExcerpt') }}</span>
                 </button>
               </td>
-              <td class="px-3 py-3 text-xs text-slate-600 dark:text-zinc-300">{{ row.author?.displayName || row.author?.username || `#${row.authorUserId}` }}</td>
+              <td class="px-3 py-3 text-xs text-slate-600 dark:text-zinc-300">{{ userDisplayName(row.author, `#${row.authorUserId}`) }}</td>
               <td class="px-3 py-3"><UBadge color="neutral" variant="soft">{{ t(`admin.forum.content.status.${row.status}`) }}</UBadge></td>
               <td class="px-3 py-3 tabular-nums">{{ row.currentRevision }}</td>
               <td class="px-3 py-3 whitespace-nowrap text-xs text-slate-500 dark:text-zinc-400">{{ formatSiteDateTime(row.updatedAt) }}</td>
@@ -480,7 +481,7 @@ useSeoMeta({ title: t('admin.forum.content.metaTitle') })
       <template #content>
         <div class="flex h-full min-w-0 flex-col">
           <header class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-zinc-800">
-            <div class="min-w-0"><h3 class="truncate text-base font-semibold text-slate-900 dark:text-zinc-100">{{ selected?.title || selected?.topicTitle || t('admin.forum.content.detailTitle') }}</h3><p v-if="selected" class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.content.authorLine', { author: selected.author?.displayName || selected.author?.username || `#${selected.authorUserId}`, revision: selected.currentRevision }) }}</p></div>
+            <div class="min-w-0"><h3 class="truncate text-base font-semibold text-slate-900 dark:text-zinc-100">{{ selected?.title || selected?.topicTitle || t('admin.forum.content.detailTitle') }}</h3><p v-if="selected" class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.forum.content.authorLine', { author: userDisplayName(selected.author, `#${selected.authorUserId}`), revision: selected.currentRevision }) }}</p></div>
             <UButton icon="i-lucide-x" color="neutral" variant="ghost" :aria-label="t('common.close')" @click="closeDetail" />
           </header>
           <main class="min-h-0 flex-1 overflow-y-auto p-5">

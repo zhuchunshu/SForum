@@ -3,9 +3,9 @@
 Date: 2026-10-12
 Status: accepted (implemented in the same change)
 
-Related: `decisions/2026-10-10-achievements-badges-design-draft.md`,
-`knowledge/sessions/2026-10-11-achievements-grant-and-route-schema-fixes.md`,
-`knowledge/sessions/2026-10-12-ai-host-api-recovery-note.md`
+Related: `knowledge/sessions/2026-10-12-ai-host-api-recovery-note.md`,
+`decisions/2026-10-12-remove-gamification-badges-growth.md` (the incident
+subject plugin was removed later the same day)
 
 ## Context
 
@@ -91,10 +91,14 @@ powers an operator had revoked.
   the first enable provisions the exact grant with
   `granted_by_user_id = <operator>` and an `extension.database_grant` audit row
   as its anchor.
-- The `gamification_database_grant_enable_integration_test.go` pair
-  (operator-bound start provisions; host start fails closed with
-  `ErrExtensionDatabaseGrantNotFound` and leaves the plugin schema
-  uninitialized) is real production-path coverage, not a test-only harness.
+- The end-to-end `ActivationCoordinator.Start` → provision integration pair is
+  real production-path coverage, not a test-only harness. It used the
+  `sforum.gamification` plugin as its only `own_schema` subject; that plugin was
+  removed on 2026-10-12, so the pair (and the coverage) was removed with it. The
+  direct lease-issuance authority matrix stays pinned by
+  `extension_database_raw_core_integration_test.go` and
+  `protocol_database_lease_test.go`; re-pointing the end-to-end pair at a
+  reference fixture is still open.
 - Revocation stays host-authorized (`protocolDatabaseLease.revoke`), so a
   draining stop does not depend on the operator identity that enabled the
   plugin.

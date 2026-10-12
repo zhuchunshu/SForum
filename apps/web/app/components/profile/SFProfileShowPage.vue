@@ -19,6 +19,7 @@ import {
   forumUserProfilePath,
   type ForumCategoryGroup
 } from '~/utils/forum/forumTaxonomy'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import type {
   PublicProfile,
@@ -116,15 +117,15 @@ if (initialTopicPage.value) {
 useSForumSeo(computed(() => ({
   type: 'profile',
   path: forumUserProfilePath(username.value),
-  title: profile.value?.displayName || profile.value?.username || username.value,
+  title: userDisplayName(profile.value, username.value),
   description: profile.value?.profile.bio || t('profile.metaDescription'),
   public: Boolean(profile.value),
   noindex: !profile.value,
-  variables: { authorName: profile.value?.displayName || profile.value?.username || username.value },
-  authorName: profile.value?.displayName || profile.value?.username || username.value
+  variables: { authorName: userDisplayName(profile.value, username.value) },
+  authorName: userDisplayName(profile.value, username.value)
 })))
 
-const displayName = computed(() => profile.value?.displayName || profile.value?.username || username.value)
+const displayName = computed(() => userDisplayName(profile.value, username.value))
 const isSelf = computed(() => Boolean(profile.value && authUser.value?.id === profile.value.userId))
 const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 const navCategories = computed(() => categoryGroups.value.flatMap(group => group.categories || []))

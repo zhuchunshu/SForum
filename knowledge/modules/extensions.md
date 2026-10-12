@@ -176,11 +176,16 @@ does not rebuild Nuxt.
   command declaration, not a runtime lease. Failure to write the anchor degrades
   to host authority (and therefore fails closed on a missing grant) rather than
   creating an unattributable grant row. Revocation stays host-authorized. See
-  `decisions/2026-10-12-extension-database-grant-authority.md`; integration
-  coverage: `IntegrationTests/gamification_database_grant_enable_integration_test.go`
-  (operator-bound start provisions and the plugin schema is really initialized;
-  host start fails closed with `ErrExtensionDatabaseGrantNotFound` and leaves the
-  schema untouched).
+  `decisions/2026-10-12-extension-database-grant-authority.md`. Integration
+  coverage today: `extension_database_raw_core_integration_test.go` and
+  `protocol_database_lease_test.go` pin the lease-issuance authority matrix
+  (actor-bound issuance, host issuance refused without an exact grant, forged
+  artifact rejected, revoked grant refused). The end-to-end
+  `ActivationCoordinator.Start` → provision pair that used the gamification
+  plugin as its only subject was removed with that plugin on 2026-10-12 and is
+  **not yet re-pointed at a reference fixture** — see
+  `decisions/2026-10-12-remove-gamification-badges-growth.md` (known coverage
+  gap, not a regression in behavior).
 - Architecture debt M0-M12 is complete.
 - The 28 public-contract and joined-runtime black-box test files now live in
   `Support/Extensions/IntegrationTests`; the legacy package root retains only

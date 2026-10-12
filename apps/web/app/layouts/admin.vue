@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthSession } from '~/composables/identity/useAuthSession'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { useAdminSurfaces } from '~/composables/admin/useAdminSurfaces'
 import { useAdminAdvancedSettings } from '~/composables/admin/useAdminAdvancedSettings'
 import { useAdminSystemUpdates } from '~/composables/admin/useAdminSystemUpdates'
@@ -118,7 +119,7 @@ const { professionalMode, operationsMode } = useAdminAdvancedSettings()
 const advancedSettingsOpen = ref(false)
 
 const displayName = computed(() => {
-  return user.value?.displayName || user.value?.username || t('admin.shell.unknownUser')
+  return userDisplayName(user.value, t('admin.shell.unknownUser'))
 })
 
 const currentColorModeOption = computed(() =>

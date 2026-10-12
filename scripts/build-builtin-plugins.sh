@@ -93,14 +93,6 @@ main() {
   refresh_v3_plugin_digest \
     "$STAGING_ROOT/plugins/sforum-shortcodes"
 
-  # 插件目录可能暂时不存在（排障时从源树移走）：跳过而不是中止整个 dev 启动。
-  if [[ -d "$STAGING_ROOT/plugins/sforum-gamification/backend" ]]; then
-    build_builtin_plugin "sforum.gamification" \
-      "$STAGING_ROOT/plugins/sforum-gamification/backend"
-    refresh_v3_plugin_digest \
-      "$STAGING_ROOT/plugins/sforum-gamification"
-  fi
-
   write_air_env
 
   echo "Built-in plugins staged at: $STAGING_ROOT"

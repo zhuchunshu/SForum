@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useProfileApi, type AvatarView, type PublicProfile } from '~/composables/profile/useProfileApi'
 import { apiErrorStatusCode } from '~/composables/useApiClient'
+import { userDisplayName, type ForumUserRef } from '~/utils/forum/userDisplay'
 
 const props = defineProps<{
-  author: string
-  username: string
-  avatar?: AvatarView | null
+  /** 列表场景已有的用户摘要：名字与头像直接消费，网络资料只做增强。 */
+  user: ForumUserRef
+  /** 传 user.username 之外的显式用户名（提及场景只有 username）。 */
+  username?: string
   profilePath: string
 }>()
 
@@ -17,21 +19,24 @@ const failed = ref(false)
 // 查无此人（404）与「资料暂不可用」分开表达：@提及 常常指向拼错或不存在的用户名。
 const notFound = ref(false)
 
-const profile = computed(() => profileCache.value[props.username] || null)
-const displayName = computed(() => profile.value?.displayName || props.author)
-const displayAvatar = computed(() => profile.value?.profile.avatar || props.avatar)
+const previewUsername = computed(() => props.username || props.user?.username || '')
+const profile = computed(() => profileCache.value[previewUsername.value] || null)
+// 名字与头像优先取调用方传入的 UserSummary（与评论行内展示一致，避免闪变）；
+// 网络资料仅在本地没有 displayName 时补齐（例如纯 @username 的提及占位）。
+const displayName = computed(() => props.user?.displayName || profile.value?.displayName || previewUsername.value)
+const displayAvatar = computed(() => props.user?.avatar || profile.value?.profile.avatar || null)
 const bio = computed(() => profile.value?.profile.bio?.trim() || profile.value?.profile.signature?.trim() || '')
 
 async function loadProfile() {
-  if (!props.username || profile.value || pending.value) {
+  if (!previewUsername.value || profile.value || pending.value) {
     return
   }
   pending.value = true
   failed.value = false
   notFound.value = false
   try {
-    const result = await profileApi.getPublicProfile(props.username)
-    profileCache.value = { ...profileCache.value, [props.username]: result }
+    const result = await profileApi.getPublicProfile(previewUsername.value)
+    profileCache.value = { ...profileCache.value, [previewUsername.value]: result }
   } catch (error) {
     // 公开资料可能被站点关闭、用户不存在或暂时不可用；保留已有的身份和主页入口。
     failed.value = true
@@ -60,7 +65,7 @@ onMounted(() => {
         <NuxtLink :to="profilePath" class="sf-comment-user-preview__name">
           {{ displayName }}
         </NuxtLink>
-        <span class="sf-comment-user-preview__username">@{{ username }}</span>
+        <span class="sf-comment-user-preview__username">@{{ previewUsername }}</span>
       </span>
     </div>
 

@@ -1,4 +1,5 @@
 import type { AvatarView } from '~/composables/profile/useProfileApi'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 
 export type ForumTagCreationMode = 'controlled' | 'review' | 'open'
 export type ForumTagStatus = 'active' | 'pending' | 'disabled'
@@ -928,12 +929,10 @@ export function commentFloorLabel(index: number, list: Pick<ForumCommentList, 'p
   return floor > 0 ? `#${floor}` : ''
 }
 
-// 统一取作者展示名：优先 displayName，其次 username，最后回退用户 ID。
+// 统一取作者展示名：解析规则收口到 utils/forum/userDisplay.ts，此处只提供评论区
+// 场景的 `#userId` 回退终点，保持既有签名不变。
 export function forumAuthorName(user: ForumUserSummary | undefined, fallbackUserId: number) {
-  if (user) {
-    return user.displayName || user.username || `#${fallbackUserId}`
-  }
-  return `#${fallbackUserId}`
+  return userDisplayName(user, `#${fallbackUserId}`)
 }
 
 // 扁平化评论树：把 tree 视图返回的嵌套 children 拍平成一维列表。
@@ -947,11 +946,8 @@ export function flattenCommentTree(roots: ForumComment[]): ForumComment[] {
   const result: ForumComment[] = []
   const walk = (list: ForumComment[], parent: ForumComment | null) => {
     for (const c of list) {
-      // 非根评论且后端未填充 replyTo：用父评论补上引用信息。
+      // 非根评论且后端未填充 replyTo：用父评论补上引用信息（author 保持完整对象）。
       if (parent && !c.replyTo) {
-        const parentName = parent.author?.displayName
-          || parent.author?.username
-          || `#${parent.authorUserId}`
         result.push({
           ...c,
           replyTo: {

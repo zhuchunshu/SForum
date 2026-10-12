@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { useModerationReportDialog } from '~/composables/moderation/useModerationReportDialog'
 import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
@@ -57,7 +58,7 @@ const { can, canEditTopic, canDeleteTopic } = usePermissions()
 const { user: reportUser } = useAuthSession()
 const toast = useToast()
 const { copyCommentLink, copyCommentShortcode } = useTopicCommentClipboard()
-const replyActorName = computed(() => reportUser.value?.displayName || reportUser.value?.username || '')
+const replyActorName = computed(() => userDisplayName(reportUser.value, ''))
 
 function showSuccessToast(title: string) {
   toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
@@ -978,7 +979,7 @@ async function shareTopic() {
                         :presentation="commentView"
                         :depth="0"
                         :collapse-from-depth="2"
-                        :reply-to="comment.replyTo ? { id: comment.replyTo.id, author: forumAuthorName(comment.replyTo.author, comment.replyTo.id), excerpt: comment.replyTo.excerpt } : undefined"
+                        :reply-to="comment.replyTo"
                         :actions="commentActions(comment)"
                         :comment-meta-builder="commentMeta"
                         :comment-author-link-builder="commentAuthorPath"

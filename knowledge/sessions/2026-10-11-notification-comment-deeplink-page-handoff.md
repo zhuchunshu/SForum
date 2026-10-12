@@ -32,6 +32,9 @@
   route schema is missing`（gamification 内置插件 staged 版本路由目录不完整，
   DB 里还有 `/tmp/TestGamification...` 测试残留路径）。修复后建议在真实
   通知点击流上复验：跨页（SSR 直出正确页）与同页（新回复强制刷新后滚动）。
+  - **2026-10-12 更新**：该阻塞已消失——gamification 插件被整体移除，路由目录与
+    测试残留路径随之不存在。通知深链的浏览器复验回到「无外部阻塞、待排期」状态，
+    见 `sessions/2026-10-12-gamification-removal.md`。
 - `explicitCommentPage` 对无 `/page/N` 段的路径恒为 1，使
   `commentPageResolved` 的 SSR 反查实际从不触发（`fromPath && fromPath > 0`
   恒真）；本次未动——跨页通知已由深链显式带页码覆盖，其余入口依赖客户端

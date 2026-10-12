@@ -53,13 +53,6 @@ export const adminPageDefinitions = [
     closable: false
   },
   {
-    id: '/gamification',
-    labelKey: 'admin.nav.gamification',
-    icon: 'i-lucide-award',
-    componentName: 'AdminGamification',
-    requiredPermissions: ['sforum.gamification.manage']
-  },
-  {
     id: '/ai',
     labelKey: 'admin.nav.ai',
     icon: 'i-lucide-sparkles',
@@ -444,7 +437,6 @@ export const adminSidebarNavigation = [
       icon: 'i-lucide-message-square-text',
       children: [
         { type: 'page', pageId: '/moderation' },
-        { type: 'page', pageId: '/gamification' },
         { type: 'page', pageId: '/forum/categories' },
         { type: 'page', pageId: '/forum/tags' },
         { type: 'page', pageId: '/forum/settings' },

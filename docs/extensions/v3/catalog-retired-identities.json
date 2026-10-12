@@ -24,6 +24,34 @@
     {
       "id": "core.component.admin.sfadmin_site_chrome_panel",
       "contractVersion": "sforum.component.admin.sfadmin_site_chrome_panel@1"
+    },
+    {
+      "id": "core.component.shared.sf_badge_wall",
+      "contractVersion": "sforum.component.shared.sf_badge_wall@1"
+    },
+    {
+      "id": "core.component.page.badges.username",
+      "contractVersion": "sforum.component.page.badges.username@1"
+    },
+    {
+      "id": "core.component.page.admin.gamification",
+      "contractVersion": "sforum.component.page.admin.gamification@1"
+    },
+    {
+      "id": "core.component.admin.sf_admin_gamification_backfill_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_gamification_backfill_tab@1"
+    },
+    {
+      "id": "core.component.admin.sf_admin_gamification_badges_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_gamification_badges_tab@1"
+    },
+    {
+      "id": "core.component.admin.sf_admin_gamification_grants_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_gamification_grants_tab@1"
+    },
+    {
+      "id": "core.component.admin.sf_admin_gamification_levels_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_gamification_levels_tab@1"
     }
   ]
 }

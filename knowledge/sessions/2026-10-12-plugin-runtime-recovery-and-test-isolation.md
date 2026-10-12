@@ -25,7 +25,12 @@
   `RevokeOwnSchema`; plugin re-enabled (revs 17/19); after schema fixes, staged
   artifact promoted through `Service.Restart` (revs up to 29). Durable identity
   tip is `active` at the live artifact; latest ack `applied` with 6 members.
-- **Gamification contract fixes** (source package + staging rebuilt):
+- **Gamification contract fixes** (source package + staging rebuilt): the
+  response schemas, the OpenAPI fragment declaration and the route schema
+  bindings of the `sforum.gamification` plugin were repaired here. **Superseded
+  2026-10-12**: that plugin and all of its artifacts were removed; the schema
+  fixes below are kept only as a record of the incident. See
+  `sessions/2026-10-12-gamification-removal.md`.
   - Response schemas (`profile.achievements`, `admin.badges`, `admin.levels`,
     `admin.grant-log`, `admin.action.request`) and the OpenAPI fragment now
     declare `badges`/`grants`/`levels`/`users`/`level` as JSON strings,
@@ -33,10 +38,11 @@
   - `profile.achievements` GET no longer declares the copy-pasted
     `admin.action.request@1` request schema (empty GET body failed validation);
     the fragment operation metadata was synced.
-  - The OpenAPI fragment is now declared in the manifest (`openapi[]` +
+  - The OpenAPI fragment was declared in the manifest (`openapi[]` +
     `packageFiles` kind=openapi) and its operationIds were namespaced under
     `sforum.gamification.`; `extension test` 10/10 green; catalog integration
-    test green.
+    test green. (That catalog regression test was removed with the plugin; the
+    Core catalog logic keeps its `route_schema_catalog_test.go` coverage.)
 - **Parallel M1.5 compile repair** (the worktree did not compile before this
   session's `go build ./...`): added `ExtensionManifest/v3_ai_tools.go`
   (`ManifestAITool`, constants, `IsOwnedID`), `Events/catalog_namespace.go`
@@ -60,6 +66,11 @@
   fails catalog lookup and surfaces as 422). This route has never passed
   rendered QA (M6 pending); it needs plugin-side debugging with admin access
   or a temporary trace ring.
+  - **Superseded 2026-10-12**: the plugin, its routes and the whole
+    achievements surface were removed, so this diagnosis is obsolete. The
+    transferable lesson — a plugin returning a body outside its declared
+    response contract surfaces as a 422 through catalog lookup, not as a plugin
+    error — stays valid for every plugin.
 
 ## Verification
 
@@ -70,7 +81,8 @@
   (id 107) and `active` durable identity tip.
 - `go build ./...` OK; `git diff --check` OK.
 - Isolated-cluster runs: plugin integration tests + URL guard green
-  (`TestPluginIntegrationDatabaseURLGuard`, gamification suite).
+  (`TestPluginIntegrationDatabaseURLGuard`; the gamification suite that also ran
+  here was removed with the plugin on 2026-10-12).
 - `go test ./app/Support/ExtensionManifest/ ./app/Support/Events/
   ./app/Support/Capabilities/` green; `Support/AI` has one pre-existing
   parallel-session failure (`result_cache_test.go` — their unfinished
@@ -83,22 +95,17 @@
 
 ## Next
 
-- **Achievements 422 final diagnosis** (structural fixes all landed, one
-  observation step remains): the route catalog binding is verified correct
+- **Achievements 422 final diagnosis** — **dropped 2026-10-12**: the plugin and
+  the achievements route were removed before this observation step ran. Kept
+  below only as the record of what the last attempt concluded.
+  route catalog binding was verified correct
   (probe: `ValidateRouteSchema` passes for `{"userId":int,"points":int,
-  "level":string,"badges":string}`), so production 422 means the plugin's real
-  response differs — most likely a gRPC-level error (host turns it into an
-  unverifiable shape → 422) or an unexpected payload field. A temporary
-  `log.Printf` is already planted at `routes.go` `routeProfileAchievements`
-  (built into digest d40ace90…); capture the plugin stderr via the API
-  process logs (DiagnosticBuffer) or run `GET /gamification/users/1/achievements`
-  with the plugin log visible to see `gamification achievements …` lines.
-  The error path now returns contract-bound terminal responses
-  (`{"reason","message"}` under `admin.action.response@1`) instead of gRPC
-  errors — verify that path fires.
-- Then finish M6 rendered QA (desktop + 390x844 on `/control-panel/gamification`
-  and `/badges/{username}`), remove the temporary `log.Printf`, and re-run
-  `extension digest --write` + staging rebuild + admin enable cycle.
+  "level":string,"badges":string}`), so production 422 meant the plugin's real
+  response differed — most likely a gRPC-level error or an unexpected payload
+  field. A temporary `log.Printf` had been planted at `routes.go`
+  `routeProfileAchievements`; it disappeared with the deleted package.
+- M6 rendered QA (desktop + 390x844 on `/control-panel/gamification` and
+  `/badges/{username}`) — **dropped 2026-10-12** with the feature.
 - Merge/land the parallel AI M1.5 session and clear the two architecture
   residuals it owns (it was actively editing `activation.go`,
   `database_grant_authority.go`, `protocol_database_lease.go`,

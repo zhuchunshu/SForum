@@ -15,4 +15,5 @@
 ## Next
 
 - Use normal admin enable for the exact current `sforum.gamification` artifact; the actor-bound grant will be issued for that artifact. Verify a new desired-set revision, matching active grant, runtime ack, and rendered admin/public pages.
+  - Superseded 2026-10-12: the gamification plugin was removed entirely, so there is no artifact left to enable. The recovery command and its regression coverage stay; see `sessions/2026-10-12-gamification-removal.md`.
 - The environment-loaded broad `go test ./...` completed with failures outside this focused change: an integration migration OID race and shortcode manifest validation; generated capabilities docs drift; config default expectations under the loaded environment. Focused PostgreSQL recovery and SaveBuiltin tests, full build, and architecture checks pass. Rerun the broad gate after concurrent worktree edits and environment fixtures settle; do not conflate these changes with Events/Host API work.

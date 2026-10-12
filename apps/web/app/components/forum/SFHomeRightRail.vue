@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useActiveThemeSettings } from '~/composables/themes/useActiveThemeSettings'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import {
   forumTopicPath,
@@ -41,7 +42,7 @@ const guestWelcome = computed(() => rightRailWelcome.value || t('home.rightRail.
 
 const isAuthenticated = computed(() => Boolean(user.value))
 const displayName = computed(() =>
-  user.value?.displayName || user.value?.username || ''
+  userDisplayName(user.value)
 )
 const profileTo = computed(() =>
   user.value ? localePath(`/u/${user.value.username}`) : localePath('/login')

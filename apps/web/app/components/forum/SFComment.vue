@@ -11,8 +11,10 @@ import SFCommentUserPreview from '~/components/forum/SFCommentUserPreview.vue'
 import SFMentionContent from '~/components/forum/SFMentionContent.vue'
 import {
   forumAuthorName,
-  type ForumComment
+  type ForumComment,
+  type ForumUserSummary
 } from '~/utils/forum/forumTaxonomy'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import {
   commentBranchPresentation,
   type CommentPresentationMode
@@ -47,7 +49,8 @@ const props = withDefaults(defineProps<{
   floorLabel?: string
   avatar?: AvatarView | null
   // 被回复的评论引用：E3 方案用左侧 accent 竖条引用块展示，人名 + 内容预览分两行。
-  replyTo?: { id?: number; author?: string; excerpt?: string }
+  // author 保持完整的 UserSummary 对象，渲染时统一走 userDisplayName，不再降级为 string。
+  replyTo?: { id?: number; author?: ForumUserSummary; excerpt?: string }
   actions?: CommentAction[]
   commentMetaBuilder?: (comment: ForumComment) => string
   commentAuthorLinkBuilder?: (comment: ForumComment) => string
@@ -211,11 +214,16 @@ function childReplyTo(comment: ForumComment) {
   if (!comment.replyTo) {
     return undefined
   }
+  // 透传完整 author 对象，展示名由模板层统一解析。
   return {
     id: comment.replyTo.id,
-    author: forumAuthorName(comment.replyTo.author, comment.replyTo.id),
+    author: comment.replyTo.author,
     excerpt: comment.replyTo.excerpt
   }
+}
+
+function replyToAuthorName(replyTo: NonNullable<(typeof props)['replyTo']>) {
+  return userDisplayName(replyTo.author)
 }
 
 function forwardChildAction(comment: ForumComment, value: string) {
@@ -339,9 +347,7 @@ const InlineEditorHost = () => {
           class="sf-comment__user-preview-layer"
         >
           <SFCommentUserPreview
-            :author="author"
-            :username="previewUsername"
-            :avatar="avatar"
+            :user="comment?.author ? { username: previewUsername, displayName: comment.author.displayName, avatar } : { username: previewUsername, avatar }"
             :profile-path="authorLink || ''"
           />
         </div>
@@ -354,7 +360,7 @@ const InlineEditorHost = () => {
           <span class="sf-comment__reply-to-label">
             <UIcon name="i-lucide-corner-up-left" class="sf-comment__reply-to-icon size-3.5 shrink-0" aria-hidden="true" />
             <span class="sf-comment__reply-to-author">
-              {{ t('topicDetail.reply') }}<template v-if="replyTo.author"> @{{ replyTo.author }}</template>
+              {{ t('topicDetail.reply') }}<template v-if="replyToAuthorName(replyTo)"> {{ replyToAuthorName(replyTo) }}</template>
             </span>
           </span>
           <span v-if="replyTo.excerpt" class="sf-comment__reply-to-excerpt">{{ replyTo.excerpt }}</span>

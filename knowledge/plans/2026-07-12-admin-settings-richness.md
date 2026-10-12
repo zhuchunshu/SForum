@@ -463,10 +463,14 @@ Site settings expansion + forum settings expansion:
 - invite codes full module
 - OAuth provider admin matrix (plugin slot)
 
-### Wave 8 — Optional gamification / payments
+### Wave 8 — Optional payments
 
 - only after payment framework decision
 - check-in, credits as plugins
+
+<!-- Wave 8 曾包含「可选 gamification（成就/徽章/成长值）」。该方向已于 2026-10-12
+     明确取消：内置插件 sforum.gamification 及其全部实现被移除，见
+     plans/README.md 与 decisions/2026-10-12-remove-gamification-badges-growth.md。 -->
 
 ---
 

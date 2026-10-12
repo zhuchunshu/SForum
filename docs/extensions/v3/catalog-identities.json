@@ -2170,7 +2170,7 @@
       "owners": [
         "public"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/profile/SFBadgeWall.vue"
     },
     {
@@ -2180,7 +2180,7 @@
       "owners": [
         "public"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/pages/badges/[username].vue"
     },
     {
@@ -2190,7 +2190,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/pages/admin/gamification.vue"
     },
     {
@@ -2200,7 +2200,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/admin/gamification/tabs/SFAdminGamificationBackfillTab.vue"
     },
     {
@@ -2210,7 +2210,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/admin/gamification/tabs/SFAdminGamificationBadgesTab.vue"
     },
     {
@@ -2220,7 +2220,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/admin/gamification/tabs/SFAdminGamificationGrantsTab.vue"
     },
     {
@@ -2230,7 +2230,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/admin/gamification/tabs/SFAdminGamificationLevelsTab.vue"
     },
     {
@@ -2312,6 +2312,26 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIReplyPromptTab.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_purposes_block",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_purposes_block@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIPurposesBlock.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_purposes_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_purposes_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIPurposesTab.vue"
     },
     {
       "id": "core.component.admin.sf_admin_site_client_tab",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
+import { userDisplayName } from '~/utils/forum/userDisplay'
 import {
   attachmentStatusColor,
   buildAttachmentListQuery,
@@ -247,7 +248,7 @@ function isPreviewableImage(item: AdminAttachment) {
         <dl class="mt-4 space-y-3 text-sm">
           <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.objectKey') }}</dt><dd class="break-all font-mono text-xs">{{ selected.objectKey }}</dd></div>
           <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.sha256') }}</dt><dd class="break-all font-mono text-xs">{{ selected.sha256 }}</dd></div>
-          <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.owner') }}</dt><dd>{{ selected.owner?.displayName || selected.owner?.username || '-' }}</dd></div>
+          <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.owner') }}</dt><dd>{{ userDisplayName(selected.owner, '-') }}</dd></div>
           <div><dt class="text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.attachments.url') }}</dt><dd class="break-all font-mono text-xs">{{ selected.url }}</dd></div>
         </dl>
         <div class="mt-4 flex flex-wrap gap-2">

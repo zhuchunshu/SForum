@@ -63,6 +63,11 @@
 `validate-v3-p0-catalogs.mjs`、`registry_test.go`、`adminSurfaceCatalog.test.ts`
 计数）不属于 AI 功能本身，若该工作流后续改名/删除，需要同步清理。
 
+**2026-10-12 更新（清理已完成）**：该工作流被整体删除。7 个 gamification UI 身份已按
+`docs/extensions/v3` 的 append-only 契约转为 retired 墓碑，`core_catalog_gen.go` /
+`adminSurfaceCatalog.gen.ts` / `catalogs/*` 已同步重算，见
+`sessions/2026-10-12-gamification-removal.md`。
+
 ## Next
 
 - 渲染 QA（桌面 + 390×844）：`/control-panel/ai` → 连接配置 → 填地址与密钥 →

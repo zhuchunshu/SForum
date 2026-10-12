@@ -6,38 +6,6 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
-### Achievements / Gamification
-
-- Status: **active, M0-M3 complete**; the protected builtin
-  `sforum.gamification` store layer and grant engine are proven end-to-end:
-  a real-subprocess integration test drives `Manager.Deliver` observe
-  envelopes (register/topic/comment) through the own_schema lease on the
-  Host-assigned physical schema and asserts registration snapshots, growth
-  credit, threshold badge grants, and River-style replay idempotency.
-  Schema v2 adds `user_registrations` snapshots feeding `RunDailyScan`.
-  `extension test`, unit + PG + e2e tests, and the architecture gate pass.
-  M4 + M4B are done: manifest declares the permission, 9 routes, the daily
-  scan job/schedule, and the settings schema; an admin integration test
-  proves seed defaults → manual grant → grant log → revoke through the real
-  Route Registry; the rendered admin page (`/gamification`) follows the Core
-  admin-settings geometry with four tabs and bilingual copy (typecheck +
-  1070 Web tests + architecture gate pass). Rendered desktop/390x844
-  Browser QA is still pending — the dev servers were not running in the
-  session that built it. M5 is done: the plugin declares the
-  `badge_granted` notification type (emitted through Host
-  notifications.emit@1 with a stable idempotency key) and the
-  `forum.profile.tabs` contribution; the public badge wall
-  (`/badges/{username}`) resolves its data from the profile
-  `extensionTabs` descriptor, so a disabled plugin fails closed with an
-  empty state. M5 finding: Core already shipped the whole profile-tabs
-  path — no Core change was needed; inline plugin rendering is not
-  supported (tabs are link/jump only). Remaining: rendered Browser QA and
-  the permission catalog/seed text (M6).
-- Plan: `plans/2026-10-10-achievements-gamification.md`
-- Decision: `decisions/2026-10-10-achievements-badges-design-draft.md`
-- Report: `reports/2026-10-10-achievements-m0-surface-matrix.md`
-- Handoff: `sessions/2026-10-11-achievements-m5-public-surfaces.md`
-
 ### Extension Authoring Speed And Controlled Power
 
 - Status: **ready**; the ordered M0-M10 task book covers selected-theme public
@@ -282,8 +250,22 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 徽章与成长值（gamification）整体移除（2026-10-12）：产品决定不再提供成就/徽章/成长值，
+  内置插件 `sforum.gamification`（含 9 条路由、5 张插件表、种子徽章/等级、每日巡检、
+  通知类型与公开徽章墙）连同其管理台页面、公开页面、i18n、集成测试、生成目录与
+  Core 里为它加的三处临时探针、`cmd/sforum_valcheck_main.go`、build/dependabot 条目
+  全部删除；`docs/extensions/v3` 里 7 个 UI 身份按 append-only 契约转为 retired 墓碑
+  （禁止 ID 复用），生成目录与生成器输出逐字节一致。Core 框架契约（事件、`forum.profile.tabs`、
+  own_schema 授权、admin surface、通知类型）保持不变——授权供给覆盖改由
+  `extensions/fixtures/plugins/sforum-commerce-workflow` 等 fixture 承担。运行时侧
+  `storage/` 制品与 web 构建产物已清理；扩展目录行由 `SyncBuiltins` 的
+  `PruneMissingBuiltins` 在下次启动时自动停用。详见
+  `sessions/2026-10-12-gamification-removal.md` 与
+  `decisions/2026-10-12-remove-gamification-badges-growth.md`。
+
 - AI 用途登记表 M4 + 两个阻塞清除（2026-10-12）：① `.github/dependabot.yml` 补上
-  gamification backend 条目（`validate-docs.mjs` 唯一失败项消除）；② 扩展数据库精确授权
+  插件 backend 的 gomod 条目（`validate-docs.mjs` 唯一失败项消除；该条目随
+  2026-10-12 gamification 移除一并删除）；② 扩展数据库精确授权
   的操作者绑定供给从此真的存在——`ProtocolStarter` 此前恒用 host 权威，导致任何
   `own_schema` 插件都无法通过正常启用流程跑起来；现在启动上下文携带
   `{actor, auditEventID}`（旧的 `ActivationCoordinator.Start` 写一条
@@ -298,8 +280,8 @@ load archived sessions or completed plans as current context.
   `gateway_disabled`；回复生成器不再自带工具常量/成本等级/提示词版本。契约与 OpenAPI
   已同步补齐（含此前缺失的 `reply.tools`/`replyBot`/`defaultSystemPrompt`/
   `safetyAppendix`）。验证：构建、聚焦套件、架构门禁、OpenAPI/Host API/文档校验、隔离
-  集群端到端（含 gamification 授权供给两用例）全绿；Web 侧 `bun test` 1119 pass（2 个
-  gamification 侧栏失败属并行工作流）、typecheck、生产构建（需
+  集群端到端全绿；Web 侧 `bun test` 1119 pass（2 个失败项属当时并行的
+  gamification 工作流，该插件已于 2026-10-12 移除）、typecheck、生产构建（需
   `NODE_OPTIONS=--max-old-space-size=6144`）全绿；用途页签在真实浏览器完成端到端
   （含持久化/回显/恢复默认闭环），并修掉三处渲染缺陷（USelect 空值选项哨兵化、
   value-key/label-key 补齐、以及**所有 AI 页签共有的 hydration mismatch**——三个
@@ -337,8 +319,8 @@ load archived sessions or completed plans as current context.
   （rev 29 applied）、身份注册表 tip active、公开接口全部 200；新增
   `scripts/test-api-isolated.sh` 独立测试集群 + 包级连接守卫 + AGENTS.md Agent
   约束；修复插件响应契约（TypedDocument 字符串）、OpenAPI 片段声明与并行
-  M1.5 会话的编译断点。遗留：成就公开路由 422（M6 rendered QA 未做，需插件侧
-  调试）、并行会话两处架构基线残留。详见
+  M1.5 会话的编译断点。遗留：并行会话两处架构基线残留（当时记录的成就公开路由
+  422 随 2026-10-12 gamification 整体移除而失效）。详见
   `sessions/2026-10-12-plugin-runtime-recovery-and-test-isolation.md`。
 
 - AI 回复的身份标识与成员检索（2026-10-11）：提示词里的每条发言从「只有昵称」改为
@@ -354,8 +336,8 @@ load archived sessions or completed plans as current context.
   不触发评论缓存重取。后端 `ResolveNotificationTarget` 输出
   `/t/{id}/page/{N}#comment-{id}`，话题页规范化重定向保留 page 段，
   `useTopicCommentAnchor` 对"目标应在当前页但不在旧列表"强制刷新一次。
-  dev API 目前被 gamification 插件路由目录问题阻塞（与本修复无关），浏览器
-  端到端复验待其恢复。详见
+  当时阻塞浏览器端到端复验的 gamification 插件路由目录问题，已随 2026-10-12
+  该插件整体移除而消失。详见
   `sessions/2026-10-11-notification-comment-deeplink-page-handoff.md`。
 - AI 控制台连接配置支持一键获取模型列表（2026-10-11）：新增只读探测路由
   `POST /admin/ai/profiles/:profileId/models`，用表单里的地址与密钥在保存前就能拿到
