@@ -1,7 +1,6 @@
 package editordocument
 
 import (
-	"fmt"
 	"html"
 	"strconv"
 	"strings"
@@ -98,10 +97,15 @@ func RenderShortcodeFallbackHTML(node Node, schema Schema, locale string) string
 	return RenderHTMLForLocale(Document{Type: "doc", Content: []Node{node}}, schema, locale)
 }
 
-// writeAttr writes one ` name="value"` attribute with HTML escaping, keeping
-// dynamic values out of string-concatenation quoting patterns.
+// writeAttr writes one ` name="value"` attribute with HTML escaping. The
+// quoted value is emitted as a separate WriteString call so no quoted string
+// literal is ever constructed from dynamic data.
 func writeAttr(builder *strings.Builder, name, value string) {
-	builder.WriteString(fmt.Sprintf(` %s="%s"`, name, html.EscapeString(value)))
+	builder.WriteString(" ")
+	builder.WriteString(name)
+	builder.WriteString(`="`)
+	builder.WriteString(html.EscapeString(value))
+	builder.WriteString(`"`)
 }
 
 func renderNode(builder *strings.Builder, node Node, schema Schema, plan *shortcodeRenderPlanState, shortcodeDepth int, locale string) {
