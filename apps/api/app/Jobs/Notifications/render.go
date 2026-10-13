@@ -105,7 +105,11 @@ func renderForumTemplate(key string, data map[string]string, english bool, siteN
 	if english {
 		switch key {
 		case "forum.reply":
-			subject, eyebrow, title, intro = fmt.Sprintf("[%s] New reply", siteName), "New reply", "Someone continued the discussion", fmt.Sprintf("%s, someone replied to your content.", name)
+			if data["alsoMentioned"] == "true" {
+				subject, eyebrow, title, intro = fmt.Sprintf("[%s] New reply", siteName), "New reply", "Someone replied and mentioned you", fmt.Sprintf("%s, someone replied to your content and mentioned you.", name)
+			} else {
+				subject, eyebrow, title, intro = fmt.Sprintf("[%s] New reply", siteName), "New reply", "Someone continued the discussion", fmt.Sprintf("%s, someone replied to your content.", name)
+			}
 		case "forum.mention":
 			subject, eyebrow, title, intro = fmt.Sprintf("[%s] You were mentioned", siteName), "Mention", "You were mentioned in a discussion", fmt.Sprintf("%s, someone mentioned you in a post.", name)
 		case "forum.moderation_pending":
@@ -120,7 +124,11 @@ func renderForumTemplate(key string, data map[string]string, english bool, siteN
 	} else {
 		switch key {
 		case "forum.reply":
-			subject, eyebrow, title, intro = fmt.Sprintf("[%s] 你收到了新回复", siteName), "新回复", "有人继续了这场讨论", fmt.Sprintf("%s，有人回复了你的内容。", name)
+			if data["alsoMentioned"] == "true" {
+				subject, eyebrow, title, intro = fmt.Sprintf("[%s] 你收到了新回复", siteName), "新回复", "有人回复并提到了你", fmt.Sprintf("%s，有人回复了你的内容并提到了你。", name)
+			} else {
+				subject, eyebrow, title, intro = fmt.Sprintf("[%s] 你收到了新回复", siteName), "新回复", "有人继续了这场讨论", fmt.Sprintf("%s，有人回复了你的内容。", name)
+			}
 		case "forum.mention":
 			subject, eyebrow, title, intro = fmt.Sprintf("[%s] 你被提及了", siteName), "提及", "有人在讨论中提到了你", fmt.Sprintf("%s，有人在内容中提到了你。", name)
 		case "forum.moderation_pending":

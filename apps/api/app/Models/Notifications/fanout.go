@@ -212,8 +212,24 @@ func (o *Outbox) NotifyCommentTx(ctx context.Context, tx pgx.Tx, event CommentEv
 		}
 		recipients[fmt.Sprintf("mention:%d", id)] = recipient{id: id, email: email, kind: TypeMention, locale: locale, name: name}
 	}
+	// 当 mention 接收者同时是 reply 接收者时，合并为一条 reply 通知，
+	// 通过 alsoMentioned 标记保留「被提及」语义，避免同一用户收到两条通知。
+	mergedIntoReply := map[int64]bool{}
 	for key, item := range recipients {
-		payload, _ := json.Marshal(mailTemplateData(map[string]any{"commentId": event.CommentID, "topicId": event.TopicID, "locale": resolveMailLocale(ctx, item.locale, o.localeResolver), "recipientName": item.name}, brand))
+		if item.kind == TypeMention {
+			if _, isReplyRecipient := recipients[fmt.Sprintf("reply:%d", item.id)]; isReplyRecipient {
+				mergedIntoReply[item.id] = true
+				delete(recipients, key)
+			}
+		}
+	}
+	for key, item := range recipients {
+		payloadData := map[string]any{"commentId": event.CommentID, "topicId": event.TopicID, "locale": resolveMailLocale(ctx, item.locale, o.localeResolver), "recipientName": item.name}
+		if item.kind == TypeReply && mergedIntoReply[item.id] {
+			// 邮件渲染层将 TemplateData 解析为 map[string]string，这里用字符串标记。
+			payloadData["alsoMentioned"] = "true"
+		}
+		payload, _ := json.Marshal(mailTemplateData(payloadData, brand))
 		dedupe := fmt.Sprintf("comment:%d:%s", event.CommentID, key)
 		if err := o.CreateProjectionsTx(ctx, tx, CreateBundleInput{
 			Notification: CreateInput{RecipientUserID: item.id, Type: item.kind, ActorUserID: &event.ActorUserID, TargetType: "comment", TargetID: event.CommentID, Payload: payload, DedupeKey: dedupe},

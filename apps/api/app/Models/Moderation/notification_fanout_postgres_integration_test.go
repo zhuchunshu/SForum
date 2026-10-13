@@ -75,16 +75,22 @@ func TestCoreNotificationRecipientMatrixPostgres(t *testing.T) {
 		f.assertNotification(t, 1002, notifications.TypeReply, parentAuthor, "comment")
 	})
 
-	t.Run("reply and mention remain separate for one recipient", func(t *testing.T) {
+	t.Run("reply and mention merge into one notification for one recipient", func(t *testing.T) {
 		f.notifyComment(t, outbox, notifications.CommentEvent{
 			CommentID: 1003, TopicID: topicID, ActorUserID: actor, TopicAuthorUserID: topicAuthor,
 			ParentAuthorUserID: parentAuthor,
 			MentionedUsernames: []string{"matrix_parent_author", "MATRIX_PARENT_AUTHOR", "matrix_parent_author"},
 		})
 		f.assertNotification(t, 1003, notifications.TypeReply, parentAuthor, "comment")
-		f.assertNotification(t, 1003, notifications.TypeMention, parentAuthor, "comment")
-		if got := f.notificationCount(t, 1003); got != 2 {
-			t.Fatalf("reply plus duplicate/case-varied mentions created %d rows, want 2", got)
+		if got := f.notificationCount(t, 1003); got != 1 {
+			t.Fatalf("reply plus mention merged into %d rows, want 1", got)
+		}
+		var payload map[string]any
+		if err := f.pool.QueryRow(f.ctx, `SELECT payload FROM notifications WHERE target_id=1003 AND recipient_user_id=$1`, parentAuthor).Scan(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload["alsoMentioned"] != "true" {
+			t.Fatalf("merged reply notification should carry alsoMentioned marker: %#v", payload)
 		}
 	})
 
@@ -245,9 +251,9 @@ func TestModerationNotificationFanoutPostgres(t *testing.T) {
 		}
 		f.assertNotification(t, commentID, notifications.TypeModerationApproved, author, "comment")
 		f.assertNotification(t, commentID, notifications.TypeReply, recipient, "comment")
-		f.assertNotification(t, commentID, notifications.TypeMention, recipient, "comment")
-		if got := f.notificationCount(t, commentID); got != 3 {
-			t.Fatalf("approval/retry created %d notifications, want 3", got)
+		// 回复对象同时被 @ 时，mention 合并进 reply，不再单独生成通知。
+		if got := f.notificationCount(t, commentID); got != 2 {
+			t.Fatalf("approval/retry created %d notifications, want 2", got)
 		}
 		if got := f.decisionCount(t, commentID); got != 1 {
 			t.Fatalf("approval/retry created %d decisions, want 1", got)
