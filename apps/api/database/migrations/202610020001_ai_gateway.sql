@@ -1,4 +1,8 @@
 -- +goose Up
+-- +sforum OnlineSafe
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '1min';
+
 CREATE TABLE ai_settings (
   singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
   document JSONB NOT NULL,

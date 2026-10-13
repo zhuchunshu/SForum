@@ -1,4 +1,8 @@
 -- +goose Up
+-- +sforum OnlineSafe
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '1min';
+
 -- 评论区实时信号：topics.comment_revision 是「公开评论可见状态」的修订号。
 -- 它只作为 SSE 的唤醒/对账信号，正文、权限与可见性始终由 ListComments 裁决，
 -- 因此这里不做内容投影，也不参与任何授权判断。

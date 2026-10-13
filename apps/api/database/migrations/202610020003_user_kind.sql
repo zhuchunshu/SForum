@@ -1,4 +1,8 @@
 -- +goose Up
+-- +sforum OnlineSafe
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '1min';
+
 -- 机器人账号与人类账号共用 users 表：它们占用真实用户名额、计入在线人数、可被
 -- @、可被举报。用独立的影子表模拟会让这些既有路径到处特判，因此只加一个类型
 -- 列，语义差异由该列驱动。

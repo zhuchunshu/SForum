@@ -1,4 +1,8 @@
 -- +goose Up
+-- +sforum OnlineSafe
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '1min';
+
 INSERT INTO permissions (key, module, description)
 VALUES ('ai.manage', 'ai', 'Manage the AI gateway: provider profiles, base URLs, credential references, quotas, budgets, failure posture, and usage audit.')
 ON CONFLICT (key) DO UPDATE
