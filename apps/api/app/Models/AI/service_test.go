@@ -255,17 +255,27 @@ func TestServicePurposeDetailsCarryDeclaredAndEffectiveParameters(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(details) != 1 || details[0].Declaration.ID != supportai.CorePurposeForumReply {
-		t.Fatalf("purpose catalog = %+v", details)
+	// 登记表现在含 forum.reply 与 admin.connectivity_test 两条 Core 用途；
+	// 本测试关心的是「声明 + 生效覆盖」能否同时被枚举，所以按 id 取出
+	// forum.reply 而不是假设目录只有一条。
+	var replyDetail *supportai.ValidatedPurpose
+	for i := range details {
+		if details[i].Declaration.ID == supportai.CorePurposeForumReply {
+			replyDetail = &details[i]
+			break
+		}
 	}
-	if !details[0].ToolsOverridden || len(details[0].ToolsAllowed) != 1 || details[0].ToolsAllowed[0] != "forum-search" {
-		t.Fatalf("effective tools = %+v", details[0])
+	if replyDetail == nil {
+		t.Fatalf("purpose catalog missing forum.reply: %+v", details)
 	}
-	if len(details[0].Declaration.ToolAllowlist) != len(supportai.CoreReplyToolAllowlist) {
-		t.Fatalf("declared tools must stay visible next to the override: %+v", details[0].Declaration.ToolAllowlist)
+	if !replyDetail.ToolsOverridden || len(replyDetail.ToolsAllowed) != 1 || replyDetail.ToolsAllowed[0] != "forum-search" {
+		t.Fatalf("effective tools = %+v", replyDetail)
 	}
-	if !details[0].FailurePostureOverridden || details[0].FailurePosture != supportai.FailurePostureClosed {
-		t.Fatalf("effective posture = %+v", details[0])
+	if len(replyDetail.Declaration.ToolAllowlist) != len(supportai.CoreReplyToolAllowlist) {
+		t.Fatalf("declared tools must stay visible next to the override: %+v", replyDetail.Declaration.ToolAllowlist)
+	}
+	if !replyDetail.FailurePostureOverridden || replyDetail.FailurePosture != supportai.FailurePostureClosed {
+		t.Fatalf("effective posture = %+v", replyDetail)
 	}
 
 	if _, err := service.PurposeDetails(context.Background(), memberActor()); !errors.Is(err, identity.ErrPermissionDenied) {

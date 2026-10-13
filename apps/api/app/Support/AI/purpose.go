@@ -28,6 +28,10 @@ var (
 const (
 	// CorePurposeForumReply 是以机器人身份回复社区成员的用途。
 	CorePurposeForumReply = "forum.reply"
+	// CorePurposeDiagnose 是控制台连通性探测的用途。它与 DiagnosePurpose
+	// 同值；保留两个名字是因为 diagnose.go 的常量先存在，登记表这里按
+	// 用途命名空间的习惯再暴露一次。
+	CorePurposeDiagnose = "admin.connectivity_test"
 )
 
 // CorePurposes 是 Core 内置用途声明所在的命名空间。插件贡献的用途使用自己的
@@ -220,6 +224,24 @@ func BuiltinPurposes() []PurposeDeclaration {
 			ToolAllowlist:  append([]string(nil), CoreReplyToolAllowlist...),
 			ResourceType:   "topic",
 			PromptVersion:  CoreReplyPromptVersion,
+			BlastRadius:    PurposesBlastRadiusSingle,
+		},
+		{
+			ID: CorePurposeDiagnose,
+			Label: LocalizedPurposeLabel{
+				Default: "连通性探测", EnUS: "Connectivity probe",
+			},
+			Description: LocalizedPurposeLabel{
+				Default: "控制台发起的最小真实调用，验证当前供应商与密钥可用。",
+				EnUS:    "Minimal real call from the admin console to verify provider and credential health.",
+			},
+			// 探测刻意走最便宜的等级；失败必须显式报错（fail_closed），否则
+			// 运营者会把「供应商不可用」误读成「连接正常」。
+			CostClass:      CostClassEconomy,
+			FailurePosture: FailurePostureClosed,
+			ToolAllowlist:  nil,
+			ResourceType:   "diagnose",
+			PromptVersion:  DiagnosePromptVersion,
 			BlastRadius:    PurposesBlastRadiusSingle,
 		},
 	}
