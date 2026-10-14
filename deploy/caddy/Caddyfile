@@ -13,6 +13,15 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 	}
 
+	# Nuxt SSR 给带 hash 的静态资源标签注入 crossorigin 属性，浏览器按 CORS
+	# 模式请求；手机 QQ（X5）云端加速经代理中转后按跨源校验，缺 ACAO 头会
+	# 直接拒载入口 JS，触发 “Cross-origin script load denied” 错误页。
+	@cors_assets path /_nuxt/* /_sforum/*
+	header @cors_assets {
+		Access-Control-Allow-Origin "*"
+		Timing-Allow-Origin "*"
+	}
+
 	# Nitro 的 HTTP sendProxy 不接管 Upgrade。生产 WebSocket 直接进入 Host
 	# API，仍由 Go route ingress、Host guards、Safe Mode 和 Dispatcher 授权。
 	# vite-hmr 是 Host 保留的开发子协议，继续交给 Nuxt，避免本配置用于本地
