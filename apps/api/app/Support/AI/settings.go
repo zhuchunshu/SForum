@@ -221,6 +221,11 @@ func (s Settings) Normalized() Settings {
 		}
 		s.Reply.Tools = &ReplyToolSettings{Allowed: allowed}
 	}
+	// TriggerMode 存储时即归一：未知值落回空串（读路径再按 mention 处理），
+	// 避免脏值在配置文档里长期存活。
+	if s.Reply.TriggerMode != "" && !ValidTriggerMode(s.Reply.TriggerMode) {
+		s.Reply.TriggerMode = ""
+	}
 	s.migrateLegacyReplyTools()
 	s.normalizePurposes()
 	return s

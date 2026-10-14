@@ -352,6 +352,15 @@ AIReplySettings:
           type: array
           items:
             type: string
+    triggerMode:
+      type: string
+      description: |
+        机器人回复的触发方式。`mention`（默认）：只有被 @ 或被回复才回复；
+        `autonomous`：每条新主题/评论先由经济档模型判定是否值得回复，判 REPLY
+        才生成；`off`：停用一切自动触发（不影响控制台手动探测）。空串与未知值
+        运行期按 `mention` 处理。
+      enum: [mention, autonomous, off]
+
 AISettingsPayload:
   type: object
   properties:

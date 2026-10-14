@@ -84,7 +84,20 @@ live in configuration, not in Core code.
 
 ## Reply bot and built-in read-only tools
 
-- `app/Models/AIReply` owns the trigger (comment.created → enqueue), the thread
+- `app/Models/AIReply` owns the trigger (comment.created and topic.created →
+  enqueue; a topic mention enqueues with ParentCommentID=0 / TriggerCommentID=0
+  so the reply hangs under the topic and the prompt uses the topic body as the
+  triggering content), the thread
+- **Trigger modes** live in `settings.Reply.TriggerMode`
+  (`Support/AI/reply_prompt.go`): `mention` (default, only @ / reply-to-bot),
+  `autonomous`, `off`. Autonomous mode enqueues a triage job
+  (`Jobs/AIReply/TriageReplyArgs`, `ai.reply_triage`, unique key topic ×
+  debounce window) which runs `aireply.TriageDecider` — an economy-tier,
+  tool-free, 8-token call under the `forum.reply.triage` purpose that answers
+  REPLY or SKIP; only REPLY enqueues a `GenerateReplyArgs`. Triage failure and
+  unknown model output both mean SKIP (fail-closed: a gateway outage must not
+  become a reply storm). Unknown/missing mode values normalize to mention at
+  runtime; mode read failures also fall back to mention.
   snapshot (`ReplyContext`), the prompt assembly and the generator;
   `app/Models/AITools` owns the six Core built-in tools
   (`forum-search`, `forum-topic-read`, `forum-topic-list`, `user-profile-read`,

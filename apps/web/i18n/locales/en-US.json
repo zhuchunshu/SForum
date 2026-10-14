@@ -723,6 +723,17 @@
         "safetyTitle": "Always appended injection note",
         "safetyHint": "A prompt-injection note is always appended and is not affected by this field."
       },
+      "triggerMode": {
+        "title": "Trigger mode",
+        "intro": "Controls when the AI bot replies. Direct mentions always get a reply (except when off).",
+        "mention": "On mention",
+        "mentionHint": "Recommended. Replies only when mentioned or replied to.",
+        "autonomous": "Autonomous",
+        "autonomousHint": "The AI first judges whether each new post deserves a reply, then decides whether to join in.",
+        "off": "Off",
+        "offHint": "Disables all automatic replies, even direct mentions.",
+        "costHint": "Autonomous mode makes one lightweight model call per new topic and comment, metered against the poster's quota; rapid posts in the same topic are merged into one judgment."
+      },
       "diagnose": {
         "current": "Current configuration",
         "provider": "Provider",
