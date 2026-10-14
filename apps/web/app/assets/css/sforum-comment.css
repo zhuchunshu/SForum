@@ -491,29 +491,35 @@
   }
 }
 
+/* 移动端：信息流平铺风格（去卡片、双行头部、紧凑操作区；分割线为全端规则见下） */
 @media (max-width: 640px) {
   .sf-comment-list > .sf-comment {
-    padding: 0 0.875rem;
-  }
-  .sf-comment__entry {
-    gap: 0.625rem;
-    padding: 0.85rem 0;
+    padding: 0;
   }
 
+  .sf-comment__entry {
+    gap: var(--sf-comment-entry-gap);
+    padding: 16px 0;
+  }
+
+  /* 头部两行：第一行 flex 行 昵称 + 楼主徽标 …… #楼层/菜单（贴右），第二行 时间。
+   * 用 flex + margin-left:auto，作者名短时不留 grid 列空洞。 */
   .sf-comment__header {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 0.2rem 0.4rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 1px 6px;
   }
 
   .sf-comment__author {
-    grid-column: 1;
     min-width: 0;
+    font-size: 14px;
+    font-weight: 750;
   }
 
   .sf-comment__op-badge {
-    grid-column: 2;
-    justify-self: start;
+    padding: 0;
+    background: transparent;
   }
 
   .sf-comment__meta-group {
@@ -521,8 +527,10 @@
   }
 
   .sf-comment__meta {
-    grid-row: 2;
-    grid-column: 1 / -1;
+    flex-basis: 100%;
+    order: 3;
+    font-size: 11px;
+    font-weight: 400;
   }
 
   .sf-comment__meta-dot {
@@ -531,10 +539,11 @@
 
   .sf-comment__floor-actions {
     display: inline-flex;
-    grid-row: 1;
-    grid-column: 3;
     align-items: center;
-    gap: 0.1rem;
+    gap: 0.15rem;
+    margin-left: auto;
+    /* 抵消 ··· 按钮的右内边距，让视觉右缘贴齐正文右缘 */
+    margin-right: -8px;
   }
 
   .sf-comment__floor-actions .sf-comment__floor {
@@ -544,11 +553,11 @@
 
   .sf-comment__mobile-actions {
     display: inline-flex;
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     align-items: center;
     justify-content: center;
-    margin: -8px -8px -8px 0;
+    margin: -4px -4px -4px 0;
     border: 0;
     border-radius: 5px;
     background: transparent;
@@ -574,12 +583,37 @@
     border-left: 0;
   }
 
+  /* 移动端正文拉满整行：头像尺寸与 entry gap 都走变量，--sf-comment-lead 由两者算出，
+   * 主题改头像或 gap 时偏移量自动跟随（历史上的 43/46/52 三方漂移就是这么来的）。
+   * 负 margin 只负责左移，右缘靠 width 撑开，因此必须放开 max-width：
+   * 本文件上方的 max-width: 100% 会把 calc(100% + lead) 夹回 100%，
+   * 结果只剩左移、右缘永远短 lead 宽，正文列凭空窄一截。
+   * body 的左右内边距由主题负责在移动端归零，否则正文右缘还会再短 padding 那么多。 */
+  .sf-comment__entry {
+    --sf-comment-avatar-size: 32px;
+    --sf-comment-entry-gap: 11px;
+    --sf-comment-lead: calc(var(--sf-comment-avatar-size) + var(--sf-comment-entry-gap));
+  }
+
   .sf-comment__reply-to,
-  .sf-comment__body,
   .sf-comment__content,
-  .sf-comment__inline-editor {
-    width: 100%;
-    max-width: 100%;
+  .sf-comment__deleted,
+  .sf-comment__inline-editor,
+  .sf-comment__actions {
+    width: calc(100% + var(--sf-comment-lead));
+    max-width: none;
+    margin-left: calc(-1 * var(--sf-comment-lead));
+  }
+
+  /* 回复引用：中性灰胶囊，收紧留白不与正文抢色（保留全宽的负 margin-left） */
+  .sf-comment__reply-to {
+    margin: 8px 0 0 calc(-1 * var(--sf-comment-lead));
+    padding: 5px 9px;
+    border-radius: 7px;
+  }
+
+  .sf-comment__content {
+    margin-top: 7px;
   }
 
   .sf-comment__user-preview-layer {
@@ -587,17 +621,22 @@
     width: min(340px, calc(100vw - 36px));
   }
 
+  /* 操作区：紧凑图标行，34px 触达高度 */
   .sf-comment__actions {
     gap: 0.15rem 0.35rem;
+    margin-top: 6px;
+    opacity: 1;
   }
 
   .sf-comment__action,
   .sf-comment__disclosure {
-    min-height: 40px;
+    min-height: 34px;
   }
 
   .sf-comment__action {
-    padding: 0.45rem 0.5rem;
+    padding: 2px 8px 2px 2px;
+    font-size: 12.5px;
+    font-weight: 600;
   }
 
   .sf-comment__action--secondary {
@@ -606,11 +645,16 @@
 
   .sf-comment__disclosure {
     margin-left: 0;
-    padding: 0.5rem 0.65rem;
+    padding: 0.4rem 0.5rem;
   }
 }
 
 /* Default flat discussion stream: open rows, floor anchors and source jumps. */
+/* 信息流平铺：全端相邻评论之间用发丝分割线（flash/:target 高亮时圆角盖住边线无碍） */
+.sf-comment-list > .sf-comment + .sf-comment {
+  border-top: 1px solid var(--sf-border-light);
+}
+
 .sf-comment-list > .sf-comment {
   position: relative;
   overflow: visible;
@@ -725,13 +769,14 @@
   opacity: .72;
 }
 
+/* flat 流移动端收尾：与上方信息流平铺规则保持一致（分割线/间距） */
 @media (max-width: 640px) {
   .sf-comment-list > .sf-comment {
     padding: 0;
   }
 
   .sf-comment__entry {
-    gap: 10px;
-    padding: 18px 2px;
+    gap: var(--sf-comment-entry-gap);
+    padding: 16px 0;
   }
 }

@@ -1091,6 +1091,8 @@
 @media (max-width: 640px) {
   .sforum-topic-page__main {
     padding: 18px 12px 48px;
+    /* 窄屏三栏收起后评论区直接落在页面画布上；与 PC 中列一致铺 surface 白底 */
+    background: var(--sf-public-surface);
   }
 
   .sforum-topic-page__article {

@@ -250,6 +250,13 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 移动端评论区几何修复（2026-10-15）：正文「拉满整行」不再硬编码 lead，改由
+  `--sf-comment-avatar-size + --sf-comment-entry-gap` 算出，并补 `max-width: none`
+  （同文件的 `max-width: 100%` 会把 `calc(100% + lead)` 夹回，正文右缘因此永远短一截）；
+  默认主题新增「移动端评论几何」块（必须位于全端规则之后）并把评论行贴齐列表列。
+  400×822 正文列 238px → 338px，桌面几何不变。**待办：** 后台「重新激活主题」激活
+  暂存版本 `94aec837c69f…`（活动版本仍是 `493be898…`），否则页面仍加载旧主题制品。
+  详见 `sessions/2026-10-15-mobile-comment-geometry-fix.md`。
 - 徽章与成长值（gamification）整体移除（2026-10-12）：产品决定不再提供成就/徽章/成长值，
   内置插件 `sforum.gamification`（含 9 条路由、5 张插件表、种子徽章/等级、每日巡检、
   通知类型与公开徽章墙）连同其管理台页面、公开页面、i18n、集成测试、生成目录与

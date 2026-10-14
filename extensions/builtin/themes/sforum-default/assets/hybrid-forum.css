@@ -599,13 +599,21 @@
     font-size: 24px;
   }
 
-  .sf-comment__entry {
-    gap: 10px;
-    padding: 18px 2px;
+  /* 主题 PC 端给 body 右侧留 42px 放绝对定位楼层号；移动端楼层改回行内 flex 流，
+   * 右侧留白收掉（否则 #N 右侧空一大块、正文每行少 4-5 个字）。 */
+  .sf-theme--default .sf-comment__body {
+    padding-right: 0;
   }
 
-  .sf-comment__body {
-    padding-right: 34px;
+  .sf-theme--default .sf-comment__floor {
+    position: static;
+  }
+
+  /* 引用块保留主题的下边距节奏；左移量走 --sf-comment-lead。
+   * 正文/引用/操作区/编辑器的 width + 负 margin 由 core 的 ≤640 规则统一负责，这里不再重复；
+   * 移动端头像列宽与 lead 的绑定见文件下方「移动端评论几何」块（必须位于全端规则之后）。 */
+  .sf-theme--default .sf-comment__reply-to {
+    margin: 8px 0 8px calc(-1 * var(--sf-comment-lead));
   }
 
   .sforum-topic-comments__reply-head small {
@@ -1359,7 +1367,10 @@
 }
 
 .sf-theme--default .sf-comment__entry {
-  gap: 14px;
+  /* gap 走变量：移动端 --sf-comment-lead（正文拉满整行的左移量）由
+   * 「头像尺寸 + 该变量」算出，改 gap 时偏移量自动跟随，不会再出现 43/46/52 漂移。 */
+  --sf-comment-entry-gap: 14px;
+  gap: var(--sf-comment-entry-gap);
   padding: 24px 0 22px;
 }
 
@@ -1367,6 +1378,36 @@
 .sf-theme--default .sf-comment__avatar-link .sf-avatar {
   width: 38px;
   height: 38px;
+}
+
+/*
+ * 移动端评论几何：必须放在这里的全端规则之后。
+ * 同为 .sf-theme--default 前缀的选择器特异性相同，胜负只由文档顺序决定，
+ * 放在文件上方那个 @media (max-width: 640px) 块里会被下面的全端声明盖掉
+ *（历史上头像 32/38、gap 10/14、lead 43/52 的三方漂移就是这么来的）。
+ */
+@media (max-width: 640px) {
+  .sf-theme--default .sf-comment__entry {
+    --sf-comment-avatar-size: 32px; /* 移动端头像沿用组件 sm 尺寸 */
+    /* lead = 头像尺寸 + entry gap；gap 由上方全端规则定为 14px，改 gap 时自动跟随。 */
+    --sf-comment-lead: calc(var(--sf-comment-avatar-size) + var(--sf-comment-entry-gap));
+  }
+
+  /* 头像盒锁到同一个变量：避免「算 lead 用的尺寸」与「真实头像盒」不一致。
+   * 组件里的头像可能被 button/a 包一层，所以三个分支都要覆盖。 */
+  .sf-theme--default .sf-comment__entry > .sf-avatar,
+  .sf-theme--default .sf-comment__avatar-trigger > .sf-avatar,
+  .sf-theme--default .sf-comment__avatar-link > .sf-avatar {
+    width: var(--sf-comment-avatar-size);
+    height: var(--sf-comment-avatar-size);
+  }
+
+  /* 移动端评论行贴齐列表列：全端规则给行做了 12px 外扩（hover 底色出血），
+   * 小屏改成 flush，否则分割线与正文列整体左移 12px、右缘各短一截。 */
+  .sf-theme--default .sf-comment-list > .sf-comment {
+    margin: 0;
+    padding: 0 2px;
+  }
 }
 
 .sf-theme--default .sf-comment__author {
@@ -1731,20 +1772,5 @@
 @media (max-width: 560px) {
   .sf-theme--default .sforum-home__feed-list > article {
     padding: 12px 12px;
-  }
-
-  .sf-comment-list > .sf-comment {
-    margin: 0;
-    padding: 0 2px;
-  }
-
-  .sf-comment__entry {
-    gap: 10px;
-  }
-
-  .sf-comment__entry > .sf-avatar,
-  .sf-comment__avatar-link .sf-avatar {
-    width: 32px;
-    height: 32px;
   }
 }

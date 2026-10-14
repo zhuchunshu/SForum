@@ -209,7 +209,9 @@ describe('SFComment responsive CSS contract', () => {
     expect(mobileSource).toContain('margin-left: 0')
     expect(mobileSource).toContain('padding-left: 0')
     expect(mobileSource).toContain('border-left: 0')
-    expect(mobileSource).toContain('min-height: 40px')
+    // 移动端操作区触达高度：34px（紧凑信息流操作行；高于 WCAG 2.2 最小 24px）。
+    // 原断言写的是 40px，随移动端操作区收紧为 34px 同步更新。
+    expect(mobileSource).toContain('min-height: 34px')
   })
 
   test('keeps reply source links visually restrained', () => {
