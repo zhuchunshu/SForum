@@ -63,6 +63,9 @@ export type AdminAISettings = {
   redaction: { enabled: boolean, redactEmail: boolean, redactPhone: boolean, redactIp: boolean }
   // multimodal 是图片理解开关。旧文档可能没有这个字段（引入前保存的）。
   multimodal?: { enabled: boolean }
+  // identity 控制自我身份声明的公开性。字段缺失即沿用推荐默认（公开本次使用的
+  // 模型标识），因此旧文档同样不需要补字段。
+  identity?: { discloseModel?: boolean }
   revision: number
   updatedAt?: string
 }

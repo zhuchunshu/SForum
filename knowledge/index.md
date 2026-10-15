@@ -250,6 +250,17 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- AI 思考内容外泄与模型身份修复（2026-10-15）：两个独立缺陷同源——协议适配器在
+  正文为空时把 `reasoning_content` / `thinking` 提升成回答正文（于是回复机器人把
+  思维链发成评论、控制台把它当测试回复并报「连接正常」、结果缓存存 10 分钟），
+  而模型身份从未进入请求（只在 `Gateway.Execute` 解析 profile 后存在，提示词作者
+  写不出它）。现 `Reasoning` 与 `Text` 严格分离（内联思考标签在协议层剥离、
+  `resultCacheVersion` 1 → 2），身份声明由网关注入且公开性可配（缺省公开），回复
+  输出预算改为跟随 profile 的 `Defaults.MaxTokens`（此前写死 512 且该配置从未生效），
+  确定性空回复以 `river.JobCancel` 收尾。提示词版本 `forum-reply@5` /
+  `forum-reply-triage@2` / `diagnose@2`。详见
+  `sessions/2026-10-15-ai-reasoning-leak-and-identity-handoff.md` 与
+  `decisions/2026-10-15-ai-reasoning-separation-and-model-identity.md`。
 - Manifest V3 放行插件声明个人设置入口（2026-10-15）：
   `navigation[].kind` 新增 `account-settings`，并补上可选 `visibility` /
   `ownerResource`，三处白名单（JSON Schema、Go 平台校验器、OpenAPI 镜像）已对齐。

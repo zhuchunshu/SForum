@@ -190,17 +190,17 @@ func parseAnthropicMessagesResponse(statusCode int, body []byte) (WireResponse, 
 		return WireResponse{}, fmt.Errorf("%w: anthropic-messages status %d %s", ErrWire, statusCode, summary)
 	}
 	text := ""
+	reasoning := ""
 	calls := make([]ToolCall, 0, 1)
 	for _, block := range payload.Content {
 		switch block.Type {
 		case "text":
 			text += block.Text
-		// thinking 是推理模式下的思考 block。正文为空时它是唯一的线索：
-		// 至少让调用方知道模型确实产出了内容，只是没落进 text block。
+		// thinking 是推理模式下的思考 block。它与 text 是两种事实：正文为空而
+		// thinking 非空，表示模型只思考没有作答。把它回填进正文会把思维链当成
+		// 回答发布出去，因此单独收集，只用于解释空回复。
 		case "thinking":
-			if strings.TrimSpace(text) == "" {
-				text = block.Text
-			}
+			reasoning += block.Text
 		case "tool_use":
 			name := strings.TrimSpace(block.Name)
 			if name == "" || strings.TrimSpace(block.ID) == "" {
@@ -214,7 +214,8 @@ func parseAnthropicMessagesResponse(statusCode int, body []byte) (WireResponse, 
 		}
 	}
 	return WireResponse{
-		Text:       text,
+		Text:       stripInlineReasoning(text),
+		Reasoning:  strings.TrimSpace(reasoning),
 		ToolCalls:  calls,
 		StopReason: MapAnthropicStopReason(payload.StopReason),
 		Usage: Usage{

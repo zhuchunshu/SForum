@@ -22,7 +22,11 @@ const (
 	resultCacheKeyPrefix = "ai:completion:"
 	// resultCacheVersion 是缓存载荷自身的形状版本。CompletionResult 形状变更时必须
 	// 递增，否则旧载荷会被反序列化成「看起来合理但缺字段」的结果。
-	resultCacheVersion = 1
+	//
+	// 2：Text 不再包含推理正文（此前 reasoning_content / thinking 会被提升成回答）。
+	// 不换版本的话，升级后 10 分钟内仍会命中把思维链当成答案的旧载荷——修复会被
+	// 缓存挡住，表现为「改了代码但还在泄露」。
+	resultCacheVersion = 2
 )
 
 type resultCacheEnvelope struct {

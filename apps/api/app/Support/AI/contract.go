@@ -154,11 +154,15 @@ type CompletionResult struct {
 	Usage      Usage            `json:"usage"`
 	Provider   ProviderArtifact `json:"provider"`
 	// ToolCalls 非空时表示模型的这一步要求先执行工具，Text 通常为空。
-	ToolCalls      []ToolCall `json:"toolCalls,omitempty"`
-	PromptVersion  string     `json:"promptVersion,omitempty"`
-	ConfigRevision int64      `json:"configRevision,omitempty"`
-	LatencyMS      int64      `json:"latencyMs"`
-	CacheHit       bool       `json:"cacheHit,omitempty"`
+	ToolCalls []ToolCall `json:"toolCalls,omitempty"`
+	// Reasoning 是模型的思考正文，与 Text 严格分开。Text 为空而 Reasoning 非空
+	// 是一次可解释的结果：模型思考了但没有作答（推理预算被耗尽是最常见的原因）。
+	// 调用方不得把它当作回答发布，只可用它解释这次空回复。
+	Reasoning      string `json:"reasoning,omitempty"`
+	PromptVersion  string `json:"promptVersion,omitempty"`
+	ConfigRevision int64  `json:"configRevision,omitempty"`
+	LatencyMS      int64  `json:"latencyMs"`
+	CacheHit       bool   `json:"cacheHit,omitempty"`
 }
 
 func ValidRole(role Role) bool {

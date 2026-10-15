@@ -198,6 +198,12 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 	// 因此没有第二条能绕过脱敏的路径；缓存也按脱敏后的正文对齐。
 	request = ApplyRedaction(settings.Redaction, request)
 
+	// 自我身份在这里注入，因为只有这里同时知道两件事：本次真正生效的 profile
+	// （成本等级绑定在调用时才解析）与站点是否允许公开它。生成器与运营者写不出
+	// 模型名——同一个提示词服务三档绑定。注入放在脱敏之后（宿主文本不是用户内容）、
+	// 缓存键之前（键摘要 request.System）。
+	request.System = ApplyIdentity(request.System, profile, settings.Identity.ResolvedDiscloseModel())
+
 	if cached, ok := g.cached(ctx, request, profile, settings.Revision); ok {
 		// 命中的结果必须自己带上 cacheHit：它是结果契约的一部分，插件与观测页据此
 		// 区分「这次真的调用了供应商」与「从这里取回的旧答案」。缓存里存的永远是
@@ -280,6 +286,7 @@ func (g *Gateway) invoke(ctx context.Context, settings Settings, request Complet
 	}
 	return CompletionResult{
 		Text:       response.Text,
+		Reasoning:  response.Reasoning,
 		StopReason: response.StopReason,
 		ToolCalls:  response.ToolCalls,
 		Usage:      response.Usage,

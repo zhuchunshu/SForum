@@ -44,6 +44,9 @@ type updateSettingsRequest struct {
 	// 走同一条经过校验的路径。
 	Reply      supportai.ReplySettings      `json:"reply"`
 	Multimodal supportai.MultimodalSettings `json:"multimodal"`
+	// Identity 控制自我身份声明。字段缺失即沿用推荐默认（公开本次使用的模型），
+	// 因此升级前保存的载荷不需要补字段。
+	Identity supportai.IdentitySettings `json:"identity"`
 }
 
 // purposeCatalogEntry 是控制台渲染用途清单所需的事实：这个用途是什么、花哪一档、
@@ -328,6 +331,7 @@ func settingsFromRequest(request updateSettingsRequest) supportai.Settings {
 		Redaction:             request.Redaction,
 		Reply:                 request.Reply,
 		Multimodal:            request.Multimodal,
+		Identity:              request.Identity,
 	}.Normalized()
 }
 

@@ -135,6 +135,61 @@ live in configuration, not in Core code.
   保持字符串）；anthropic-messages 翻译成 `image` block + base64 source。
   图片调用照常过闸门/配额/trace；提示词末尾标注图片计数。
 
+## Reasoning 与回答分离（2026-10-15）
+
+- **推理正文永远不是回答。** `WireResponse` / `CompletionResult` / `RunResult` /
+  `aireply.CompletionOutput` 都有独立的 `Reasoning` 字段；`Text` 只来自回答字段
+  （openai `content`、anthropic `text` block）。此前 `reasoning_content` /
+  `reasoning` / `thinking` 会在正文为空时被提升成 `Text`，于是同一次响应同时污染
+  三处：回复机器人把思维链发成公开评论、控制台把它当测试回复并报「连接正常」
+  （`Text == ""` 的空回复判定永不命中）、结果缓存存 10 分钟。
+- 触发条件是推理类模型把输出预算消耗在思考上（`finish_reason=length`）或网关只填
+  思考字段，因此表现为「有时候」——与问题难度相关。
+- 内联思考标签（网关把思考拼进 `content`）在协议层归一化：
+  `wire_reasoning.go` 的 `stripInlineReasoning` 反复剥掉正文开头的
+  `<think|thinking|reasoning|analysis>` 成对块；未闭合的（被 `max_tokens` 截断，
+  最常见的一种）从标签起整体丢弃；只认正文开头的标签，不动正文中间的字面内容。
+- `result_cache.go` 的 `resultCacheVersion` 在 `Text` 语义变化时递增（1 → 2）：
+  旧载荷可能把思考存在 `Text` 里，不换版本会让修复被缓存挡住。
+- 空回复是**可解释的结果**而不是失败降级：`Generate` 的错误带
+  `stop_reason=` 与 `reasoning=`，`Service.Diagnose` 据此区分「只产出思考」与
+  「什么都没产出」，`GenerateReplyWorker` 把 `ErrEmptyReply` 翻译成
+  `river.JobCancel`（确定性失败重试只会把账单乘以 `MaxAttempts`）。
+
+## 自我身份注入（2026-10-15）
+
+- **模型不会「知道」自己是哪个模型**：这件事既不在权重里也不在提示词里，只在站点
+  配置中（成本等级 → profile 绑定）。因此身份只能由解析出 profile 的那一层写进
+  system：`Gateway.Execute` 在脱敏之后、缓存键之前调用
+  `ApplyIdentity(system, profile, disclose)`。生成器与运营者写不出它——同一个系统
+  提示词同时服务三档绑定。
+- 声明是自包含的（事实 + 回答规则）：运营者可以整体替换系统提示词，把规则留在内置
+  默认提示词里会随替换一起消失。`IdentityAppendixVersion` 随 `request.System` 进入
+  缓存键，改动它必须递增。
+- `settings.identity.discloseModel` 是**指针**，nil 与 true 都表示公开。存量配置文档
+  没有这一项，普通 `bool` 会让升级后的站点读到 false，缺陷原样保留（与
+  `GateSettings.ToolCallsPerReply`、`Profile.SupportsTools` 同一套缺省语义）。
+  关闭公开不是「让模型不知道」，而是给它一个能如实说出口的答案（「本站的 AI 助手，
+  本站不公开所用模型」）——编造供应商与模型名同样是错误答案。
+- 控制台开关在「回复提示词」页签（`SFAdminAIIdentityBlock`）。开关用 getter/setter
+  computed（`?? true`）而不是直接 `v-model`，否则挂载即写入显式值、面板一打开就是
+  dirty；`normalizedAISettingsForComparison` 把显式 true 与字段缺失归一成同一形状。
+- 已知边界：`MaxSystemBytes`（100 KB）是调用方 system 的上限，注入发生在校验之后。
+  贴着上限的请求会以既有的 `ErrRequestInvalid` 失败；实际不可达（控制台编辑器上限
+  8000 字符），接受为已知边界而不是改写调用方的提示词。
+
+## 回复输出预算（2026-10-15）
+
+- 回复的输出预算来自 `ReplyPurposeParameters.MaxTokens`，由服务层解析该用途成本等级
+  绑定的 profile 得到（`Profile.Defaults.MaxTokens`，控制台 providers 页签可改）。
+  解析不出 profile 时返回 0，生成器回落到 `ReplyMaxTokens`（512，下限语义）。
+- 修复前 `ReplyMaxTokens` 写死 512，而 `Profile.Defaults.MaxTokens` 被校验、被控制台
+  暴露却从未被任何调用点读取（全仓只有 `Defaults.TimeoutMS` 真正生效）。推理类模型
+  512 token 必然被思考吃光——那正是「思考内容被发布」的根因，也是只修解析器会把
+  「泄露思维链」换成「机器人偶尔不回复」的原因。
+- 可见行为变化：回复上限 512 → 该 profile 的 `Defaults.MaxTokens`（内置默认 2048），
+  只在实际生成时计费。
+
 ## Purposes
 
 - **用途是声明，不是调用点的细节。** `app/Support/AI/purpose.go` 的

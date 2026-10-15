@@ -119,6 +119,31 @@ func TestDiagnoseReportsEmptyReplyInsteadOfClaimingSuccess(t *testing.T) {
 	}
 }
 
+// 只产出思考、没有正文时，诊断必须说清是哪一种空回复：推理预算被吃光要调预算，
+// 什么都产不出才要怀疑协议兼容性。两者合成一句话，运营者只能靠试。
+func TestDiagnoseExplainsReasoningOnlyReply(t *testing.T) {
+	service, _ := newDiagnoseService(supportai.WireResponse{
+		Text:       "",
+		Reasoning:  "用户在问连通性，我应该只回复两个字：收到",
+		StopReason: supportai.StopReasonEnd,
+	})
+
+	result, err := service.Diagnose(context.Background(), managerActor(), "")
+	if err != nil {
+		t.Fatalf("diagnose failed: %v", err)
+	}
+	if !result.OK || result.Reason != supportai.DiagnoseReasonEmptyReply {
+		t.Fatalf("ok = %v reason = %q", result.OK, result.Reason)
+	}
+	// 思考正文绝不作为回复回传：它是模型的话，不是给运营者的测试答案。
+	if result.Reply != "" {
+		t.Fatalf("reply = %q；思考正文不得成为诊断回复", result.Reply)
+	}
+	if !strings.Contains(result.Error, "思考") || !strings.Contains(result.Error, "最大输出 token") {
+		t.Fatalf("error = %q", result.Error)
+	}
+}
+
 func TestDiagnoseStaysSuccessfulWhenTextIsPresent(t *testing.T) {
 	service, _ := newDiagnoseService(supportai.WireResponse{
 		Text:       "收到",

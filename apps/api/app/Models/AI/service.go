@@ -294,15 +294,20 @@ func (s *Service) Diagnose(ctx context.Context, actor identity.Actor, message st
 	// 预算是否被推理消耗完，运营者据此调整预算而不是反复重试。
 	if strings.TrimSpace(completion.Text) == "" && len(completion.ToolCalls) == 0 {
 		result.Reason = supportai.DiagnoseReasonEmptyReply
-		result.Error = diagnoseEmptyReplyHint(completion.StopReason)
+		result.Error = diagnoseEmptyReplyHint(completion.StopReason, strings.TrimSpace(completion.Reasoning) != "")
 	}
 	return result, nil
 }
 
 // diagnoseEmptyReplyHint 把「成功的空回复」翻译成一句可执行的建议。
-// finish_reason=length 是最常见的一种：推理模型先把预算花在思考上，等到写正文
-// 时预算已经耗尽。
-func diagnoseEmptyReplyHint(stopReason string) string {
+//
+// 它区分两种事实：模型产出了思考但没有正文（reasoningOnly），与模型什么都没产出。
+// 前者的动作是调预算或换模型，后者才要怀疑协议兼容性——把两者说成同一句话，运营者
+// 只能靠试。
+func diagnoseEmptyReplyHint(stopReason string, reasoningOnly bool) string {
+	if reasoningOnly {
+		return "模型只产出了思考内容（reasoning / thinking），没有产出正文：推理类模型会先把输出预算消耗在思考上。请提高该供应商的最大输出 token 后重试，或为该成本等级绑定一个非推理模型。"
+	}
 	switch stopReason {
 	case supportai.StopReasonLength:
 		return "模型在输出预算内结束了（finish_reason=length）：推理类模型通常先把预算消耗在思考上，因此没有产出正文。请提高该供应商的最大输出 token 后重试。"
@@ -365,7 +370,22 @@ func (s *Service) ReplyPurposeParameters(ctx context.Context) (aireply.ReplyPurp
 		ToolsAllowed:  append([]string(nil), allowed...),
 		ToolsOverride: overridden,
 		PromptVersion: declaration.PromptVersion,
+		MaxTokens:     replyMaxTokens(settings, declaration.CostClass),
 	}, nil
+}
+
+// replyMaxTokens 返回回复用途的输出预算：该用途成本等级绑定 profile 的
+// Defaults.MaxTokens（控制台 providers 页签可改）。
+//
+// 它必须来自 profile 而不是一个写死的常量：推理类模型会把预算先花在思考上，
+// 上限太小就永远写不出正文（表现为「调用成功但没有回答」，修复前更糟——思维链
+// 会被当成回答发布）。解析不出 profile 时返回 0，由生成器回落到内置下限。
+func replyMaxTokens(settings supportai.Settings, costClass string) int {
+	profile, err := settings.ResolveProfile(costClass, "")
+	if err != nil {
+		return 0
+	}
+	return profile.Defaults.MaxTokens
 }
 
 // ReplyTriggerMode 返回当前生效的回复触发模式。它实现 aireply.TriggerModeSource：

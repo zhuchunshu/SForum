@@ -117,6 +117,12 @@ type CompletionInput struct {
 
 type CompletionOutput struct {
 	Text string
+	// StopReason 是协议无关的停止原因（end / length / filtered / tool）。它让
+	// 空回复能被解释成「预算被思考吃光」而不是一句笼统的失败。
+	StopReason string
+	// Reasoning 是模型的思考正文，与 Text 严格分开：它只用于解释空回复，
+	// 永远不参与发布。
+	Reasoning string
 }
 
 // RecentCommentWindow 是提示词里包含的近期发言条数。更大的窗口意味着更贵的

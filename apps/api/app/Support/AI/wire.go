@@ -44,7 +44,14 @@ func (r WireRequest) SafeHeaders() map[string]string {
 
 // WireResponse 是解析后的中立协议响应。
 type WireResponse struct {
-	Text       string
+	// Text 是模型的回答正文。它**只**来自回答字段（openai-chat 的 content、
+	// anthropic-messages 的 text block）：思考正文与回答是两件事，混进这里会
+	// 让「调用成功但模型没给答案」变成一次把思维链发布到社区的故障。
+	Text string
+	// Reasoning 是模型的思考正文（reasoning_content / reasoning / thinking
+	// block）。它永远不是回答：调用方不得把它当作回复发布，只可用它解释
+	// 「为什么正文是空的」。
+	Reasoning  string
 	StopReason string
 	// ToolCalls 非空表示模型要求先执行工具；两套协议都翻译到这个字段。
 	ToolCalls []ToolCall

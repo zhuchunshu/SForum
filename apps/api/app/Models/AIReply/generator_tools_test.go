@@ -39,7 +39,7 @@ func TestGeneratePassesToolAllowlistAndToolContext(t *testing.T) {
 // TestReplyPromptVersionTracksPromptChanges 是一条提醒式断言：提示词语义变化时
 // 必须递增版本号，否则历史执行记录无法对应到产出它的那版提示词。
 func TestReplyPromptVersionTracksPromptChanges(t *testing.T) {
-	if aireply.ReplyPromptVersion != "forum-reply@4" {
+	if aireply.ReplyPromptVersion != "forum-reply@5" {
 		t.Fatalf("prompt version = %q；改动提示词请递增并同步本断言", aireply.ReplyPromptVersion)
 	}
 }
@@ -136,6 +136,38 @@ func TestGenerateWithEmptyConfiguredAllowlistPassesNoTools(t *testing.T) {
 	}
 	if tools := completer.inputs[0].Tools; len(tools) != 0 {
 		t.Fatalf("tools = %+v, want none", tools)
+	}
+}
+
+// 输出预算来自该用途成本等级绑定 profile 的 Defaults.MaxTokens：写死一个小值会让
+// 推理类模型把预算全花在思考上，永远写不出正文。
+func TestGenerateUsesProfileOutputBudget(t *testing.T) {
+	threads := &fakeThreads{thread: sampleThread()}
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "回答"}}
+	generator := aireply.NewGenerator(threads, completer, &fakePoster{}, fakePurposeParameters{
+		parameters: aireply.ReplyPurposeParameters{MaxTokens: 4096},
+	})
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	if got := completer.inputs[0].MaxTokens; got != 4096 {
+		t.Fatalf("max tokens = %d", got)
+	}
+}
+
+// 参数来源没解析出 profile（MaxTokens=0）时回落到内置下限，而不是把预算变成 0
+// ——那会让请求在契约校验就被拒。
+func TestGenerateFallsBackToBuiltInOutputBudget(t *testing.T) {
+	threads := &fakeThreads{thread: sampleThread()}
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "回答"}}
+	generator := aireply.NewGenerator(threads, completer, &fakePoster{}, fakePurposeParameters{
+		parameters: aireply.ReplyPurposeParameters{},
+	})
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	if got := completer.inputs[0].MaxTokens; got != aireply.ReplyMaxTokens {
+		t.Fatalf("max tokens = %d, want %d", got, aireply.ReplyMaxTokens)
 	}
 }
 

@@ -198,27 +198,34 @@ func TestUnknownFinishReasonDegradesToEnd(t *testing.T) {
 	}
 }
 
-// 推理类模型把答案写在 reasoning_content 而不是 content。只读 content 会得到
-// 一次「调用成功但空回复」的假故障，因此空 content 必须回退读取思考字段。
-func TestParseOpenAIResponseFallsBackToReasoningContent(t *testing.T) {
+// 推理类模型会把答案写在 reasoning_content 而不是 content。那是「模型思考了但
+// 没有作答」，不是「思维链就是答案」：正文必须保持为空，思考单独回传，否则调用方
+// 会把思维链当成回答发布到社区。
+func TestParseOpenAIResponseKeepsReasoningOutOfText(t *testing.T) {
 	body := []byte(`{"choices":[{"message":{"content":"","reasoning_content":"收到"},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":2}}`)
 	response, err := ai.ParseWireResponse(deepseekProfile(), 200, body)
 	if err != nil {
 		t.Fatalf("parse failed: %v", err)
 	}
-	if response.Text != "收到" {
-		t.Fatalf("text = %q", response.Text)
+	if response.Text != "" {
+		t.Fatalf("text = %q；思考正文不得成为回答", response.Text)
+	}
+	if response.Reasoning != "收到" {
+		t.Fatalf("reasoning = %q", response.Reasoning)
 	}
 }
 
-func TestParseOpenAIResponseFallsBackToReasoningAlias(t *testing.T) {
+func TestParseOpenAIResponseKeepsReasoningAliasOutOfText(t *testing.T) {
 	body := []byte(`{"choices":[{"message":{"reasoning":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":2}}`)
 	response, err := ai.ParseWireResponse(deepseekProfile(), 200, body)
 	if err != nil {
 		t.Fatalf("parse failed: %v", err)
 	}
-	if response.Text != "ok" {
+	if response.Text != "" {
 		t.Fatalf("text = %q", response.Text)
+	}
+	if response.Reasoning != "ok" {
+		t.Fatalf("reasoning = %q", response.Reasoning)
 	}
 }
 
@@ -232,15 +239,37 @@ func TestParseOpenAIResponsePrefersContentOverReasoning(t *testing.T) {
 	if response.Text != "answer" {
 		t.Fatalf("text = %q", response.Text)
 	}
+	if response.Reasoning != "thinking" {
+		t.Fatalf("reasoning = %q", response.Reasoning)
+	}
 }
 
-func TestParseAnthropicResponseFallsBackToThinkingBlock(t *testing.T) {
+// anthropic-messages 的 thinking block 同理：正文为空而 thinking 非空，表示模型
+// 只思考没有作答。
+func TestParseAnthropicResponseKeepsThinkingOutOfText(t *testing.T) {
 	body := []byte(`{"content":[{"type":"thinking","text":"收到"}],"stop_reason":"end_turn","usage":{"input_tokens":7,"output_tokens":2}}`)
 	response, err := ai.ParseWireResponse(claudeProfile(), 200, body)
 	if err != nil {
 		t.Fatalf("parse failed: %v", err)
 	}
-	if response.Text != "收到" {
+	if response.Text != "" {
+		t.Fatalf("text = %q；思考 block 不得成为回答", response.Text)
+	}
+	if response.Reasoning != "收到" {
+		t.Fatalf("reasoning = %q", response.Reasoning)
+	}
+}
+
+func TestParseAnthropicResponseCollectsThinkingAlongsideText(t *testing.T) {
+	body := []byte(`{"content":[{"type":"thinking","text":"先查一下"},{"type":"text","text":"答案是 42"}],"stop_reason":"end_turn","usage":{"input_tokens":7,"output_tokens":9}}`)
+	response, err := ai.ParseWireResponse(claudeProfile(), 200, body)
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if response.Text != "答案是 42" {
 		t.Fatalf("text = %q", response.Text)
+	}
+	if response.Reasoning != "先查一下" {
+		t.Fatalf("reasoning = %q", response.Reasoning)
 	}
 }

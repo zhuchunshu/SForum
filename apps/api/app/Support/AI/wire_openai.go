@@ -109,8 +109,8 @@ type openAIChatResponsePayload struct {
 		Message struct {
 			Content string `json:"content"`
 			// ReasoningContent 是推理类模型的思考正文。DeepSeek-R1、Qwen3、
-			// 各类兼容网关都会把它与 content 分开返回；模型把答案写进这个字段
-			// 时，只读 content 就会拿到一个「调用成功但空回复」的假故障。
+			// 各类兼容网关都会把它与 content 分开返回。它是「为什么 content
+			// 是空的」的解释，不是回答：正文为空时把它当答案会泄露思维链。
 			ReasoningContent string `json:"reasoning_content"`
 			// Reasoning 是部分网关（含 Claude 兼容层）使用的同类字段名。
 			Reasoning string `json:"reasoning"`
@@ -244,7 +244,11 @@ func parseOpenAIChatResponse(statusCode int, body []byte) (WireResponse, error) 
 		})
 	}
 	return WireResponse{
-		Text:       firstNonEmpty(choice.Message.Content, choice.Message.ReasoningContent, choice.Message.Reasoning),
+		// 正文只取 content。思考字段单独回传，绝不提升成回答：推理模型把输出
+		// 预算消耗在思考上时 content 为空，那意味着「模型没有给出答案」，而不是
+		// 「思维链就是答案」——后者会以评论的形式发布到社区。
+		Text:       stripInlineReasoning(choice.Message.Content),
+		Reasoning:  firstNonEmpty(choice.Message.ReasoningContent, choice.Message.Reasoning),
 		ToolCalls:  calls,
 		StopReason: MapOpenAIFinishReason(choice.FinishReason),
 		Usage: Usage{
@@ -256,8 +260,8 @@ func parseOpenAIChatResponse(statusCode int, body []byte) (WireResponse, error) 
 	}, nil
 }
 
-// firstNonEmpty 返回第一个非空白的候选正文。推理类模型可能把答案写在
-// reasoning_content 而不是 content，空 content 不能被当成「没有回复」。
+// firstNonEmpty 返回第一个非空白的候选。它现在只服务思考字段：不同网关把同一件事
+// 叫 reasoning_content 或 reasoning，两者都空才表示模型确实没有产出思考。
 func firstNonEmpty(candidates ...string) string {
 	for _, candidate := range candidates {
 		if strings.TrimSpace(candidate) != "" {

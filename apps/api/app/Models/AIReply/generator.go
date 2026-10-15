@@ -18,7 +18,10 @@ const (
 	// ReplyPromptVersion 是回复提示词的版本，用于缓存键与执行记录。它是用途声明
 	// 里的值的别名，保持这个导出名是为了让调用方与历史记录读到同一个字符串。
 	ReplyPromptVersion = supportai.CoreReplyPromptVersion
-	// ReplyMaxTokens 是单次回复的输出上限。
+	// ReplyMaxTokens 是回复的输出下限。真正的预算来自该用途成本等级绑定的
+	// profile（Profile.Defaults.MaxTokens，控制台可改）：推理类模型会先把预算
+	// 消耗在思考上，写死一个小值等于让它们永远产出空回复。profile 解析不出来时
+	// 用这个值兜底——那种情况下调用本身会在网关以 profile_unavailable 失败。
 	ReplyMaxTokens = 512
 )
 
@@ -53,6 +56,9 @@ type ReplyPurposeParameters struct {
 	ToolsAllowed  []string
 	ToolsOverride bool
 	PromptVersion string
+	// MaxTokens 是本次回复的输出预算，取自该用途成本等级绑定 profile 的
+	// Defaults.MaxTokens。0 表示解析不出 profile（回落到 ReplyMaxTokens）。
+	MaxTokens int
 }
 
 // Generator 把一次待生成的回复变成真正的评论。
@@ -118,6 +124,15 @@ func (g *Generator) resolveParameters(ctx context.Context) (ReplyPurposeParamete
 	return parameters, systemOverride
 }
 
+// resolveMaxTokens 决定本次回复的输出预算。0 或负值回落到 ReplyMaxTokens：
+// 参数来源没解析出 profile 时不该把预算变成 0（那会让请求在契约校验就被拒）。
+func resolveMaxTokens(configured int) int {
+	if configured <= 0 {
+		return ReplyMaxTokens
+	}
+	return configured
+}
+
 // ImageAttachmentReader 是 ThreadReader 的可选扩展：能查出本次回复候选的
 // 图片附件定位。PostgresReader 实现了它；测试 fake 不实现时回复退化为纯文本。
 type ImageAttachmentReader interface {
@@ -160,7 +175,7 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 		PromptVersion: parameters.PromptVersion,
 		System:        system,
 		User:          user,
-		MaxTokens:     ReplyMaxTokens,
+		MaxTokens:     resolveMaxTokens(parameters.MaxTokens),
 		SubjectUserID: input.TriggerUserID,
 		Images:        g.resolveImageCandidates(ctx, input),
 		ActorUserID:   input.BotUserID,
@@ -179,7 +194,11 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 	content := strings.TrimSpace(completion.Text)
 	if content == "" {
 		// 空回复不发布：一条空评论比没有回复更糟。
-		return ErrEmptyReply
+		//
+		// 错误里带上停止原因与「模型是否产出了思考」：这是同一句话的唯一可诊断
+		// 形态——finish_reason=length + 有思考＝预算被思考吃光（该调 profile 的
+		// 最大输出 token），没有思考＝模型确实什么都没说。
+		return fmt.Errorf("%w: stop_reason=%s reasoning=%t", ErrEmptyReply, completion.StopReason, strings.TrimSpace(completion.Reasoning) != "")
 	}
 	if _, err := g.poster.PostBotComment(ctx, input.BotUserID, BotCommentInput{
 		TopicID:  input.TopicID,

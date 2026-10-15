@@ -239,6 +239,45 @@ func TestServiceReplyPurposeParametersReportOverrideState(t *testing.T) {
 	}
 }
 
+// 回复的输出预算来自该用途成本等级绑定 profile 的 Defaults.MaxTokens：推理类模型
+// 会先把预算花在思考上，写死的小值会让它永远写不出正文。
+func TestServiceReplyPurposeParametersCarryProfileOutputBudget(t *testing.T) {
+	settings := supportai.RecommendedSettings().Normalized()
+	for index := range settings.Profiles {
+		if settings.Profiles[index].ID == "deepseek" {
+			settings.Profiles[index].Enabled = true
+			settings.Profiles[index].Defaults.MaxTokens = 4_096
+		}
+	}
+	store := &stubSettings{stored: settings}
+	service := modelsai.NewService(modelsai.Config{Settings: store})
+
+	parameters, err := service.ReplyPurposeParameters(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parameters.MaxTokens != 4_096 {
+		t.Fatalf("max tokens = %d, want the bound profile's value", parameters.MaxTokens)
+	}
+}
+
+// 解析不出可用 profile 时返回 0：由生成器回落到内置下限，而不是让预算变成 0
+// （那会让请求在契约校验就被拒，把一个配置问题伪装成请求格式问题）。
+func TestServiceReplyPurposeParametersReportNoBudgetWithoutProfile(t *testing.T) {
+	settings := supportai.RecommendedSettings().Normalized()
+	// 推荐默认里所有 profile 都是关闭的，因此经济档解析不出可用 profile。
+	store := &stubSettings{stored: settings}
+	service := modelsai.NewService(modelsai.Config{Settings: store})
+
+	parameters, err := service.ReplyPurposeParameters(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parameters.MaxTokens != 0 {
+		t.Fatalf("max tokens = %d, want 0 when no profile resolves", parameters.MaxTokens)
+	}
+}
+
 // 控制台按用途枚举 AI 行为：站内已声明的用途与当前生效参数必须能一次拿到，
 // 而不是让运营者从代码或特例字段里推断。
 func TestServicePurposeDetailsCarryDeclaredAndEffectiveParameters(t *testing.T) {

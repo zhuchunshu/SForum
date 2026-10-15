@@ -96,7 +96,7 @@ func (c *GatewayCompleter) Complete(ctx context.Context, input CompletionInput) 
 		if err != nil {
 			return CompletionOutput{}, err
 		}
-		return CompletionOutput{Text: result.Text}, nil
+		return CompletionOutput{Text: result.Text, StopReason: result.StopReason, Reasoning: result.Reasoning}, nil
 	}
 	result, err := c.gateway.Execute(ctx, supportai.CompletionRequest{
 		Purpose:       input.Purpose,
@@ -111,5 +111,5 @@ func (c *GatewayCompleter) Complete(ctx context.Context, input CompletionInput) 
 	if err != nil {
 		return CompletionOutput{}, err
 	}
-	return CompletionOutput{Text: result.Text}, nil
+	return CompletionOutput{Text: result.Text, StopReason: result.StopReason, Reasoning: result.Reasoning}, nil
 }

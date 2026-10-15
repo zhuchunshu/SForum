@@ -149,8 +149,11 @@ type RunInput struct {
 
 // RunResult 汇总本次运行的全部产出与成本。
 type RunResult struct {
-	Text           string
-	StopReason     string
+	Text       string
+	StopReason string
+	// Reasoning 是最终一步的思考正文。它与 Text 分开：调用方只能用它解释
+	// 「为什么没有正文」，不得把它当作回答发布。
+	Reasoning      string
 	Usage          Usage
 	ModelCalls     int
 	ToolCalls      int
@@ -227,6 +230,7 @@ func (o *Orchestrator) Run(ctx context.Context, input RunInput) (RunResult, erro
 		result.ConfigRevision = completion.ConfigRevision
 		if len(completion.ToolCalls) == 0 {
 			result.Text = completion.Text
+			result.Reasoning = completion.Reasoning
 			result.StopReason = completion.StopReason
 			return result, nil
 		}
@@ -235,6 +239,7 @@ func (o *Orchestrator) Run(ctx context.Context, input RunInput) (RunResult, erro
 			// 编造工具结果。
 			if strings.TrimSpace(completion.Text) != "" {
 				result.Text = completion.Text
+				result.Reasoning = completion.Reasoning
 				result.StopReason = completion.StopReason
 				return result, nil
 			}

@@ -13,6 +13,7 @@ export type AIComparableSettings = {
   reply?: { systemPrompt?: string, triggerMode?: string }
   gates?: { toolCallsPerReply?: number | null }
   purposes?: Record<string, AIPurposeOverride>
+  identity?: { discloseModel?: boolean }
 }
 
 // AIPurposeOverride 是某个用途的站点覆盖形状。两个字段都可省：缺省即沿用该用途
@@ -212,6 +213,12 @@ export function normalizedAISettingsForComparison<T extends AIComparableSettings
     copy.purposes = purposes
   } else {
     delete copy.purposes
+  }
+  // identity 的缺省是「公开模型标识」：字段缺失与显式 true 在服务端语义相同，
+  // 因此两者必须序列化成同一个形状，否则运营者把开关拨回默认就会被判成有未保存
+  // 改动，而这次保存什么也没改变。
+  if (copy.identity && copy.identity.discloseModel !== false) {
+    delete copy.identity
   }
   return copy
 }

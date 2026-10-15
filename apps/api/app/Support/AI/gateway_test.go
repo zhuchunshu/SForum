@@ -2,6 +2,7 @@ package ai_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -321,5 +322,95 @@ func TestCacheKeySeparatesCallersAndPromptVersions(t *testing.T) {
 	}
 	if ai.CacheKey(first, profile, 1) == ai.CacheKey(first, profile, 2) {
 		t.Fatal("different config revisions must not share a cache key")
+	}
+}
+
+// outboundSystem 取出一次出站请求里实际发给供应商的 system 文本。断言必须落到
+// system 上而不是整段 body：请求体的 model 字段本来就带模型名，用 body 做包含
+// 判断会在「什么都没注入」时也通过。
+func outboundSystem(t *testing.T, wire ai.WireRequest) string {
+	t.Helper()
+	var payload struct {
+		Model    string `json:"model"`
+		System   string `json:"system"`
+		Messages []struct {
+			Role    string `json:"role"`
+			Content any    `json:"content"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(wire.Body, &payload); err != nil {
+		t.Fatalf("decode wire body: %v", err)
+	}
+	if strings.TrimSpace(payload.System) != "" {
+		return payload.System
+	}
+	for _, message := range payload.Messages {
+		if message.Role != "system" {
+			continue
+		}
+		content, _ := message.Content.(string)
+		return content
+	}
+	return ""
+}
+
+// 模型不知道自己是哪个模型，因为没有任何一层告诉过它：身份只在 profile 解析之后
+// 才存在。网关是唯一同时知道「本次用哪个 profile」与「站点是否允许公开」的地方。
+func TestGatewayInjectsModelIdentityIntoSystem(t *testing.T) {
+	settings := enabledSettings()
+	gateway, _, _, invoker, _ := newGateway(t, settings)
+	request := validRequest()
+	request.System = "你是社区助手。"
+	if _, err := gateway.Execute(context.Background(), request); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	system := outboundSystem(t, invoker.lastWire)
+	if !strings.Contains(system, "你是社区助手。") {
+		t.Fatalf("system = %q", system)
+	}
+	profile := deepseekProfile()
+	if !strings.Contains(system, profile.Label) || !strings.Contains(system, profile.Model) {
+		t.Fatalf("出站 system 缺少模型标识：%q", system)
+	}
+}
+
+func TestGatewayConcealsModelIdentityWhenDisabled(t *testing.T) {
+	settings := enabledSettings()
+	off := false
+	settings.Identity = ai.IdentitySettings{DiscloseModel: &off}
+	gateway, _, _, invoker, _ := newGateway(t, settings)
+	if _, err := gateway.Execute(context.Background(), validRequest()); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	system := outboundSystem(t, invoker.lastWire)
+	profile := deepseekProfile()
+	if strings.Contains(system, profile.Model) {
+		t.Fatalf("关闭公开时不得注入模型名：%q", system)
+	}
+	if !strings.Contains(system, "AI 助手") {
+		t.Fatalf("关闭公开时模型仍须知道自己是什么：%q", system)
+	}
+}
+
+// 只有思考、没有正文的响应是一次可解释的空回复，而不是「思维链就是回答」。
+func TestGatewayKeepsReasoningOutOfResultText(t *testing.T) {
+	gateway, _, traces, invoker, _ := newGateway(t, enabledSettings())
+	invoker.response = ai.WireResponse{
+		Text:       "",
+		Reasoning:  "用户在问端口占用，我先看看",
+		StopReason: ai.StopReasonLength,
+	}
+	result, err := gateway.Execute(context.Background(), validRequest())
+	if err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if result.Text != "" {
+		t.Fatalf("text = %q；思考正文不得成为回答", result.Text)
+	}
+	if result.Reasoning == "" {
+		t.Fatal("思考正文必须单独回传，否则空回复无法解释")
+	}
+	if len(traces.records) != 1 || traces.records[0].Status != ai.ExecutionStatusSucceeded {
+		t.Fatalf("traces = %+v", traces.records)
 	}
 }

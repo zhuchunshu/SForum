@@ -134,6 +134,9 @@ type Settings struct {
 	Redaction  RedactionSettings  `json:"redaction"`
 	// Multimodal 是图片理解开关。零值即关闭，升级前的旧配置文档天然兼容。
 	Multimodal MultimodalSettings `json:"multimodal"`
+	// Identity 控制「模型是否知道自己是谁」。零值（字段缺失）即沿用推荐默认：
+	// 公开本次使用的模型标识，见 IdentitySettings。
+	Identity IdentitySettings `json:"identity"`
 	// Revision 每次保存递增，用于在执行记录中快照生效配置版本。
 	Revision        int64     `json:"revision"`
 	UpdatedByUserID *int64    `json:"updatedByUserId,omitempty"`
@@ -171,8 +174,13 @@ func RecommendedSettings() Settings {
 			RedactPhone: true,
 			RedactIP:    true,
 		},
+		// 推荐默认公开本次使用的模型：模型对「你是哪个模型」有一个确定答案，
+		// 是可用性的前提；不希望公开的运营者可以显式关闭。
+		Identity: IdentitySettings{DiscloseModel: boolPointer(true)},
 	}
 }
+
+func boolPointer(value bool) *bool { return &value }
 
 func ValidFailurePosture(posture string) bool {
 	switch posture {

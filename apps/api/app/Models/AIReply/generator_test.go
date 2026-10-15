@@ -70,6 +70,30 @@ func jobInput() aireply.ReplyJobInput {
 	return aireply.ReplyJobInput{TopicID: 9, ParentCommentID: 501, TriggerCommentID: 501, TriggerUserID: 11, BotUserID: 77}
 }
 
+// 只有思考、没有正文的响应必须是一次可解释的空回复，而不是把思维链当评论发出去。
+// 这是「AI 有时候会把思考内容发出来」的回归断言。
+func TestGenerateNeverPostsReasoningAsTheReply(t *testing.T) {
+	threads := &fakeThreads{thread: sampleThread()}
+	completer := &fakeCompleter{output: aireply.CompletionOutput{
+		Text:       "",
+		Reasoning:  "用户问的是连接池大小，我先回忆一下 PostgreSQL 的默认值……",
+		StopReason: "length",
+	}}
+	poster := &fakePoster{}
+
+	err := aireply.NewGenerator(threads, completer, poster, nil).Generate(context.Background(), jobInput())
+	if !errors.Is(err, aireply.ErrEmptyReply) {
+		t.Fatalf("err = %v", err)
+	}
+	if len(poster.inputs) != 0 {
+		t.Fatalf("思考正文被发布了：%+v", poster.inputs)
+	}
+	// 错误必须带上可诊断信息：预算被思考吃光与该调模型是两个不同的动作。
+	if !strings.Contains(err.Error(), "stop_reason=length") || !strings.Contains(err.Error(), "reasoning=true") {
+		t.Fatalf("错误缺少诊断信息：%v", err)
+	}
+}
+
 func TestGenerateReadsCompletesAndPosts(t *testing.T) {
 	threads := &fakeThreads{thread: sampleThread()}
 	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "  建议从并发数的两倍起步。  "}}
