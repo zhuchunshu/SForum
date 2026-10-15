@@ -54,6 +54,9 @@ type LegacyIslandBinding = {
 
 const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml'
 const ISLAND_ATTRIBUTE = 'data-sforum-island'
+// 宿主 API 侧 sanitizeIslandInner 只放行 sf-extension-widget 的 SSR fallback 内容
+// （apps/api/app/Support/Pages/template.go），这里与之对齐：其余 legacy 岛必须为空。
+const LEGACY_ISLANDS_WITH_FALLBACK = new Set(['sf-extension-widget'])
 const MAX_RENDER_NODES = 50_000
 const MAX_RENDER_DEPTH = 128
 const MAX_FALLBACK_SEGMENTS = 256
@@ -193,7 +196,7 @@ function convertNode(
 
   const legacyBinding = context.legacyBindings?.[tag]
   if (legacyBinding) {
-    return convertLegacyIsland(node, legacyBinding)
+    return convertLegacyIsland(node, tag, legacyBinding, context, depth)
   }
   if (tag.startsWith('sf-')) {
     throw new ThemeRenderOutputError(`unknown legacy island ${tag}`)
@@ -238,17 +241,29 @@ function convertTypedIsland(
 
 function convertLegacyIsland(
   node: DefaultTreeAdapterTypes.Element,
-  binding: LegacyIslandBinding
+  tag: string,
+  binding: LegacyIslandBinding,
+  context: ParseContext,
+  depth: number
 ): ThemeRenderNode {
-  if (node.childNodes.some(child => child.nodeName !== '#text' || !('value' in child) || child.value.trim() !== '')) {
-    throw new ThemeRenderOutputError('legacy island must be empty')
-  }
   const descriptor: ThemeIslandDescriptor = {
     id: `legacy:${binding.componentId}`,
     componentId: binding.componentId,
     props: []
   }
-  return { kind: 'island', descriptor, props: normalizeHTMLAttributes(node.attrs), children: [] }
+  if (!LEGACY_ISLANDS_WITH_FALLBACK.has(tag)) {
+    if (node.childNodes.some(child => child.nodeName !== '#text' || !('value' in child) || child.value.trim() !== '')) {
+      throw new ThemeRenderOutputError('legacy island must be empty')
+    }
+    return { kind: 'island', descriptor, props: normalizeHTMLAttributes(node.attrs), children: [] }
+  }
+  // 子节点即岛的默认 slot：L2 组件未挂载或被撤销时由组件渲染为 SSR fallback。
+  return {
+    kind: 'island',
+    descriptor,
+    props: normalizeHTMLAttributes(node.attrs),
+    children: node.childNodes.map(child => convertNode(child, context, depth + 1))
+  }
 }
 
 function normalizeDescriptors(

@@ -108,6 +108,41 @@ describe('typed theme render output', () => {
     )
   })
 
+  it('keeps legacy islands without SSR fallback content strictly empty', () => {
+    expect(() => parseLegacyThemeHTML(
+      '<article><sf-home-page><p>injected</p></sf-home-page></article>',
+      { 'sf-home-page': { componentId: 'forum.component.home_page' } }
+    )).toThrow(ThemeRenderOutputError)
+  })
+
+  it('renders legacy sf-extension-widget children as the island fallback slot', async () => {
+    const nodes = parseLegacyThemeHTML(
+      '<main><sf-extension-widget extension-id="sforum.oauth2-provider" component-id="sforum.oauth2-provider.component.apps">'
+      + '<section data-public-l2-ssr-fallback="ready"><h2>Fallback</h2></section>'
+      + '</sf-extension-widget></main>',
+      { 'sf-extension-widget': { componentId: 'core.component.shared.sfextension_widget' } }
+    )
+    const Widget = defineComponent({
+      props: { extensionId: String, componentId: String },
+      setup(props, { slots }) {
+        return () => h('div', { 'data-widget': props.componentId }, slots.default?.())
+      }
+    })
+    const Root = defineComponent(() => () => h('main', renderThemeRenderNodes(nodes, () => Widget)))
+
+    const html = await renderToString(createSSRApp(Root))
+    expect(html).toContain('<section data-public-l2-ssr-fallback="ready"><h2>Fallback</h2></section>')
+    expect(html).toContain('data-widget="sforum.oauth2-provider.component.apps"')
+    expect(html).not.toContain('sf-extension-widget')
+  })
+
+  it('rejects an unknown sf- island nested in the widget fallback', () => {
+    expect(() => parseLegacyThemeHTML(
+      '<sf-extension-widget extension-id="a.b" component-id="a.b.c"><sf-mystery-page></sf-mystery-page></sf-extension-widget>',
+      { 'sf-extension-widget': { componentId: 'core.component.shared.sfextension_widget' } }
+    )).toThrow(ThemeRenderOutputError)
+  })
+
   it('restores Go omitempty zero values from each declared prop type', () => {
     const nodes = parseThemeRenderOutput(output({
       islands: [{

@@ -180,6 +180,43 @@ func TestAccountSettingsNavigationUsesPermissionOrOwnedResourceAndSafePaths(t *t
 	}
 }
 
+// 浏览器默认 Accept-Language 会带 q 值（如 "zh-CN,zh;q=0.9,en;q=0.8"）。
+// 账号设置导航必须在调用侧先归一化，否则 NavigationRegistry.normalizeLocale
+// 判 ErrInvalid，接口返回 500 并连带 SSR 的 /settings/* 页面 503。
+func TestAccountSettingsNavigationNormalizesRawAcceptLanguageHeader(t *testing.T) {
+	service := NewService(newFakeStore())
+	registry := navigationregistry.New()
+	runtime := &siteChromeRuntime{}
+	service.WithNavigationRegistry(registry).WithNavigationRuntime(runtime, runtime)
+	plugin := siteChromePublication("plugin.oauth", 'a')
+	plugin.Navigation = []navigationregistry.NavigationDeclaration{{
+		ID: "plugin.oauth.settings.apps", ContractVersion: "plugin.oauth.settings.apps@1",
+		Kind: navigationregistry.NavigationKindAccountSettings, Action: navigationregistry.ActionAdd,
+		Label: "OAuth 应用", Href: "/settings/oauth-apps",
+		Visibility: navigationregistry.VisibilityAuthenticated, Permission: "oauth.apps.manage", Order: 10,
+	}}
+	if _, err := registry.Publish(plugin); err != nil {
+		t.Fatal(err)
+	}
+	actor := identity.Actor{
+		ID: 9, Status: identity.UserStatusActive, Permissions: map[string]bool{"oauth.apps.manage": true},
+	}
+	raw, err := service.ResolveAccountSettingsNavigation(t.Context(), actor, "zh-CN,zh;q=0.9,en;q=0.8")
+	if err != nil {
+		t.Fatalf("raw Accept-Language rejected: %v", err)
+	}
+	if len(raw) != 1 || raw[0].ID != "plugin.oauth.settings.apps" || raw[0].Href != "/settings/oauth-apps" {
+		t.Fatalf("raw Accept-Language items=%#v", raw)
+	}
+	normalized, err := service.ResolveAccountSettingsNavigation(t.Context(), actor, "zh-CN")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(normalized) != len(raw) || normalized[0].ID != raw[0].ID || normalized[0].Href != raw[0].Href {
+		t.Fatalf("raw header diverged from normalized locale: raw=%#v normalized=%#v", raw, normalized)
+	}
+}
+
 type accountSettingsResourceOwnerStub struct{ keys []string }
 
 func (s accountSettingsResourceOwnerStub) OwnedResourceKeys(context.Context, identity.Actor) ([]string, error) {

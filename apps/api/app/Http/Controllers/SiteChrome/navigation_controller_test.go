@@ -16,6 +16,7 @@ import (
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	sitechrome "github.com/zhuchunshu/sforum/apps/api/app/Models/SiteChrome"
 	authsession "github.com/zhuchunshu/sforum/apps/api/app/Support/AuthSession"
+	navigationregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/NavigationRegistry"
 	"github.com/zhuchunshu/sforum/apps/api/config"
 )
 
@@ -202,9 +203,82 @@ func TestAdminNavigationCommandsRequireSiteManagePermission(t *testing.T) {
 	}
 }
 
+// 浏览器真实 Accept-Language 带 q 值时，handler 必须归一化后组合，
+// 而不是把原始头透传给 NavigationRegistry 导致 500。
+func TestAccountSettingsNavigationAcceptsRawAcceptLanguageHeader(t *testing.T) {
+	registry := navigationregistry.New()
+	service := sitechrome.NewService(controllerNavigationStore{document: sitechrome.NavigationDocument{Revision: 1}}).
+		WithNavigationRegistry(registry).
+		WithNavigationRuntime(controllerNavigationAdmission{}, nil)
+	digest := strings.Repeat("d", 64)
+	if _, err := registry.Publish(navigationregistry.Publication{
+		Artifact: navigationregistry.Artifact{
+			ExtensionID: "sforum.oauth2-provider", ExtensionVersion: "1.0.0",
+			PackageDigest: digest, ImpactDigest: digest, VersionID: 1, RuntimeInstanceID: "runtime-oauth2",
+		},
+		Navigation: []navigationregistry.NavigationDeclaration{{
+			ID: "sforum.oauth2-provider.navigation.apps", ContractVersion: "sforum.oauth2-provider.navigation.apps@1",
+			Kind: navigationregistry.NavigationKindAccountSettings, Action: navigationregistry.ActionAdd,
+			Label: "OAuth 应用", Href: "/settings/oauth-apps",
+			Permission: "oauth2.provider.apps.manage", Visibility: navigationregistry.VisibilityAuthenticated, Order: 10,
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	actor := identity.Actor{
+		ID: 12, Status: identity.UserStatusActive, Permissions: map[string]bool{"oauth2.provider.apps.manage": true},
+	}
+	app, cookie := newNavigationControllerAppWithService(actor, service)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/site/account-navigation", nil)
+	request.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	request.AddCookie(cookie)
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("raw Accept-Language status=%d, want 200", response.StatusCode)
+	}
+	var envelope struct {
+		Data struct {
+			Items []sitechrome.AccountSettingsNavItem `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+		t.Fatal(err)
+	}
+	if len(envelope.Data.Items) != 1 || envelope.Data.Items[0].ID != "sforum.oauth2-provider.navigation.apps" ||
+		envelope.Data.Items[0].Href != "/settings/oauth-apps" {
+		t.Fatalf("raw Accept-Language items=%#v", envelope.Data.Items)
+	}
+}
+
+// controllerNavigationAdmission 只让测试声明在组合期可见，不引入真实生命周期。
+type controllerNavigationAdmission struct{}
+
+func (controllerNavigationAdmission) Available(navigationregistry.Artifact) bool { return true }
+
+func (controllerNavigationAdmission) Acquire(ctx context.Context, artifact navigationregistry.Artifact) (navigationregistry.RuntimeLease, error) {
+	return controllerNavigationLease{ctx: ctx, runtimeID: artifact.RuntimeInstanceID}, nil
+}
+
+type controllerNavigationLease struct {
+	ctx       context.Context
+	runtimeID string
+}
+
+func (l controllerNavigationLease) Context() context.Context  { return l.ctx }
+func (l controllerNavigationLease) RuntimeInstanceID() string { return l.runtimeID }
+func (controllerNavigationLease) Release()                    {}
+
 func newNavigationControllerApp(actor identity.Actor, store controllerNavigationStore) (*fiber.App, *http.Cookie) {
+	return newNavigationControllerAppWithService(actor, sitechrome.NewService(store))
+}
+
+func newNavigationControllerAppWithService(actor identity.Actor, service *sitechrome.Service) (*fiber.App, *http.Cookie) {
 	sessions := authsession.NewManager(session.NewStore(), authsession.Config{})
-	controller := NewController(sitechrome.NewService(store), controllerNavigationActorStore{actor: actor}, sessions)
+	controller := NewController(service, controllerNavigationActorStore{actor: actor}, sessions)
 	app := apphttp.NewApp(config.Config{AppName: "SForum", AppEnv: "test", CSRFEnabled: false, AppLocale: "zh-CN", SupportedLocales: []string{"zh-CN", "en-US"}}, nil, apphttp.Dependencies{
 		RouteProviders: []apphttp.RouteProvider{
 			navigationControllerRouteProvider(func(api fiber.Router) {

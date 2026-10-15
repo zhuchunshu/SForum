@@ -27,6 +27,9 @@ func (s *Service) ResolveAccountSettingsNavigation(ctx context.Context, actor id
 	if s == nil || s.navigation == nil || s.navigation.composer == nil || ctx == nil || !actor.IsActive() {
 		return []AccountSettingsNavItem{}, nil
 	}
+	// 与 composeNavigationBase 一致：先归一化 Accept-Language 再进 Composer，
+	// 否则带 q 值的原始头会让 NavigationRegistry.normalizeLocale 判 ErrInvalid。
+	locale = siteChromeLocale(locale)
 	owned := []string(nil)
 	if s.accountResources != nil {
 		var err error

@@ -54,3 +54,33 @@
 - `sforum-oauth2-provider` 仓库（另一个仓库的插件包）尚未实际声明该导航项；
   本任务只验证了探针副本。真实接入时需在其 `permissionDefinitions` 中补
   `sforum.oauth2-provider.create_clients`（当前只有 `manage_clients`）。
+
+## 2026-10-15 补充：account-settings locale 归一化修复（后续会话）
+
+- 缺陷：`GET /api/v1/site/account-navigation` 在真实浏览器 Accept-Language 下 500
+  （`navigation registry declaration is invalid`），连带 `/settings/*` SSR 503。
+  根因：控制器把原始请求头当 locale 直传，`ResolveAccountSettingsNavigation`
+  未归一化就进 Composer，被 `NavigationRegistry.normalizeLocale` 的
+  `localePattern` 拒绝（`zh-CN,zh;q=0.9,en;q=0.8` 不匹配）。
+- 修复：`app/Models/SiteChrome/account_settings_navigation.go` 开头补
+  `locale = siteChromeLocale(locale)`，与 `composeNavigationBase` 一致；未放宽
+  `normalizeLocale`（归一化留在调用侧，避免放大 registry 输入面）。
+- 回归：`TestAccountSettingsNavigationNormalizesRawAcceptLanguageHeader`
+  （模型层，先红后绿）+ `TestAccountSettingsNavigationAcceptsRawAcceptLanguageHeader`
+  （控制器层，带 q 值头 → 200 且 items 含插件项）。
+- 排查中确认的两个环境事实（与本次改动无关，但会误导复现）：
+  1. `air` 可能在“源文件被临时改回”的窗口内重建，并在改回后错过 fsnotify 事件，
+     使 dev API 长时间跑陈旧二进制（表现为“改了没生效”）。判断方式：用
+     `go build -o /tmp/x ./cmd/api` 另起实例对比，或 `go tool buildid` 比对。
+  2. `sforum-oauth2-provider` 新增的 `templates/oauth-apps.html` 里
+     `<sf-extension-widget>` 带 fallback 子节点。API 侧 `sanitizeIslandInner`
+     明确允许该 tag 带 SSR fallback（`app/Support/Pages/template.go`），但 web 的
+     legacy 岛解析器 `convertLegacyIsland` 要求 legacy 岛必须为空，于是插件页
+     返回 200 而 body 渲染 `服务正在恢复中`。宿主 legacy L1 路径（plugin page 的
+     `templatePath` 走 `LoadTemplate` + `RenderTemplate`，无编译期 typed island）
+     没有等价 fallback 支持。**已修**：`useThemeRenderOutput.ts` 新增
+     `LEGACY_ISLANDS_WITH_FALLBACK`（当前仅 `sf-extension-widget`），与 API 侧
+     sanitizer 对齐；其余 legacy 岛仍必须为空，子节点里的未知 `sf-*` 岛照旧拒绝。
+     `SFExtensionWidget.vue` 早已用 `<slot />` 渲染 fallback，无需改动。测试见
+     `apps/web/tests/themes/themeRenderOutput.test.ts`（3 例）。浏览器实测：
+     SSR 输出 fallback 骨架，客户端 `data-l2-state="mounted"` 且插件 UI 可交互。
