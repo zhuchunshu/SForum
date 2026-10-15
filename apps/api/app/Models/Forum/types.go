@@ -562,6 +562,9 @@ type ForumSettings struct {
 	SoftDeleteVisibility string `json:"softDeleteVisibility"`
 	MentionsEnabled      bool   `json:"mentionsEnabled"`
 	MentionsMaxPerPost   int    `json:"mentionsMaxPerPost"`
+	// 正文外链呈现：站外链接是否经站内中转页（点击时判定），以及免中转域名白名单。
+	ExternalInterstitial bool   `json:"externalInterstitial"`
+	TrustedDomains       string `json:"trustedDomains"`
 }
 
 type CreateCategoryGroupInput struct {
@@ -664,6 +667,8 @@ type UpdateForumSettingsInput struct {
 	SoftDeleteVisibility    *string
 	MentionsEnabled         *bool
 	MentionsMaxPerPost      *int
+	ExternalInterstitial    *bool
+	TrustedDomains          *string
 }
 
 type CommentListInput struct {

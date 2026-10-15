@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	contentlinks "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentLinks"
 	editordocument "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorDocument"
 )
 
@@ -133,9 +134,12 @@ func main(){}
 	if !strings.Contains(html, "<del>") {
 		t.Fatalf("expected <del> for strikethrough, got %q", html)
 	}
-	// 自动链接（裸 URL → <a href>）
-	if !strings.Contains(html, `<a href="https://example.com"`) {
-		t.Fatalf("expected autolinked <a href>, got %q", html)
+	// 自动链接（裸 URL → <a href>）且站外链接被改写为站内中转页 + 强制新标签页。
+	if !strings.Contains(html, `<a href="`+contentlinks.InterstitialPath+`?`) {
+		t.Fatalf("expected autolinked href wrapped into interstitial, got %q", html)
+	}
+	if !strings.Contains(html, `target="_blank"`) || !strings.Contains(html, `rel="nofollow noreferrer noopener"`) {
+		t.Fatalf("expected forced new-tab target and rel, got %q", html)
 	}
 	// 任务列表 checkbox（含 checked 状态）
 	if !strings.Contains(html, `<input checked="" disabled="" type="checkbox">`) {

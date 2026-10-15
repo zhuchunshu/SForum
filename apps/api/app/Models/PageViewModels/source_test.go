@@ -231,6 +231,7 @@ func TestCorePageViewModelSourcePopulatesEveryCatalogContract(t *testing.T) {
 		"system.not_found":             {"/missing", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
 		"system.rate_limited":          {"/rate-limited", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
 		"system.server_error":          {"/server-error", nil, nil, reflect.TypeOf(themecompiler.ErrorPageViewModel{})},
+		"site.outbound":                {"/outbound", nil, nil, reflect.TypeOf(themecompiler.OutboundPageViewModel{})},
 		"dev.components":               {"/components", nil, nil, reflect.TypeOf(themecompiler.DevelopmentComponentsPageViewModel{})},
 	}
 

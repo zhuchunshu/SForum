@@ -24,6 +24,7 @@ import (
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	businesscache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
 	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
+	contentlinks "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentLinks"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
@@ -82,8 +83,14 @@ func TestShortcodeBuiltinPluginRealSubprocessRenderAndSanitize(t *testing.T) {
 	linksDOM := parseShortcodeHTMLFragment(t, linksHTML)
 	linkItems := requireShortcodeElements(t, linksDOM, "li", 4)
 	linkAnchors := requireShortcodeElements(t, linksDOM, "a", 2)
-	if shortcodeAttribute(linkAnchors[0], "href") != "https://first.example.com" || shortcodeText(linkAnchors[0]) != "First" ||
-		shortcodeAttribute(linkAnchors[1], "href") != "https://later.example.com" || shortcodeText(linkAnchors[1]) != "Later" ||
+	// 站外链接经 Host 链接策略改写为 /outbound?u=<base64url> 并强制新标签页
+	//（Support/ContentLinks）；插件渲染段与正文走同一条策略。
+	if shortcodeAttribute(linkAnchors[0], "href") != contentlinks.InterstitialHref("https://first.example.com") ||
+		shortcodeText(linkAnchors[0]) != "First" ||
+		shortcodeAttribute(linkAnchors[1], "href") != contentlinks.InterstitialHref("https://later.example.com") ||
+		shortcodeText(linkAnchors[1]) != "Later" ||
+		shortcodeAttribute(linkAnchors[0], "target") != "_blank" ||
+		shortcodeAttribute(linkAnchors[0], "rel") != "nofollow noreferrer noopener" ||
 		!strings.Contains(shortcodeText(linkItems[2]), "See us") {
 		t.Fatalf("real friend links DOM = %q", linksHTML)
 	}

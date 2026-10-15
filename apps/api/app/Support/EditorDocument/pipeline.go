@@ -15,6 +15,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/microcosm-cc/bluemonday"
+
+	contentlinks "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentLinks"
 )
 
 const (
@@ -49,7 +51,8 @@ func Accept(input Input) (Accepted, error) {
 		return Accepted{}, fmt.Errorf("%w: %v", ErrPipeline, err)
 	}
 	htmlRaw := RenderHTMLForLocale(normalized, schema, input.Locale)
-	htmlSanitized := SanitizeHTML(htmlRaw)
+	// 净化后统一收敛链接呈现：正文链接强制新标签页，站外链接改写为站内中转页。
+	htmlSanitized := contentlinks.Apply(SanitizeHTML(htmlRaw))
 	plain := normalizePlainText(htmlToPlain(htmlSanitized))
 	if plain == "" && len(normalized.Content) == 0 {
 		return Accepted{}, ErrInvalid
@@ -526,5 +529,8 @@ func SanitizeHTML(value string) string {
 	policy.AllowAttrs("data-sforum-image-long").Matching(regexp.MustCompile(`^1$`)).OnElements("img")
 	// 有序列表 start 是无副作用的纯整数标记属性，用于保留从非 1 开始的编号。
 	policy.AllowAttrs("start").Matching(regexp.MustCompile(`^-?(0|[1-9][0-9]*)$`)).OnElements("ol")
+	// 正文链接统一 target="_blank"（见 Support/ContentLinks）：target 必须在策略内，
+	// 否则再次净化会静默抹掉新标签页语义。
+	policy.AllowAttrs("target").OnElements("a")
 	return policy.Sanitize(value)
 }

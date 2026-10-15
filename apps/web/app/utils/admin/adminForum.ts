@@ -51,6 +51,18 @@ export type AdminForumTagPayload = {
   status: ForumTagStatus
 }
 
+/**
+ * 版块分类页的删除确认目标。
+ * blockedReason 非空表示服务端会拒绝（分组内仍有分类 / 分类内仍有主题），
+ * 前端据此直接禁用确认按钮，避免无意义请求与不可读的错误码。
+ */
+export type AdminForumTaxonomyDeleteTarget = {
+  kind: 'group' | 'category'
+  id: number
+  name: string
+  blockedReason: string
+}
+
 export type AdminForumSettingsPayload = {
   defaultCategorySlug?: string
   tagCreationMode?: ForumSettings['tagCreationMode']
@@ -86,6 +98,8 @@ export type AdminForumSettingsPayload = {
   softDeleteVisibility?: ForumSettings['softDeleteVisibility']
   mentionsEnabled?: boolean
   mentionsMaxPerPost?: number
+  externalInterstitial?: boolean
+  trustedDomains?: string
 }
 
 /** forum.settings.manage 控制的字段；保存时无权限会剔除。 */
@@ -118,7 +132,9 @@ export const forumSettingsManageKeys = [
   'showCommentEditMark',
   'softDeleteVisibility',
   'mentionsEnabled',
-  'mentionsMaxPerPost'
+  'mentionsMaxPerPost',
+  'externalInterstitial',
+  'trustedDomains'
 ] as const satisfies ReadonlyArray<keyof AdminForumSettingsPayload>
 
 export type AdminForumSettingKey = keyof AdminForumSettingsPayload
@@ -128,6 +144,22 @@ type ForumSettingsLike = Partial<Record<keyof ForumSettings, unknown>>
 export const forumVisibilityChoices: ForumVisibility[] = ['public', 'hidden']
 export const forumCategorySortChoices: ForumDefaultSort[] = ['latest', 'hot']
 export const forumTagStatusChoices: ForumTagStatus[] = ['active', 'pending', 'disabled']
+
+/**
+ * 分类/分组删除的服务端拒绝原因码 → `admin.forum.categories.delete.errors.*` 后缀。
+ * 未收录的原因码返回空串，由调用方按原样展示，避免静默失败。
+ */
+export const forumTaxonomyDeleteErrorKeys: Record<string, string> = {
+  'forum.category_not_empty': 'categoryNotEmpty',
+  'forum.category_group_not_empty': 'groupNotEmpty',
+  'forum.category_is_default': 'categoryIsDefault',
+  'forum.category_not_found': 'notFound',
+  'forum.category_group_not_found': 'notFound'
+}
+
+export function forumTaxonomyDeleteErrorKey(reason: string) {
+  return forumTaxonomyDeleteErrorKeys[reason] || ''
+}
 
 export function createAdminForumApi(request: AdminForumRequester) {
   return {
@@ -140,6 +172,9 @@ export function createAdminForumApi(request: AdminForumRequester) {
       method: 'PATCH',
       body: payload
     }),
+    deleteCategoryGroup: (id: number) => request<ForumCategoryGroup>(`/admin/forum/category-groups/${id}`, {
+      method: 'DELETE'
+    }),
     listCategories: () => request<ForumCategory[]>('/admin/forum/categories'),
     createCategory: (payload: AdminForumCategoryPayload) => request<ForumCategory>('/admin/forum/categories', {
       method: 'POST',
@@ -148,6 +183,9 @@ export function createAdminForumApi(request: AdminForumRequester) {
     updateCategory: (id: number, payload: Partial<AdminForumCategoryPayload>) => request<ForumCategory>(`/admin/forum/categories/${id}`, {
       method: 'PATCH',
       body: payload
+    }),
+    deleteCategory: (id: number) => request<ForumCategory>(`/admin/forum/categories/${id}`, {
+      method: 'DELETE'
     }),
     listTags: () => request<ForumTag[]>('/admin/forum/tags'),
     createTag: (payload: AdminForumTagPayload) => request<ForumTag>('/admin/forum/tags', {
@@ -284,8 +322,42 @@ export function normalizeForumSettings(input: ForumSettingsLike | null | undefin
     showCommentEditMark: normalizeForumTagPublicPages(input?.showCommentEditMark, defaults.showCommentEditMark),
     softDeleteVisibility: normalizeSoftDeleteVisibility(stringValue(input?.softDeleteVisibility), defaults.softDeleteVisibility),
     mentionsEnabled: normalizeForumTagPublicPages(input?.mentionsEnabled, defaults.mentionsEnabled),
-    mentionsMaxPerPost: normalizeForumBoundedInt(numberLikeValue(input?.mentionsMaxPerPost), 0, 50, defaults.mentionsMaxPerPost)
+    mentionsMaxPerPost: normalizeForumBoundedInt(numberLikeValue(input?.mentionsMaxPerPost), 0, 50, defaults.mentionsMaxPerPost),
+    externalInterstitial: normalizeForumTagPublicPages(input?.externalInterstitial, defaults.externalInterstitial),
+    trustedDomains: normalizeTrustedDomainsInput(stringValue(input?.trustedDomains), defaults.trustedDomains)
   }
+}
+
+/**
+ * 归一免中转域名白名单：逐行/逗号分隔，去 scheme 与路径，小写去重保序。
+ * 与后端 options.normalizeTrustedDomainList 保持同一语义（非法条目在这里丢弃，
+ * 由服务端对最终提交值再做一次 fail-closed 校验）。
+ */
+function normalizeTrustedDomainsInput(value: string | undefined, _fallback: string) {
+  const raw = typeof value === 'string' ? value : ''
+  if (!raw.trim()) {
+    return ''
+  }
+  const hosts: string[] = []
+  const seen = new Set<string>()
+  for (const entry of raw.split(/[\n,]/)) {
+    const trimmed = entry.trim()
+    if (!trimmed) {
+      continue
+    }
+    let host = ''
+    try {
+      host = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`).host.toLowerCase()
+    } catch {
+      continue
+    }
+    if (!host || seen.has(host)) {
+      continue
+    }
+    seen.add(host)
+    hosts.push(host)
+  }
+  return hosts.join('\n')
 }
 
 function normalizeGuestRead(value: string | undefined, fallback: ForumSettings['guestRead']): ForumSettings['guestRead'] {
@@ -331,7 +403,26 @@ export function forumSettingsValidationError(settings: ForumSettings): string | 
   if (![settings.topicsPerPage, settings.commentsPerPage].every(value => Number.isInteger(value) && value >= 1 && value <= 100)) {
     return 'pagination'
   }
+  // 免中转白名单条目上限与后端 options 归一化保持一致（50 条）。
+  if (trustedDomainEntries(settings.trustedDomains).length > 50) {
+    return 'trustedDomainsTooMany'
+  }
   return null
+}
+
+/** 白名单有效条目（去空行/去重），供校验与计数共用。 */
+export function trustedDomainEntries(value: string | undefined) {
+  const seen = new Set<string>()
+  const entries: string[] = []
+  for (const entry of String(value || '').split(/[\n,]/)) {
+    const host = entry.trim().toLowerCase()
+    if (!host || seen.has(host)) {
+      continue
+    }
+    seen.add(host)
+    entries.push(host)
+  }
+  return entries
 }
 
 export function createCategoryGroupPayload(overrides: Partial<AdminForumCategoryGroupPayload> = {}): AdminForumCategoryGroupPayload {

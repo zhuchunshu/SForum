@@ -495,6 +495,7 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 		options.NameForumTopicsShowEditMark:            &settings.ShowTopicEditMark,
 		options.NameForumCommentsShowEditMark:          &settings.ShowCommentEditMark,
 		options.NameForumMentionsEnabled:               &settings.MentionsEnabled,
+		options.NameForumLinksExternalInterstitial:     &settings.ExternalInterstitial,
 	}
 	for name, target := range boolOpts {
 		value, err = r.options.WebOption(ctx, name)
@@ -504,6 +505,10 @@ func (r ForumSettingsResolver) ForumSettings(ctx context.Context) (forum.ForumSe
 		if enabled, ok := normalizeForumEnabled(value); ok {
 			*target = enabled
 		}
+	}
+	// 免中转域名白名单：仅原样透传（校验由 Options 归一化与 Store 负责）。
+	if value, err = r.options.WebOption(ctx, options.NameForumLinksTrustedDomains); err == nil {
+		settings.TrustedDomains = value
 	}
 	return settings, nil
 }
@@ -578,6 +583,10 @@ func (r ForumSettingsResolver) UpdateForumSettings(ctx context.Context, actor id
 	appendBoolUpdate(options.NameForumTopicsShowEditMark, input.ShowTopicEditMark)
 	appendBoolUpdate(options.NameForumCommentsShowEditMark, input.ShowCommentEditMark)
 	appendBoolUpdate(options.NameForumMentionsEnabled, input.MentionsEnabled)
+	appendBoolUpdate(options.NameForumLinksExternalInterstitial, input.ExternalInterstitial)
+	if input.TrustedDomains != nil {
+		updates = append(updates, options.UpdateInput{Name: options.NameForumLinksTrustedDomains, Value: *input.TrustedDomains})
+	}
 	if len(updates) > 0 {
 		if _, err := r.options.UpdateMany(ctx, actor, updates); err != nil {
 			return forum.ForumSettings{}, err
@@ -637,6 +646,9 @@ func (r ForumSettingsResolver) ResetForumSettings(ctx context.Context, actor ide
 		input.SoftDeleteVisibility = &softDel
 		input.MentionsEnabled = boolPtr(recommended.MentionsEnabled)
 		input.MentionsMaxPerPost = intPtr(recommended.MentionsMaxPerPost)
+		input.ExternalInterstitial = boolPtr(recommended.ExternalInterstitial)
+		trustedDomains := recommended.TrustedDomains
+		input.TrustedDomains = &trustedDomains
 	}
 	return r.UpdateForumSettings(ctx, actor, input)
 }

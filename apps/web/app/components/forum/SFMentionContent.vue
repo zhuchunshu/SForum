@@ -7,7 +7,8 @@ import {
 } from '~/composables/forum/useForumMentionPreview'
 
 /**
- * 正文容器：渲染后端已净化的 HTML，并把 @提及 链接化 / 可点。
+ * 正文容器：渲染后端已净化的 HTML，并把 @提及 链接化 / 可点，
+ * 同时由 v-outbound 保证容器内链接一律新标签页、站外走中转页。
  * 宿主页面挂载 SFUserMentionPreview 后，点击 @ 会弹出与该用户头像预览同款的资料卡片；
  * 未挂载宿主的页面（组件预览页等）保持普通链接行为。
  *
@@ -51,5 +52,6 @@ function onContentClick(event: MouseEvent) {
 </script>
 
 <template>
-  <div v-mention="mentionHref" v-html="html" @click="onContentClick" />
+  <!-- v-mention 先补齐提及锚点，v-outbound 再统一链接形态（提及锚点会被跳过）。 -->
+  <div v-mention="mentionHref" v-outbound v-html="html" @click="onContentClick" />
 </template>

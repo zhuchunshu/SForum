@@ -106,6 +106,9 @@ type updateForumSettingsRequest struct {
 	SoftDeleteVisibility    *string `json:"softDeleteVisibility"`
 	MentionsEnabled         *bool   `json:"mentionsEnabled"`
 	MentionsMaxPerPost      *int    `json:"mentionsMaxPerPost"`
+
+	ExternalInterstitial *bool   `json:"externalInterstitial"`
+	TrustedDomains       *string `json:"trustedDomains"`
 }
 
 func (h *Controller) adminCategoryGroups(c fiber.Ctx) error {
@@ -354,6 +357,8 @@ func (h *Controller) adminUpdateSettings(c fiber.Ctx) error {
 		SoftDeleteVisibility:     req.SoftDeleteVisibility,
 		MentionsEnabled:          req.MentionsEnabled,
 		MentionsMaxPerPost:       req.MentionsMaxPerPost,
+		ExternalInterstitial:     req.ExternalInterstitial,
+		TrustedDomains:           req.TrustedDomains,
 	})
 	if err != nil {
 		return mapForumError(err)

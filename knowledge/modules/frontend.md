@@ -1139,6 +1139,31 @@ returned by the composer reference endpoint.
   authenticated public SSR, anonymous SSR, response status/cache headers,
   console output, and no-JavaScript content where relevant.
 
+## Outbound Link Policy (2026-10-16)
+
+- Server authority: `Support/ContentLinks.Apply` forces `target="_blank"` and the
+  canonical `nofollow noreferrer noopener` rel on every managed anchor, and
+  rewrites absolute `http(s)` hrefs to `/outbound?u=<base64url>`. It runs after
+  sanitization in the four content seams; `target` must stay allowed in all four
+  bluemonday policies or the guarantee (and the SSR fixed point check) breaks.
+- `/outbound` is a Page Registry page (`site.outbound`) with
+  `Replaceable:false`; it therefore renders through `SFHostPublicChrome` and
+  cannot be replaced or themed away. Its page ID, `ViewModelUtility` kind, data
+  source, factory, and V3 catalog identities are all wired.
+- Client layer: `utils/forum/forumOutboundLinks.ts` owns decode/encode,
+  same-site/allowlist classification, and idempotent DOM decoration;
+  `v-outbound` (`plugins/outbound.{client,server}.ts`) applies it to
+  `SFMentionContent.vue`, so topic bodies and comments share one seam. Mentions
+  (`a.sf-mention`) and image-viewer triggers are explicitly skipped.
+- Option ownership: `forum.links.external_interstitial` and
+  `forum.links.trusted_domains` live with the Wave 1 community policy options;
+  both are public (the click-time decision needs them) and gated by
+  `forum.settings.manage` for writes.
+- Interstitial presentation: the origin side renders the operator-configured
+  brand icon (`siteLogoUrl` + `siteName` from web options, same source as
+  `SFNavbar`), the destination side uses warning tokens, and the confirmation
+  checks use success tokens. Never hardcode a brand badge in a Host surface.
+
 ## Next Steps
 
 1. Execute the tri-state color-mode task book from M0. It must freeze the

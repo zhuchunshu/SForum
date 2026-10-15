@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	contentlinks "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentLinks"
 )
 
 func TestAcceptNativeJSONRoundTripAndSanitizerCorpus(t *testing.T) {
@@ -84,8 +86,12 @@ func TestAcceptNativeJSONRoundTripAndSanitizerCorpus(t *testing.T) {
 		strings.Contains(accepted.HTMLSanitized, "<script") {
 		t.Fatalf("html retained unsafe content: %s", accepted.HTMLSanitized)
 	}
-	if !strings.Contains(accepted.HTMLSanitized, "https://example.com/a") {
-		t.Fatalf("html missing safe link: %s", accepted.HTMLSanitized)
+	// 站外链接被改写成站内中转页（Support/ContentLinks），目标地址以 base64url 承载。
+	if !strings.Contains(accepted.HTMLSanitized, contentlinks.InterstitialHref("https://example.com/a")) {
+		t.Fatalf("html missing wrapped safe link: %s", accepted.HTMLSanitized)
+	}
+	if !strings.Contains(accepted.HTMLSanitized, `target="_blank"`) {
+		t.Fatalf("html missing new-tab target: %s", accepted.HTMLSanitized)
 	}
 	if !strings.Contains(accepted.HTMLSanitized, "data-sforum-emoji") {
 		t.Fatalf("html missing emoji: %s", accepted.HTMLSanitized)

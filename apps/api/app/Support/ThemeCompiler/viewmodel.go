@@ -20,6 +20,8 @@ const (
 	ViewModelAuth          PageViewModelKind = "auth"
 	ViewModelLegal         PageViewModelKind = "legal"
 	ViewModelDevelopment   PageViewModelKind = "development"
+	// ViewModelUtility：宿主工具页（无业务列表/详情语义），例：站外链接中转页。
+	ViewModelUtility PageViewModelKind = "utility"
 )
 
 type PageViewModelSchema struct {
@@ -416,4 +418,13 @@ type ErrorPageViewModel struct {
 	StatusCode int               `json:"statusCode"`
 	Title      string            `json:"title"`
 	Message    string            `json:"message"`
+}
+
+// OutboundPageViewModel 只承载「当前是否启用中转」这一运营开关；
+// 目标地址由页面自行从 ?u= 解码（与前端指令共用同一解码实现），
+// 服务端不下发、也不签发任何跳转凭据。
+type OutboundPageViewModel struct {
+	Base PageViewModelBase `json:"base"`
+	// InterstitialEnabled 关闭时中转页立即放行（运营可在后台关掉中转）。
+	InterstitialEnabled bool `json:"interstitialEnabled"`
 }

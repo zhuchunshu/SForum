@@ -37,6 +37,7 @@ describe('SFPageOutlet catalog wiring', () => {
     ['app/pages/terms.vue', 'site.terms'],
     ['app/pages/privacy.vue', 'site.privacy'],
     ['app/pages/guidelines.vue', 'site.guidelines'],
+    ['app/pages/outbound.vue', 'site.outbound'],
     ['app/pages/components.vue', 'dev.components']
   ]
 

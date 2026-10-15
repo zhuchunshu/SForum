@@ -269,6 +269,8 @@ const fallbackOptions: Record<string, string> = {
   'forum.comments.cooldown_seconds': '0',
   'forum.comments.daily_limit': '0',
   'forum.reading.excerpt_rune_limit': '180',
+  'forum.links.external_interstitial': enabledOption,
+  'forum.links.trusted_domains': '',
   'seo.meta_title_template': '',
   'seo.meta_description': '',
   'seo.meta_keywords': '',

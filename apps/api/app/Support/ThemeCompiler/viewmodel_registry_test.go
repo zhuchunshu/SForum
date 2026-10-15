@@ -36,6 +36,7 @@ func TestCorePageViewModelCatalogCoversPublicPageFamilies(t *testing.T) {
 		"site.terms": ViewModelLegal, "site.privacy": ViewModelLegal, "site.guidelines": ViewModelLegal,
 		"system.forbidden": ViewModelError, "system.not_found": ViewModelError,
 		"system.rate_limited": ViewModelError, "system.server_error": ViewModelError,
+		"site.outbound":  ViewModelUtility,
 		"dev.components": ViewModelDevelopment,
 	}
 	for _, schema := range CorePageViewModelRegistry().Catalog() {

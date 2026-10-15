@@ -111,6 +111,10 @@ var coreCatalog = []PageDefinition{
 	{ID: "site.terms", PathPattern: "/terms", Access: AccessPublic, ContractVersion: "sforum.page.terms@1", CoreComponent: "pages/terms", Replaceable: true},
 	{ID: "site.privacy", PathPattern: "/privacy", Access: AccessPublic, ContractVersion: "sforum.page.privacy@1", CoreComponent: "pages/privacy", Replaceable: true},
 	{ID: "site.guidelines", PathPattern: "/guidelines", Access: AccessPublic, ContractVersion: "sforum.page.guidelines@1", CoreComponent: "pages/guidelines", Replaceable: true},
+	// 站外链接中转页：重启的安全面，必须由宿主固定提供。不可替换 ⇒ 也不可主题化
+	// （normalizePageDefinition 让 Replaceable 蕴含 Themeable），主题与插件都无法摘掉
+	// 目的地提示；呈现仍走 SFHostPublicChrome，与公开页几何一致。
+	{ID: "site.outbound", PathPattern: "/outbound", Access: AccessPublic, ContractVersion: "sforum.page.outbound@1", CoreComponent: "pages/outbound", Replaceable: false, Notes: "host-owned 站外链接中转页；access 恒为 public，判定在点击时进行"},
 	{ID: "system.forbidden", PathPattern: "", Access: AccessPublic, ContractVersion: "sforum.page.forbidden@1", CoreComponent: "error", Replaceable: true, Virtual: true},
 	{ID: "system.not_found", PathPattern: "", Access: AccessPublic, ContractVersion: "sforum.page.not_found@1", CoreComponent: "error", Replaceable: true, Virtual: true},
 	{ID: "system.rate_limited", PathPattern: "", Access: AccessPublic, ContractVersion: "sforum.page.rate_limited@1", CoreComponent: "error", Replaceable: true, Virtual: true},

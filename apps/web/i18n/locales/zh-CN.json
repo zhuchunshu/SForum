@@ -4521,7 +4521,8 @@
           "topicTitleMinMax": "标题最少字数不能大于最多字数。",
           "topicContentMinMax": "正文最少字数不能大于最多字数。",
           "commentMinMax": "评论最少字数不能大于最多字数。",
-          "pagination": "分页数量请输入 1 到 100 之间的整数。"
+          "pagination": "分页数量请输入 1 到 100 之间的整数。",
+          "trustedDomainsTooMany": "免中转域名最多 50 条，请先合并或删除多余条目。"
         },
         "search": {
           "provider": "搜索提供商",
@@ -4553,7 +4554,12 @@
           "emptyProvidersHelp": "默认应始终包含站内搜索。若列表为空，请检查扩展同步状态。"
         },
         "treeDescendantsPerRoot": "树视图每根最多子孙",
-        "treeDescendantsPerRootHelp": "view=tree 时每个根评论最多返回的子孙数（1–100，默认 50）。超出后显示「加载更多回复」。"
+        "treeDescendantsPerRootHelp": "view=tree 时每个根评论最多返回的子孙数（1–100，默认 50）。超出后显示「加载更多回复」。",
+        "externalInterstitial": "站外链接中转页",
+        "externalInterstitialHelp": "开启后，帖子与评论里的站外链接会先经过本页提示；关闭则直接在新标签页打开。开关在点击时生效，无需重发内容。",
+        "trustedDomains": "免中转域名白名单",
+        "trustedDomainsHelp": "每行一个域名，可写 example.com 或 example.com:8443（带 http(s):// 与路径也会被自动裁成域名）。命中的域名跳过中转页，链接仍在新标签页打开。",
+        "trustedDomainsPlaceholder": "example.com\ngithub.com"
       }
     },
     "form": {
@@ -6370,5 +6376,33 @@
         "dismiss": "关闭说明"
       }
     }
+  },
+  "outbound": {
+    "metaTitle": "站外链接确认",
+    "metaDescription": "离开 SForum 之前的站外链接提示页。",
+    "stripTitle": "正在离开 SForum，目标站点不由本站管理",
+    "stripHint": "请核对域名与网址拼写，谨防仿冒站点。",
+    "noticeTitle": "确认要离开本站吗？",
+    "noticeLead": "确认后会在当前标签页打开下面的站外地址。",
+    "originLabel": "你现在在",
+    "originHostFallback": "SForum",
+    "originLinkNote": "链接由论坛用户发布，本站不对其内容负责",
+    "originSessionNote": "本站不会把登录态或 Cookie 带给对方",
+    "destinationLabel": "将要前往",
+    "destinationRuleNote": "非本站域名，不受本站规则约束",
+    "destinationPrivacyNote": "内容与隐私策略由对方站点负责",
+    "checkSecure": "目标地址使用 HTTPS 加密连接。",
+    "checkInsecure": "目标地址未使用 HTTPS，请勿在跳转后填写任何敏感信息。",
+    "checkNoSession": "本站不会把登录态、Cookie 或验证码带给该站点。",
+    "checkNoCredentials": "该链接不含账号密码等凭据参数。",
+    "continueLabel": "我确认，继续访问",
+    "stayLabel": "留在本站",
+    "copyLabel": "复制链接",
+    "copySuccessTitle": "链接已复制",
+    "invalidTitle": "链接不完整",
+    "invalidBody": "这个中转链接缺少有效的目标地址，可能已被截断或篡改。你可以返回首页继续浏览。",
+    "invalidBackLabel": "返回首页",
+    "footerNote": "站点可在后台配置免中转白名单；正文里的链接一律在新标签页打开。",
+    "externalChip": "站外域名"
   }
 }

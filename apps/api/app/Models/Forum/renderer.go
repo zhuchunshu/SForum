@@ -16,6 +16,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"golang.org/x/net/html"
 
+	contentlinks "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentLinks"
 	editordocument "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorDocument"
 )
 
@@ -264,7 +265,12 @@ func sanitizeHTML(value string) string {
 	policy.AllowAttrs("checked").OnElements("input")
 	policy.AllowAttrs("disabled").OnElements("input")
 
-	return policy.Sanitize(value)
+	// 正文链接统一 target="_blank"（见 Support/ContentLinks）：target 必须在策略内，
+	// 否则再次净化会静默抹掉新标签页语义。
+	policy.AllowAttrs("target").OnElements("a")
+
+	// 净化后统一收敛链接呈现：正文链接强制新标签页，站外链接改写为站内中转页。
+	return contentlinks.Apply(policy.Sanitize(value))
 }
 
 func htmlToText(value string) string {

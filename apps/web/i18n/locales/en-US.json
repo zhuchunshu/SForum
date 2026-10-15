@@ -4481,7 +4481,8 @@
           "topicTitleMinMax": "Minimum title length cannot exceed maximum title length.",
           "topicContentMinMax": "Minimum body length cannot exceed maximum body length.",
           "commentMinMax": "Minimum comment length cannot exceed maximum comment length.",
-          "pagination": "Enter an integer between 1 and 100 for page sizes."
+          "pagination": "Enter an integer between 1 and 100 for page sizes.",
+          "trustedDomainsTooMany": "The trusted domain list supports at most 50 entries; remove or merge extras."
         },
         "search": {
           "provider": "Search provider",
@@ -4513,7 +4514,12 @@
           "emptyProvidersHelp": "Site search should always be listed. If empty, check extension sync."
         },
         "treeDescendantsPerRoot": "Tree descendants per root",
-        "treeDescendantsPerRootHelp": "Max descendants loaded under each root on view=tree (1–100, default 50). Overflow shows “Load more replies”."
+        "treeDescendantsPerRootHelp": "Max descendants loaded under each root on view=tree (1–100, default 50). Overflow shows “Load more replies”.",
+        "externalInterstitial": "External link interstitial",
+        "externalInterstitialHelp": "When on, off-site links in posts and comments show this interstitial first; when off they open directly in a new tab. The switch takes effect on click — no content re-render needed.",
+        "trustedDomains": "Trusted domains (skip interstitial)",
+        "trustedDomainsHelp": "One domain per line, e.g. example.com or example.com:8443 (scheme and path are stripped automatically). Matching domains skip the interstitial; links still open in a new tab.",
+        "trustedDomainsPlaceholder": "example.com\ngithub.com"
       }
     },
     "form": {
@@ -6330,5 +6336,33 @@
         "dismiss": "Dismiss"
       }
     }
+  },
+  "outbound": {
+    "metaTitle": "External link confirmation",
+    "metaDescription": "An interstitial shown before leaving SForum for an external site.",
+    "stripTitle": "You are leaving SForum; the destination is not managed by this site",
+    "stripHint": "Check the domain and spelling to avoid look-alike sites.",
+    "noticeTitle": "Leave SForum and continue?",
+    "noticeLead": "Continuing opens the external address below in this tab.",
+    "originLabel": "You are here",
+    "originHostFallback": "SForum",
+    "originLinkNote": "The link was posted by a forum member; this site is not responsible for it",
+    "originSessionNote": "This site will not pass your login state or cookies",
+    "destinationLabel": "You are going to",
+    "destinationRuleNote": "Not this site's domain, so its rules do not apply",
+    "destinationPrivacyNote": "Content and privacy policies belong to that site",
+    "checkSecure": "The destination uses an HTTPS encrypted connection.",
+    "checkInsecure": "The destination does not use HTTPS. Do not enter sensitive information after continuing.",
+    "checkNoSession": "This site will not pass your login state, cookies, or verification codes.",
+    "checkNoCredentials": "The link contains no account or password parameters.",
+    "continueLabel": "Continue to site",
+    "stayLabel": "Stay on SForum",
+    "copyLabel": "Copy link",
+    "copySuccessTitle": "Link copied",
+    "invalidTitle": "Incomplete link",
+    "invalidBody": "This interstitial link has no valid destination; it may have been truncated or tampered with. Go back home to keep browsing.",
+    "invalidBackLabel": "Back to home",
+    "footerNote": "Operators can allowlist trusted domains; post links always open in a new tab.",
+    "externalChip": "external domain"
   }
 }

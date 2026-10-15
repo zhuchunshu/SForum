@@ -84,6 +84,7 @@ func newCorePageViewModelRegistry() (*PageViewModelRegistry, error) {
 		coreViewModel("system.not_found", "sforum.page.not_found@1", ViewModelError, ErrorPageViewModel{}),
 		coreViewModel("system.rate_limited", "sforum.page.rate_limited@1", ViewModelError, ErrorPageViewModel{}),
 		coreViewModel("system.server_error", "sforum.page.server_error@1", ViewModelError, ErrorPageViewModel{}),
+		coreViewModel("site.outbound", "sforum.page.outbound@1", ViewModelUtility, OutboundPageViewModel{}),
 		coreViewModel("dev.components", "sforum.page.dev_components@1", ViewModelDevelopment, DevelopmentComponentsPageViewModel{}),
 	}
 	registry := &PageViewModelRegistry{schemas: make(map[string]registeredPageViewModel, len(definitions))}
@@ -245,6 +246,8 @@ func pageViewModelBase(value any) (PageViewModelBase, bool) {
 	case ErrorPageViewModel:
 		return model.Base, true
 	case DevelopmentComponentsPageViewModel:
+		return model.Base, true
+	case OutboundPageViewModel:
 		return model.Base, true
 	default:
 		return PageViewModelBase{}, false

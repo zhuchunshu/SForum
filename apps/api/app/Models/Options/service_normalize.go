@@ -154,7 +154,9 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		NameForumCommentsShowEditMark,
 		NameForumCommentsSoftDeleteVisibility,
 		NameForumMentionsEnabled,
-		NameForumMentionsMaxPerPost:
+		NameForumMentionsMaxPerPost,
+		NameForumLinksExternalInterstitial,
+		NameForumLinksTrustedDomains:
 		return normalizeCommunityPolicyOption(name, value)
 	case NameClientMinimumVersion, NameClientRecommendedVersion:
 		// 客户端版本策略：空值合法（表示不限制）。

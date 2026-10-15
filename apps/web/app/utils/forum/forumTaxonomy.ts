@@ -49,6 +49,10 @@ export type ForumSettings = {
   softDeleteVisibility: ForumSoftDeleteVisibility
   mentionsEnabled: boolean
   mentionsMaxPerPost: number
+  /** 站外链接是否经过中转提示页（点击时判定）。 */
+  externalInterstitial: boolean
+  /** 免中转域名白名单（逐行，host 或 host:port）。 */
+  trustedDomains: string
 }
 
 export type ForumCategory = {
@@ -503,7 +507,10 @@ export const recommendedForumSettings: ForumSettings = {
   showCommentEditMark: true,
   softDeleteVisibility: 'author_and_staff',
   mentionsEnabled: true,
-  mentionsMaxPerPost: 10
+  mentionsMaxPerPost: 10,
+  // 推荐默认：站外链接经中转页提示；白名单为空。
+  externalInterstitial: true,
+  trustedDomains: ''
 }
 
 export function normalizeForumPageSize(value: number | string | undefined, fallback = 20) {

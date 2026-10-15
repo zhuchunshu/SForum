@@ -605,6 +605,20 @@ viewer identity, nor authorized output.
 | `apps/web/app/components/forum` | Reusable forum UI |
 | `apps/web/app/pages/t/[...path].vue` | Topic route host |
 
+## Post/Comment Link Policy (2026-10-16)
+
+- Every link rendered into a topic body or comment is forced to
+  `target="_blank"` with canonical `rel="nofollow noreferrer noopener"`, and
+  absolute `http(s)` links are stored as `/outbound?u=<base64url>`. The rewrite
+  happens in the sanitize seam (`Support/ContentLinks`), so it also covers the
+  Markdown/HTML compatibility path and plugin render segments.
+- The interstitial decision (enabled / allowlisted / same-site) is made at
+  click time from `forum.links.external_interstitial` and
+  `forum.links.trusted_domains`; stored content never depends on the current
+  configuration.
+- `ForumSettings.ExternalInterstitial` / `TrustedDomains` are part of the forum
+  settings contract (admin DTO, route guard, OpenAPI, forum reading tab).
+
 ## Next Steps
 
 1. Keep comment composer behavior consolidated in

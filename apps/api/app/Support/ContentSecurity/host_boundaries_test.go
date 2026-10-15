@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
+	contentlinks "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentLinks"
 	editordocument "github.com/zhuchunshu/sforum/apps/api/app/Support/EditorDocument"
 )
 
@@ -72,7 +73,8 @@ func TestEditorAcceptRejectsScriptURLInStoredTriple(t *testing.T) {
 	if strings.Contains(strings.ToLower(accepted.HTMLSanitized), "javascript:") {
 		t.Fatalf("stored HTML retained javascript URL: %s", accepted.HTMLSanitized)
 	}
-	if !strings.Contains(accepted.HTMLSanitized, "https://example.com") {
-		t.Fatalf("safe link stripped: %s", accepted.HTMLSanitized)
+	// 站外链接保留但按宿主链接策略改写为 /outbound?u=<base64url>（Support/ContentLinks）。
+	if !strings.Contains(accepted.HTMLSanitized, contentlinks.InterstitialHref("https://example.com")) {
+		t.Fatalf("safe link stripped or not wrapped: %s", accepted.HTMLSanitized)
 	}
 }

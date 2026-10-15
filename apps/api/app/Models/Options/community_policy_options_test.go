@@ -2,8 +2,11 @@ package options
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
+
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
 
 func TestCommunityPolicyDefaultsPresent(t *testing.T) {
@@ -163,5 +166,72 @@ func TestCommunityPolicyHelpers(t *testing.T) {
 	lockout, err := service.LoginLockoutPolicy(context.Background())
 	if err != nil || lockout.MaxFailures != 10 || lockout.LockoutMinutes != 15 {
 		t.Fatalf("LoginLockoutPolicy = %#v err=%v", lockout, err)
+	}
+}
+
+func TestCommunityPolicyOutboundLinkOptions(t *testing.T) {
+	store := &fakeStore{}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+	if err := service.EnsureDefaults(context.Background()); err != nil {
+		t.Fatalf("EnsureDefaults: %v", err)
+	}
+	// 推荐默认：中转开启、白名单为空。
+	if got := store.items[NameForumLinksExternalInterstitial]; got != enabledOptionValue(true) {
+		t.Fatalf("interstitial default = %q", got)
+	}
+	if got := store.items[NameForumLinksTrustedDomains]; got != "" {
+		t.Fatalf("trusted domains default = %q", got)
+	}
+
+	// 白名单归一：裁掉 scheme/路径、小写、去重、保序。
+	updated, err := service.UpdateMany(context.Background(), settingsActor(), []UpdateInput{
+		{Name: NameForumLinksExternalInterstitial, Value: "DISABLED"},
+		{Name: NameForumLinksTrustedDomains, Value: "https://GitHub.com/a/b\nExample.ORG:8443\n  github.com  \nexample.org:8443"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany: %v", err)
+	}
+	if got := adminValue(updated, NameForumLinksExternalInterstitial); got != enabledOptionValue(false) {
+		t.Fatalf("interstitial normalized = %q", got)
+	}
+	if got := adminValue(updated, NameForumLinksTrustedDomains); got != "github.com\nexample.org:8443" {
+		t.Fatalf("trusted domains normalized = %q", got)
+	}
+
+	// 非法条目整体拒绝（fail closed），不写入部分结果。
+	for _, invalid := range []string{
+		"not a host",
+		"exa mple.com",
+		"https://",
+		"-.com",
+	} {
+		if _, err := service.Update(context.Background(), settingsActor(), UpdateInput{
+			Name: NameForumLinksTrustedDomains, Value: invalid,
+		}); err == nil {
+			t.Fatalf("expected invalid trusted domain list to be rejected: %q", invalid)
+		}
+	}
+}
+
+func TestCommunityPolicyOutboundLinkOptionsRequireForumPermission(t *testing.T) {
+	service := NewServiceWithCacheTTL(&fakeStore{}, time.Minute)
+	items, err := service.ListAdmin(context.Background(), settingsActor())
+	if err != nil {
+		t.Fatalf("ListAdmin: %v", err)
+	}
+	// 选项公开可读（前端在点击时判定），写入需要论坛设置权限：
+	// settings.manage 按父权限继承可改，仅有分类管理权限的账号必须被拒。
+	if adminValue(items, NameForumLinksExternalInterstitial) == "" {
+		t.Fatal("expected interstitial option visible to settings actor")
+	}
+	if _, err := service.Update(context.Background(), categoryManageActor(), UpdateInput{
+		Name: NameForumLinksExternalInterstitial, Value: enabledOptionValue(false),
+	}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected category manager to be denied, got %v", err)
+	}
+	if _, err := service.Update(context.Background(), categoryManageActor(), UpdateInput{
+		Name: NameForumLinksTrustedDomains, Value: "example.com",
+	}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("expected category manager to be denied trusted domains, got %v", err)
 	}
 }

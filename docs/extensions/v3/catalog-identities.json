@@ -788,6 +788,12 @@
       "path": "/api/v1/admin/forum/categories"
     },
     {
+      "id": "core.route.forum.admin_delete_category",
+      "contractVersion": "sforum.route.forum.admin_delete_category@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/forum/categories/:categoryID"
+    },
+    {
       "id": "core.route.forum.admin_update_category",
       "contractVersion": "sforum.route.forum.admin_update_category@1",
       "method": "PATCH",
@@ -804,6 +810,12 @@
       "contractVersion": "sforum.route.forum.admin_create_category_group@1",
       "method": "POST",
       "path": "/api/v1/admin/forum/category-groups"
+    },
+    {
+      "id": "core.route.forum.admin_delete_category_group",
+      "contractVersion": "sforum.route.forum.admin_delete_category_group@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/forum/category-groups/:groupID"
     },
     {
       "id": "core.route.forum.admin_update_category_group",
@@ -2244,6 +2256,16 @@
       "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIAutoActionBlock.vue"
     },
     {
+      "id": "core.component.admin.sf_admin_ai_identity_block",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_identity_block@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIIdentityBlock.vue"
+    },
+    {
       "id": "core.component.admin.sf_admin_ai_model_field",
       "contractVersion": "sforum.component.admin.sf_admin_ai_model_field@1",
       "kind": "component",
@@ -2252,6 +2274,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIModelField.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_multimodal_block",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_multimodal_block@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIMultimodalBlock.vue"
     },
     {
       "id": "core.component.admin.sf_admin_ai_provider_picker",
@@ -2272,6 +2304,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIRedactionBlock.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_trigger_mode_block",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_trigger_mode_block@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAITriggerModeBlock.vue"
     },
     {
       "id": "core.component.admin.sf_admin_ai_diagnose_tab",
@@ -2372,6 +2414,46 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/admin/forum/SFAdminForumRevisionTimeline.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_forum_taxonomy_delete_dialog",
+      "contractVersion": "sforum.component.admin.sf_admin_forum_taxonomy_delete_dialog@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/forum/SFAdminForumTaxonomyDeleteDialog.vue"
+    },
+    {
+      "id": "core.component.shared.sf_topic_mobile_info_drawer",
+      "contractVersion": "sforum.component.shared.sf_topic_mobile_info_drawer@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/forum/SFTopicMobileInfoDrawer.vue"
+    },
+    {
+      "id": "core.component.shared.sf_registry_page_body",
+      "contractVersion": "sforum.component.shared.sf_registry_page_body@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/extensions/public/SFRegistryPageBody.vue"
+    },
+    {
+      "id": "core.component.shared.sf_registry_page_shell",
+      "contractVersion": "sforum.component.shared.sf_registry_page_shell@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/extensions/public/SFRegistryPageShell.vue"
     },
     {
       "id": "core.component.admin.sf_admin_theme_activate_dialog",
@@ -3792,6 +3874,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/pages/terms.vue"
+    },
+    {
+      "id": "core.component.page.site.outbound",
+      "contractVersion": "sforum.component.page.site.outbound@1",
+      "kind": "page",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/outbound.vue"
     },
     {
       "id": "core.component.page.topics.reply",
@@ -5407,6 +5499,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/forum/SFCommentStreamNotice.vue"
+    },
+    {
+      "id": "core.component.shared.sfoutbound_interstitial",
+      "contractVersion": "sforum.component.shared.sfoutbound_interstitial@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/outbound/SFOutboundInterstitial.vue"
     }
   ]
 }

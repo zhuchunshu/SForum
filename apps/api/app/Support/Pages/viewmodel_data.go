@@ -40,4 +40,5 @@ type CorePageViewModelData struct {
 	RateLimited           *themecompiler.ErrorPageViewModel
 	ServerError           *themecompiler.ErrorPageViewModel
 	DevelopmentComponents *themecompiler.DevelopmentComponentsPageViewModel
+	Outbound              *themecompiler.OutboundPageViewModel
 }

@@ -164,6 +164,10 @@ const (
 	// 评论行为
 	NameForumCommentsShowEditMark         = "forum.comments.show_edit_mark"
 	NameForumCommentsSoftDeleteVisibility = "forum.comments.soft_delete_visibility"
+	// 正文外链呈现：站外链接是否经站内中转页（点击时判定），以及免中转域名白名单。
+	// 白名单逐行书写，可带 scheme/路径，存储时归一为 host[:port]。
+	NameForumLinksExternalInterstitial = "forum.links.external_interstitial"
+	NameForumLinksTrustedDomains       = "forum.links.trusted_domains"
 	// 提及
 	NameForumMentionsEnabled                = "forum.mentions.enabled"
 	NameForumMentionsMaxPerPost             = "forum.mentions.max_per_post"

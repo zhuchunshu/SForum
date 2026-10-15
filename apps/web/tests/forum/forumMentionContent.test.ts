@@ -37,6 +37,25 @@ describe('forum mention content contract', () => {
     expect(content).toContain('event.metaKey || event.ctrlKey || event.shiftKey || event.altKey')
     expect(content).toContain('forumUserProfilePath(username)')
     expect(content).toContain('previewAvailable')
+    // 正文容器的第二条职责：链接一律新标签页、站外走中转页。
+    // 同一容器上的指令顺序是契约的一部分：v-mention 先生成提及锚点，
+    // v-outbound 再统一链接形态并跳过这些锚点。
+    expect(content).toContain('<div v-mention="mentionHref" v-outbound')
+  })
+
+  test('registers the outbound directive for client decoration with an SSR placeholder', () => {
+    expect(existsSync(new URL('../../app/plugins/outbound.client.ts', import.meta.url))).toBe(true)
+    expect(existsSync(new URL('../../app/plugins/outbound.server.ts', import.meta.url))).toBe(true)
+
+    const client = source('app/plugins/outbound.client.ts')
+    expect(client).toContain("vueApp.directive('outbound'")
+    expect(client).toContain('decorateContentLinks(el')
+    expect(client).toContain('useContentLinkPolicy()')
+    expect(client).toContain('getSSRProps')
+
+    const server = source('app/plugins/outbound.server.ts')
+    expect(server).toContain("vueApp.directive('outbound'")
+    expect(server).toContain('getSSRProps')
   })
 
   test('reuses the comment avatar preview card for mentions', () => {

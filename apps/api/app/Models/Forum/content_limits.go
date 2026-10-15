@@ -76,17 +76,20 @@ func defaultForumSettings() ForumSettings {
 		GuestRead:                "public",
 		// 推荐默认按最后活跃排序：与公开活动索引 (is_pinned, last_activity_at, id) 对齐，
 		// 也符合论坛「最新 = 最近有回复」的阅读习惯。
-		ListDefaultSort:          "active",
-		ListHotWindowDays:        7,
-		AllowAuthorCloseReplies:  true,
-		AllowAuthorDelete:        true,
-		AutoLockIdleDays:         0,
-		ShowTopicEditMark:        true,
-		DuplicateTitlePolicy:     "off",
-		ShowCommentEditMark:      true,
-		SoftDeleteVisibility:     "author_and_staff",
-		MentionsEnabled:          true,
-		MentionsMaxPerPost:       10,
+		ListDefaultSort:         "active",
+		ListHotWindowDays:       7,
+		AllowAuthorCloseReplies: true,
+		AllowAuthorDelete:       true,
+		AutoLockIdleDays:        0,
+		ShowTopicEditMark:       true,
+		DuplicateTitlePolicy:    "off",
+		ShowCommentEditMark:     true,
+		SoftDeleteVisibility:    "author_and_staff",
+		MentionsEnabled:         true,
+		MentionsMaxPerPost:      10,
+		// 推荐默认：站外链接经中转页提示；白名单为空。
+		ExternalInterstitial: true,
+		TrustedDomains:       "",
 	}
 }
 
@@ -273,6 +276,16 @@ func validForumContentLimits(settings ForumSettings) bool {
 		return false
 	}
 	if settings.MentionsMaxPerPost < 0 || settings.MentionsMaxPerPost > 50 {
+		return false
+	}
+	// 白名单条目与长度上限与 Options.isValidValueSet 保持一致；空白条目忽略。
+	entries := 0
+	for _, line := range strings.Split(strings.ReplaceAll(settings.TrustedDomains, "\r\n", "\n"), "\n") {
+		if strings.TrimSpace(line) != "" {
+			entries++
+		}
+	}
+	if entries > 50 || runeCount(settings.TrustedDomains) > 4096 {
 		return false
 	}
 	return true

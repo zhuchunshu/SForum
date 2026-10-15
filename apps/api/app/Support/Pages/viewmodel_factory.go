@@ -260,6 +260,10 @@ func BuildCorePageViewModel(request CorePageViewModelRequest) (any, error) {
 			model.Title = seo.Title
 		}
 		return model, nil
+	case "site.outbound":
+		model := valueOrZero(request.Data.Outbound)
+		model.Base = base
+		return model, nil
 	case "dev.components":
 		model := valueOrZero(request.Data.DevelopmentComponents)
 		model.Base = base

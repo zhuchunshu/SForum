@@ -213,6 +213,14 @@ func (s *CorePageViewModelSource) Populate(ctx context.Context, input CorePageVi
 		request.Data.ResetPassword = &themecompiler.ResetPasswordPageViewModel{ChallengeReady: strings.TrimSpace(input.Query.Get("token")) != ""}
 	case "site.terms", "site.privacy", "site.guidelines":
 		err = s.populateLegal(ctx, &request)
+	case "site.outbound":
+		// 中转页是重启的安全面：永不索引，且运营开关在这里透传给呈现层。
+		request.SEO.Robots = "noindex,nofollow"
+		enabled := true
+		if value, optionErr := s.deps.Options.WebOption(ctx, options.NameForumLinksExternalInterstitial); optionErr == nil {
+			enabled = parseEnabledOptionValue(value, enabled)
+		}
+		request.Data.Outbound = &themecompiler.OutboundPageViewModel{InterstitialEnabled: enabled}
 	case "system.forbidden":
 		request.SEO.Robots = "noindex,nofollow"
 		request.Data.Forbidden = systemErrorViewModel(request.Locale, 403)
@@ -904,4 +912,17 @@ func firstNonempty(values ...string) string {
 
 func homeLabel(locale string) string {
 	return localizedText(locale, "首页", "Home")
+}
+
+// parseEnabledOptionValue 解析 options 的 enabled/disabled 文本；空或未知值回退 fallback。
+// 不复用 Options 的未导出归一化，避免把选项内部表示泄漏成 PageViewModels 的依赖。
+func parseEnabledOptionValue(value string, fallback bool) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "enabled", "true", "1", "on":
+		return true
+	case "disabled", "false", "0", "off":
+		return false
+	default:
+		return fallback
+	}
 }

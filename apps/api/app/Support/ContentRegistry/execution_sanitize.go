@@ -9,6 +9,8 @@ import (
 
 	"github.com/microcosm-cc/bluemonday"
 	nethtml "golang.org/x/net/html"
+
+	contentlinks "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentLinks"
 )
 
 var (
@@ -40,7 +42,8 @@ func normalizeRenderSegments(input RenderSegments, target Contribution, limits E
 			if raw.Text != "" {
 				return RenderSegments{}, ErrExecutionInvalid
 			}
-			segment.HTML = executionReviewedHTML.Sanitize(raw.HTML)
+			// 净化后统一收敛链接呈现：插件渲染段里的链接同样强制新标签页 + 站外中转。
+			segment.HTML = contentlinks.Apply(executionReviewedHTML.Sanitize(raw.HTML))
 			text, textErr := htmlSegmentText(segment.HTML, limits)
 			if textErr != nil {
 				return RenderSegments{}, textErr
@@ -151,6 +154,9 @@ func executionSanitizerPolicy() *bluemonday.Policy {
 	policy.AllowAttrs("type").Matching(executionCheckboxPattern).OnElements("input")
 	policy.AllowAttrs("checked").OnElements("input")
 	policy.AllowAttrs("disabled").OnElements("input")
+	// 正文链接统一 target="_blank"（见 Support/ContentLinks）。target 必须是策略内一等属性，
+	// 否则任何一次后续净化都会静默抹掉新标签页语义，SSR 固定点校验也会失败。
+	policy.AllowAttrs("target").OnElements("a")
 	return policy
 }
 

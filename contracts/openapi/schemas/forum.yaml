@@ -665,6 +665,8 @@ ForumSettings:
   - softDeleteVisibility
   - mentionsEnabled
   - mentionsMaxPerPost
+  - externalInterstitial
+  - trustedDomains
   properties:
     defaultCategorySlug:
       type: string
@@ -796,6 +798,12 @@ ForumSettings:
       minimum: 0
       maximum: 50
       description: 0 means unlimited mentions when mentions are enabled
+    externalInterstitial:
+      type: boolean
+      description: Whether off-site links in posts and comments pass through the /outbound interstitial page
+    trustedDomains:
+      type: string
+      description: Newline-separated allowlist of external hosts (host or host:port) that skip the interstitial page
 ForumUser:
   type: object
   required:
@@ -2139,6 +2147,11 @@ UpdateForumSettingsRequest:
       type: integer
       minimum: 0
       maximum: 50
+    externalInterstitial:
+      type: boolean
+    trustedDomains:
+      type: string
+      description: Newline-separated allowlist of external hosts (host or host:port) that skip the interstitial page
 AuthorReviewItem:
   type: object
   required: [targetType, targetId, title, excerpt, status, reviewNote, createdAt]

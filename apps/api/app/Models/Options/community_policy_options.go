@@ -2,34 +2,40 @@ package options
 
 import (
 	"context"
+	"net/url"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
 
-// Wave 1 社区策略：注册/用户名/登录锁定/新人信任/维护模式/论坛阅读与行为开关。
+// Wave 1 社区策略：注册/用户名/登录锁定/新人信任/维护模式/论坛阅读与行为开关/正文外链呈现。
 // 与 site_identity 一样用 init 追加定义，避免继续膨胀 service.go。
 
 const (
-	usernameMinLengthMin  = 2
-	usernameMinLengthMax  = 32
-	usernameMaxLengthMin  = 2
-	usernameMaxLengthMax  = 64
-	loginMaxFailuresMin   = 0
-	loginMaxFailuresMax   = 50
-	loginLockoutMin       = 0
-	loginLockoutMax       = 1440
-	trustNewUserDaysMin   = 0
-	trustNewUserDaysMax   = 365
-	hotWindowDaysMin      = 1
-	hotWindowDaysMax      = 90
-	autoLockIdleDaysMin   = 0
-	autoLockIdleDaysMax   = 3650
-	mentionsMaxMin        = 0
-	mentionsMaxMax        = 50
-	maintenanceMsgMax     = 500
-	reservedNamesMaxRunes = 2000
+	usernameMinLengthMin = 2
+	usernameMinLengthMax = 32
+	usernameMaxLengthMin = 2
+	usernameMaxLengthMax = 64
+	loginMaxFailuresMin  = 0
+	loginMaxFailuresMax  = 50
+	loginLockoutMin      = 0
+	loginLockoutMax      = 1440
+	trustNewUserDaysMin  = 0
+	trustNewUserDaysMax  = 365
+	hotWindowDaysMin     = 1
+	hotWindowDaysMax     = 90
+	autoLockIdleDaysMin  = 0
+	autoLockIdleDaysMax  = 3650
+	mentionsMaxMin       = 0
+	mentionsMaxMax       = 50
+	// 免中转域名白名单：条目上限与单条长度上限（RFC 1035 域名长度上限 253）。
+	trustedDomainMaxEntries = 50
+	trustedDomainMaxRunes   = 253
+	trustedDomainsMaxRunes  = 4096
+	maintenanceMsgMax       = 500
+	reservedNamesMaxRunes   = 2000
 )
 
 var (
@@ -41,6 +47,8 @@ var (
 	duplicateTitlePolicies   = []string{"off", "warn", "block"}
 	softDeleteVisibilities   = []string{"author_and_staff", "staff_only", "hidden"}
 	recommendedReservedNames = "admin,administrator,system,sforum,root,support,moderator,mod,official,null,undefined"
+	// trustedDomainHostPattern 允许单标签主机、常规域名与可选端口（IP 亦通过）。
+	trustedDomainHostPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:[0-9]{1,5})?$`)
 )
 
 func init() {
@@ -86,6 +94,9 @@ func communityPolicyOptionDefinitions() []optionDefinition {
 		{name: NameForumCommentsSoftDeleteVisibility, public: true, managePermission: forum},
 		{name: NameForumMentionsEnabled, public: true, managePermission: forum},
 		{name: NameForumMentionsMaxPerPost, public: true, managePermission: forum},
+		// 正文外链呈现：中转开关与白名单都在点击时判定，故前端必须可读（public）。
+		{name: NameForumLinksExternalInterstitial, public: true, managePermission: forum},
+		{name: NameForumLinksTrustedDomains, public: true, managePermission: forum},
 	}
 }
 
@@ -111,17 +122,20 @@ func communityPolicyRecommendedDefaults() map[string]string {
 		NameSiteMaintenanceMessage:                        "",
 		NameForumGuestRead:                                "public",
 		// 推荐默认 = 最后活跃（active）：与公开活动索引对齐，公开列表「最新」即最新活动。
-		NameForumListDefaultSort:                          "active",
-		NameForumListHotWindowDays:                        "7",
-		NameForumTopicsAllowAuthorCloseReplies:            enabledOptionValue(true),
-		NameForumTopicsAllowAuthorDelete:                  enabledOptionValue(true),
-		NameForumTopicsAutoLockIdleDays:                   "0",
-		NameForumTopicsShowEditMark:                       enabledOptionValue(true),
-		NameForumTopicsDuplicateTitlePolicy:               "off",
-		NameForumCommentsShowEditMark:                     enabledOptionValue(true),
-		NameForumCommentsSoftDeleteVisibility:             "author_and_staff",
-		NameForumMentionsEnabled:                          enabledOptionValue(true),
-		NameForumMentionsMaxPerPost:                       "10",
+		NameForumListDefaultSort:               "active",
+		NameForumListHotWindowDays:             "7",
+		NameForumTopicsAllowAuthorCloseReplies: enabledOptionValue(true),
+		NameForumTopicsAllowAuthorDelete:       enabledOptionValue(true),
+		NameForumTopicsAutoLockIdleDays:        "0",
+		NameForumTopicsShowEditMark:            enabledOptionValue(true),
+		NameForumTopicsDuplicateTitlePolicy:    "off",
+		NameForumCommentsShowEditMark:          enabledOptionValue(true),
+		NameForumCommentsSoftDeleteVisibility:  "author_and_staff",
+		NameForumMentionsEnabled:               enabledOptionValue(true),
+		NameForumMentionsMaxPerPost:            "10",
+		// 推荐默认：站外链接经中转页提示；白名单为空（任何站外域名都提示一次）。
+		NameForumLinksExternalInterstitial: enabledOptionValue(true),
+		NameForumLinksTrustedDomains:       "",
 	}
 }
 
@@ -157,6 +171,7 @@ func coerceCommunityPolicyOptions(coerced, defaults map[string]string) {
 		NameForumTopicsShowEditMark,
 		NameForumCommentsShowEditMark,
 		NameForumMentionsEnabled,
+		NameForumLinksExternalInterstitial,
 	} {
 		if value, ok := normalizeEnabledOption(coerced[name]); ok {
 			coerced[name] = value
@@ -241,6 +256,16 @@ func coerceCommunityPolicyOptions(coerced, defaults map[string]string) {
 	} else {
 		coerced[NameForumCommentsSoftDeleteVisibility] = defaults[NameForumCommentsSoftDeleteVisibility]
 	}
+	if value, ok := normalizeEnabledOption(coerced[NameForumLinksExternalInterstitial]); ok {
+		coerced[NameForumLinksExternalInterstitial] = value
+	} else {
+		coerced[NameForumLinksExternalInterstitial] = defaults[NameForumLinksExternalInterstitial]
+	}
+	if value, ok := normalizeTrustedDomainList(coerced[NameForumLinksTrustedDomains]); ok {
+		coerced[NameForumLinksTrustedDomains] = value
+	} else {
+		coerced[NameForumLinksTrustedDomains] = defaults[NameForumLinksTrustedDomains]
+	}
 }
 
 func isValidCommunityPolicyOptions(values map[string]string) bool {
@@ -309,6 +334,9 @@ func isValidCommunityPolicyOptions(values map[string]string) bool {
 	if _, ok := normalizeChoice(values[NameForumCommentsSoftDeleteVisibility], softDeleteVisibilities); !ok {
 		return false
 	}
+	if _, ok := normalizeTrustedDomainList(values[NameForumLinksTrustedDomains]); !ok {
+		return false
+	}
 	return true
 }
 
@@ -326,7 +354,8 @@ func normalizeCommunityPolicyOption(name, value string) (string, bool) {
 		NameForumTopicsAllowAuthorDelete,
 		NameForumTopicsShowEditMark,
 		NameForumCommentsShowEditMark,
-		NameForumMentionsEnabled:
+		NameForumMentionsEnabled,
+		NameForumLinksExternalInterstitial:
 		return normalizeEnabledOption(value)
 	case NameIdentityUsernameMinLength:
 		return normalizeBoundedInt(value, usernameMinLengthMin, usernameMinLengthMax)
@@ -362,6 +391,8 @@ func normalizeCommunityPolicyOption(name, value string) (string, bool) {
 		return normalizeChoice(value, softDeleteVisibilities)
 	case NameForumMentionsMaxPerPost:
 		return normalizeBoundedInt(value, mentionsMaxMin, mentionsMaxMax)
+	case NameForumLinksTrustedDomains:
+		return normalizeTrustedDomainList(value)
 	default:
 		return "", false
 	}
@@ -369,6 +400,63 @@ func normalizeCommunityPolicyOption(name, value string) (string, bool) {
 
 func normalizeRegistrationMode(value string) (string, bool) {
 	return normalizeChoice(value, registrationModes)
+}
+
+// normalizeTrustedDomainList 归一「免中转域名白名单」：逐行（兼容逗号），
+// 允许写 host、host:port 或 http(s)://host/path，统一裁成小写 host[:port]，
+// 去重保序；任何一条非法或超过条目/长度上限都整体拒绝（fail closed）。
+func normalizeTrustedDomainList(value string) (string, bool) {
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	value = strings.ReplaceAll(value, "\r", "\n")
+	value = strings.ReplaceAll(value, ",", "\n")
+	if strings.TrimSpace(value) == "" {
+		return "", true
+	}
+	normalized := make([]string, 0, trustedDomainMaxEntries)
+	seen := make(map[string]bool)
+	for _, line := range strings.Split(value, "\n") {
+		entry := strings.TrimSpace(line)
+		if entry == "" {
+			continue
+		}
+		host, ok := normalizeTrustedDomainHost(entry)
+		if !ok {
+			return "", false
+		}
+		if seen[host] {
+			continue
+		}
+		seen[host] = true
+		normalized = append(normalized, host)
+		if len(normalized) > trustedDomainMaxEntries {
+			return "", false
+		}
+	}
+	result := strings.Join(normalized, "\n")
+	if utf8.RuneCountInString(result) > trustedDomainsMaxRunes {
+		return "", false
+	}
+	return result, true
+}
+
+// normalizeTrustedDomainHost 把一条白名单书写归一为 host[:port]。
+func normalizeTrustedDomainHost(value string) (string, bool) {
+	candidate := strings.TrimSpace(value)
+	if candidate == "" {
+		return "", false
+	}
+	if !strings.Contains(candidate, "://") {
+		candidate = "https://" + candidate
+	}
+	parsed, err := url.Parse(candidate)
+	if err != nil || parsed.Host == "" {
+		return "", false
+	}
+	host := strings.ToLower(strings.TrimSuffix(parsed.Host, "."))
+	if host == "" || len([]rune(host)) > trustedDomainMaxRunes || !trustedDomainHostPattern.MatchString(host) {
+		return "", false
+	}
+	return host, true
 }
 
 func normalizeMaintenanceMessage(value string) (string, bool) {

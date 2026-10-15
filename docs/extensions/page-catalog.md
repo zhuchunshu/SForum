@@ -44,6 +44,7 @@ There is no Layer activation option or frontend release runtime.
 | `site.terms` | `/terms` | public |
 | `site.privacy` | `/privacy` | public |
 | `site.guidelines` | `/guidelines` | public |
+| `site.outbound` | `/outbound` | public (host-owned link interstitial, not replaceable) |
 | `system.forbidden` | virtual | public |
 | `system.not_found` | virtual | public |
 | `system.rate_limited` | virtual | public |

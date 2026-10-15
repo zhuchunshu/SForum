@@ -250,6 +250,85 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 扩展作者契约冻结（M0）+ 公开页外壳（M1 首个增量）（2026-10-16）。M0 把外壳/guard/
+  版本回滚/会话/dev 五组契约从生产代码里冻结下来，过程中**推翻了两处前提**：
+  (1) 自定义 guard 运行时**是活的**——文档说「later wave / closed」，
+  但 `bootstrap/api_assembly_domains.go:618` 注入了活的评估器、
+  `app/Http/plugin_guard_runtime.go:32` 真在请求路径上调用插件代码；
+  (2) `core.guard.raw_request` **不运行任何守卫代码却把原始凭据交给 handler**
+  （空绑定即 allow，而该绑定正是 `core.guard.raw_request` 所要求的条件）。
+  第 (2) 点我原先在 ADR 里写反了——采信了紧贴在短路代码上方、且与行为相反的注释，
+  经独立追踪指出后重新核验并就地更正。同轮还取消了 M4：「让 l2Widget 进每个
+  descriptor 点」——那些点全是链接/动作/徽章，接受 widget 会造出校验通过、
+  文档承诺、运行时静默无输出的能力。M1 已实现 `layout: site|bare`（默认 `bare`
+  以保持既有精确制品行为），并以探针插件同摘要下的两个页面取得运行时证据：
+  `/probe-bare` 零 navbar 零 footer 且 `max-w-4xl` 类名逐字节不变，`/probe-site`
+  恰好一个 navbar 与一个 footer 且正文渲染在共享外壳内。架构门禁要求的容量通过
+  同包抽取腾出，并把两个基线**下调**（registry.go 1055→1017、
+  controller.go 1113→1073 级）而非抬高。详见
+  `sessions/2026-10-16-m0-freeze-and-m1-shell-handoff.md`、`decisions/2026-10-16-extension-authoring-contracts-freeze.md`
+  与 `sessions/2026-10-16-m0-threat-and-inventory-report.md`。
+- 帖子/评论链接策略与站外中转页（2026-10-16）。正文链接的不变量（一律
+  `target="_blank"` + 规范 `rel`）与站外改写都在净化接缝内完成——新增
+  `apps/api/app/Support/ContentLinks` 并被 `Forum/renderer.go`、
+  `EditorDocument.Accept`、`ContentRegistry` 渲染段、`Markdown.RenderSafe`
+  共用；关键前提是 `target` 必须进入各净化策略的 allowlist，否则下一次净化会
+  静默抹掉新标签页语义，且 `ContentRegistry` 的 SSR 固定点校验会直接失败。
+  绝对 `http(s)` 链接一律改写成 `/outbound?u=<base64url>`（存储态契约），
+  「是否启用中转 / 免中转白名单 / 是否本站」全部在**点击时**判定，因此运营改
+  配置不需要重渲染任何历史内容。`site.outbound` 是非替换页（⇒ 非主题化），
+  主题与插件无法摘掉目的地提示，但呈现仍走 `SFHostPublicChrome`。前端
+  `v-outbound` 只作为历史内容与插件 SSR 片段的第二层补齐。设计备选见
+  `tmp/demos/outbound-interstitial/`（五种方向，选定前默认「警示条 + 双栏对比」）。
+  细节：`decisions/2026-10-16-outbound-link-policy.md`。
+
+- 插件页面区域：单一来源 + 生成式投影 + 双向渲染契约（2026-10-16，插件前端体验程序
+  M2/M3）。原计划让 `NavigationRegistry` 成为所有放置的唯一权威，但读运行时后否掉了
+  这个前提：`RegionCatalog`/`forum.page.regions` 往**页面区域**放内容，
+  `NavigationRegistry` 组装的是**导航 chrome**，两者是不同的问题、不同的运行时，
+  合并只会带来信任相邻的大重构而作者一无所获。实际落地的是这个里程碑真正要消灭的漂移：
+  `RegionCatalog.pageRegionMatrix` 成为唯一手写来源（14 个区域 / 11 个页面），
+  `scripts/v3-catalog/generate.mjs` 由它生成
+  `apps/web/app/config/pageRegionCatalog.gen.ts`，替掉 `usePageRegions.ts` 里手工同步的
+  白名单；`apps/web/tests/framework/pageRegions.test.ts` 用生成的矩阵**双向**核对宿主组件
+  里的 `<SFRegionOutlet>`，因此「先声明、后补渲染」不再可能。该检查揪出一个既有的死声明
+  （`forum.topic.reply` 的组件只是跳转占位，一个 outlet 都没有），并否掉了 `hero` 与
+  `composer_after`（与既有区域相邻、不构成独立插槽）。`MAX_REGIONS` 改为由生成目录推导
+  （原来写死 8，会把 9 个区域的帖子页静默判成非法）。渲染证据：探针插件向
+  `detail_before`/`comments_before`/`sidebar_top` 放置卡片，上传→信任→升级后三张卡片
+  都出现在正确位置。批次二继续给首页/搜索/分类/标签六个页面加上
+  `list_before`/`list_after`（分类详情的 `detail_*` 因为与 `list_before` 重复而被否掉），
+  并抽出 `SFTopicMobileInfoDrawer.vue` 以满足 `SFTopicShowPage.vue` 的行数上限
+  （基线随之下调到 1137）。批次二已端到端验证：`/` 与 `/c/announcement` 的
+  `list_before` 位于列表容器之上、`/tags/tooling` 的 `list_after` 位于列表与分页之间，
+  均在 SSR HTML 中按**位置**（而非仅存在）核对，并在浏览器 DOM 用
+  `compareDocumentPosition` 复核、卡片文案可见。期间排查掉两个环境问题（`:3000`
+  dev server 已死亡并按其原命令重启；`air` 因并发工作流频繁改 Go 文件而反复重启 API，
+  造成间歇性错误页，已用 `PerformanceNavigationTiming.responseStatus=200` 与
+  零 JS 异常/零失败请求证明与本次改动无关）。详见 `sessions/2026-10-16-plugin-page-regions-m2-m3-handoff.md` 与
+  `decisions/2026-10-16-plugin-frontend-surface-contract.md`。
+- `ai_tool_probe` 设置动作 + 首个外部 AI 工具插件（2026-10-16）：插件贡献的 AI 工具
+  （`aiTools[]`）此前只有模型能调用，运营者无法在设置页验证配置——`provider_probe`
+  要求 provider slot，纯工具插件用不了。现新增设置动作 kind `ai_tool_probe`：宿主用
+  草稿值起一个短命 runtime，按 `tool: <aiTools[].id>` 派发到保留槽
+  `sforum.ai.tool/invoke`。顺带在实测中发现并修掉一个老缺陷：探测 starter 原先不继承信任来源，
+  而 `protocolV2ClientConfig` 对「无信任来源且非内置」直接拒绝，导致**所有上传型插件**
+  的探测都静默失败（仓内带设置动作的插件都是内置，从未暴露）。配套的真实子进程集成测试
+  与端到端证据、外部插件 `sforum.fetch-url`（白名单 + 开关 + 代理的 AI 抓取工具）见
+  `sessions/2026-10-16-ai-tool-probe-fetch-url-plugin.md` 与
+  `decisions/2026-10-15-ai-tool-probe-settings-action.md`。
+- 插件宿主图标服务（2026-10-16，插件前端体验程序 M1）：插件此前完全用不了宿主图标——
+  Nuxt Icon 的 `server` provider 只在 Nuxt 组件树内可用，两个 bridge 都没有图标能力，
+  `@sforum/plugin-ui` 也没有任何图标组件。现新增版本化平台面
+  `GET /_sforum/icons?names=…`（≤32 名称的批量 JSON）与
+  `GET /_sforum/icons/{lucide|tabler}/{name}.svg`，直接从已内置的 `@iconify-json`
+  集合生成并清洗 SVG（白名单重建元素/属性、片段 id 按图标命名空间化），插件只提供
+  名称、永不提供标记。`AdminPageBridgeV1.icons` / `PublicFrontendBridgeV1.icons` 为
+  可选增量字段（`@sforum/admin-sdk@1.1.0`）；`@sforum/plugin-ui@1.1.0` 新增
+  `SPluginIcon`、若干组件 `icon` prop 与 `definePluginPage`（由 SDK 注入解析器，
+  手写 `createApp` 不再会静默丢图标）。8399 个图标（含 alias）全部无损通过清洗。
+  详见 `sessions/2026-10-16-plugin-host-icons-m1-handoff.md` 与
+  `decisions/2026-10-16-plugin-frontend-surface-contract.md`。
 - AI 思考内容外泄与模型身份修复（2026-10-15）：两个独立缺陷同源——协议适配器在
   正文为空时把 `reasoning_content` / `thinking` 提升成回答正文（于是回复机器人把
   思维链发成评论、控制台把它当测试回复并报「连接正常」、结果缓存存 10 分钟），
