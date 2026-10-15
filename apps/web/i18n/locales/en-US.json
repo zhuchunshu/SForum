@@ -1573,6 +1573,7 @@
         "settingsSaveFailed": "Extension settings could not be saved.",
         "actionFailed": "Extension settings action failed.",
         "componentLoading": "Loading trusted component…",
+        "componentStatusUnavailable": "Component trust status could not be read",
         "componentTrustRequired": "Custom component trust is required",
         "componentChanged": "Component digest changed; confirmation is required again",
         "componentLoadFailed": "Custom component failed to load",

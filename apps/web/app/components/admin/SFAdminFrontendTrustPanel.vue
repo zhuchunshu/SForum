@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useAdminFrontendTrust } from '~/composables/admin/useAdminFrontendTrust'
-import type { AdminExtension } from '~/utils/admin/adminExtensions'
+import type { AdminExtension, AdminFrontendStatus } from '~/utils/admin/adminExtensions'
 
-const props = defineProps<{ extension: AdminExtension }>()
+const props = defineProps<{
+  extension: AdminExtension
+  /** 由页面传入已解析的信任结论，避免面板重复拉取并闪回"未知"状态。 */
+  initialStatus?: AdminFrontendStatus | null
+}>()
 const emit = defineEmits<{ changed: [] }>()
 const extension = computed(() => props.extension)
+const initialStatus = computed(() => props.initialStatus)
 const { user } = useAuthSession()
 const { t } = useI18n()
-const { status, exactTrustManaged, error, busy, mutate, challenge } = useAdminFrontendTrust(extension)
+const { status, exactTrustManaged, error, busy, mutate, challenge } = useAdminFrontendTrust(extension, { initialStatus })
 const isSuperAdmin = computed(() => user.value?.roleKeys?.includes('super_admin') === true)
 const confirmOpen = ref(false)
 const confirmationPhrase = ref('')

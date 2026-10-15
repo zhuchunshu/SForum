@@ -22,6 +22,22 @@ does not rebuild Nuxt.
   aggregate `adminFrontendDigest`; component IDs are package-unique and assets
   use component-specific immutable private URLs. Production still does not
   compile Vue SFCs or load Nuxt Layers.
+- `GET /admin/extensions/{id}/page-bootstrap` now also returns `frontend` (the
+  exact-artifact `FrontendStatus`) whenever the resolved page declares the
+  `component` or `settings` view. The admin shell is SSR + no-store, and the
+  trust state decides what the first frame may render, so leaving it to a
+  post-hydration request made "trust not read yet" render as "trust not
+  granted": the warning banner was written into the server HTML and replaced by
+  the real component a moment later. The field is nullable and every failure
+  (no trusted runtime wired, permission denied, unreadable trust store)
+  degrades to `null` instead of failing the bootstrap; the Host frontend then
+  falls back to its own `/frontend` request. `about` and undeclared pages do not
+  pay for the lookup.
+- `useAdminFrontendTrust` models trust as a tri-state (`resolved` separates
+  "not read yet" from "read and not granted"), seeds once from that bootstrap
+  value after verifying extension id and digest ownership, and no longer awaits
+  `/trust` on the critical path — `/trust` only decides the authorization UI
+  shape (V3 exact-artifact vs legacy grant table).
 - `make:plugin --vue-admin-page` now turns that runtime contract into a complete
   Vue authoring loop: typed bridge adapter, Vite workspace, immediately valid
   placeholder dist, exact-artifact manifest entries, and build/digest/validate/

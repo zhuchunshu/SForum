@@ -1613,6 +1613,7 @@
         "settingsSaveFailed": "扩展设置保存失败。",
         "actionFailed": "扩展设置操作失败。",
         "componentLoading": "正在加载受信任组件…",
+        "componentStatusUnavailable": "无法读取组件信任状态",
         "componentTrustRequired": "自定义组件尚未获得信任",
         "componentChanged": "组件 digest 已变化，需要重新确认",
         "componentLoadFailed": "自定义组件加载失败",

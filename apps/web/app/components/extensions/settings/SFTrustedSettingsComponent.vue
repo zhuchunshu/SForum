@@ -11,7 +11,7 @@ import type {
 } from '@sforum/admin-sdk'
 import { ADMIN_MICRO_FRONTEND_API_VERSION } from '@sforum/admin-sdk'
 
-import type { AdminExtension, AdminExtensionSettings } from '~/utils/admin/adminExtensions'
+import type { AdminExtension, AdminExtensionSettings, AdminFrontendStatus } from '~/utils/admin/adminExtensions'
 import { assertAdminExtensionRelativePath, extensionRequestPath } from '~/runtime/admin-extensions/types'
 import {
   clearContributionFailures,
@@ -23,6 +23,8 @@ import {
 const props = defineProps<{
   extension: AdminExtension
   settings: AdminExtensionSettings
+  /** 服务端 page-bootstrap 已解析出的信任结论，缺省时才回落到客户端请求。 */
+  initialStatus?: AdminFrontendStatus | null
   context: Readonly<{
     items: readonly AdminExtensionSettingItem[]
     values: Readonly<Record<string, string>>
@@ -33,7 +35,8 @@ const props = defineProps<{
 }>()
 
 const extension = computed(() => props.extension)
-const { status, load: loadTrust, mutate } = useAdminFrontendTrust(extension)
+const initialStatus = computed(() => props.initialStatus)
+const { status, resolved: trustResolved, error: trustError, load: loadTrust, mutate } = useAdminFrontendTrust(extension, { initialStatus })
 const { request } = useApiClient()
 const { t, locale } = useI18n()
 const { resolvedMode } = useColorModePreference()
@@ -141,7 +144,7 @@ async function performLoad() {
   failed.value = false
   failureMessage.value = ''
   quarantined.value = false
-  if (!import.meta.client || !trusted.value || !component.value || !digest.value) return
+  if (!import.meta.client || !trustResolved.value || !trusted.value || !component.value || !digest.value) return
   const storage = currentStorage()
   if (storage && contributionFailureState(storage, failureKey.value).quarantined) {
     failed.value = true
@@ -197,6 +200,8 @@ async function retry() {
   const storage = currentStorage()
   if (storage) clearContributionFailures(storage, failureKey.value)
   quarantined.value = false
+  // 重试必须回源，不能复用 bootstrap 初值。
+  await loadTrust(true)
   await load()
 }
 
@@ -207,14 +212,14 @@ async function restoreSchemaFallback() {
   await dispose()
   if (status.value?.trustState === 'trusted') {
     await mutate('revoke')
-    await loadTrust()
+    await loadTrust(true)
   }
 }
 
 async function resumeComponent() {
   currentStorage()?.removeItem(fallbackKey.value)
   forcedFallback.value = false
-  await loadTrust()
+  await loadTrust(true)
   await load()
 }
 
@@ -239,8 +244,16 @@ onBeforeUnmount(dispose)
     </div>
 
     <div v-if="!mounted">
+      <!-- 信任状态未知：settings 文档已声明预构建组件，先给同几何骨架，避免 Schema→组件闪替 -->
+      <div
+        v-if="!trustResolved"
+        class="rounded-lg border border-slate-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
+      >
+        <SFSkeleton :lines="4" />
+        <span class="sr-only" role="status">{{ t('admin.extensions.dynamic.componentLoading') }}</span>
+      </div>
       <UAlert
-        v-if="loading"
+        v-else-if="loading"
         color="info"
         variant="subtle"
         icon="i-lucide-loader-circle"
@@ -264,6 +277,16 @@ onBeforeUnmount(dispose)
         :description="t('admin.extensions.dynamic.componentFallback')"
         :actions="[{ label: t('admin.extensions.dynamic.resumeComponent'), onClick: resumeComponent }]"
       />
+      <!-- 读不到信任状态不等于未授权，必须与下面的授权警告分开 -->
+      <UAlert
+        v-else-if="!status"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="t('admin.extensions.dynamic.componentStatusUnavailable')"
+        :description="trustError"
+        :actions="[{ label: t('admin.extensions.dynamic.componentRetry'), onClick: retry }]"
+      />
       <UAlert
         v-else-if="!trusted"
         color="warning"
@@ -276,9 +299,10 @@ onBeforeUnmount(dispose)
       <SFAdminFrontendTrustPanel
         v-if="status?.kind === 'prebuilt_component' && !trusted && !forcedFallback"
         :extension="extension"
-        @changed="loadTrust"
+        :initial-status="status"
+        @changed="() => loadTrust(true)"
       />
-      <div class="mt-4">
+      <div v-if="trustResolved" class="mt-4">
         <slot name="fallback" />
       </div>
     </div>

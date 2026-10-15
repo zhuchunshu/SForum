@@ -250,6 +250,15 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- 管理端扩展页首屏信任闪屏修复（2026-10-15）：`useAdminFrontendTrust` 的
+  `status` 初值为 `null`，而 `trusted` 由它算得 `false`，于是
+  `v-else-if="!trusted"` 把「尚未读到状态」画成「未授权」；管理端是 SSR + 禁缓存，
+  警告条因此被直接写进服务端 HTML，随后才被真实组件替换。现改为三态
+  （未决 / 读取失败 / 已授权 / 未授权），未决时渲染中性骨架；
+  `page-bootstrap` 为 component/settings 视图附带可空 `frontend` 信任结论
+  （handler 迁出 991 行的 `controller.go` 至 `page_bootstrap.go`），
+  `/trust` 移出关键路径。详见
+  `sessions/2026-10-15-admin-extension-page-trust-flash.md`。
 - AI 自主参与（autonomous triage）（2026-10-15）：AI 回复触发方式可配置为
   mention（默认）/ autonomous / off；autonomous 下每条新主题/评论先进
   `forum.reply.triage` 经济档判定（无工具、8 tokens、fail-closed），判 REPLY

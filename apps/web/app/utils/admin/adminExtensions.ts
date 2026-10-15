@@ -345,10 +345,25 @@ export function extensionAffectsPublicSurface(extension: Pick<AdminExtension, 'm
   })
 }
 
+/** 与宿主 FrontendStatus 对齐：预构建管理组件的精确 digest 与信任结论。 */
+export type AdminFrontendStatus = {
+  extensionId: string
+  kind: 'none' | 'prebuilt_component'
+  trustState: string
+  digest?: string
+  component?: { id: string, apiVersion: number, entry: string, css?: string }
+  components?: Array<{ id: string, apiVersion: number, entry: string, css?: string }>
+}
+
 export type AdminExtensionPageBootstrap = {
   extension: AdminExtension
   page: AdminExtensionAdminPage | null
   settings: AdminExtensionSettings | null
+  /**
+   * 视图声明为 component/settings 时随 bootstrap 一并返回的信任结论。
+   * 管理端是 SSR，缺少它时"信任状态未知"会被首帧渲染成"未授权"。
+   */
+  frontend: AdminFrontendStatus | null
 }
 
 export type AdminLifecycleRemovalMode = 'preserve' | 'export_then_remove' | 'complete_removal'

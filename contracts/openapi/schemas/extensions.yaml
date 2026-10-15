@@ -1827,6 +1827,7 @@ ExtensionPageBootstrap:
   - extension
   - page
   - settings
+  - frontend
   properties:
     extension:
       "$ref": "#/Extension"
@@ -1840,6 +1841,16 @@ ExtensionPageBootstrap:
       nullable: true
       allOf:
       - "$ref": "#/ExtensionSettings"
+    frontend:
+      description: >-
+        Exact-artifact trust status for a declared component or settings view, so the
+        SSR admin shell can render the correct first frame instead of showing an
+        unresolved trust state as "trust not granted". Null for about/undeclared pages,
+        when no trusted frontend runtime is wired, or when the trust lookup fails; the
+        Host frontend then falls back to its own /frontend request.
+      nullable: true
+      allOf:
+      - "$ref": "#/FrontendStatus"
 ExtensionSettingsRenderer:
   type: object
   required: [mode, layout, source, fallback]
