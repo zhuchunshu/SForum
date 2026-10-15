@@ -156,7 +156,11 @@ async function performLoad(generation: number) {
       styleElement = stylesheet
       document.head.append(stylesheet)
     }
-    const module = await import(/* @vite-ignore */ assetURL('entry')) as AdminPageModuleV1
+    // Vite dev 的 import 分析会给无法静态分析的动态 import 注入 ?import（injectQuery），
+    // 私有资产代理对该 query 返回 404。injectQuery 只对以 "/" 或 "." 开头的 URL 注入，
+    // 这里用运行时绝对 URL 绕过注入；生产构建同样按原样保留（@vite-ignore）。
+    const entryURL = new URL(assetURL('entry'), window.location.origin).href
+    const module = await import(/* @vite-ignore */ entryURL) as AdminPageModuleV1
     if (!loadIsCurrent(generation)) return
     if (module.apiVersion !== ADMIN_MICRO_FRONTEND_API_VERSION || typeof module.mount !== 'function') {
       throw new Error('Admin page component contract mismatch')

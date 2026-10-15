@@ -165,6 +165,33 @@ describe('admin extension helpers', () => {
     expect(extensionManageRoute(generatedOnly)).toBe('/extensions/plain.plugin/pages/about')
   })
 
+  test('carries the prebuilt component descriptor through admin page mapping', () => {
+    const item = extension({
+      id: 'ui.plugin',
+      name: 'UI Plugin',
+      type: 'plugin',
+      manifest: {
+        admin: {
+          pages: [
+            {
+              path: '/dashboard',
+              label: 'Dashboard',
+              view: 'component',
+              menu: true,
+              component: { id: 'dashboard', apiVersion: 1, entry: 'frontend/admin/dist/dashboard.mjs', css: 'frontend/admin/dist/dashboard.css' }
+            }
+          ]
+        }
+      }
+    })
+
+    const page = findExtensionAdminPage(item, '/dashboard')
+    expect(page?.view).toBe('component')
+    expect(page?.component?.id).toBe('dashboard')
+    expect(page?.component?.entry).toBe('frontend/admin/dist/dashboard.mjs')
+    expect(page?.component?.css).toBe('frontend/admin/dist/dashboard.css')
+  })
+
   test('resolves extension author display and website fallback', () => {
     const item = extension({
       id: 'author.plugin',

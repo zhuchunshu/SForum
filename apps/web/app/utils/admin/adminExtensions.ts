@@ -917,7 +917,8 @@ export function extensionAdminPages(item: AdminExtension, locale?: string | null
       view: page.view || 'about',
       menu: page.menu === true,
       order: page.order || 0,
-      permission: page.permission
+      permission: page.permission,
+      component: page.component
     })
   }
 
