@@ -8,8 +8,12 @@
   "version": "1.0.0",
   "type": "plugin",
   "sforumVersion": "^1.0.0",
+  "permissionDefinitions": [
+    {"key": "fixture.navigation.settings", "contractVersion": "fixture.navigation.settings@1", "label": "Personal settings entry", "description": "Show the fixture personal settings entry.", "assignmentPolicy": "host"}
+  ],
   "navigation": [
-    {"id": "fixture.navigation.item.docs", "contractVersion": "fixture.navigation.item.docs@1", "kind": "item", "action": "add", "label": "Docs", "href": "/docs", "order": 100}
+    {"id": "fixture.navigation.item.docs", "contractVersion": "fixture.navigation.item.docs@1", "kind": "item", "action": "add", "label": "Docs", "href": "/docs", "order": 100},
+    {"id": "fixture.navigation.settings.apps", "contractVersion": "fixture.navigation.settings.apps@1", "kind": "account-settings", "action": "add", "label": "Fixture apps", "href": "/settings/fixture-apps", "permission": "fixture.navigation.settings", "visibility": "authenticated", "ownerResource": "fixture.navigation.resource", "order": 50}
   ],
   "regions": [
     {"id": "fixture.navigation.region.sidebar", "contractVersion": "fixture.navigation.region.sidebar@1", "action": "add", "kind": "sidebar", "label": "Documentation sidebar", "multiple": true}

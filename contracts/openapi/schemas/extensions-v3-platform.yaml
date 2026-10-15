@@ -250,12 +250,14 @@ ExtensionManifestNavigation:
   properties:
     id: { type: string }
     contractVersion: { type: string }
-    kind: { type: string, enum: [menu, item, breadcrumb, header, footer, sidebar] }
+    kind: { type: string, enum: [menu, item, breadcrumb, header, footer, sidebar, account-settings] }
     action: { type: string, enum: [add, before, after, wrap, replace, hide, filter] }
     targetId: { type: string }
     label: { type: string }
     href: { type: string }
     permission: { type: string }
+    visibility: { type: string, enum: [public, anonymous, authenticated] }
+    ownerResource: { type: string }
     order: { type: integer, minimum: 0 }
 ExtensionManifestRegion:
   type: object

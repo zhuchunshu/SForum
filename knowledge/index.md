@@ -250,6 +250,13 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- Manifest V3 放行插件声明个人设置入口（2026-10-15）：
+  `navigation[].kind` 新增 `account-settings`，并补上可选 `visibility` /
+  `ownerResource`，三处白名单（JSON Schema、Go 平台校验器、OpenAPI 镜像）已对齐。
+  宿主侧解析器与 `/site/account-navigation` 投影此前已就绪，缺的只是契约；
+  `public` / 省略 visibility 仍由生命周期发布抬升为 `authenticated`，`href` 仍
+  只放行 `/settings/*` 与 `/extensions/*`。详见
+  `sessions/2026-10-15-account-settings-navigation-manifest.md`。
 - 管理端扩展页首屏信任闪屏修复（2026-10-15）：`useAdminFrontendTrust` 的
   `status` 初值为 `null`，而 `trusted` 由它算得 `false`，于是
   `v-else-if="!trusted"` 把「尚未读到状态」画成「未授权」；管理端是 SSR + 禁缓存，

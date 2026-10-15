@@ -794,7 +794,9 @@ func (v *v3Validator) validateMediaNavigationAndRegions() error {
 			return ErrInvalidManifest
 		}
 		switch navigation.Kind {
-		case "menu", "item", "breadcrumb", "header", "footer", "sidebar":
+		// account-settings 与 NavigationRegistry 的 validNavigationKind 对齐：
+		// 该 kind 只投影到个人设置侧栏，默认 visibility 由发布层抬升为 authenticated。
+		case "menu", "item", "breadcrumb", "header", "footer", "sidebar", "account-settings":
 		default:
 			return ErrInvalidManifest
 		}

@@ -2750,7 +2750,8 @@
               "breadcrumb",
               "header",
               "footer",
-              "sidebar"
+              "sidebar",
+              "account-settings"
             ]
           },
           "action": {
@@ -2775,6 +2776,16 @@
           },
           "permission": {
             "type": "string"
+          },
+          "visibility": {
+            "enum": [
+              "public",
+              "anonymous",
+              "authenticated"
+            ]
+          },
+          "ownerResource": {
+            "$ref": "#/$defs/id"
           },
           "order": {
             "type": "integer",

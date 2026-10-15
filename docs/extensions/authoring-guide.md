@@ -206,6 +206,45 @@ does not replace either exact-artifact declaration. A missing or stale entry is
 rejected by `extension validate` and causes activation to fail closed with
 `extension.build_failed`.
 
+### Navigation and region kinds
+
+`navigation[]` accepts these `kind` values: `menu`, `item`, `breadcrumb`,
+`header`, `footer`, `sidebar`, and `account-settings`. `regions[]` accepts
+`menu`, `widget`, `header`, `footer`, `sidebar`, and `content`.
+
+`account-settings` is the Host-owned personal settings sidebar slot, rendered by
+the private `GET /site/account-navigation` projection rather than public site
+chrome:
+
+- `href` must start with `/settings/` or `/extensions/`. Any other path — even a
+  Host-safe one such as `/private` — is dropped by the projection.
+- Contributions default to `authenticated`: an omitted `visibility` (or an
+  explicit `public`) is raised to `authenticated` during lifecycle publication,
+  so this slot can never leak to guests.
+- `permission` and `ownerResource` are optional visibility filters. A
+  contribution with neither is visible to every signed-in user; with either (or
+  both) set, it appears only for actors holding the declared permission key or a
+  Host-owned retained-resource key.
+- `visibility` accepts `public`, `anonymous`, or `authenticated`. For the six
+  public chrome kinds it defaults to `public`.
+
+Core publishes no `account-settings` contribution; the slot exists for plugins.
+
+```json
+"navigation": [
+  {
+    "id": "acme.oauth.navigation.apps",
+    "contractVersion": "acme.oauth.navigation.apps@1",
+    "kind": "account-settings",
+    "action": "add",
+    "label": "OAuth2 apps",
+    "href": "/settings/oauth-apps",
+    "permission": "acme.oauth.create_clients",
+    "order": 50
+  }
+]
+```
+
 ### Notification types and Host emission
 
 Executable plugins may declare inert `notificationTypes`. Each type id must be
