@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage/referencefixture"
 	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
 )
 
@@ -80,6 +81,9 @@ func TestAllStaticExtensionFixturesPassCurrentContract(t *testing.T) {
 		for _, manifestPath := range paths {
 			root := filepath.Dir(manifestPath)
 			t.Run(filepath.Base(root), func(t *testing.T) {
+				// 带可执行后端的夹具不提交二进制，摘要必须先在暂存副本里现场
+				// 构建、重新对齐，再走整包契约校验。
+				root = referencefixture.StageBackendFixture(t, repoRoot(t), root)
 				report, err := pluginsdk.LoadAndTest(root, pluginsdk.Options{})
 				if err != nil {
 					t.Fatal(err)

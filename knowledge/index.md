@@ -257,6 +257,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **main CI 门禁修复：fixture 二进制摘要 + catch-all 静态契约（2026-10-17）**。`6ab053f42` 推送后 CI 双红：① catch-all 断言仍绑在单文件，适配到 `useRegistryPageResolve` + `SFRegistryPageBody/Shell` 拼接校验；② 参考插件 fixture 的 `backend/plugin` 摘要不可复现，新增 `app/Support/ExtensionPackage/referencefixture.StageBackendFixture`（暂存副本现场构建+摘要对齐）；③ `privacy:erase-user` 用法契约测试固定 `DATABASE_URL`；④ 重生成 `public-page-surfaces` 目录并把 validator 计数 tripwire bump 到 routes 363 / UI 321；⑤ 清掉意外入库的 55MB `apps/api/sforum` 二进制并 ignore。详见 `sessions/2026-10-17-ci-gate-repair-fixture-serif.md`。
+
 - **公开列表壳窄屏画布修复：移动端首页背景与 PC 不一致（2026-10-17）**。窄屏（≤980px）首页/分类/标签/搜索列表落在 `--sf-public-bg` 画布色上，而 PC（≥981px）是 `--sf-public-surface`——原因是 `assets/css/sforum-home.css` 的 `.sforum-home__layout` 表面色被 `@media (min-width: 981px)` 独占，透明话题行（G1 白底扁平列表）失去承托。已把该声明上提到基规则（所有宽度生效，深色/各 appearance 预设随 token 自动对齐），桌面逐像素不变，主题不可变制品无需重打包。详见 `sessions/2026-10-17-public-shell-narrow-canvas-handoff.md`。
 
 - **row 7 关闭、工作流整体归档（2026-10-17，更正同日 Revision 5）**。在真两节点拓扑（同一宿主的两个 API 容器，镜像为**已发布的 `v3.0.9`**，共享一次性 PostgreSQL+Redis）上跑完 row 7 的逐探针验收：双节点注册（45s 租约/10s 心跳）、同不可变修订的双侧 `applied` ack、管理端在 A 上的 disable/enable 在 5s 轮询窗口内于 B 收敛（B 的 web-push 子进程消失/以**逐字节相同制品路径**复活）、节点 stop→租约 45s 内失效且 A 不受影响、start→新 boot_id 立即 ack 最近修订且运行时复活。两条**真冷启动运维发现**（同时首启竞态：①首迁移互死锁：A 的 idle 连接持有 campaign goose 会话锁+CIC 等 B 的先开事务；②builtins 同步顺序竞态：`smtp not synchronized`）已在 runbook 写下缓解（顺序启动/先 migrate/`MIGRATE_ON_STARTUP=false`/勿漏 BUILTIN_EXTENSION_ROOT）。矩阵在 Revision 5 里宣布**十行全部取证、工作流关闭**，主计划已移入 `plans/archive/2026-08/`。细节：`sessions/2026-10-17-extension-authoring-closeout-handoff.md`（同日补记 row 7 节）、矩阵 Revision 5。

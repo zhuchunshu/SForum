@@ -16,6 +16,7 @@ Views: `component`, `schema`, `template`. Layouts: `bare`, `site`.
 - `sf-appearance-settings`
 - `sf-category-index-page`
 - `sf-category-show-page`
+- `sf-content-column-footer`
 - `sf-email-verification`
 - `sf-error-actions`
 - `sf-error-details`

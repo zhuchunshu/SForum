@@ -120,3 +120,6 @@ extensions/fixtures/plugins/*/backend/plugin
 
 # OpenCode 内部工作目录
 .omo/
+
+# 开发者本地构建的 sforum CLI 二进制产物，不入库
+apps/api/sforum

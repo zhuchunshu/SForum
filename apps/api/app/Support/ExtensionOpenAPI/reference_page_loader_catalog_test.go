@@ -7,6 +7,7 @@ import (
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage/referencefixture"
 )
 
 // A1 / R2：带 loader 数据的参考包必须能在**构建期**通过路由 schema 目录校验。
@@ -24,6 +25,9 @@ func TestReferencePageLoaderRouteSchemasResolve(t *testing.T) {
 	}
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
 	packageRoot := filepath.Join(root, "extensions/fixtures/plugins/sforum-page-loader-reference")
+
+	// 夹具不提交 backend/plugin 二进制；暂存副本现场构建并把摘要对齐后再校验。
+	packageRoot = referencefixture.StageBackendFixture(t, root, packageRoot)
 
 	manifest, err := extensionmanifest.LoadPackage(packageRoot)
 	if err != nil {

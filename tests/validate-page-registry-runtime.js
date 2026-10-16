@@ -67,7 +67,15 @@ function validateOfflineContracts() {
   assertIncludes(outlet, '<slot />', 'protected templates must receive the Host page slot')
   assertIncludes(outlet, 'loaderData', 'outlet must type loaderData from SSR')
 
-  const catchAll = read('apps/web/app/pages/[...sfRegistryPage].vue')
+  // catch-all 把解析收敛到 useRegistryPageResolve，正文/外壳拆到 SFRegistryPageBody/Shell；
+  // 静态契约按「路由壳 + 专属协作者」整体校验，而不是绑在单个文件里。
+  const catchAll = [
+    read('apps/web/app/pages/[...sfRegistryPage].vue'),
+    read('apps/web/app/composables/pages/useRegistryPageResolve.ts'),
+    read('apps/web/app/components/extensions/public/SFRegistryPageBody.vue'),
+    read('apps/web/app/components/extensions/public/SFRegistryPageShell.vue')
+  ].join('\n')
+  assertIncludes(read('apps/web/app/pages/[...sfRegistryPage].vue'), 'useRegistryPageResolve', 'catch-all must resolve through useRegistryPageResolve')
   assertIncludes(catchAll, '/pages/resolve-path?path=', 'catch-all must use resolve-path')
   assertIncludes(catchAll, 'loader-data', 'catch-all must pass SSR loader data into template')
   assertIncludes(catchAll, "navigateTo(localePath('/login'))", 'login access must navigate to login')
