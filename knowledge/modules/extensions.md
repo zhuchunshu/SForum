@@ -578,6 +578,27 @@ does not rebuild Nuxt.
   last healthy artifact on failure. `fsnotify` is a direct module dependency.
   Rebuild loops are prevented by a per-file **content stamp** snapshot re-taken
   after every transaction, because the transaction itself rewrites the manifest.
+- Dev trust sessions (2026-10-17): session-level dev auto-trust closes the M8
+  manual-confirmation gap. super_admin confirms once via
+  `POST /admin/extensions/dev-trust-sessions` (`confirm: "true"`, per-package
+  single active session, TTL 8h default / 24h cap); `sforum extension dev
+  --auto-trust` then calls `POST /admin/extensions/:id/dev-trust-refresh` per
+  build, which writes an idempotent exact live grant through the existing
+  `EnsureLiveGrant` (per-digest audit) when an active session, matching actor,
+  matching digest, non-builtin source, development env, and non-Safe-Mode all
+  hold — otherwise `ErrTrustChallengeRequired`, byte-identical to the manual
+  path. Production assembly never injects the service (routes 503 fail closed);
+  session creation additionally requires the package root under `extensions/dev`
+  (`devTrustRootAllowed`). Safe Mode startup revokes all sessions one-shot
+  (`RevokeAllOnSafeMode`); revoked sessions never resurrect. Store:
+  `extension_dev_trust_sessions` (unique partial index on
+  `revoked_at IS NULL` only — partial index predicates must be IMMUTABLE, so
+  expiry is enforced by query predicates plus create-time recycling, never
+  `now()` in the index). Admin UI list + revoke and CLI
+  `extension dev-trust create/list/revoke` share the
+  `SFORUM_API_BASE`/`SFORUM_SESSION_COOKIE` conventions of
+  `tests/admin-extension-activation.sh`. Routes: 4 new reviewed identities
+  (363 → 367). Decision: `../decisions/2026-10-17-dev-trust-session.md`.
 - Request-context contract (2026-10-16, M7): no new request/response field was
   admitted. The filtered header projection (with `x-sforum-*`, hop-by-hop and
   credential blocking, plus `httpguts` name/value validation),

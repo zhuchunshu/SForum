@@ -487,7 +487,8 @@ func TestCoreRouteCatalogHasExactReviewedGuardParity(t *testing.T) {
 	// 计数由 scripts/v3-catalog/generate.mjs 与 catalog-identities 共同约束；
 	// 新增路由必须先进入 identities + OpenAPI + Guard 审核矩阵，再同步此处。
 	// 363 = 362 + core.route.extensions.inspect_route_incidents（M5 隔离账本读取）。
-	if len(catalog) != 363 {
+	// 367 = 363 + 4 条开发期信任会话路由（list/create/revoke/dev-trust-refresh）。
+	if len(catalog) != 367 {
 		t.Fatalf("generated core route count = %d", len(catalog))
 	}
 	kinds := make(map[CoreGuardKind]int)

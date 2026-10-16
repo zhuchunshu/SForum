@@ -1575,7 +1575,175 @@ adminExtensionDisable:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminDevTrustSessions:
+  get:
+    summary: List development trust sessions
+    description: >-
+      Development-only. Lists dev trust sessions (active plus optionally
+      revoked) for the extension admin surface. Returns 503 with reason
+      `extension.dev_trust_disabled` when APP_ENV is not development.
+    operationId: listAdminDevTrustSessions
+    parameters:
+    - name: extensionId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Filter sessions by extension id.
+    - name: includeRevoked
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: ["true", "false"]
+        default: "false"
+      description: Include revoked and expired sessions.
+    responses:
+      '200':
+        description: Dev trust session list (newest first, bounded to 200).
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+  post:
+    summary: Create a development trust session for one package
+    description: >-
+      Super-admin only, development-only. The request body must carry
+      `confirm: "true"`; this single confirmation covers every digest built by
+      the same CLI watch loop session (each grant is still per-digest,
+      audited, and revocable). Requires the package root to live under
+      extensions/dev.
+    operationId: createAdminDevTrustSession
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [extensionId, packageSlug, rootPath, confirm]
+            properties:
+              extensionId:
+                type: string
+              packageSlug:
+                type: string
+              rootPath:
+                type: string
+              confirm:
+                type: string
+                enum: ["true"]
+    responses:
+      '200':
+        description: Session created.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      '400':
+        "$ref": "../components/responses.yaml#/BadRequest"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: An active session already exists for this package.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Validation failed (missing confirm flag or invalid body).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+adminDevTrustSession:
+  delete:
+    summary: Revoke a development trust session
+    description: Super-admin only. Revokes the session; subsequent digests fall back to manual exact-artifact confirmation.
+    operationId: revokeAdminDevTrustSession
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Dev trust session id.
+    responses:
+      '200':
+        description: Session revoked.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
+adminExtensionDevTrustRefresh:
+  post:
+    summary: Auto-grant exact trust for a freshly built dev digest
+    description: >-
+      Super-admin only, development-only. Called by `sforum extension dev
+      --auto-trust` after each successful build: writes an idempotent exact
+      live grant when an active dev trust session exists for the caller and
+      package; otherwise fails closed with
+      `extension.trust_challenge_required`, identical to the manual path.
+    operationId: refreshAdminExtensionDevTrust
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              packageDigest:
+                type: string
+    responses:
+      '200':
+        description: Digest trusted (or already trusted).
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        description: No active dev trust session; manual confirmation required.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+
 adminExtensionUpgrade:
+
   post:
     summary: Activate the exact staged plugin version
     description: >-

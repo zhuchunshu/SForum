@@ -860,6 +860,22 @@
     }
   },
   {
+    "id": "core.route.extensions.dev_trust_refresh",
+    "contractVersion": "sforum.route.extensions.dev_trust_refresh@1",
+    "module": "extensions",
+    "handler": "devTrustRefresh",
+    "method": "POST",
+    "path": "/api/v1/admin/extensions/:id/dev-trust-refresh",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:81",
+    "access": "permission",
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
+  },
+  {
     "id": "core.route.extensions.disable",
     "contractVersion": "sforum.route.extensions.disable@1",
     "module": "extensions",
@@ -1353,6 +1369,54 @@
       "kind": "contextual",
       "permissions": [],
       "evaluatorId": "core.guard.extensions.read"
+    }
+  },
+  {
+    "id": "core.route.extensions.list_dev_trust_sessions",
+    "contractVersion": "sforum.route.extensions.list_dev_trust_sessions@1",
+    "module": "extensions",
+    "handler": "listDevTrustSessions",
+    "method": "GET",
+    "path": "/api/v1/admin/extensions/dev-trust-sessions",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:79",
+    "access": "permission",
+    "policy": "extension.view or matching manage permission",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.read"
+    }
+  },
+  {
+    "id": "core.route.extensions.create_dev_trust_session",
+    "contractVersion": "sforum.route.extensions.create_dev_trust_session@1",
+    "module": "extensions",
+    "handler": "createDevTrustSession",
+    "method": "POST",
+    "path": "/api/v1/admin/extensions/dev-trust-sessions",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:78",
+    "access": "permission",
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
+    }
+  },
+  {
+    "id": "core.route.extensions.revoke_dev_trust_session",
+    "contractVersion": "sforum.route.extensions.revoke_dev_trust_session@1",
+    "module": "extensions",
+    "handler": "revokeDevTrustSession",
+    "method": "DELETE",
+    "path": "/api/v1/admin/extensions/dev-trust-sessions/:id",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:80",
+    "access": "permission",
+    "policy": "extension.plugin.manage or extension.theme.manage; operation-specific service policy",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.extensions.mutation"
     }
   },
   {
@@ -4479,7 +4543,7 @@
     "handler": "proxyExtensionRoute",
     "method": "*",
     "path": "/api/v1/extensions/:extensionId/*",
-    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:79",
+    "source": "apps/api/app/Http/Controllers/Extensions/routes.go:83",
     "access": "declared",
     "policy": "enabled plugin route declaration and manifest access policy",
     "guard": {

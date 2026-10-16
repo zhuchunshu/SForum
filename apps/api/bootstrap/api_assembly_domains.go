@@ -33,6 +33,7 @@ import (
 	authsupport "github.com/zhuchunshu/sforum/apps/api/app/Support/Auth"
 	cache "github.com/zhuchunshu/sforum/apps/api/app/Support/Cache"
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
+	devhygiene "github.com/zhuchunshu/sforum/apps/api/app/Support/DevHygiene"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
@@ -428,6 +429,22 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		WithContentRegistry(lifecycleStack.ContentRegistry).
 		WithMediaRegistry(lifecycleStack.MediaRegistry).
 		WithAdminSurfaces(extensionRuntime, auditWriter)
+	// 开发期信任会话：仅 development 环境注入；生产装配 devTrustSessions 为 nil，
+	// 对应路由 fail-closed，与 DevHygiene reaper 使用同一环境谓词。
+	if devhygiene.ShouldEnableDevelopmentOrphanReaper(cfg.AppEnv) {
+		devTrust := extensions.NewDevTrustService(
+			extensions.NewPostgresDevTrustSessionStore(pool),
+			lifecycleStack.Trust,
+			cfg.AppEnv,
+		).WithSafeMode(cfg.SafeMode)
+		if cfg.SafeMode {
+			// Safe Mode 启动即吊销全部会话：Safe Mode 结束后旧会话不复活。
+			if err := devTrust.RevokeAllOnSafeMode(ctx); err != nil {
+				logger.Warn("revoke dev trust sessions on safe mode startup failed", "error", err)
+			}
+		}
+		extensionsProvider.WithDevTrustSessions(devTrust)
+	}
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 	// PageDataLoader 网关：优先用 Protocol V2 精确实例调用取数（插件无需回报
 	// loopback BaseURL）；插件若声明了 loopback 目标则回落到严格 loopback HTTP。

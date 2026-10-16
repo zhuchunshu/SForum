@@ -114,6 +114,14 @@ func (p *ExtensionsProvider) WithRouteIncidentReader(reader apphttp.RouteRuntime
 	return p
 }
 
+// WithDevTrustSessions 透传开发期信任会话边界；仅 development 装配调用。
+func (p *ExtensionsProvider) WithDevTrustSessions(service extensionscontroller.DevTrustSessionService) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithDevTrustSessions(service)
+	}
+	return p
+}
+
 func (p *ExtensionsProvider) WithCacheInspector(
 	registry *cacheregistry.Registry,
 	inspector *hostapi.HostCacheInspector,

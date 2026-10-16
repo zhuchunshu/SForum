@@ -275,6 +275,8 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 		"core.route.extensions.route_provider_conflicts",
 		"core.route.extensions.route_provider_events",
 		"core.route.extensions.route_provider_selection",
+		// 开发期信任会话列表：admin 扩展读取面（创建走 mutation guard）。
+		"core.route.extensions.list_dev_trust_sessions",
 		// Entity import/export dry-run：admin 扩展检查面，与 list/inspectors 同 view 门。
 		"core.route.extensions.entity_import_export_dry_run":
 		return requireCoreGuardPermission(evaluation,

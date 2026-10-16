@@ -3,7 +3,7 @@
   "legacyLargeFiles": {
     "apps/api/app/Http/Controllers/Pages/controller.go": 975,
     "apps/api/app/Models/Extensions/service_package.go": 840,
-"apps/api/app/Models/Forum/postgres_store_ops.go": 1471,
+    "apps/api/app/Models/Forum/postgres_store_ops.go": 1471,
     "apps/api/app/Models/Forum/service.go": 1083,
     "apps/api/app/Models/Forum/service_ops.go": 1209,
     "apps/api/app/Models/Identity/service.go": 981,
@@ -84,7 +84,9 @@
     {
       "path": "apps/api/app/Support/Extensions",
       "package": "extensionsruntime_test",
-      "files": ["protocol_database_lease_helper_test.go"]
+      "files": [
+        "protocol_database_lease_helper_test.go"
+      ]
     }
   ],
   "legacyExtensionsImportAllowlist": [
@@ -133,15 +135,23 @@
   "flatDirectoryCaps": [
     {
       "path": "apps/api/app/Support/Extensions",
-      "extensions": [".go"],
-      "excludeSuffixes": ["_test.go"],
+      "extensions": [
+        ".go"
+      ],
+      "excludeSuffixes": [
+        "_test.go"
+      ],
       "maxFiles": 148
     },
     {
       "path": "apps/api/app/Models/Extensions",
-      "extensions": [".go"],
-      "excludeSuffixes": ["_test.go"],
-      "maxFiles": 94
+      "extensions": [
+        ".go"
+      ],
+      "excludeSuffixes": [
+        "_test.go"
+      ],
+      "maxFiles": 92
     }
   ],
   "receiverMethodCaps": [

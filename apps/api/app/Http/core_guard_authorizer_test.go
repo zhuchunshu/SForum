@@ -535,6 +535,10 @@ func TestProductionExtensionsMutationGuardPartitionsCatalogByProvablePolicy(t *t
 		"core.route.extensions.rollback":                         {method: "POST", supported: true, permissions: plugin},
 		"core.route.extensions.revoke_executable_trust":          {method: "DELETE", supported: true, permissions: superAdmin},
 		"core.route.extensions.issue_executable_trust_challenge": {method: "POST", supported: true, permissions: superAdmin},
+		// 开发期信任会话：创建/撤销/自动写入均为 super_admin only。
+		"core.route.extensions.create_dev_trust_session": {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.revoke_dev_trust_session": {method: "DELETE", supported: true, permissions: superAdmin},
+		"core.route.extensions.dev_trust_refresh":        {method: "POST", supported: true, permissions: superAdmin},
 		"core.route.extensions.cleanup_missing_artifacts":        {method: "POST", supported: true, permissions: superAdmin},
 		"core.route.extensions.probe_provider_slot":              {method: "POST", supported: true, permissions: superAdmin},
 		"core.route.extensions.select_provider_slot":             {method: "POST", supported: true, permissions: superAdmin},
@@ -710,6 +714,8 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		"core.route.extensions.route_provider_events":        {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.route_provider_selection":     {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.entity_import_export_dry_run": {method: "GET", supported: true, permissions: viewer},
+		// 开发期信任会话列表：admin 扩展读取面。
+		"core.route.extensions.list_dev_trust_sessions": {method: "GET", supported: true, permissions: viewer},
 
 		"core.route.extensions.frontend_status":          {method: "GET"},
 		"core.route.extensions.frontend_asset":           {method: "GET"},

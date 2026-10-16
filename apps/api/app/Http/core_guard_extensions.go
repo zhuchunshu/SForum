@@ -29,6 +29,10 @@ func requireExtensionsMutationAuthority(_ context.Context, evaluation routes.Cor
 		return nil
 	case "core.route.extensions.revoke_executable_trust",
 		"core.route.extensions.issue_executable_trust_challenge",
+		// 开发期信任会话：创建/撤销/自动写入都是 super_admin only（"*"）。
+		"core.route.extensions.create_dev_trust_session",
+		"core.route.extensions.revoke_dev_trust_session",
+		"core.route.extensions.dev_trust_refresh",
 		"core.route.extensions.cleanup_missing_artifacts",
 		"core.route.extensions.probe_provider_slot",
 		"core.route.extensions.select_provider_slot",

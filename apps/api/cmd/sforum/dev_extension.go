@@ -293,11 +293,13 @@ func devStampFile(path string) (devFileStamp, bool) {
 
 // devWatchLoop 是去抖 + 合并 + 单事务的编辑循环。
 type devWatchLoop struct {
-	root       string
-	runner     devBuildRunner
-	watcher    devWatcher
-	status     devStatusSink
-	debounce   time.Duration
+	root     string
+	runner   devBuildRunner
+	watcher  devWatcher
+	status   devStatusSink
+	debounce time.Duration
+	// autoTrust 非空时，每个成功 digest 通过 POST dev-trust-refresh 自动续信任。
+	autoTrust *devTrustRefresher
 	lastDigest string
 	stamps     map[string]devFileStamp
 }
@@ -386,7 +388,20 @@ func (l *devWatchLoop) buildOnce(ctx context.Context, fields map[string]any) {
 	}
 	l.lastDigest = result.PackageDigest
 	l.status.Phase("built", map[string]any{"packageDigest": result.PackageDigest})
-	// 不绕过信任：摘要变化后仍需操作员在管理端确认。这里只报告下一步。
+	// 不绕过信任：摘要变化后仍需操作员确认。autoTrust 打开且存在活跃 dev 会话时，
+	// 由 super_admin 会话通过 dev-trust-refresh 自动写入 exact grant；否则只报告下一步。
+	if l.autoTrust != nil {
+		if err := l.autoTrust.Refresh(ctx, result.PackageDigest); err != nil {
+			l.status.Phase("dev_trust_failed", map[string]any{
+				"packageDigest": result.PackageDigest,
+				"error":         err.Error(),
+				"next":          "confirm the exact artifact in the admin extensions flow to stage and activate it",
+			})
+			return
+		}
+		l.status.Phase("dev_trusted", map[string]any{"packageDigest": result.PackageDigest})
+		return
+	}
 	l.status.Phase("reload_required", map[string]any{
 		"packageDigest": result.PackageDigest,
 		"next":          "confirm the exact artifact in the admin extensions flow to stage and activate it",
@@ -472,6 +487,7 @@ func newExtensionDevCommand() *cobra.Command {
 		debounce    time.Duration
 		once        bool
 		skipInstall bool
+		autoTrust   bool
 	)
 	cmd := &cobra.Command{
 		Use:   "dev [path]",
@@ -496,6 +512,7 @@ or extensions/fixtures. Protected built-in trees are refused.`,
 			}
 			return runExtensionDev(cmd, root, extensionDevOptions{
 				AsJSON: asJSON, Debounce: debounce, Once: once, SkipInstall: skipInstall,
+				AutoTrust: autoTrust,
 			})
 		},
 	}
@@ -503,6 +520,7 @@ or extensions/fixtures. Protected built-in trees are refused.`,
 	cmd.Flags().DurationVar(&debounce, "debounce", devDefaultDebounce, "Coalesce file events for this long before building")
 	cmd.Flags().BoolVar(&once, "once", false, "Run exactly one build transaction and exit (no watcher)")
 	cmd.Flags().BoolVar(&skipInstall, "skip-install", false, "Skip bun install and use the existing frontend dependencies")
+	cmd.Flags().BoolVar(&autoTrust, "auto-trust", false, "Auto-refresh dev trust sessions after each build (requires a dev trust session and super_admin credentials)")
 	return cmd
 }
 
@@ -511,6 +529,7 @@ type extensionDevOptions struct {
 	Debounce    time.Duration
 	Once        bool
 	SkipInstall bool
+	AutoTrust   bool
 }
 
 func runExtensionDev(cmd *cobra.Command, root string, opts extensionDevOptions) error {
@@ -550,8 +569,18 @@ func runExtensionDev(cmd *cobra.Command, root string, opts extensionDevOptions) 
 	ctx, stop := signal.NotifyContext(baseContext, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// autoTrust 是可选的会话级自动信任：仅在能建立 API 客户端时启用；
+	// 无凭据/无会话时构建照常，refresh 报错并回落 reload_required。
+	var refresher *devTrustRefresher
+	if opts.AutoTrust {
+		refresher, err = newDevTrustRefresher(abs)
+		if err != nil {
+			fmt.Fprintf(out, "auto-trust unavailable (%v); falling back to manual confirmation\n", err)
+		}
+	}
+
 	if opts.Once {
-		loop := &devWatchLoop{root: abs, runner: runner, status: status}
+		loop := &devWatchLoop{root: abs, runner: runner, status: status, autoTrust: refresher}
 		loop.buildOnce(ctx, map[string]any{"trigger": "once"})
 		return nil
 	}
@@ -563,6 +592,7 @@ func runExtensionDev(cmd *cobra.Command, root string, opts extensionDevOptions) 
 	defer watcher.Close()
 	loop := &devWatchLoop{
 		root: abs, runner: runner, watcher: watcher, status: status, debounce: opts.Debounce,
+		autoTrust: refresher,
 	}
 	digest, err := loop.run(ctx)
 	if err != nil {

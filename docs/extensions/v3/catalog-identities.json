@@ -602,6 +602,30 @@
       "path": "/api/v1/admin/extensions/:id/trust/challenge"
     },
     {
+      "id": "core.route.extensions.list_dev_trust_sessions",
+      "contractVersion": "sforum.route.extensions.list_dev_trust_sessions@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/dev-trust-sessions"
+    },
+    {
+      "id": "core.route.extensions.create_dev_trust_session",
+      "contractVersion": "sforum.route.extensions.create_dev_trust_session@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/dev-trust-sessions"
+    },
+    {
+      "id": "core.route.extensions.revoke_dev_trust_session",
+      "contractVersion": "sforum.route.extensions.revoke_dev_trust_session@1",
+      "method": "DELETE",
+      "path": "/api/v1/admin/extensions/dev-trust-sessions/:id"
+    },
+    {
+      "id": "core.route.extensions.dev_trust_refresh",
+      "contractVersion": "sforum.route.extensions.dev_trust_refresh@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/:id/dev-trust-refresh"
+    },
+    {
       "id": "core.route.extensions.upgrade",
       "contractVersion": "sforum.route.extensions.upgrade@1",
       "method": "POST",

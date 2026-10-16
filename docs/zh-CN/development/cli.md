@@ -351,9 +351,34 @@ APP_ENV=development go run ./cmd/sforum extension dev ../../extensions/dev/acme.
 | `--json` | 每个阶段输出一行 JSON，供编辑器集成消费 |
 | `--debounce` | 事件合并窗口（默认 `400ms`） |
 | `--skip-install` | 跳过 `bun install`，复用已有的前端依赖 |
+| `--auto-trust` | 每轮构建成功后自动调用 dev trust 会话续信任（见下节） |
 
 **它不绕过信任。** 每轮只打印新的包摘要与下一步提示：精确制品仍要在管理端扩展流程里
 由操作员确认后才会暂存与激活。构建或预检失败时保留最后一个健康制品，并打印失败阶段与原因。
+
+### 开发信任会话 — `dev-trust`（仅 `APP_ENV=development`）
+
+每个开发会话只需 super_admin 在管理端确认**一次**，之后同一 watch 循环内每个新摘要
+由后端自动写入 exact live grant（逐条审计，可随时撤销）。生产环境没有 dev 包根、
+对应路由 fail-closed，信任模型一行不改。
+
+```bash
+cd apps/api
+APP_ENV=development go run ./cmd/sforum extension dev-trust create ../../extensions/dev/acme.demo
+APP_ENV=development go run ./cmd/sforum extension dev-trust list
+APP_ENV=development go run ./cmd/sforum extension dev-trust revoke <sessionID>
+```
+
+- `create`：为 `extensions/dev` 包建立会话（默认 TTL 8 小时，一个包同时最多一个活跃会话）；
+  本身就是那次人工确认，请求必须显式携带 `confirm: true`。
+- 带 `--auto-trust` 的 `extension dev`：每轮构建成功后调用
+  `POST /admin/extensions/:id/dev-trust-refresh`，输出 `dev_trusted digest=…`；
+  无会话/凭据时回落 `reload_required`，与人工路径一致。
+- 凭据约定与 `tests/admin-extension-activation.sh` 相同：`SFORUM_API_BASE`
+  （默认 `http://127.0.0.1:8080/api/v1`）、`SFORUM_SESSION_COOKIE` 或
+  `SFORUM_ADMIN_EMAIL`+`SFORUM_ADMIN_PASSWORD`。
+- Safe Mode 启动时全部会话立即吊销；Safe Mode 结束后旧会话不会复活。
+- 管理端可查看活跃会话列表并一键撤销（`/admin/extensions/dev-trust-sessions`）。
 
 ### 内置包发现 — `builtins`
 

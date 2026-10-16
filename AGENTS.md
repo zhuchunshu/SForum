@@ -249,6 +249,16 @@ contracts first.
   plugins.
 - Real provider or vendor logic should live in an extension package, including
   protected built-in plugins when SForum needs a bundled default.
+- Plugin development must use the dev trust session loop instead of manual admin
+  re-confirmation per digest: create one session per development session via
+  `sforum extension dev-trust create <package-root>` (super_admin, requires
+  `APP_ENV=development` and a package under `extensions/dev`), then run
+  `sforum extension dev --auto-trust` so each build auto-refreshes trust. Do not
+  weaken this mechanism: every digest still gets its own exact-artifact grant
+  with its own audit row; production assembly never injects the dev trust
+  service, Safe Mode startup revokes all sessions, and any unmet condition must
+  fail closed to `ErrTrustChallengeRequired` / the manual trust challenge path.
+  See `knowledge/decisions/2026-10-17-dev-trust-session.md`.
 - Upload/static installation only validates, previews, and stores an inert
   package; it must not execute package code. Existing delegated extension
   managers may perform that operation. Executable install hooks are deferred to

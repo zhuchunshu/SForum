@@ -75,6 +75,10 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Delete("/admin/extensions/:id/frontend/trust", h.revokeFrontendTrust)
 	api.Get("/admin/extensions/event-definitions", h.eventDefinitions)
 	api.Get("/admin/extensions/event-deliveries", h.eventDeliveries)
+	api.Post("/admin/extensions/dev-trust-sessions", h.createDevTrustSession)
+	api.Get("/admin/extensions/dev-trust-sessions", h.listDevTrustSessions)
+	api.Delete("/admin/extensions/dev-trust-sessions/:id", h.revokeDevTrustSession)
+	api.Post("/admin/extensions/:id/dev-trust-refresh", h.devTrustRefresh)
 
 	api.All("/extensions/:extensionId/*", h.proxyExtensionRoute)
 }

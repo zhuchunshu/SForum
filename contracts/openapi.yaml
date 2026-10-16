@@ -582,6 +582,12 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRestart"
   "/admin/extensions/{extensionID}/trust":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionTrust"
+  "/admin/extensions/dev-trust-sessions":
+    "$ref": "./openapi/paths/extensions.yaml#/adminDevTrustSessions"
+  "/admin/extensions/dev-trust-sessions/{id}":
+    "$ref": "./openapi/paths/extensions.yaml#/adminDevTrustSession"
+  "/admin/extensions/{extensionID}/dev-trust-refresh":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionDevTrustRefresh"
   "/admin/extensions/{extensionID}/trust/challenge":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionTrustChallenge"
   "/admin/extensions/{extensionID}/disable":

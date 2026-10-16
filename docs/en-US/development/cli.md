@@ -381,11 +381,40 @@ snapshot), so the loop cannot trigger itself.
 | `--json` | One JSON object per phase for editor integrations |
 | `--debounce` | Event coalescing window (default `400ms`) |
 | `--skip-install` | Skip `bun install` and reuse existing frontend dependencies |
+| `--auto-trust` | After each successful build, auto-refresh dev trust sessions (see below) |
 
 **It does not bypass trust.** Each cycle prints the new package digest and the next
 step: the exact artifact still has to be confirmed by an operator in the admin
 extensions flow before it is staged or activated. A failed build or preflight keeps
 the last healthy artifact and reports the failing stage and reason.
+
+### Development trust sessions — `dev-trust` (development only)
+
+Each development session needs exactly **one** super_admin confirmation; afterwards
+every digest built by the same watch loop is auto-granted as an exact live trust
+grant (per-digest, audited, revocable at any time). Production has no dev package
+roots and the routes fail closed; the trust model is unchanged.
+
+```bash
+cd apps/api
+APP_ENV=development go run ./cmd/sforum extension dev-trust create ../../extensions/dev/acme.demo
+APP_ENV=development go run ./cmd/sforum extension dev-trust list
+APP_ENV=development go run ./cmd/sforum extension dev-trust revoke <sessionID>
+```
+
+- `create`: creates a session for an `extensions/dev` package (default TTL 8 hours,
+  one active session per package); the call itself is the human confirmation and
+  must carry `confirm: true`.
+- `extension dev --auto-trust`: calls `POST /admin/extensions/:id/dev-trust-refresh`
+  after each successful build and prints `dev_trusted digest=…`; without a session
+  or credentials it falls back to `reload_required`, identical to the manual path.
+- Credentials follow `tests/admin-extension-activation.sh`: `SFORUM_API_BASE`
+  (default `http://127.0.0.1:8080/api/v1`), `SFORUM_SESSION_COOKIE` or
+  `SFORUM_ADMIN_EMAIL` + `SFORUM_ADMIN_PASSWORD`.
+- Starting Safe Mode revokes all sessions immediately; they do not resurrect after
+  Safe Mode ends.
+- The admin surface lists active sessions with one-click revocation
+  (`/admin/extensions/dev-trust-sessions`).
 
 ### Built-in discovery — `builtins`
 

@@ -112,6 +112,8 @@ type productionLifecycleStack struct {
 	Boundary           *extensionsruntime.ComposedLifecycleHostBoundary
 	Host               *extensionsruntime.ExactLifecycleCoordinatorHost
 	Coordinator        *extensions.LifecycleCoordinator
+	// Trust 是 executable trust 服务引用，供开发期信任会话（仅 development）注入。
+	Trust *extensions.ExecutableTrustService
 }
 
 func requireProductionExtensionRuntime(runtime extensionRuntime) (*extensionsruntime.Manager, error) {
@@ -361,6 +363,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 
 	return &productionLifecycleStack{
 		Repository: repository, RuntimeManager: config.Runtime, Runtime: runtime,
+		Trust: config.Trust,
 		Preflight: preflight, StaticPreflight: staticPreflight,
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,

@@ -74,6 +74,8 @@ type Controller struct {
 	contentRegistry *contentregistry.Registry
 	// mediaRegistry 为 nil 时公开 media-catalog 返回空 policies/processors（fail-closed）。
 	mediaRegistry *mediaregistry.Registry
+	// devTrustSessions 为 nil 时 dev 信任会话路由 fail-closed（仅开发环境注入）。
+	devTrustSessions DevTrustSessionService
 }
 
 type TrustedFrontendService interface {
@@ -123,6 +125,12 @@ func NewControllerWithGateway(service *extensions.Service, users identity.ActorS
 
 func (h *Controller) WithTrustedRuntime(frontend TrustedFrontendService) *Controller {
 	h.frontend = frontend
+	return h
+}
+
+// WithDevTrustSessions 注入开发期信任会话边界；仅 APP_ENV=development 的 API 装配调用。
+func (h *Controller) WithDevTrustSessions(service DevTrustSessionService) *Controller {
+	h.devTrustSessions = service
 	return h
 }
 

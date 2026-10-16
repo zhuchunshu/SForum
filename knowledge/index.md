@@ -27,6 +27,14 @@ load archived sessions or completed plans as current context.
 - Decision: `decisions/2026-10-16-extension-authoring-contracts-freeze.md`
 - Modules: `modules/extensions.md`, `modules/frontend.md`, `modules/identity.md`
 
+### Dev Trust Sessions (Session-Level Dev Auto-Trust)
+
+- Status: **complete (2026-10-17)**. Backend, CLI, routes/catalog, OpenAPI,
+  docs, tests all landed; admin UI panel is follow-up work.
+- Handoff: `sessions/2026-10-17-dev-trust-sessions-handoff.md`
+- Decision: `decisions/2026-10-17-dev-trust-session.md`
+- Module: `modules/extensions.md` (M8 dev loop entry)
+
 ### Built-in Shortcodes
 
 - Status: **active / blocked, M0-M9 plus M10A complete; M10B parser review complete but release gate open**; the frozen Host shortcode ref/block nodes,
