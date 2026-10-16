@@ -1,0 +1,24 @@
+{
+  "type": "object",
+  "required": [
+    "step",
+    "sessionBound"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "step": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "sessionBound": {
+      "type": "boolean"
+    },
+    "persisted": {
+      "type": "boolean"
+    },
+    "delegationEcho": {
+      "type": "string"
+    }
+  }
+}

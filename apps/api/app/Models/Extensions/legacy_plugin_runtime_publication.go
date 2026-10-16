@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
 )
@@ -268,4 +269,100 @@ func (s *serviceCore) disableLegacyPluginState(
 		return disabled, err
 	}
 	return s.store.Disable(ctx, target.ID)
+}
+
+// componentPackageRuntimePublisher 是组件包运行时的窄接口：由 Support 层的
+// ComponentRegistry 实现（含包级实例 id 派生），Models 层只按此接口调用，
+// 避免把实例 id 的推导复制成第二处真相。
+type componentPackageRuntimePublisher interface {
+	PublishComponentPackageRuntime(extension Extension) error
+	RemoveComponentPackageRuntime(extensionID string) (bool, error)
+}
+
+// publishLegacyComponentRuntime 让 legacy 启用路径收敛到与 Host 启动一致的状态。
+//
+// 只有公开 L2 组件、没有可执行后端的包不会走 Lifecycle V2（usesLifecycleV2 要求
+// Backend.ProtocolVersion==2 且声明 lifecycle），而组件注册表的 reconcile 只存在于
+// V2 发布事务里；结果是这样启用后的包要等到下一次 Host 启动（RestoreRuntimes）才
+// 能被公开前端准入。这里在启用成功后补齐同一步骤。
+//
+// 失败不阻断启用：本调用发生在启用已提交之后，最坏情况是退回「下次启动才生效」的
+// 既有行为，而不是把非致命缺口升级成 enable 失败。
+func publishLegacyComponentRuntime(ctx context.Context, s *serviceCore, extension Extension) {
+	if s == nil || len(extension.Manifest.Components) == 0 || extension.Status != StatusEnabled {
+		return
+	}
+	publisher, ok := s.componentRegistry.(componentPackageRuntimePublisher)
+	if !ok || publisher == nil {
+		return
+	}
+	if err := publisher.PublishComponentPackageRuntime(extension); err != nil {
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: extension.ID,
+			Action:      EventEnabled,
+			Message:     "component package runtime publication deferred to next host start: " + err.Error(),
+		})
+	}
+}
+
+// removeLegacyComponentRuntime 是禁用路径的对称收敛：移除组件包运行时注册。
+// 未注册与失败都不阻断禁用（下次 Host 启动同样收敛）。
+func removeLegacyComponentRuntime(ctx context.Context, s *serviceCore, extensionID string) {
+	if s == nil || strings.TrimSpace(extensionID) == "" {
+		return
+	}
+	publisher, ok := s.componentRegistry.(componentPackageRuntimePublisher)
+	if !ok || publisher == nil {
+		return
+	}
+	if _, err := publisher.RemoveComponentPackageRuntime(extensionID); err != nil {
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: extensionID,
+			Action:      EventDisabled,
+			Message:     "component package runtime removal deferred to next host start: " + err.Error(),
+		})
+	}
+}
+
+// PluginSessionStateInvalidator 是宿主「插件命名空间会话状态」存储的最窄形状。
+//
+// 声明在消费方（而不是导入存储包）的理由与 AuthSession/Identity 侧一致：Models 不该
+// 依赖一个具体存储与它的 Redis 客户端。语义上这是**擦除**钩子，不是访问控制——
+// 被禁用扩展的状态本来就不可达，这里是为了不让字节残留。
+type PluginSessionStateInvalidator interface {
+	InvalidateExtension(ctx context.Context, extensionID string) (int, error)
+}
+
+// erasePluginSessionState 在扩展被禁用/卸载之后尽力擦除它的会话状态。
+//
+// 与 publishLegacyComponentRuntime 同一形态的自由函数而不是 serviceCore 方法：
+// app/Models/Extensions 的接收者方法数与扁平目录都在上限上，新增方法会撞架构门禁。
+// 刻意不返回错误：调用发生在生命周期提交之后，清理失败不能把禁用/卸载变成用户可见故障。
+func erasePluginSessionState(ctx context.Context, s *serviceCore, extensionID string) {
+	if s == nil || s.pluginSessionState == nil {
+		return
+	}
+	extensionID = strings.TrimSpace(extensionID)
+	if extensionID == "" {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	func() {
+		defer func() { _ = recover() }()
+		_, _ = s.pluginSessionState.InvalidateExtension(ctx, extensionID)
+	}()
+}
+
+// WithPluginSessionStateInvalidator 注入插件命名空间会话状态擦除钩子。
+//
+// 为什么扩展生命周期需要它：禁用/卸载一个扩展之后，它的会话状态不得继续残留
+// （否则重新启用或换上同 id 的新版本会读到上一份状态的字节）。与组件运行时收敛
+// 一样，这是**提交之后**的 best-effort 副作用：失败只能退化为「下次启动」而不是让
+// 禁用/卸载失败。
+func WithPluginSessionStateInvalidator(invalidator PluginSessionStateInvalidator) ServiceOption {
+	return func(s *Service) {
+		s.pluginSessionState = invalidator
+	}
 }

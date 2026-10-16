@@ -30,6 +30,7 @@ type apiExtensionPlatform struct {
 	extensionRuntime         extensionRuntime
 	lifecycleRuntime         *extensionsruntime.Manager
 	hostCacheRuntime         *productionHostCache
+	pluginSessionState       *productionPluginSessionState
 	lifecycleStack           *productionLifecycleStack
 	productionSEO            *productionSEORegistry
 	identityReviewStore      identityregistry.Store
@@ -99,6 +100,17 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	}
 	pageRegistryAdapter := extensions.NewPageRegistryAdapter(pageRegistry).
 		WithThemeRuntime(themeRuntime, themeSiteName, cfg.SupportedLocales)
+	// S1-S9 插件会话状态：存储与签发权威只需要共享 Redis 客户端与持久安装身份，
+	// 因此在扩展 Service 之前构造，好让禁用/卸载的擦除钩子能在构造期注入。
+	pluginSessionState, err := newProductionPluginSessionState(hostInstallationID, sharedRedisClient)
+	if err != nil {
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, err
+	}
 	// 先构造带 Cipher 的 Service，插件启动与 Host API 才能共享同一个解密设置源。
 	// 主题激活走 Page Registry 同步路径；不再注入 theme_activate dispatcher。
 	extensionService := extensions.NewServiceWithOptions(
@@ -121,6 +133,8 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		extensions.WithStorageSelectionClearer(attachmentService),
 		// 运行时 Page Registry（主题激活同步注册页面贡献）。
 		extensions.WithPageRegistry(pageRegistryAdapter),
+		// S4/S5：扩展禁用/卸载后擦除它的会话状态（提交后 best-effort）。
+		extensions.WithPluginSessionStateInvalidator(pluginSessionState),
 	)
 	// F2.2 Host API 与 ProtocolStarter 共用 extensionService；错误密钥不得降级读取 store。
 	hostAPIService := hostapi.New(hostapi.Config{
@@ -180,9 +194,28 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	}); ok {
 		runtime.SetStartPreparer(protocolV2DatabaseStartPreparer(extensionStore, databaseCatalogBinder, cfg.SafeMode))
 	}
+	// 启用期把活动 runtime instance 绑到插件页面贡献：此前只有启动恢复路径写它，
+	// 导致「启用后不重启 API」时插件页数据取不到（pages: exact plugin runtime unavailable）。
+	if source, ok := extensionRuntime.(activeWorkerRuntimeSource); ok {
+		pageRegistryAdapter.WithRuntimeInstances(pageRuntimeInstanceResolver{source: source})
+	}
 	hostAPIService.BindPluginJobAdmission(newPluginJobEnqueueAdmission(extensionRuntime))
 	serviceAdmission := newPluginServiceProviderAdmission(extensionRuntime)
 	hostAPIService.BindServiceProviderAdmission(serviceAdmission)
+	// S9：会话状态服务必须在任何插件 broker 注册之前绑定，且与 Cache 服务同一形状。
+	if err := pluginSessionState.BindGateway(cfg.SafeMode, serviceAdmission, hostAPIGateway); err != nil {
+		extensionRuntime.Close(ctx)
+		_ = hostAPIGateway.Close()
+		sharedRedisClient.Close()
+		if closeErr := redisStorage.Close(); closeErr != nil {
+			logger.Warn("redis session storage close failed", "error", closeErr)
+		}
+		pool.Close()
+		return nil, fmt.Errorf("bind plugin session state runtime: %w", err)
+	}
+	// 登出/登录替换与撤销/设备数驱逐/改密的擦除钩子（S4/S5）。
+	infrastructure.authSessions.WithPluginSessionStateInvalidator(pluginSessionState)
+	infrastructure.identityStore.WithPluginSessionStateInvalidator(pluginSessionState)
 	lifecycleRuntime, err := requireProductionExtensionRuntime(extensionRuntime)
 	if err == nil && commandDeferred.Events != nil {
 		// 事件总线随 Manager 就绪：命令目录已冻结，这里只回填发布目标。
@@ -240,6 +273,19 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	}
 	// P12 ops：RuntimeRollout / SystemTier / Marketplace / Privacy 绑定 PostgreSQL。
 	p12Ops, err := bindProductionP12Ops(cfg, pool, logger, extensionService, identityStore)
+	if err == nil && p12Ops != nil && p12Ops.Privacy != nil {
+		// S5：隐私擦除消费者。Support/Privacy 此前没有任何消费者，插件会话状态也就
+		// 永远不会随用户擦除而消失；这里注册一个宿主自有 contribution，其 erase hook
+		// 遍历该用户的会话并逐个失效（报告只含计数，不含任何值）。
+		if err := registerPluginSessionStatePrivacyContribution(p12Ops.Privacy, pluginSessionState, identityStore); err != nil {
+			sharedRedisClient.Close()
+			if closeErr := redisStorage.Close(); closeErr != nil {
+				logger.Warn("redis session storage close failed", "error", closeErr)
+			}
+			pool.Close()
+			return nil, fmt.Errorf("register plugin session state privacy contribution: %w", err)
+		}
+	}
 	if err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)
@@ -440,6 +486,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		extensionRuntime:             extensionRuntime,
 		lifecycleRuntime:             lifecycleRuntime,
 		hostCacheRuntime:             hostCacheRuntime,
+		pluginSessionState:           pluginSessionState,
 		lifecycleStack:               lifecycleStack,
 		productionSEO:                productionSEO,
 		identityReviewStore:          identityReviewStore,
@@ -450,4 +497,28 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		stopPluginRuntimeCoordinator: runtimeState.stopPluginRuntimeCoordinator,
 		closePluginRuntime:           runtimeState.closePluginRuntime,
 	}, nil
+}
+
+// pageRuntimeInstanceResolver 把活动 runtime instance 解析成页面贡献需要的 id。
+// 只在活动实例与扩展的版本/摘要**精确匹配**时返回 id；否则返回 false，
+// 让贡献保持空 runtime instance（请求期由注册表 admission 拒绝，不伪造身份）。
+type pageRuntimeInstanceResolver struct {
+	source activeWorkerRuntimeSource
+}
+
+func (r pageRuntimeInstanceResolver) ActiveRuntimeInstanceID(extensionID, version, packageDigest string) (string, bool) {
+	if r.source == nil || extensionID == "" {
+		return "", false
+	}
+	snapshot, err := r.source.ActiveRuntimeInstance(extensionID)
+	if err != nil || !snapshot.Active || snapshot.Identity.InstanceID == "" {
+		return "", false
+	}
+	if version != "" && snapshot.ExtensionVersion != version {
+		return "", false
+	}
+	if packageDigest != "" && snapshot.ArtifactDigest != packageDigest {
+		return "", false
+	}
+	return snapshot.Identity.InstanceID, true
 }

@@ -32,13 +32,16 @@ func loadArtifact(input Artifact, budget *resourceBudget) (*loadedArtifact, erro
 		len(input.PackageDigest) != 64 || input.PackageDigest != strings.ToLower(input.PackageDigest) {
 		return nil, fmt.Errorf("%w: incomplete identity", ErrInvalidArtifact)
 	}
-	manifestBody, err := readLimitedRegularFile(pathOnDisk(input.Root, extensionmanifest.ManifestFileName), maxManifestBytes, budget)
-	if err != nil {
+	// 有界读取只用来挡住超大根清单；清单内容必须走 LoadPackage，
+	// 否则带 includes 的**作者树**（settings/langs 分片）在这里会读到未合并的入口 JSON，
+	// 与调用方传入的已合并快照不等，报成 "supplied manifest does not match snapshot"。
+	// 已安装制品（存储副本已展开 includes）两侧结果一致，行为不变。
+	if _, err := readLimitedRegularFile(pathOnDisk(input.Root, extensionmanifest.ManifestFileName), maxManifestBytes, budget); err != nil {
 		return nil, fmt.Errorf("%w: read manifest: %w", ErrInvalidArtifact, err)
 	}
-	var manifest extensionmanifest.Manifest
-	if err := json.Unmarshal(manifestBody, &manifest); err != nil {
-		return nil, fmt.Errorf("%w: decode manifest: %v", ErrInvalidArtifact, err)
+	manifest, err := extensionmanifest.LoadPackage(input.Root)
+	if err != nil {
+		return nil, fmt.Errorf("%w: load manifest: %v", ErrInvalidArtifact, err)
 	}
 	manifest = extensionmanifest.Normalize(manifest)
 	if err := extensionmanifest.Validate(manifest); err != nil {

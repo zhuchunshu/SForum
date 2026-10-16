@@ -184,7 +184,10 @@ func (s *ExecutableTrustService) statusForTarget(
 			return ExecutableTrustStatus{}, err
 		}
 	}
-	return ExecutableTrustStatus{Impact: impact, TrustRequired: required, Trusted: trusted}, nil
+	return ExecutableTrustStatus{
+		Impact: impact, TrustRequired: required, Trusted: trusted,
+		GuardAuthorization: GuardAuthorizationViews(impact),
+	}, nil
 }
 
 // TrustedArtifact 供同一进程内的执行入口复用整包信任结论，避免后端与前端各自授权。

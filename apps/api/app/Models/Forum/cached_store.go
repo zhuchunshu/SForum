@@ -136,29 +136,37 @@ func (s *CachedStore) bumpGen(ctx context.Context, key string) {
 
 // --- 读方法：带缓存 ---
 
-func (s *CachedStore) ListCategories(ctx context.Context) ([]Category, error) {
+func (s *CachedStore) ListCategories(ctx context.Context, includeHidden bool) ([]Category, error) {
+	key := prefixCatsList
+	if includeHidden {
+		key = prefixCatsList + ":all"
+	}
 	var out []Category
-	if s.loadJSON(ctx, prefixCatsList, &out) {
+	if s.loadJSON(ctx, key, &out) {
 		return out, nil
 	}
-	out, err := s.Store.ListCategories(ctx)
+	out, err := s.Store.ListCategories(ctx, includeHidden)
 	if err != nil {
 		return nil, err
 	}
-	s.saveJSON(ctx, prefixCatsList, out, ttlTaxonomy)
+	s.saveJSON(ctx, key, out, ttlTaxonomy)
 	return out, nil
 }
 
-func (s *CachedStore) ListCategoryGroups(ctx context.Context) ([]CategoryGroup, error) {
+func (s *CachedStore) ListCategoryGroups(ctx context.Context, includeHidden bool) ([]CategoryGroup, error) {
+	key := prefixGroupsList
+	if includeHidden {
+		key = prefixGroupsList + ":all"
+	}
 	var out []CategoryGroup
-	if s.loadJSON(ctx, prefixGroupsList, &out) {
+	if s.loadJSON(ctx, key, &out) {
 		return out, nil
 	}
-	out, err := s.Store.ListCategoryGroups(ctx)
+	out, err := s.Store.ListCategoryGroups(ctx, includeHidden)
 	if err != nil {
 		return nil, err
 	}
-	s.saveJSON(ctx, prefixGroupsList, out, ttlTaxonomy)
+	s.saveJSON(ctx, key, out, ttlTaxonomy)
 	return out, nil
 }
 
@@ -486,6 +494,16 @@ func (s *CachedStore) UpdateCategory(ctx context.Context, input UpdateCategoryIn
 	return out, nil
 }
 
+func (s *CachedStore) DeleteCategory(ctx context.Context, categoryID int64) (Category, error) {
+	out, err := s.Store.DeleteCategory(ctx, categoryID)
+	if err != nil {
+		return out, err
+	}
+	s.invalidateTaxonomy(ctx)
+	s.invalidateReferenceTopicVisibility(ctx)
+	return out, nil
+}
+
 func (s *CachedStore) invalidateReferenceResource(ctx context.Context, resourceType string, resourceID int64) {
 	if s != nil && s.referenceInvalidator != nil {
 		s.referenceInvalidator.InvalidateReferenceResource(ctx, resourceType, resourceID)
@@ -510,6 +528,16 @@ func (s *CachedStore) CreateCategoryGroup(ctx context.Context, input CreateCateg
 
 func (s *CachedStore) UpdateCategoryGroup(ctx context.Context, input UpdateCategoryGroupInput) (CategoryGroup, error) {
 	out, err := s.Store.UpdateCategoryGroup(ctx, input)
+	if err != nil {
+		return out, err
+	}
+	s.invalidateTaxonomy(ctx)
+	s.invalidateReferenceTopicVisibility(ctx)
+	return out, nil
+}
+
+func (s *CachedStore) DeleteCategoryGroup(ctx context.Context, groupID int64) (CategoryGroup, error) {
+	out, err := s.Store.DeleteCategoryGroup(ctx, groupID)
 	if err != nil {
 		return out, err
 	}
@@ -628,7 +656,7 @@ func (s *CachedStore) invalidateTaxonomy(ctx context.Context) {
 	s.bumpGen(ctx, genCategories)
 	s.bumpGen(ctx, genCategoryGroups)
 	s.bumpGen(ctx, genTags)
-	_ = s.cache.Delete(ctx, prefixCatsList, prefixGroupsList, prefixTagsList, prefixTagsList+":all")
+	_ = s.cache.Delete(ctx, prefixCatsList, prefixCatsList+":all", prefixGroupsList, prefixGroupsList+":all", prefixTagsList, prefixTagsList+":all")
 }
 
 // invalidateTopicDetail 同时清除 id 详情、反向映射对应的 slug 详情。

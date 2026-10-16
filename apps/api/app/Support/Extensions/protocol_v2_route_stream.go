@@ -62,6 +62,9 @@ type ProtocolV2RouteStream struct {
 	raw    pluginwire.PluginRuntimeService_StreamRouteClient
 	ctx    context.Context
 	cancel context.CancelFunc
+	// retireSessionDelegation 在流真正结束时执行：流是长时间存在的调用，
+	// 中途撤掉会话委派会让流内的插件代码突然失去会话状态。
+	retireSessionDelegation func()
 
 	sendMu    sync.Mutex
 	sendSeq   uint64
@@ -100,7 +103,9 @@ func (c *protocolV2Client) OpenRouteStreamContext(
 		timeout = DefaultProtocolV2RouteStreamTimeout
 	}
 	ctx, cancel := protocolV2Deadline(parent, timeout)
-	requestContext, err := c.invocationRequestContext(ctx, input.CorrelationID, input.Actor, input.IdempotencyKey)
+	requestContext, retireSessionDelegation, err := c.invocationRequestContext(
+		ctx, input.CorrelationID, input.Actor, input.IdempotencyKey,
+	)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -114,6 +119,7 @@ func (c *protocolV2Client) OpenRouteStreamContext(
 		}}})
 	}
 	if err != nil {
+		retireSessionDelegation()
 		err = protocolV2OperationCause(ctx, err)
 		if raw != nil {
 			_ = raw.CloseSend()
@@ -121,7 +127,9 @@ func (c *protocolV2Client) OpenRouteStreamContext(
 		cancel()
 		return nil, err
 	}
-	return &ProtocolV2RouteStream{raw: raw, ctx: ctx, cancel: cancel}, nil
+	return &ProtocolV2RouteStream{
+		raw: raw, ctx: ctx, cancel: cancel, retireSessionDelegation: retireSessionDelegation,
+	}, nil
 }
 
 func validateProtocolV2RouteStreamRequest(input ProtocolV2RouteStreamRequest) error {
@@ -320,6 +328,10 @@ func (s *ProtocolV2RouteStream) finish() {
 		return
 	}
 	s.closeOnce.Do(func() {
+		if s.retireSessionDelegation != nil {
+			s.retireSessionDelegation()
+			s.retireSessionDelegation = nil
+		}
 		if s.cancel != nil {
 			s.cancel()
 		}

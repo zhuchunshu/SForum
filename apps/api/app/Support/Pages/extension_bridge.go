@@ -75,6 +75,13 @@ func (b *ExtensionBridge) PreflightThemePackage(ext ThemeExtension, previousActi
 			return nil, fmt.Errorf("pages: template %s: %w", p.Template, err)
 		}
 	}
+	// 主题外壳：声明时必须是可加载的 L1 模板。外壳承担插件公开页的 chrome，
+	// 因此与页面模板同样在激活前预检，而不是等到渲染时才发现缺失。
+	if shell := strings.TrimSpace(pkg.Shell); shell != "" {
+		if _, err := LoadTemplate(root, shell); err != nil {
+			return nil, fmt.Errorf("pages: shell template %s: %w", shell, err)
+		}
+	}
 	// L2 widgets：声明存在时仅记录拒绝加载（不阻断 L0/L1 激活）
 	contribs := ContributionsFromTheme(ext.ID, ext.Version, ext.PackageDigest, pkg)
 	if b != nil && b.Registry != nil {

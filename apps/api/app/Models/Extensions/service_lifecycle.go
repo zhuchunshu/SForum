@@ -493,6 +493,7 @@ func (s *LifecycleService) Enable(ctx context.Context, actor identity.Actor, id 
 	if enabled.Type == TypePlugin && s.runtime != nil {
 		s.runtime.EmitHook(ctx, appevents.ExtensionEnabled, map[string]any{"extensionId": enabled.ID})
 	}
+	publishLegacyComponentRuntime(ctx, s.serviceCore, enabled) // 无后端但有公开 L2 组件的包在此收敛
 	return s.decorateRuntime(ctx, enabled), nil
 }
 
@@ -682,6 +683,8 @@ func (s *LifecycleService) DisableWithInput(ctx context.Context, actor identity.
 		Action:      EventDisabled,
 		Message:     "Extension disabled.",
 	})
+	removeLegacyComponentRuntime(ctx, s.serviceCore, disabled.ID) // 与启用对称：移除组件包运行时注册
+	erasePluginSessionState(ctx, s.serviceCore, disabled.ID)      // 禁用即擦除该扩展的插件会话状态
 	return s.decorateRuntime(ctx, disabled), nil
 }
 

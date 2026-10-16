@@ -19,6 +19,33 @@
   --splugin-muted: #a1a1aa;
 }
 
+/*
+ * 宿主图标：标记由宿主生成并按 `1em` 定尺寸，所以这里只需控制字号与对齐。
+ * 未解析到图标时元素为空，不占位、不报错。
+ */
+.splugin-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  vertical-align: -0.125em;
+}
+
+.splugin-icon svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
+.splugin-icon--sm { font-size: 0.875rem; }
+.splugin-icon--md { font-size: 1rem; }
+.splugin-icon--lg { font-size: 1.5rem; }
+
+.splugin-empty__icon {
+  color: var(--splugin-muted);
+}
+
 .splugin-section {
   min-width: 0;
   overflow: hidden;

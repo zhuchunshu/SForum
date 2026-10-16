@@ -229,7 +229,7 @@ embedded Draft 2020-12 schema (`apps/api/app/Support/ExtensionManifest/schemas/m
 | `targetId` | The stable route id this action targets (required for targeting actions such as `replace`). |
 | `path` | Canonical HTTP path: static segments, `:name` parameters, and a final `*name` catch-all (`*` alone names the segment `path`). Paths must be canonical (no `..`, no `//`). |
 | `methods` | HTTP methods for this declaration. |
-| `guard` | Guard id: `core.guard.public`, `core.guard.login`, `core.guard.permission` (plus `permission`), `core.guard.guest`, `core.guard.inherit`, `core.guard.raw_request`, or a custom guard id. See [Guards](#guards). |
+| `guard` | Guard id: `core.guard.public`, `core.guard.login`, `core.guard.permission` (plus `permission`), `core.guard.guest`, `core.guard.inherit`, or a custom guard id (a package-declared `kind: raw_request` guard is the only route to raw request authority; `core.guard.raw_request` is refused). See [Guards](#guards). |
 | `access` | Convenience shorthand mapped to core guards: `public` → `core.guard.public`, `login` → `core.guard.login`, `permission` → `core.guard.permission` (plus `permission`). Ignored when `guard` is set. |
 | `permission` | Permission key required by `core.guard.permission` (or `access: "permission"`). |
 | `priority` | Ordering hint for overlapping declarations (integer). |
@@ -280,13 +280,45 @@ owns each path; conflicts are rejected at admission.
 | `core.guard.permission` | Authenticated user holding `permission` | |
 | `core.guard.guest` | Guests only (not authenticated) | |
 | `core.guard.inherit` | Targeting actions without an explicit guard | Inherits the targeted route's guard; closed until the target is resolvable. |
-| `core.guard.raw_request` | Only through a separately trusted raw guard runtime | **Closed in the current host release** (`ErrRouteGuardUnavailable`). |
-| custom guard ids | Only through the trusted guard runtime | Guard binaries are declared via the `guards[]` family (`kind: custom` / `kind: raw_request`, exact `entry` + `digest`, optional `permissions`), but the executable guard runtime is a later wave; **closed today**. |
+| `core.guard.raw_request` | **Rejected** | **Removed 2026-10-16.** It used to allow a route with an *empty* plugin guard binding — no guard code at all — and grant raw request authority, forwarding `cookie`, `authorization`, `x-api-key` and `x-auth-token` to your handler. That was judged a vulnerability and is refused at manifest validation. Declare your own guard with `kind: raw_request` (`entry` + `digest` + `contractVersion`) and reference it when you genuinely need raw authority; the Host discloses it at trust time. |
+| custom guard ids | Only through the trusted guard runtime | Guard binaries are declared via the `guards[]` family (`kind: custom` / `kind: raw_request`, exact `entry` + `digest`, optional `permissions`). The executable guard runtime **is live in production**: it is injected by `bootstrap/api_assembly_domains.go` and dispatched by `Support/Routes/core_guard_authorizer.go`. |
 
 For ordinary routes use `core.guard.public` and `core.guard.login`. The Host
 performs the guard check *before* invoking your handler, and passes the
 resolved authority in the RPC context; your handler never re-implements login
 or permission checks from raw request data.
+
+### Custom guards are live, and gated exactly like other plugin code
+
+A `guards[]` declaration with `kind: custom` resolves to a plugin handler that
+runs over Protocol V2 (`InvokeRoute` with the guard id as the route id) and must
+answer allow/deny with no body. Before that call the Host requires all of:
+
+- an exact route/guard binding (declared guard id, non-empty contract version,
+  and an artifact that matches the plan step);
+- a runtime instance for the exact artifact — extension id and plugin type,
+  `enabled` status, the declared version, and the exact package digest;
+- that the instance is not in safe mode, and that the exact artifact is trusted
+  whenever trust is required or raw authority is requested;
+- a live runtime admission lease for that instance.
+
+Any failure — no evaluator, an invalid binding, a missing/untrusted/safe-mode
+runtime, or a guard-side error — denies the request. There is no fallback that
+runs the handler unguarded.
+
+Three properties are **validated and disclosed but not enforced or decided**,
+so do not rely on them:
+
+- `permissions[]` on a guard declaration is part of the trust disclosure, but
+  the Host does not use it for enforcement; the guard owns that decision.
+- A `challenge` outcome (redirect/step-up) does not exist in the wire contract.
+  A guard can only allow or deny.
+- `core.guard.raw_request` **no longer exists as a usable guard** (removed
+  2026-10-16). It handed raw request authority to a route **without any guard code
+  running**; the operator judged that a vulnerability, so manifest validation now
+  refuses the id and the runtime fails closed for it. Raw authority is only
+  available through a package-declared guard with `kind: raw_request`, which the
+  Host discloses as high risk during exact-artifact trust confirmation.
 
 ---
 
@@ -395,9 +427,11 @@ declares.
 
 1. Namespaced stable `id` + explicit `contractVersion` per route.
 2. Canonical `path`; `methods` explicit; `mode` explicit (`http` default).
-3. Guard chosen from the closed set (`public`/`login`/`permission`/`guest`);
-   do not rely on `inherit`, `raw_request`, or custom guards in the current
-   release.
+3. Guard chosen from the closed set (`public`/`login`/`permission`/`guest`).
+   `inherit` resolves only when the target is resolvable; `raw_request` and
+   custom guards are live but high-risk — custom guards run exact-artifact,
+   trust-gated plugin code, and `raw_request` needs no guard code at all while
+   forwarding credential headers.
 4. `requestSchema` on every unsafe document-bearing request;
    `responseSchema` on structured responses; both resolve to `packageFiles`
    kind `schema` entries.

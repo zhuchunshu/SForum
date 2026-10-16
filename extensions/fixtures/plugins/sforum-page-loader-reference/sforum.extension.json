@@ -1,0 +1,91 @@
+{
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
+  "backend": {
+    "digest": "64fe3604ca209299f63c4d012727af80b3b03f93dd42b0548856b983b61b4478",
+    "entry": "backend/plugin",
+    "hostApiVersion": "sforum.host@2",
+    "protocolVersion": 2,
+    "rpc": "hashicorp-go-plugin"
+  },
+  "description": "Reference plugin page whose body data is fetched from a real Protocol V2 runtime over a declared public data route.",
+  "id": "sforum.page-loader-reference",
+  "manifestVersion": 3,
+  "name": "SForum Page Loader Reference",
+  "openapi": [
+    {
+      "contractVersion": "sforum.page-loader-reference.openapi.routes@1",
+      "digest": "8aa7793c8504cff039204bc2e6cf6fe977d2c9f72fffccf03454a080b45e2801",
+      "id": "sforum.page-loader-reference.openapi.routes",
+      "namespace": "sforum.page-loader-reference",
+      "path": "openapi/routes.yaml"
+    }
+  ],
+  "packageFiles": [
+    {
+      "digest": "64fe3604ca209299f63c4d012727af80b3b03f93dd42b0548856b983b61b4478",
+      "id": "sforum.page-loader-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin"
+    },
+    {
+      "digest": "58b1eecc34cb26919033f87e2f180c15ed5c4954007fb2a67b0f879a3e12203d",
+      "id": "sforum.page-loader-reference.file.article-template",
+      "kind": "template",
+      "path": "templates/article.html"
+    },
+    {
+      "digest": "c07d9f76041f62828da9f97efb092972962c6b638e9f4fa0a0a8eb76671ab4f0",
+      "id": "sforum.page-loader-reference.article.data",
+      "kind": "schema",
+      "path": "schemas/article.json",
+      "version": "1"
+    },
+    {
+      "digest": "c07d9f76041f62828da9f97efb092972962c6b638e9f4fa0a0a8eb76671ab4f0",
+      "id": "sforum.page-loader-reference.page-data.response",
+      "kind": "schema",
+      "path": "schemas/page-data-response.json",
+      "version": "1"
+    },
+    {
+      "digest": "8aa7793c8504cff039204bc2e6cf6fe977d2c9f72fffccf03454a080b45e2801",
+      "id": "sforum.page-loader-reference.file.openapi",
+      "kind": "openapi",
+      "path": "openapi/routes.yaml"
+    }
+  ],
+  "routes": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.page-loader-reference.route.page-data@1",
+      "fallback": "closed",
+      "guard": "core.guard.public",
+      "handler": "sforum.page-loader-reference.route.page-data",
+      "id": "sforum.page-loader-reference.route.page-data",
+      "methods": [
+        "GET"
+      ],
+      "mode": "http",
+      "path": "/page-data/article",
+      "responseSchema": "sforum.page-loader-reference.page-data.response@1"
+    }
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "templates": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.page-loader-reference.template.article@1",
+      "digest": "58b1eecc34cb26919033f87e2f180c15ed5c4954007fb2a67b0f879a3e12203d",
+      "id": "sforum.page-loader-reference.template.article",
+      "path": "templates/article.html",
+      "themeOverrideKey": "sforum.page-loader-reference.article",
+      "viewModelSchema": "sforum.page-loader-reference.article.data@1"
+    }
+  ],
+  "type": "plugin",
+  "url": "https://sforum.local/plugins/page-loader-reference",
+  "version": "1.0.1"
+}

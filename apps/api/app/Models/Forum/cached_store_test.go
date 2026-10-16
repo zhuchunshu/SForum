@@ -27,9 +27,11 @@ func (s *referenceInvalidatorSpy) InvalidateTopicVisibility(context.Context) {
 type cacheTestStore struct {
 	Store
 	categoriesCalls int
-	topicCalls      int
-	topicsCalls     int
-	commentsCalls   int
+	// lastCategoriesIncludeHidden 记录最近一次公开/后台口径，供缓存 key 隔离断言。
+	lastCategoriesIncludeHidden bool
+	topicCalls                  int
+	topicsCalls                 int
+	commentsCalls               int
 	// topicCategorySlug / topicTagSlugs 控制 GetTopic 返回的列表分片 scope（M6）。
 	topicCategorySlug string
 	topicTagSlugs     []string
@@ -39,8 +41,15 @@ func newCacheTestStore() *cacheTestStore {
 	return &cacheTestStore{Store: newServiceFakeStore()}
 }
 
-func (s *cacheTestStore) ListCategories(_ context.Context) ([]Category, error) {
+func (s *cacheTestStore) ListCategories(_ context.Context, includeHidden bool) ([]Category, error) {
 	s.categoriesCalls++
+	s.lastCategoriesIncludeHidden = includeHidden
+	if includeHidden {
+		return []Category{
+			{ID: 1, Slug: "general", Name: "综合讨论", Visibility: "public"},
+			{ID: 2, Slug: "internal", Name: "内部版块", Visibility: "hidden"},
+		}, nil
+	}
 	return []Category{{ID: 1, Slug: "general", Name: "综合讨论"}}, nil
 }
 
@@ -102,14 +111,14 @@ func TestCachedStoreReadsHitCacheAfterFirstLoad(t *testing.T) {
 	cached := NewCachedStore(inner, c)
 
 	// 首次：miss → 查 store → 写缓存。
-	if _, err := cached.ListCategories(ctx); err != nil {
+	if _, err := cached.ListCategories(ctx, false); err != nil {
 		t.Fatalf("first list categories: %v", err)
 	}
 	if inner.categoriesCalls != 1 {
 		t.Fatalf("expected 1 store call after first load, got %d", inner.categoriesCalls)
 	}
 	// 二次：hit → 不查 store。
-	if _, err := cached.ListCategories(ctx); err != nil {
+	if _, err := cached.ListCategories(ctx, false); err != nil {
 		t.Fatalf("second list categories: %v", err)
 	}
 	if inner.categoriesCalls != 1 {
@@ -131,6 +140,63 @@ func TestCachedStoreCategoryGroupChangesInvalidateReferenceVisibility(t *testing
 	}
 	if spy.visibilityCalls != 2 {
 		t.Fatalf("category group visibility invalidations=%d", spy.visibilityCalls)
+	}
+}
+
+// 后台口径（includeHidden=true）与公开口径必须各自独立缓存，
+// 否则隐藏分类会污染公开列表，或被公开列表掩盖。
+func TestCachedStoreTaxonomyListSeparatesAdminAndPublicCacheKeys(t *testing.T) {
+	t.Parallel()
+	inner := newCacheTestStore()
+	cached := NewCachedStore(inner, cache.NewMemoryCache())
+
+	publicItems, err := cached.ListCategories(t.Context(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminItems, err := cached.ListCategories(t.Context(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(publicItems) != 1 || len(adminItems) != 2 {
+		t.Fatalf("public=%d admin=%d; hidden categories must stay visible to admin", len(publicItems), len(adminItems))
+	}
+	if inner.categoriesCalls != 2 {
+		t.Fatalf("expected separate store loads for public/admin reads, got %d", inner.categoriesCalls)
+	}
+	if _, err := cached.ListCategories(t.Context(), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListCategories(t.Context(), true); err != nil {
+		t.Fatal(err)
+	}
+	if inner.categoriesCalls != 2 {
+		t.Fatalf("expected cached reads on both scopes, store calls=%d", inner.categoriesCalls)
+	}
+}
+
+func TestCachedStoreDeleteCategoryInvalidatesAdminAndPublicTaxonomy(t *testing.T) {
+	t.Parallel()
+	inner := newCacheTestStore()
+	cached := NewCachedStore(inner, cache.NewMemoryCache())
+
+	if _, err := cached.ListCategories(t.Context(), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListCategories(t.Context(), true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.DeleteCategory(t.Context(), 2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListCategories(t.Context(), false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cached.ListCategories(t.Context(), true); err != nil {
+		t.Fatal(err)
+	}
+	if inner.categoriesCalls != 4 {
+		t.Fatalf("delete must invalidate both taxonomy cache keys, store calls=%d", inner.categoriesCalls)
 	}
 }
 
@@ -425,7 +491,7 @@ func TestCachedStoreCacheErrorsDegradeGracefully(t *testing.T) {
 	cached := NewCachedStore(inner, c)
 
 	for i := 0; i < 5; i++ {
-		if _, err := cached.ListCategories(ctx); err != nil {
+		if _, err := cached.ListCategories(ctx, false); err != nil {
 			t.Fatalf("call %d: %v", i, err)
 		}
 	}
@@ -512,7 +578,7 @@ func TestCachedStoreModerationPublicationInvalidatesPublicDerivatives(t *testing
 	if _, err := cached.ListTopics(ctx, topics); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := cached.ListCategories(ctx); err != nil {
+	if _, err := cached.ListCategories(ctx, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := cached.ListComments(ctx, comments); err != nil {
@@ -526,7 +592,7 @@ func TestCachedStoreModerationPublicationInvalidatesPublicDerivatives(t *testing
 	if _, err := cached.ListTopics(ctx, topics); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := cached.ListCategories(ctx); err != nil {
+	if _, err := cached.ListCategories(ctx, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := cached.ListComments(ctx, comments); err != nil {

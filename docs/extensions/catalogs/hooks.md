@@ -51,6 +51,7 @@ Rules: async + filter is rejected; async requires fail_open; mutableFields only 
 | `topic.unpinned` | observe | 5000 | fail_open | `topicId`, `authorUserId`, `categorySlug`, `tagSlugs`, `title`, `path`, `url`, `topic`, `author`, `category`, `tags`, `actorUserId` | — |
 | `category.created` | observe | 5000 | fail_open | `categoryId`, `categorySlug`, `groupId` | — |
 | `category.updated` | observe | 5000 | fail_open | `categoryId`, `categorySlug`, `groupId` | — |
+| `category.deleted` | observe | 5000 | fail_open | `categoryId`, `categoryGroupId`, `categorySlug`, `groupId` | — |
 | `tag.created` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |
 | `tag.updated` | observe | 5000 | fail_open | `tagId`, `tagSlug`, `status` | — |
 | `comment.before_create` | filter | 2000 | fail_closed | `actorUserId`, `topicId`, `parentId`, `content` | `content` |

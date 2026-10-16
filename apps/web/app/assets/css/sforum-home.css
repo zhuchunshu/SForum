@@ -6,6 +6,8 @@
   color: var(--sf-public-text);
 }
 
+/* 列表壳的画布表面色归这里，且必须覆盖所有宽度：话题行是透明的（G1 白底扁平列表），
+ * 一旦这条被断点独占，窄屏就会露出 --sf-public-bg 画布色，与 PC 的 surface 不一致。 */
 .sforum-home__layout {
   display: grid;
   grid-template-columns: var(--sf-public-sidebar-width) minmax(0, 1fr);
@@ -13,6 +15,7 @@
   max-width: none;
   width: 100%;
   box-sizing: border-box;
+  background: var(--sf-public-surface);
 }
 
 /* host chrome / 无 .sf-theme--default 时仍与顶栏同轨离开视口边缘 */
@@ -717,7 +720,6 @@
 @media (min-width: 981px) {
   .sforum-home__layout {
     gap: 12px;
-    background: var(--sf-public-surface);
   }
 
   .sforum-home__main {

@@ -2,9 +2,6 @@ package extensionsruntime
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -619,7 +616,12 @@ func buildLifecycleRegistryMaterial(
 		routes: routes.PluginRouteSet{Artifact: routes.PluginArtifact{
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version,
 			PackageDigest: extension.PackageDigest, RuntimeInstanceID: binding.RuntimeInstanceID,
-		}, Routes: append([]extensions.ManifestRoute(nil), extension.Manifest.Routes...)},
+		}, Routes: append([]extensions.ManifestRoute(nil), extension.Manifest.Routes...),
+			// 守卫声明必须与路由一起冻结：Routes 侧只为「本包声明的守卫」建立绑定，
+			// 漏掉声明会让引用它（含 R1 之后唯一合法的 kind=raw_request 守卫）的路由在
+			// 启用期被 fail-closed 拒绝。启动恢复路径 buildStartupRoutePublicationMaterial
+			// 已携带守卫，此处补齐同一条契约。
+			Guards: append([]extensions.ManifestGuard(nil), extension.Manifest.Guards...)},
 		routeSchema: extensionopenapi.Artifact{
 			Root: extensions.PackageContentRoot(extension), ExtensionID: extension.ID,
 			Version: extension.Version, PackageDigest: extension.PackageDigest, Manifest: extension.Manifest,
@@ -644,26 +646,6 @@ func buildLifecycleRegistryMaterial(
 		return lifecycleRegistryMaterial{}, err
 	}
 	return material, nil
-}
-
-func registryMaterialDigest(material *lifecycleRegistryMaterial, extensionID string) string {
-	if material != nil {
-		return material.digest
-	}
-	raw, _ := json.Marshal(struct {
-		Schema      string `json:"schema"`
-		ExtensionID string `json:"extensionId"`
-		State       string `json:"state"`
-	}{"sforum.lifecycle.registry-plan@1", extensionID, "absent"})
-	sum := sha256.Sum256(raw)
-	return hex.EncodeToString(sum[:])
-}
-
-func registryMaterialCompatibleDigests(material *lifecycleRegistryMaterial) []string {
-	if material == nil || len(material.compatibleDigests) == 0 {
-		return nil
-	}
-	return append([]string(nil), material.compatibleDigests...)
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) validateRuntimeMaterial(material lifecycleRegistryMaterial) error {

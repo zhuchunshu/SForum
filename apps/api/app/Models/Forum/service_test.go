@@ -1967,29 +1967,36 @@ func (p fakeCommentActionProvider) CommentExtensionActions(context.Context) ([]C
 }
 
 type serviceFakeStore struct {
-	nextID             int64
-	createdCategory    CreateCategoryInput
-	updatedCategory    UpdateCategoryInput
-	createdTag         CreateTagInput
-	updatedTag         UpdateTagInput
-	createdTopic       CreateTopicRecord
-	createdComment     CreateCommentRecord
-	topicForComment    TopicSummary
-	actionTopic        TopicSummary
-	updatedTopic       UpdateTopicRecord
-	updatedComment     UpdateCommentRecord
-	deletedTopicID     int64
-	appliedAction      string
-	commentSummary     CommentSummary
-	commentSummaryErr  error
-	topicEditSource    EditableContentSource
-	commentEditSource  EditableContentSource
-	topicSourceCalls   int
-	commentSourceCalls int
-	resolvedTags       []TopicTagSummary
-	resolveTagsErr     error
-	resolveTagsCalled  bool
-	resolvedTagsInput  ResolveTopicTagsInput
+	nextID            int64
+	createdCategory   CreateCategoryInput
+	updatedCategory   UpdateCategoryInput
+	deletedCategoryID int64
+	deletedGroupID    int64
+	deleteCategoryErr error
+	deleteGroupErr    error
+	createdTag        CreateTagInput
+	updatedTag        UpdateTagInput
+	// ListCategories 供删除前的默认分类保护判定读取。
+	listCategoriesResult        []Category
+	listCategoriesIncludeHidden bool
+	createdTopic                CreateTopicRecord
+	createdComment              CreateCommentRecord
+	topicForComment             TopicSummary
+	actionTopic                 TopicSummary
+	updatedTopic                UpdateTopicRecord
+	updatedComment              UpdateCommentRecord
+	deletedTopicID              int64
+	appliedAction               string
+	commentSummary              CommentSummary
+	commentSummaryErr           error
+	topicEditSource             EditableContentSource
+	commentEditSource           EditableContentSource
+	topicSourceCalls            int
+	commentSourceCalls          int
+	resolvedTags                []TopicTagSummary
+	resolveTagsErr              error
+	resolveTagsCalled           bool
+	resolvedTagsInput           ResolveTopicTagsInput
 	// GetTopic 可配置返回错误，供评论可见性兜底测试模拟隐藏/不可见主题。
 	getTopicErr error
 	// ListComments 可配置返回值与调用记录，供分页/view 校验测试断言。
@@ -2041,11 +2048,12 @@ func newServiceFakeStore() *serviceFakeStore {
 	}
 }
 
-func (s *serviceFakeStore) ListCategories(context.Context) ([]Category, error) {
-	return nil, nil
+func (s *serviceFakeStore) ListCategories(_ context.Context, includeHidden bool) ([]Category, error) {
+	s.listCategoriesIncludeHidden = includeHidden
+	return s.listCategoriesResult, nil
 }
 
-func (s *serviceFakeStore) ListCategoryGroups(context.Context) ([]CategoryGroup, error) {
+func (s *serviceFakeStore) ListCategoryGroups(context.Context, bool) ([]CategoryGroup, error) {
 	return nil, nil
 }
 
@@ -2059,6 +2067,14 @@ func (s *serviceFakeStore) CreateCategoryGroup(_ context.Context, input CreateCa
 
 func (s *serviceFakeStore) UpdateCategoryGroup(_ context.Context, input UpdateCategoryGroupInput) (CategoryGroup, error) {
 	return CategoryGroup{ID: input.ID, Slug: "default", Name: "默认版块", Visibility: "public"}, nil
+}
+
+func (s *serviceFakeStore) DeleteCategoryGroup(_ context.Context, groupID int64) (CategoryGroup, error) {
+	s.deletedGroupID = groupID
+	if s.deleteGroupErr != nil {
+		return CategoryGroup{}, s.deleteGroupErr
+	}
+	return CategoryGroup{ID: groupID, Slug: "default", Name: "默认版块", Visibility: "public"}, nil
 }
 
 func (s *serviceFakeStore) CreateCategory(_ context.Context, input CreateCategoryInput) (Category, error) {
@@ -2076,6 +2092,14 @@ func (s *serviceFakeStore) UpdateCategory(_ context.Context, input UpdateCategor
 		item.IconColor = *input.IconColor
 	}
 	return item, nil
+}
+
+func (s *serviceFakeStore) DeleteCategory(_ context.Context, categoryID int64) (Category, error) {
+	s.deletedCategoryID = categoryID
+	if s.deleteCategoryErr != nil {
+		return Category{}, s.deleteCategoryErr
+	}
+	return Category{ID: categoryID, GroupID: 1, Slug: "support", Name: "Support", Visibility: "public"}, nil
 }
 
 func (s *serviceFakeStore) CreateTag(_ context.Context, input CreateTagInput) (Tag, error) {

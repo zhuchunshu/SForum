@@ -75,6 +75,24 @@ func restoreAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger 
 		pool.Close()
 		return nil, fmt.Errorf("sync external extension sources failed: %w", err)
 	}
+	// 开放中的 lifecycle operation 会让 plugin runtime fence 拒绝收敛。这里
+	// 先把根因写进日志：否则现场只剩「启动未就绪」这个现象，没有任何可操作
+	// 信息（这正是该故障最昂贵的部分）。
+	if openOperations, openErr := extensionStore.ListOpenLifecycleOperations(ctx, 8); openErr != nil {
+		logger.Warn("inspect open extension lifecycle operations failed", "error", openErr)
+	} else {
+		for _, operation := range openOperations {
+			logger.Warn("open extension lifecycle operation blocks plugin runtime convergence",
+				"operationId", operation.ID,
+				"extensionId", operation.ExtensionID,
+				"operation", operation.Operation,
+				"state", operation.State,
+				"currentStepId", operation.CurrentStepID,
+				"attemptCount", operation.AttemptCount,
+				"startedAt", operation.StartedAt,
+			)
+		}
+	}
 	// DatabaseService 的 SQL catalog 必须在首次插件 Reconcile/broker 注册前冻结。
 	if err := bindProductionProtocolV2DatabaseRuntime(ctx, databaseCatalogBinder, extensionStore, cfg.SafeMode); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
@@ -241,6 +259,8 @@ func newPluginRuntimeRecoveryRequirement(
 
 func pluginRuntimeRecoveryMessage(err error) string {
 	switch {
+	case errors.Is(err, errPluginRuntimeCoordinatorStartupPending):
+		return "plugin runtime did not converge before the startup deadline; an extension lifecycle operation is still open"
 	case errors.Is(err, pluginbootstrap.ErrBootstrapABIIncompatible):
 		return "plugin process bootstrap ABI is incompatible"
 	case errors.Is(err, pluginbootstrap.ErrExecutableArchitecture):

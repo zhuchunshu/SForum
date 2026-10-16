@@ -168,6 +168,8 @@ function topicActivity(topic: ForumTopicSummary) {
           </template>
         </SFPublicPageHeader>
 
+        <SFRegionOutlet page="forum.category.show" region="list_before" />
+
         <div id="feed-list-container" class="sforum-home__feed-list" data-sf-region="topic-list">
           <template v-if="topicsPending">
             <div
@@ -198,6 +200,8 @@ function topicActivity(topic: ForumTopicSummary) {
             />
           </div>
         </div>
+
+        <SFRegionOutlet page="forum.category.show" region="list_after" />
 
         <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="mt-3">
           <SFPagination

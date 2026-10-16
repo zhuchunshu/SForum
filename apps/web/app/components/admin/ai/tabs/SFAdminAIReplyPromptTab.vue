@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ADMIN_AI_DRAFT_KEY } from '~/composables/admin/useAdminAISettingsForm'
 import { promptUsesDefault } from '~/utils/admin/adminAI'
-import SFAdminAIIdentityBlock from '~/components/admin/ai/blocks/SFAdminAIIdentityBlock.vue'
 import SFAdminAITriggerModeBlock from '~/components/admin/ai/blocks/SFAdminAITriggerModeBlock.vue'
 
 const { t } = useI18n()
@@ -65,6 +64,5 @@ function restoreDefaultPrompt() {
         <pre class="mt-1 whitespace-pre-wrap font-sans text-xs text-slate-500 dark:text-zinc-400">{{ ai.safetyAppendix.value }}</pre>
       </div>
     </section>
-    <SFAdminAIIdentityBlock v-model:form="form" :disabled="!canManage" />
   </div>
 </template>

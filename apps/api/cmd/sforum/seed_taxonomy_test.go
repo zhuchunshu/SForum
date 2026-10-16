@@ -26,7 +26,7 @@ func (s *fakeTaxonomyStore) next() int64 {
 	return s.nextID
 }
 
-func (s *fakeTaxonomyStore) ListCategoryGroups(context.Context) ([]forum.CategoryGroup, error) {
+func (s *fakeTaxonomyStore) ListCategoryGroups(context.Context, bool) ([]forum.CategoryGroup, error) {
 	return s.groups, nil
 }
 

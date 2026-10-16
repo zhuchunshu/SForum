@@ -489,6 +489,106 @@ what an author can know locally (name shape, kind, payload size, idempotency
 key); namespace ownership stays a Host decision, so a plugin cannot "fix" a
 foreign name on its side.
 
+## Plugin session state (S9)
+
+`PluginSessionService` holds small bounded workflow state for the **current Host
+session** on behalf of one plugin. It is Host-owned: the state never enters the
+Core session payload, is never keyed by the raw session id, and never carries
+session authority.
+
+```text
+rpc Get(PluginSessionGetRequest) returns (PluginSessionGetResponse)
+rpc Set(PluginSessionSetRequest) returns (PluginSessionSetResponse)
+rpc Delete(PluginSessionDeleteRequest) returns (PluginSessionDeleteResponse)
+```
+
+The request messages carry **only** `context` plus `namespace_key` (and `value` /
+`ttl_ms` on `PluginSessionSetRequest`). There is no extension id, user id, or
+session id field — the extension identity comes from the runtime-attested broker
+context, and the session comes from the Host. A caller-supplied identity is not
+merely ignored: it does not exist in the request shape, so cross-plugin and
+cross-session access are denied by construction.
+
+### How the session scope reaches the plugin
+
+The plugin→Host channel attests the **runtime**, not the request: the host-v2
+gRPC server is built per long-lived plugin process. The Host therefore mints a
+`HostSessionDelegation` — a Host-signed, **single-invocation** capability — and
+delivers it on the invocation's `RequestContext.host_session_delegation`. The
+plugin echoes that same value back on the session-state calls. The Host then
+validates signature, actor/runtime/artifact binding, expiry and its own mint
+record, and derives the session scope from that record.
+
+Consequences worth knowing before you design around it:
+
+- The token is opaque. It carries no session identifier and no session
+  fingerprint, so decoding it tells a plugin nothing about the session. This is
+  why `Actor.session_id` stays unpopulated: a plugin never receives a session
+  correlation handle.
+- The Host retires the delegation when the invocation that minted it settles, so
+  a token cannot be hoarded and reused for a later request. Reuse fails closed.
+- The Host mints it only where it initiated the invocation itself inside an HTTP
+  request. Background work (jobs, schedules, queue consumers) has no session
+  scope and receives no delegation.
+- A plugin must treat "no delegation" as an ordinary outcome, not a fault. It is
+  what an anonymous request, a background call, or an erased session looks like.
+
+### Lifetime and limits
+
+The Host answers `Set` with the effective TTL it actually applied:
+
+```text
+effective = min(requested, 24h, remaining idle lifetime, remaining absolute lifetime)
+```
+
+Plugin state can therefore never outlive — let alone extend — the Core session.
+`ttl_ms = 0` means "session-scoped" and still honours the 24-hour ceiling. A
+request that outlives the session is tightened, never widened.
+
+| Limit | Value | Failure |
+| --- | --- | --- |
+| `namespace_key` | ≤ 512 bytes | `host.plugin_session_key_too_long` |
+| `value` | ≤ 1 MiB, non-empty | `host.plugin_session_value_too_large` |
+| `ttl_ms` | 1 ms … 24 h | `host.plugin_session_ttl_out_of_range` |
+| keys per (extension, session) | 64 | `host.plugin_session_key_limit` |
+| keys per extension installation | 4096 | `host.plugin_session_extension_limit` |
+
+Updating an existing key is always allowed, including at a ceiling: a plugin must
+never be locked out of its own data. Values are opaque bytes with no Host-side
+schema and no migration guarantee — this is ephemeral workflow state, and a
+plugin must tolerate a miss. Put your own version byte in the payload if you
+need one.
+
+### Failure and lifecycle policy
+
+| Condition | Result |
+| --- | --- |
+| No delegation, retired delegation, tampered or expired token, binding drift (runtime, artifact, trust grant, epoch), caller-supplied actor | `host.plugin_session_scope_unattested` (denied) |
+| Runtime draining, quarantined, or no longer active | `host.plugin_session_runtime_stale` |
+| Host Safe Mode | reads miss silently; writes are refused with `host.plugin_session_safe_mode` |
+| Storage unavailable | `host.plugin_session_unavailable` (retryable, no backend detail) |
+
+Session state is dropped on logout, on a fresh login (the replaced session's
+namespace), on revoke and device-cap eviction, on extension disable/uninstall,
+and by the privacy erase hook. A 24-hour cookie rotation keeps the same `sid`, so
+state survives rotation without any migration step.
+
+### SDK usage
+
+```go
+// Inside a Host-initiated invocation; ctx is the invocation context.
+state, err := host.SessionState(ctx)
+if errors.Is(err, pluginv2.ErrPluginSessionDelegationUnavailable) {
+    // No session scope for this call (background work, anonymous request, erased
+    // session). Degrade instead of failing.
+    return nil
+}
+if _, err := state.Set(ctx, "checkout/step", payload, 10*time.Minute); err != nil {
+    return err
+}
+value, found, err := state.Get(ctx, "checkout/step")
+```
+
 ## Non-Go implementation checklist
 
 A non-Go plugin is compatible only when its integration test proves all of the

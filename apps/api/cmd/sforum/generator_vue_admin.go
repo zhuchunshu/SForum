@@ -61,14 +61,12 @@ export default defineConfig({
   plugins: [vue()],
   build: {
     emptyOutDir: false,
-    minify: 'esbuild',
     cssCodeSplit: false,
     rollupOptions: {
       input: fileURLToPath(new URL('./src/admin.ts', import.meta.url)),
       preserveEntrySignatures: 'exports-only',
       output: {
         format: 'es',
-        codeSplitting: false,
         entryFileNames: 'dashboard.mjs',
         assetFileNames: 'dashboard[extname]'
       }
@@ -76,19 +74,17 @@ export default defineConfig({
   }
 })
 `,
-		"src/admin.ts": `import { createApp } from 'vue'
-import type { AdminPageBridgeV1 } from '@sforum/admin-sdk'
-import { ADMIN_MICRO_FRONTEND_API_VERSION } from '@sforum/admin-sdk'
+		"src/admin.ts": `import { ADMIN_MICRO_FRONTEND_API_VERSION } from '@sforum/admin-sdk'
+import { definePluginPage } from '@sforum/plugin-ui'
 import '@sforum/plugin-ui/style.css'
 import AdminDashboard from './AdminDashboard.vue'
 
-export const apiVersion = ADMIN_MICRO_FRONTEND_API_VERSION
-
-export function mount(target: HTMLElement, bridge: AdminPageBridgeV1) {
-  const app = createApp(AdminDashboard, { bridge })
-  app.mount(target)
-  return () => app.unmount()
-}
+// definePluginPage 挂载组件并注入宿主图标解析器；不需要手写 createApp，
+// 也不会因为忘记注入而让图标静默消失。
+export const { apiVersion, mount } = definePluginPage(
+  AdminDashboard,
+  ADMIN_MICRO_FRONTEND_API_VERSION
+)
 `,
 		"src/AdminDashboard.vue": vueAdminDashboardSFC(opts),
 		"dist/dashboard.mjs": `export const apiVersion = 1
@@ -143,8 +139,8 @@ func vueAdminPackageJSON(opts makeOptions) string {
     "build": "vite build"
   },
   "dependencies": {
-    "@sforum/admin-sdk": "^1.0.0",
-    "@sforum/plugin-ui": "^1.0.0",
+    "@sforum/admin-sdk": "^1.1.0",
+    "@sforum/plugin-ui": "^1.1.0",
     "vue": "^3.5.0"
   },
   "devDependencies": {
@@ -175,8 +171,8 @@ import {
 const props = defineProps<{ bridge: AdminPageBridgeV1 }>()
 const message = ref('Hello from ` + opts.Name + `')
 const columns: SPluginTableColumn[] = [
-  { key: 'name', label: 'Item' },
-  { key: 'status', label: 'Status' }
+  { key: 'name', label: 'Item', icon: 'i-lucide-box' },
+  { key: 'status', label: 'Status', icon: 'i-lucide-activity' }
 ]
 const rows = [{ id: 1, name: 'Vue page', status: 'Ready' }]
 
@@ -191,23 +187,27 @@ function completeAction() {
 
 <template>
   <SPluginPage>
-    <SPluginAlert tone="info" title="Host shell inherited">
+    <SPluginAlert tone="info" icon="i-lucide-shield-check" title="Host shell inherited">
       This body uses Plugin UI SDK components; SForum still owns navigation and permissions.
     </SPluginAlert>
 
-    <SPluginSection title="Quick action" description="Change the message, then run the action.">
+    <SPluginSection
+      title="Quick action"
+      description="Change the message, then run the action."
+      icon="i-lucide-zap"
+    >
       <SPluginField label="Message" for="dashboard-message">
         <SPluginInput id="dashboard-message" v-model="message" />
       </SPluginField>
       <template #actions>
-        <SPluginButton @click="completeAction">Run action</SPluginButton>
+        <SPluginButton icon="i-lucide-play" @click="completeAction">Run action</SPluginButton>
       </template>
     </SPluginSection>
 
-    <SPluginSection title="Recent activity">
+    <SPluginSection title="Recent activity" icon="i-lucide-activity">
       <SPluginTable :columns="columns" :rows="rows" row-key="id">
         <template #empty>
-          <SPluginEmptyState title="No activity yet" />
+          <SPluginEmptyState icon="i-lucide-inbox" title="No activity yet" />
         </template>
       </SPluginTable>
     </SPluginSection>

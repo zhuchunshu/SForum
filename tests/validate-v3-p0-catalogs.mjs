@@ -196,7 +196,7 @@ assertIdentityMutationRejected('UI source drift', changed => {
   changed.ui[changed.ui.findIndex(item => item.state === 'active')].source = 'apps/web/app/components/Moved.vue'
 }, 'new or moved UI surface')
 
-assert(routes.length === 360, `route inventory must contain exactly 360 reviewed routes: ${routes.length}`)
+assert(routes.length === 362, `route inventory must contain exactly 362 reviewed routes: ${routes.length}`)
 assert(identities.routes.length === routes.length, 'reviewed route identity map must cover every current route')
 unique(routes, item => item.id, 'route inventory ids')
 unique(routes, item => `${item.method} ${item.path}`, 'route inventory method/path pairs')

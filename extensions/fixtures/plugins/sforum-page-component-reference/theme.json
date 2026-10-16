@@ -1,0 +1,23 @@
+{
+  "pages": [
+    {
+      "id": "sforum.page-component-reference.page.component",
+      "action": "add",
+      "path": "/page-component-reference/component",
+      "view": "component",
+      "component": {
+        "id": "sforum.page-component-reference.component.body"
+      },
+      "access": "public",
+      "contract": "sforum.page.sforum_page_component_reference_component@1"
+    },
+    {
+      "id": "sforum.page-component-reference.page.template",
+      "action": "add",
+      "path": "/page-component-reference/template",
+      "template": "templates/page-template.html",
+      "access": "public",
+      "contract": "sforum.page.sforum_page_component_reference_template@1"
+    }
+  ]
+}

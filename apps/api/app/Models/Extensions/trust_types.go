@@ -153,6 +153,9 @@ type ExecutableTrustStatus struct {
 	Impact        TrustImpact `json:"impact"`
 	TrustRequired bool        `json:"trustRequired"`
 	Trusted       bool        `json:"trusted"`
+	// GuardAuthorization 是 impact 的派生视图（见 GuardAuthorizationViews）：
+	// 让操作员在一处看到「哪条路由的授权由哪个精确制品拥有」。它不参与摘要。
+	GuardAuthorization []TrustGuardAuthorizationView `json:"guardAuthorization,omitempty"`
 }
 
 type TrustGrant struct {

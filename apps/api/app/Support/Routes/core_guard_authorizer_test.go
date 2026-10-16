@@ -150,7 +150,6 @@ func TestCoreGuardAuthorizerPreservesDirectPluginGuardsAndClosesCustomAuthority(
 		{guard: extensionmanifest.GuardCoreGuest, request: DispatchRequest{ActorID: 42}, want: ErrCoreGuardGuestRequired},
 		{guard: extensionmanifest.GuardCorePermission, permission: "topic.create", request: authenticated},
 		{guard: extensionmanifest.GuardCorePermission, permission: "topic.create", request: authenticatedGuardRequest(), want: ErrCoreGuardPermissionDenied},
-		{guard: extensionmanifest.GuardCoreRaw, request: authenticated, want: ErrCoreGuardEvaluatorUnavailable},
 		{guard: "guard.direct.custom", request: authenticated, want: ErrCoreGuardEvaluatorUnavailable},
 	}
 	for index, test := range tests {
@@ -161,6 +160,25 @@ func TestCoreGuardAuthorizerPreservesDirectPluginGuardsAndClosesCustomAuthority(
 		if !errors.Is(err, test.want) || test.want == nil && err != nil {
 			t.Fatalf("case %d error = %v, want %v", index, err, test.want)
 		}
+	}
+
+	// 决定 R1（2026-10-16）：Host 拥有的 core.guard.raw_request 是脆弱契约——空插件守卫
+	// 绑定即可换取 raw 请求权限。它必须 fail closed 到「登记阶段直接拒绝」，而不是
+	// 「登记成功、授权为空」：拒绝后的路由也不得再被解析出执行计划。
+	registry := NewRegistry()
+	coreRawRoute := pluginRoute("guard.direct.route", "/guard/direct", 0, "GET")
+	coreRawRoute.Guard = extensionmanifest.GuardCoreRaw
+	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
+		Artifact: routeArtifact("guard.direct", "1.0.0", 'b'),
+		Routes:   []extensionmanifest.ManifestRoute{coreRawRoute},
+	}}}); !errors.Is(err, ErrInvalidRoute) {
+		t.Fatalf("core raw_request guard publish error = %v", err)
+	}
+	if registry.Revision() != 0 {
+		t.Fatalf("refused core raw_request publication advanced revision to %d", registry.Revision())
+	}
+	if _, err := registry.BuildExecutionPlan("GET", coreRawRoute.Path); !errors.Is(err, ErrRouteNotFound) {
+		t.Fatalf("refused core raw_request route is still addressable: %v", err)
 	}
 }
 
@@ -183,7 +201,15 @@ func TestCoreGuardAuthorizerRejectsDirectGuardOutsideExactPlan(t *testing.T) {
 }
 
 func TestCoreGuardAuthorizerExecutesExactPluginGuardEvaluator(t *testing.T) {
-	for _, guard := range []string{extensionmanifest.GuardCoreRaw, "guard.direct.custom"} {
+	// raw 请求权限仍然存在，但只能来自包内显式声明的 kind=raw_request 守卫。
+	for _, test := range []struct {
+		guard    string
+		wantKind RequestGuardKind
+	}{
+		{guard: "guard.direct.raw", wantKind: RequestGuardRawRequest},
+		{guard: "guard.direct.custom", wantKind: RequestGuardCustom},
+	} {
+		guard := test.guard
 		plan, step := directCoreGuardPlan(t, guard, "")
 		request := DispatchRequest{
 			Method: plan.Method(), Path: plan.Path(), ActorID: 42, Authenticated: true,
@@ -194,7 +220,9 @@ func TestCoreGuardAuthorizerExecutesExactPluginGuardEvaluator(t *testing.T) {
 			called++
 			if evaluation.PlanRevision != plan.Revision() || evaluation.RequestMethod != plan.Method() ||
 				evaluation.RequestPath != plan.Path() || !equalCoreGuardExecutionStep(evaluation.Step, step) ||
-				evaluation.Request.ActorID != request.ActorID {
+				evaluation.Request.ActorID != request.ActorID ||
+				evaluation.Authority.GuardKind != test.wantKind ||
+				evaluation.Authority.Mode != RequestAuthorityRaw && test.wantKind == RequestGuardRawRequest {
 				t.Fatalf("plugin guard evaluation = %#v", evaluation)
 			}
 			evaluation.Request.Permissions["forged"] = true
@@ -261,9 +289,14 @@ func directCoreGuardPlan(t *testing.T, guard, permission string) (RouteExecution
 	registry := NewRegistry()
 	route := pluginRoute("guard.direct.route", "/guard/direct", 0, "GET")
 	route.Guard, route.Permission = guard, permission
+	// 决定 R1（2026-10-16）：raw 权限只能来自包内声明的守卫，因此测试里的
+	// guard.direct.raw 必须像真实扩展一样在同一次发布中声明 entry + digest + contract。
 	var guards []extensionmanifest.ManifestGuard
-	if guard == "guard.direct.custom" {
+	switch guard {
+	case "guard.direct.custom":
 		guards = []extensionmanifest.ManifestGuard{pluginGuard(guard, "custom")}
+	case "guard.direct.raw":
+		guards = []extensionmanifest.ManifestGuard{pluginGuard(guard, "raw_request")}
 	}
 	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
 		Artifact: routeArtifact("guard.direct", "1.0.0", 'b'), Routes: []extensionmanifest.ManifestRoute{route}, Guards: guards,

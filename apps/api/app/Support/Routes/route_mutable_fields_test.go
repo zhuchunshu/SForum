@@ -201,12 +201,18 @@ func TestRegistryMutableCredentialsRequireExactRawGuardBinding(t *testing.T) {
 	)
 	base.MutableRequestFields = []string{"/headers/authorization"}
 
+	// 决定 R1（2026-10-16）：Host 拥有的 core.guard.raw_request 曾被任何路由用空插件
+	// 守卫绑定借用，从而拿到凭证字段白名单。它现在必须在登记阶段就被拒绝。
 	coreRaw := base
 	coreRaw.Guard = extensionmanifest.GuardCoreRaw
-	if _, err := NewRegistry().Publish(Publication{
+	coreRawRegistry := NewRegistry()
+	if _, err := coreRawRegistry.Publish(Publication{
 		Core: []CoreRoute{target}, Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{coreRaw}}},
-	}); err != nil {
-		t.Fatalf("core raw_request guard rejected credential allowlist: %v", err)
+	}); !errors.Is(err, ErrInvalidRoute) {
+		t.Fatalf("core raw_request guard error = %v", err)
+	}
+	if coreRawRegistry.Revision() != 0 {
+		t.Fatalf("refused core raw_request publication advanced revision to %d", coreRawRegistry.Revision())
 	}
 
 	customRaw := base

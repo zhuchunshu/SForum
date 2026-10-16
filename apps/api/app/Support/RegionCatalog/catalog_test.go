@@ -74,3 +74,48 @@ func TestPageRegionsUnknownPageIsEmpty(t *testing.T) {
 		t.Fatalf("unknown page should have no regions, got %d", len(got))
 	}
 }
+
+func TestEveryMatrixRegionIsDeclared(t *testing.T) {
+	if missing := regioncatalog.UndeclaredRegions(); len(missing) != 0 {
+		t.Fatalf("matrix references undeclared regions: %v", missing)
+	}
+}
+
+func TestEveryDeclaredRegionIsReachableFromSomePage(t *testing.T) {
+	// 声明一个任何页面都不暴露的区域等于对作者撒谎：它永远拿不到内容。
+	used := map[string]struct{}{}
+	for _, pageID := range regioncatalog.Pages() {
+		for _, regionID := range regioncatalog.PageRegionIDs(pageID) {
+			used[regionID] = struct{}{}
+		}
+	}
+	for _, region := range regioncatalog.StandardRegions() {
+		if _, ok := used[region.ID]; !ok {
+			t.Fatalf("region %q is declared but no page exposes it", region.ID)
+		}
+	}
+}
+
+func TestPageRegionIDsMatchesPageRegionsOrder(t *testing.T) {
+	for _, pageID := range regioncatalog.Pages() {
+		ids := regioncatalog.PageRegionIDs(pageID)
+		regions := regioncatalog.PageRegions(pageID)
+		if len(ids) != len(regions) {
+			t.Fatalf("page %q id/region length mismatch: %d != %d", pageID, len(ids), len(regions))
+		}
+		for index := range ids {
+			if ids[index] != regions[index].ID {
+				t.Fatalf("page %q order mismatch at %d: %q != %q", pageID, index, ids[index], regions[index].ID)
+			}
+		}
+	}
+}
+
+func TestPageRegionIDsReturnsACopy(t *testing.T) {
+	before := regioncatalog.PageRegionIDs("forum.home")
+	before[0] = "mutated"
+	after := regioncatalog.PageRegionIDs("forum.home")
+	if after[0] == "mutated" {
+		t.Fatal("PageRegionIDs must not expose the internal matrix slice")
+	}
+}

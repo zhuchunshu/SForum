@@ -2172,6 +2172,12 @@
       "contractVersion": "sforum.route.webhooks.inbound@1",
       "method": "POST",
       "path": "/api/v1/webhooks/inbound/:source"
+    },
+    {
+      "id": "core.route.extensions.inspect_route_incidents",
+      "contractVersion": "sforum.route.extensions.inspect_route_incidents@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/route-incidents"
     }
   ],
   "ui": [
@@ -2262,7 +2268,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIIdentityBlock.vue"
     },
     {
@@ -4657,6 +4663,16 @@
       "source": "apps/web/app/components/settings/SFSettingsAccountNav.vue"
     },
     {
+      "id": "core.component.shared.sfsettings_account_sidebar",
+      "contractVersion": "sforum.component.shared.sfsettings_account_sidebar@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/settings/SFSettingsAccountSidebar.vue"
+    },
+    {
       "id": "core.component.shared.sfsettings_shell",
       "contractVersion": "sforum.component.shared.sfsettings_shell@1",
       "kind": "component",
@@ -5509,6 +5525,26 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/outbound/SFOutboundInterstitial.vue"
+    },
+    {
+      "id": "core.component.shared.sf_plugin_page_body_island",
+      "contractVersion": "sforum.component.shared.sf_plugin_page_body_island@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/extensions/public/SFPluginPageBodyIsland.vue"
+    },
+    {
+      "id": "core.component.shared.sf_public_schema_view",
+      "contractVersion": "sforum.component.shared.sf_public_schema_view@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/extensions/public/SFPublicSchemaView.vue"
     }
   ]
 }

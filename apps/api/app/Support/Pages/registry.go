@@ -19,6 +19,7 @@ var (
 	ErrApprovalRequired    = errors.New("pages: replace requires approval")
 	ErrInvalidContribution = errors.New("pages: invalid page contribution")
 	ErrInvalidAccess       = errors.New("pages: invalid access")
+	ErrInvalidLayout       = errors.New("pages: invalid page layout")
 	ErrContractMismatch    = errors.New("pages: contract version mismatch")
 	ErrRevisionConflict    = errors.New("pages: registry revision conflict")
 	ErrArtifactConflict    = errors.New("pages: exact artifact conflict")
@@ -34,21 +35,30 @@ const (
 
 // PageContribution 扩展声明的页面贡献（来自 theme.json / manifest）。
 type PageContribution struct {
-	ID                string             `json:"id"`
-	Action            ContributionAction `json:"action"`
-	Target            string             `json:"target,omitempty"` // replace 目标 page id
-	Path              string             `json:"path,omitempty"`   // add 路径
-	Template          string             `json:"template,omitempty"`
-	Contract          string             `json:"contract,omitempty"`
-	Access            Access             `json:"access,omitempty"`
-	Permission        string             `json:"permission,omitempty"` // access=permission 时必填
-	DataSource        string             `json:"dataSource,omitempty"` // core | plugin
-	DataRoute         string             `json:"dataRoute,omitempty"`
-	DataSchema        string             `json:"dataSchema,omitempty"` // 可选 JSON Schema 相对路径
-	ExtensionID       string             `json:"extensionId"`
-	Version           string             `json:"version"`
-	PackageDigest     string             `json:"packageDigest,omitempty"`
-	RuntimeInstanceID string             `json:"runtimeInstanceId,omitempty"`
+	ID       string             `json:"id"`
+	Action   ContributionAction `json:"action"`
+	Target   string             `json:"target,omitempty"` // replace 目标 page id
+	Path     string             `json:"path,omitempty"`   // add 路径
+	Template string             `json:"template,omitempty"`
+	// View: template | component（空值等价 template）。
+	View PageView `json:"view,omitempty"`
+	// ComponentID 指向包内已声明的公开 L2 组件；view=component 时必填。
+	ComponentID string `json:"componentId,omitempty"`
+	// SchemaDescriptorFile / SchemaContractRef 只在 view=schema 时有值：
+	// 描述符文件（kind=schema packageFile id）与它必须满足的精确 schema 引用。
+	SchemaDescriptorFile string     `json:"schemaDescriptorFile,omitempty"`
+	SchemaContractRef    string     `json:"schemaContractRef,omitempty"`
+	Contract             string     `json:"contract,omitempty"`
+	Access               Access     `json:"access,omitempty"`
+	Permission           string     `json:"permission,omitempty"` // access=permission 时必填
+	Layout               PageLayout `json:"layout,omitempty"`     // site | bare（默认 bare）
+	DataSource           string     `json:"dataSource,omitempty"` // core | plugin
+	DataRoute            string     `json:"dataRoute,omitempty"`
+	DataSchema           string     `json:"dataSchema,omitempty"` // 可选 JSON Schema 相对路径
+	ExtensionID          string     `json:"extensionId"`
+	Version              string     `json:"version"`
+	PackageDigest        string     `json:"packageDigest,omitempty"`
+	RuntimeInstanceID    string     `json:"runtimeInstanceId,omitempty"`
 	// RouteSignature 注册时计算的语义签名（参数名无关）。
 	RouteSignature string `json:"routeSignature,omitempty"`
 }
@@ -250,14 +260,6 @@ func (r *Registry) restoreBindings(ctx context.Context) error {
 	r.revision++
 	r.mu.Unlock()
 	return nil
-}
-
-func cloneBindings(input map[string]ProviderBinding) map[string]ProviderBinding {
-	result := make(map[string]ProviderBinding, len(input))
-	for pageID, binding := range input {
-		result[pageID] = cloneBinding(binding)
-	}
-	return result
 }
 
 // WithRuntimeAdmission hides exact-runtime contributions while their Manager
@@ -594,13 +596,6 @@ func (r *Registry) preflightThemeAddsLocked(newThemeID string, prepared []PageCo
 	return nil
 }
 
-func sameProviderArtifact(current, exact ProviderBinding) bool {
-	return current.PageID == exact.PageID && current.ExtensionID == exact.ExtensionID &&
-		current.ContributionID == exact.ContributionID && current.Version == exact.Version &&
-		current.PackageDigest == exact.PackageDigest && current.TemplatePath == exact.TemplatePath &&
-		current.ContractVersion == exact.ContractVersion
-}
-
 func (r *Registry) preflightAddsLocked(extensionID string, prepared []PageContribution) error {
 	// 本批次内 signature 去重
 	seenSig := map[string]struct{}{}
@@ -887,19 +882,23 @@ func (r *Registry) resolveLocked(core ResolvedPage) ResolvedPage {
 		}
 		// 模板路径与 data schema 仅从已注册贡献读取，忽略客户端伪造
 		return ResolvedPage{
-			Page:              core.Page,
-			Provider:          binding.ExtensionID,
-			ExtensionID:       binding.ExtensionID,
-			ContributionID:    binding.ContributionID,
-			Action:            string(ActionReplace),
-			Fallback:          false,
-			TemplatePath:      c.Template,
-			DataSource:        c.DataSource,
-			DataRoute:         c.DataRoute,
-			DataSchema:        c.DataSchema,
-			Version:           c.Version,
-			PackageDigest:     c.PackageDigest,
-			RuntimeInstanceID: c.RuntimeInstanceID,
+			Page:                 core.Page,
+			Provider:             binding.ExtensionID,
+			ExtensionID:          binding.ExtensionID,
+			ContributionID:       binding.ContributionID,
+			Action:               string(ActionReplace),
+			Fallback:             false,
+			TemplatePath:         c.Template,
+			View:                 string(NormalizePageView(string(c.View))),
+			Component:            c.ComponentID,
+			SchemaDescriptorFile: c.SchemaDescriptorFile,
+			SchemaContractRef:    c.SchemaContractRef,
+			DataSource:           c.DataSource,
+			DataRoute:            c.DataRoute,
+			DataSchema:           c.DataSchema,
+			Version:              c.Version,
+			PackageDigest:        c.PackageDigest,
+			RuntimeInstanceID:    c.RuntimeInstanceID,
 		}
 	}
 	// 绑定存在但贡献已卸载 → core
@@ -997,59 +996,4 @@ func sortPageContributions(items []PageContribution) {
 		}
 		return items[i].Path < items[j].Path
 	})
-}
-
-// Snapshot 返回当前贡献的只读拷贝（测试/诊断）。
-func (r *Registry) Snapshot() (replace map[string][]PageContribution, added map[string]PageContribution) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	replace = make(map[string][]PageContribution, len(r.contributions))
-	for k, v := range r.contributions {
-		replace[k] = append([]PageContribution(nil), v...)
-	}
-	added = make(map[string]PageContribution, len(r.compiledAdds))
-	for _, cr := range r.compiledAdds {
-		added[cr.Pattern] = cr.Contribution
-	}
-	return replace, added
-}
-
-func validateContribution(item PageContribution) error {
-	if strings.TrimSpace(item.ID) == "" {
-		return fmt.Errorf("%w: missing id", ErrInvalidContribution)
-	}
-	if strings.TrimSpace(item.ExtensionID) == "" {
-		return fmt.Errorf("%w: missing extensionId", ErrInvalidContribution)
-	}
-	switch item.Action {
-	case ActionReplace:
-		if strings.TrimSpace(item.Target) == "" {
-			return fmt.Errorf("%w: replace needs target", ErrInvalidContribution)
-		}
-	case ActionAdd:
-		if strings.TrimSpace(item.Path) == "" {
-			return fmt.Errorf("%w: add needs path", ErrInvalidContribution)
-		}
-	default:
-		return fmt.Errorf("%w: action", ErrInvalidContribution)
-	}
-	return nil
-}
-
-func normalizePublicPath(p string) string {
-	p = strings.TrimSpace(p)
-	if p == "" {
-		return "/"
-	}
-	if !strings.HasPrefix(p, "/") {
-		p = "/" + p
-	}
-	// 折叠重复斜杠
-	for strings.Contains(p, "//") {
-		p = strings.ReplaceAll(p, "//", "/")
-	}
-	if len(p) > 1 {
-		p = strings.TrimRight(p, "/")
-	}
-	return p
 }

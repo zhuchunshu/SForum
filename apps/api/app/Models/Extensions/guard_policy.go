@@ -12,6 +12,68 @@ import (
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
+// TrustGuardAuthorizationView 是「哪条路由的授权由哪个精确制品拥有」的派生视图（M5）。
+//
+// 它**不进入** TrustImpact 摘要：摘要覆盖的是权限本身，而这里只是把已经摘要过的
+// 三处信息（Routes 的 guard/fallback/可变字段、GuardDeclarations 的 kind/entry/digest）
+// 连接起来供操作员阅读。向 TrustImpact 增加字段会改变每个扩展的 impact_digest，
+// 而 impact_digest 是 extension_trust_grants 的身份键（HasLiveGrant/ValidatePublishedIdentity
+// 都按它匹配），也会让 legacy 身份采用（只接受 sforum.trust-impact@2）失配，
+// 因此这类增强必须走派生视图，不能顺手加进摘要。
+type TrustGuardAuthorizationView struct {
+	RouteID               string   `json:"routeId"`
+	RouteAction           string   `json:"routeAction"`
+	Path                  string   `json:"path"`
+	Methods               []string `json:"methods"`
+	Access                string   `json:"access,omitempty"`
+	Permission            string   `json:"permission,omitempty"`
+	GuardID               string   `json:"guardId"`
+	GuardContractVersion  string   `json:"guardContractVersion,omitempty"`
+	GuardKind             string   `json:"guardKind"`
+	GuardEntry            string   `json:"guardEntry,omitempty"`
+	GuardDigest           string   `json:"guardDigest,omitempty"`
+	GuardPermissions      []string `json:"guardPermissions,omitempty"`
+	Risk                  string   `json:"risk"`
+	RawRequest            bool     `json:"rawRequest"`
+	RequiresExactTrust    bool     `json:"requiresExactTrust"`
+	Fallback              string   `json:"fallback,omitempty"`
+	MutableRequestFields  []string `json:"mutableRequestFields,omitempty"`
+	MutableResponseFields []string `json:"mutableResponseFields,omitempty"`
+}
+
+// GuardAuthorizationViews 按清单顺序连接路由范围与守卫声明。函数只读取已披露的数据，
+// 不查库、不读包内文件，因此可以安全地出现在状态/检视读取路径上。
+func GuardAuthorizationViews(impact TrustImpact) []TrustGuardAuthorizationView {
+	declarations := make(map[string]extensionmanifest.ManifestGuard, len(impact.GuardDeclarations))
+	for _, declaration := range impact.GuardDeclarations {
+		declarations[declaration.ID] = declaration
+	}
+	views := make([]TrustGuardAuthorizationView, 0, len(impact.Routes))
+	for _, route := range impact.Routes {
+		declaration, declared := declarations[route.Guard]
+		kind := declaration.Kind
+		view := TrustGuardAuthorizationView{
+			RouteID: route.ID, RouteAction: route.Action,
+			Path: route.Path, Methods: append([]string{}, route.Methods...),
+			Access: route.Access, Permission: route.Permission,
+			GuardID: route.Guard, GuardKind: kind, Fallback: route.Fallback,
+			MutableRequestFields:  append([]string{}, route.MutableRequestFields...),
+			MutableResponseFields: append([]string{}, route.MutableResponseFields...),
+		}
+		if declared {
+			view.GuardContractVersion = declaration.ContractVersion
+			view.GuardEntry = declaration.Entry
+			view.GuardDigest = declaration.Digest
+			view.GuardPermissions = append([]string{}, declaration.Permissions...)
+		}
+		view.Risk = extensionmanifest.GuardRuntimeRisk(route.Guard, kind)
+		view.RawRequest = view.Risk == extensionmanifest.GuardRiskRawRequest
+		view.RequiresExactTrust = extensionmanifest.GuardRequiresExactArtifactTrust(route.Guard, kind)
+		views = append(views, view)
+	}
+	return views
+}
+
 const (
 	defaultGuardPolicyTTL                 = 30 * time.Second
 	RecommendedGuardPolicyRefreshInterval = 5 * time.Second

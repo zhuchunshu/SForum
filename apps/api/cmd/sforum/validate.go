@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 	pluginsdk "github.com/zhuchunshu/sforum/apps/api/sdk/plugin"
 )
 
@@ -20,6 +22,8 @@ func newExtensionCommand() *cobra.Command {
 		Short: "Extension package helpers",
 	}
 	cmd.AddCommand(newExtensionValidateCommand())
+	cmd.AddCommand(newExtensionDevCommand())
+	cmd.AddCommand(newExtensionBuiltinsCommand())
 	cmd.AddCommand(newExtensionBuildCommand())
 	cmd.AddCommand(newExtensionDigestCommand())
 	cmd.AddCommand(newExtensionTestCommand())
@@ -81,7 +85,35 @@ func loadValidatedExtensionPackage(root string) (string, extensionmanifest.Manif
 	if err := pluginsdk.PreflightExactTemplateRuntime(abs, manifest); err != nil {
 		return "", extensionmanifest.Manifest{}, fmt.Errorf("invalid package at %s: %w", abs, err)
 	}
+	// 路由 schema 目录：启动/启用期会为扩展构建它，片段不完整会让 API **启动失败**。
+	// 若 CLI 不构建，作者看到的是「validate/test 全绿、装上去 API 起不来」——
+	// 2026-10-16 实测踩到过：路由声明 responseSchema 但 OpenAPI 片段无法解析该 schema 时，
+	// dev API 直接起不来。这里补上同一套校验，让作者在 CLI 阶段就拿到可理解的失败。
+	if err := preflightRouteSchemaCatalog(abs, manifest); err != nil {
+		return "", extensionmanifest.Manifest{}, fmt.Errorf("invalid package at %s: %w", abs, err)
+	}
 	return abs, manifest, nil
+}
+
+// preflightRouteSchemaCatalog 构建扩展的路由 schema 目录，与启动期同一实现。
+// 只有声明了 OpenAPI 片段或路由的包才需要检查；其余包没有任何 schema 可解析。
+func preflightRouteSchemaCatalog(abs string, manifest extensionmanifest.Manifest) error {
+	if len(manifest.OpenAPI) == 0 && len(manifest.Routes) == 0 {
+		return nil
+	}
+	digest, err := extensionpackage.DigestAuthorTree(abs)
+	if err != nil {
+		return fmt.Errorf("package digest: %w", err)
+	}
+	if _, err := extensionopenapi.BuildRouteSchemaCatalog(extensionopenapi.BuildInput{
+		Artifacts: []extensionopenapi.Artifact{{
+			Root: abs, ExtensionID: manifest.ID, Version: manifest.Version,
+			PackageDigest: digest, Manifest: manifest,
+		}},
+	}); err != nil {
+		return fmt.Errorf("route schema catalog: %w", err)
+	}
+	return nil
 }
 
 func runExtensionValidate(cmd *cobra.Command, root string, asJSON bool) error {

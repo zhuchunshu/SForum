@@ -162,3 +162,37 @@ func componentThemeL2Extension(t *testing.T, id string, priority int) extensions
 	})
 	return extension
 }
+
+// 观察到「切换栅栏之外的主题运行时」这一真实拒绝路径（此前只是代码阅读得出的候选）：
+// 注册表里若存在一个既不匹配 outgoing(source) 也不匹配 incoming(target) 的主题运行时
+// （典型来源：上一次未清理干净的卸载/禁用），本次切换必须在预检阶段被拒，
+// 且错误必须说明是栅栏问题，而不是含糊的「构建失败」。
+func TestComponentRegistryThemeTransitionRejectsThirdThemeOutsideTheFence(t *testing.T) {
+	source := componentThemeL2Extension(t, "component.theme-current", 10)
+	target := componentThemeL2Extension(t, "component.theme-incoming", 20)
+	stale := componentThemeL2Extension(t, "component.theme-stale", 30)
+	registry := NewComponentRegistry()
+	if err := registry.ReplaceAll([]ComponentRuntimeSnapshot{
+		{Extension: source, InstanceID: componentPackageRuntimeInstanceID(source)},
+		{Extension: stale, InstanceID: componentPackageRuntimeInstanceID(stale)},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	err := registry.ValidateThemeTransition(&target, &source)
+	if !errors.Is(err, ErrComponentRegistryConflict) {
+		t.Fatalf("third theme outside the fence must be rejected, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "outside the transition fence") {
+		t.Fatalf("rejection must name the fence, got %v", err)
+	}
+	if !strings.Contains(err.Error(), stale.ID) {
+		t.Fatalf("rejection must name the stale runtime, got %v", err)
+	}
+	// 清理残留后同一切换必须通过：证明拒绝来自残留状态而不是包本身。
+	if _, err := registry.RemoveRuntime(stale.ID, componentPackageRuntimeInstanceID(stale)); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.ValidateThemeTransition(&target, &source); err != nil {
+		t.Fatalf("after clearing the stale runtime the same switch must pass: %v", err)
+	}
+}

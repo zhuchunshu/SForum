@@ -237,7 +237,10 @@ func TestRegistryRejectsRequiredReplayCredentialMutatingContributions(t *testing
 	} {
 		t.Run(action, func(t *testing.T) {
 			publication := requiredReplayCredentialMutationPublication(action, "/headers/authorization")
-			if _, err := NewRegistry().Publish(publication); !errors.Is(err, ErrInvalidRoute) {
+			_, err := NewRegistry().Publish(publication)
+			// 必须是「要求重放 + 变更实时凭证」这条组合规则拒绝，而不是别的
+			// 早期校验偶然返回同一个 ErrInvalidRoute。
+			if !errors.Is(err, ErrInvalidRoute) || !errors.Is(err, ErrRoutePolicyComposition) {
 				t.Fatalf("credential mutation error=%v", err)
 			}
 		})
@@ -443,7 +446,10 @@ func requiredReplayCredentialMutationPublication(action, field string) Publicati
 	modifier := modifierRoute(
 		"policy.credentials."+action, terminal.ID, terminal.Path, action, "POST", 10,
 	)
-	modifier.Guard = extensionmanifest.GuardCoreRaw
+	// 决定 R1（2026-10-16）：raw 请求权限只能来自包内显式声明的 kind=raw_request 守卫。
+	// 这里必须用已声明的 raw 守卫，否则登记会被「非法守卫」提前拒绝，凭证变更规则
+	// 就再也不会被执行到。
+	modifier.Guard = "policy.credentials.raw_guard"
 	modifier.MutableRequestFields = []string{field}
 	if action == extensionmanifest.RouteActionGlobalMiddleware {
 		modifier.TargetID = ""
@@ -453,6 +459,7 @@ func requiredReplayCredentialMutationPublication(action, field string) Publicati
 	return Publication{
 		Plugins: []PluginRouteSet{{
 			Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{terminal, modifier},
+			Guards: []extensionmanifest.ManifestGuard{pluginGuard(modifier.Guard, "raw_request")},
 		}},
 		Policies: []RoutePolicyBinding{{
 			Artifact: artifact, RouteID: terminal.ID, ContractVersion: terminal.ContractVersion,

@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -146,8 +147,11 @@ func TestRouteCustomAndRawGuardsAcrossFiberManagerAndRealProtocolV2Process(t *te
 }
 
 func TestRouteHostRouteGuardAuthorizerCannotMintRawOnFiber(t *testing.T) {
-	// Legacy HostRouteGuardAuthorizer must never mint raw authority on the Fiber
-	// stack, even when the published route declares core.guard.raw_request.
+	// 决定 R1（2026-10-16）：Host 拥有的 core.guard.raw_request 已不可发布（拒绝侧见
+	// TestRouteRetiredCoreRawRequestGuardIsRejectedAtPublication），因此本测试改用包内
+	// 显式声明的 kind=raw_request 守卫作为载体，断言强度不变且更强：即使路由合法声明了
+	// raw_request 守卫，legacy HostRouteGuardAuthorizer 也不得在 Fiber 栈上铸造 raw
+	// 权限，并且在拒绝前不会调用任何插件代码。
 	extension := routeGuardProductionExtension(t)
 	starter := extensionsruntime.NewProtocolStarter(extensionsruntime.ProtocolStarterConfig{
 		Trust: routeStreamE2ETrust{identity: extensions.RuntimeTrustIdentity{
@@ -167,7 +171,7 @@ func TestRouteHostRouteGuardAuthorizerCannotMintRawOnFiber(t *testing.T) {
 	rawRoute := extensions.ManifestRoute{
 		ID: "runtime.guard.http.legacy_raw", ContractVersion: "runtime.guard.http.legacy_raw@1",
 		Action: extensionmanifest.RouteActionAdd, Path: "/guard/legacy-raw",
-		Methods: []string{stdhttp.MethodPost}, Guard: extensionmanifest.GuardCoreRaw,
+		Methods: []string{stdhttp.MethodPost}, Guard: routeGuardRawID,
 		Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP, Handler: "route.legacy_raw",
 		RequestSchema: "runtime.guard.http.legacy_raw.request@1", ResponseSchema: "runtime.guard.http.legacy_raw.response@1",
 	}
@@ -176,7 +180,7 @@ func TestRouteHostRouteGuardAuthorizerCannotMintRawOnFiber(t *testing.T) {
 			ExtensionID: extension.ID, ExtensionVersion: extension.Version, PackageDigest: extension.PackageDigest,
 			RuntimeInstanceID: runtime.Identity.InstanceID,
 		},
-		Routes: []extensions.ManifestRoute{rawRoute},
+		Routes: []extensions.ManifestRoute{rawRoute}, Guards: extension.Manifest.Guards,
 	}}}); err != nil {
 		t.Fatal(err)
 	}
@@ -194,6 +198,34 @@ func TestRouteHostRouteGuardAuthorizerCannotMintRawOnFiber(t *testing.T) {
 	))
 	if status != stdhttp.StatusForbidden || after != before {
 		t.Fatalf("legacy raw status=%d body=%q calls=%d→%d", status, body, before, after)
+	}
+}
+
+// TestRouteRetiredCoreRawRequestGuardIsRejectedAtPublication 是 R1 的拒绝侧断言。
+// 旧契约下任何路由只要引用 Host 拥有的 core.guard.raw_request（即使完全没有插件
+// 守卫绑定、没有一行插件代码）就能获得 raw 权限并接收浏览器凭证；现在该守卫必须在
+// 发布/清单校验阶段被拒绝，且不能再被解析成执行计划——raw 权限入口就此关闭。
+func TestRouteRetiredCoreRawRequestGuardIsRejectedAtPublication(t *testing.T) {
+	registry := routes.NewRegistry()
+	retired := extensions.ManifestRoute{
+		ID: "runtime.guard.http.core_raw", ContractVersion: "runtime.guard.http.core_raw@1",
+		Action: extensionmanifest.RouteActionAdd, Path: "/guard/core-raw",
+		Methods: []string{stdhttp.MethodPost}, Guard: extensionmanifest.GuardCoreRaw,
+		Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP, Handler: "route.core_raw",
+		RequestSchema: "runtime.guard.http.core_raw.request@1", ResponseSchema: "runtime.guard.http.core_raw.response@1",
+	}
+	_, err := registry.Publish(routes.Publication{Plugins: []routes.PluginRouteSet{{
+		Artifact: routes.PluginArtifact{
+			ExtensionID: "runtime.guard", ExtensionVersion: "1.0.0",
+			PackageDigest: strings.Repeat("a", 64), RuntimeInstanceID: "runtime-instance",
+		},
+		Routes: []extensions.ManifestRoute{retired},
+	}}})
+	if !errors.Is(err, routes.ErrInvalidRoute) {
+		t.Fatalf("retired core raw guard publish error = %v", err)
+	}
+	if _, planErr := registry.BuildExecutionPlan(stdhttp.MethodPost, retired.Path); planErr == nil {
+		t.Fatal("retired core raw guard route was still resolvable into an execution plan")
 	}
 }
 

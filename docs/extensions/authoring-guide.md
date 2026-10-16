@@ -154,7 +154,84 @@ go run ./cmd/sforum make:theme ... --prebuilt-settings
 
 # First-class Vue admin page using the stable Plugin UI SDK
 go run ./cmd/sforum make:plugin ... --vue-admin-page
+
+# Public Page Registry page (path /docs) inheriting the active site shell
+go run ./cmd/sforum make:theme ... --public-page docs
+go run ./cmd/sforum make:plugin ... --backend --public-page docs --public-page-layout site
+
+# Declarative public page (path /orders) rendered by the Host from a bounded descriptor
+go run ./cmd/sforum make:plugin ... --schema-page orders
+go run ./cmd/sforum make:plugin ... --schema-page orders --schema-page-kind notice
+
+# Route middleware: one before request patch and one after response patch
+go run ./cmd/sforum make:plugin ... --backend --route-middleware
 ```
+
+### What `--public-page` generates
+
+- `theme.json` page mapping: `action: add`, path `/<slug>`, `access: public`,
+  `contract: sforum.page.<id>_<slug>@1`, `layout: site|bare` (default `site`).
+- `templates/page-<slug>.html`, declared in **both** manifest `templates[]` and
+  `packageFiles[]` (kind `template`) with equal digests, and its
+  `viewModelSchema` is the same exact reference as the page `contract`. That
+  three-way identity is what the activation preflight checks; do not hand-edit
+  one without the other.
+- A static page only. Plugin-owned page data (`dataSource` + `dataRoute` +
+  `dataSchema`) is deliberately **not** generated, because the Page Loader
+  Gateway has no transport for Protocol V2 runtimes today and such a page would
+  always fall back to the Host with `view_model_unavailable`.
+- `layout: site` means the active theme (or the Host fallback shell) owns navbar
+  and footer: never repeat them inside your template. `layout: bare` means the
+  page owns all of its chrome and must not rely on the shell.
+
+### Where to look before you declare a page
+
+`docs/extensions/v3/catalogs/public-page-surfaces.md` is the generated runtime
+surface for public pages: per page it lists the path, access, contract, whether the
+Core page is replaceable, the body views you may declare (`template`, `component`,
+`schema`), the layout values (`site`, `bare`), the regions the page exposes, and the
+Host islands a theme may mount. It is generated from the same sources the runtime
+reads, so it cannot claim a surface the runtime does not have. Regenerate and check
+it with `node scripts/v3-catalog/generate.mjs` / `--check`.
+
+### What `--schema-page` generates
+
+- `theme.json` page mapping: `action: add`, path `/<slug>`, `access: public`,
+  `layout: site`, `view: schema`, and a `schema` block naming exactly two things:
+  the descriptor file id and the exact JSON Schema reference it must satisfy.
+- `schemas/page-<slug>.json` (the bounded descriptor) and
+  `schemas/page-<slug>-contract.json` (the package-declared contract), both
+  declared as `kind: schema` **with a `version`** in `packageFiles[]`. The exact
+  reference in the page declaration (`<schemaFileId>@1`) is matched against those
+  declarations, so the digest and version must agree.
+- No Vue, no Go template, no build step: the Host renders the descriptor. That is
+  the point of this view - a page that needs neither a frontend build nor a
+  runtime.
+- Host-enforced bounds (the package cannot exceed them): `kind` is one of
+  `list` / `detail` / `form` / `notice`; field types are `text` / `textarea` /
+  `number` / `boolean` / `select`; caps are 24 fields, 64 items, 64 options,
+  64 cells, 200-character labels and 2000-character text.
+- `form` renders **read-only** today. Submission needs the page's declared
+  `dataRoute` binding, and plugin page data loading is still blocked by the
+  loader-transport gap (the same blocker as `dataSource`), so the scaffold and the
+  renderer do not pretend a submit exists.
+- The scaffold is validated by the same preflight the CLI runs
+  (`extension validate` / `extension test` / activation): a fresh scaffold passes
+  without hand-editing. Duplicate ids or paths, an unknown kind, or a slug shared
+  with `--public-page` are rejected before anything is written.
+
+### What `--route-middleware` generates
+
+- Two routes against the reviewed core read route `core.route.forum.topics`
+  (`GET /api/v1/topics`): `action: before` with `mutableRequestFields` and
+  `action: after` with `mutableResponseFields`.
+- `guard: core.guard.inherit` and `fallback: closed` on both, and no
+  `access`/`permission` restatement: a patch inherits the target route's
+  authorization and must not re-implement login or permission checks.
+- `backend/routes_example.go`, an example handler carrying `//go:build ignore`
+  so it never breaks your build. Merge it into your backend module (create
+  `go.mod` first) and write only the pointers the manifest declares; anything
+  else is rejected by the Host.
 
 Minimal backend using the public SDK:
 
@@ -470,6 +547,64 @@ and secret preserve/replace semantics, 15-second timeout, response bounds, and
 credential-free audit. Storage providers reuse `StorageProbe` through the same
 Action catalog.
 
+### Reference B2 — AI tool Probe action
+
+A plugin that already declares an AI tool (`aiTools[]`) can offer a "test"
+button for it. The host starts the same restricted short-lived runtime, seeds it
+with the operator's **draft** settings values as `SFORUM_SETTING_*` env vars,
+and dispatches one call through the reserved slot `sforum.ai.tool`/`invoke`:
+
+```json
+{
+  "backend": { "entry": "backend/plugin", "rpc": "hashicorp-go-plugin", "protocolVersion": 2 },
+  "aiTools": [{
+    "id": "demo.plugin.ai.order_lookup",
+    "contractVersion": "demo.plugin.ai.order_lookup@1",
+    "name": "demo-order-lookup",
+    "description": "Look up an order by its public number.",
+    "parameters": { "type": "object", "properties": { "orderNumber": { "type": "string" } } },
+    "handler": "demo.plugin.ai.order_lookup",
+    "timeoutMs": 1000
+  }],
+  "settings": {
+    "schemaVersion": 1,
+    "ui": { "mode": "schema", "layout": "form" },
+    "fields": [
+      { "key": "base_url", "label": "Base URL", "type": "text", "default": "https://api.example.com" },
+      { "key": "token", "label": "Token", "type": "secret", "default": "" }
+    ],
+    "actions": [{
+      "id": "probe",
+      "kind": "ai_tool_probe",
+      "label": { "zh-CN": "测试工具", "en-US": "Test tool" },
+      "placement": "footer",
+      "useDraftValues": true,
+      "tool": "demo.plugin.ai.order_lookup",
+      "fields": ["base_url", "token"]
+    }]
+  }
+}
+```
+
+Rules for this kind:
+
+- `tool` must be one of this extension's own `aiTools[].id` (namespaced under
+  the extension id) and `fields` must be non-empty; otherwise the manifest is
+  rejected. Unlike `provider_probe`, this kind does **not** require a
+  `providers[]` slot — the declaration surface is the AI tool.
+- The draft values are passed to the tool as its JSON `arguments` object, so the
+  tool reads its own configuration from the process env and receives the same
+  facts as its call arguments. A secret field must be supplied explicitly
+  (`preserve` or `replace`); it is never read from storage implicitly.
+- The call deadline is exactly the declared `timeoutMs`. A tool result of
+  `{ "content": "...", "isError": false }` becomes a success and
+  `isError: true` becomes a failure; the whole human-readable explanation should
+  be written into `content`, because the tool result contract carries nothing
+  else.
+- The probe runtime still cannot register routes, events, jobs, schedules, or
+  providers, and it runs even while the plugin itself is disabled, so operators
+  can test before enabling.
+
 ### Reference C — trusted prebuilt complex component
 
 Use this only when Schema + Actions cannot express the interaction. The author
@@ -529,7 +664,7 @@ outbound network:
 | Multi-file layout | Thin root + `includes` for langs, versioned settings, and admin |
 | Backend | Implements `SendMail` over go-plugin; no public HTTP `RouteTarget` |
 | Settings | Host injects `SFORUM_SETTING_*` env vars into the child process |
-| Admin UI | Host-rendered tabs/groups/callouts + `provider_probe`; no frontend package |
+| Admin UI | Host-rendered tabs/groups/callouts + settings actions (`provider_probe`, `ai_tool_probe`); no frontend package |
 
 Key manifest ideas (simplified):
 
@@ -680,7 +815,7 @@ building and loading the package is in [build-and-load.md](./build-and-load.md).
 | --- | --- |
 | Manifest | Nine `routes[]` declarations: public `GET` reads, `POST` writes behind `core.guard.login`, `requestSchema`/`responseSchema` references |
 | Backend | `contentServer.InvokeRoute` switch on `RouteId`; `TypedDocument` bodies; structured `ErrorDetail` |
-| Guards | `core.guard.public` / `core.guard.login` only (custom/raw guard runtime is a later wave) |
+| Guards | `core.guard.public` / `core.guard.login` only. The custom guard runtime is live in production, and raw request authority is available through a **package-declared** guard with `kind: raw_request` (the Host-owned `core.guard.raw_request` was removed on 2026-10-16); this fixture deliberately stays on the closed set |
 | Schemas | `packageFiles` entries of kind `schema` referenced by route schemas |
 | Extra registries | entities/taxonomy/fields, editor L2, navigation/regions, and Query Registry (beyond the route story) |
 
@@ -703,7 +838,8 @@ you need:
 | --- | --- |
 | `extensions/fixtures/plugins/sforum-notification-reference/` | Typed `EmitNotification` through the runtime-scoped Host broker |
 | `extensions/fixtures/plugins/sforum-query-reference/` | Query Registry invocation and result filtering through Protocol V2 |
-| `extensions/fixtures/plugins/sforum-commerce-workflow/` | Joined hooks, jobs, services, database operations, and lifecycle behavior |
+| `extensions/fixtures/plugins/sforum-commerce-workflow/` | Joined hooks, jobs, services, database operations, and lifecycle behavior; its `replace` route against `core.route.forum.create_topic` declares its **own** `kind: raw_request` guard (`sforum.commerce-workflow.guard.raw`) because raw request authority must be package-declared |
+| `extensions/fixtures/plugins/sforum-session-checkout-reference/` | Plugin-namespaced session state: a two-route checkout workflow over `Host.SessionState(ctx)` — cross-request persistence through a real V2 subprocess, host-side erasure, and single-invocation delegation replay denial (`delegationEcho` is a documented integration-test surface) |
 
 CI builds these packages and starts them through the real Protocol V2 starter.
 The removed `sforum.contract.hostapi` package was a Protocol V1 ping fixture and
@@ -1009,9 +1145,54 @@ production Host never rebuilds Nuxt. Use a page-specific permission when the
 surface represents a distinct grantable capability.
 
 `make:plugin --vue-admin-page` supplies the typed mount adapter, Vite build,
-and `@sforum/plugin-ui@1` page/section/form/table/feedback components. The SDK
-is bundled into the plugin output and deliberately does not expose Host-private
-Nuxt UI or `SF*` imports as a compatibility contract.
+and `@sforum/plugin-ui@1` page/section/form/table/feedback/icon components. The
+SDK is bundled into the plugin output and deliberately does not expose
+Host-private Nuxt UI or `SF*` imports as a compatibility contract.
+
+### Host icons in plugin pages
+
+Plugin page bodies and public L2 components can use the Host icon set without
+bundling one. Pass a Host icon name to `SPluginIcon` or to the `icon` prop of
+`SPluginButton`, `SPluginSection`, `SPluginAlert`, `SPluginEmptyState`, and
+`SPluginTable` columns:
+
+```vue
+<SPluginSection title="Queue" icon="i-lucide-inbox">
+  <SPluginButton icon="i-lucide-refresh" @click="reload">Refresh</SPluginButton>
+</SPluginSection>
+```
+
+- The name grammar is `i-(lucide|tabler)-<kebab-name>`, matching the Host icon
+  picker and the descriptor `icon` fields used by contributions.
+- The SVG is rendered and sanitized by the Host and delivered through the
+  versioned `/_sforum/icons` surface; the plugin supplies a name only, so it
+  never ships an icon package and never inlines its own SVG.
+- Icons are decorative unless you pass `label` to `SPluginIcon`.
+- Unknown names, a Host without the icons bridge, and failed requests all
+  degrade to an empty placeholder with one console warning — they never throw
+  and never block the page from mounting.
+- Mount pages through `definePluginPage` (from `@sforum/plugin-ui`), which
+  injects the resolver. The scaffold does this for you.
+
+### Author frontend SDK version
+
+A `--vue-admin-page` workspace depends on `@sforum/admin-sdk@^1.1.0` and
+`@sforum/plugin-ui@^1.1.0`: the icon bridge member, `SPluginIcon`, the `icon`
+props, and `definePluginPage` all arrive in 1.1.0. The repository publishes both
+packages from the tag-driven Release workflow, so the version you pin must
+already exist on npm before `bun install` can resolve it.
+
+To build against the SDK packages in a local SForum checkout — for example to
+use an unreleased component — pass the development-only override:
+
+```bash
+cd apps/api
+go run ./cmd/sforum extension build --sdk-dir ../../apps/web/packages <package-root>
+```
+
+`--sdk-dir` (or `SFORUM_SDK_DIR`) rewrites the workspace dependencies to the
+local packages for that build only, then restores `frontend/admin/package.json`
+and the Bun lockfile byte for byte. Never use it for a release build.
 
 ## Validation and packaging commands
 
@@ -1059,6 +1240,12 @@ Payloads are JSON descriptors — **never executable code**.
 | `forum.profile.tabs` | `profileSection` (`extensionRoute` \| `hostLink`) | Public profile `extensionTabs` |
 | `admin.dashboard.widgets` | `dashboardLink` (`adminLink` + admin route) | Admin overview `extensionWidgets` |
 | `system.health.checks` | `healthDescriptor` (`static` \| `extensionRuntime`) | Merged into `GET /ready` without plugin RPC |
+
+`forum.page.regions` places content into a named area of a public page
+(`content_before`, `detail_before`, `comments_before`, `sidebar_top`, …). The
+per-page whitelist and what each region means are in
+[page-catalog.md](./page-catalog.md#standard-page-regions-forumpageregions);
+the web-side whitelist is generated from the Go catalog, so never hand-edit it.
 
 ### Topic secondary surfaces (E2.1)
 
@@ -1132,4 +1319,5 @@ only safe public flags; restore defaults via
 - [Manifest V3 schema catalog (generated)](./catalogs/manifest-v3.md)
 - [Extension platform v2](../extension-platform-v2.md)
 - [Trusted admin components](./trusted-admin-components.md)
+- [Migrating from SForum-old to V3 contracts](./migrating-from-sforum-v2.md)
 - Fixtures README: `extensions/fixtures/README.md`

@@ -32,7 +32,7 @@ type sourceForum struct {
 	lastTopicViewer  identity.Actor
 }
 
-func (s *sourceForum) ListCategoryGroups(context.Context) ([]forum.CategoryGroup, error) {
+func (s *sourceForum) ListCategoryGroups(context.Context, bool) ([]forum.CategoryGroup, error) {
 	return []forum.CategoryGroup{{
 		ID: 1, Slug: "general", Name: "General", Visibility: "public",
 		Categories: []forum.Category{{ID: 10, Slug: "support", Name: "Support", Description: "Help topics", Visibility: "public", TopicCount: 1}},

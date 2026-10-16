@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
+import SFAdminForumTaxonomyDeleteDialog from '~/components/admin/forum/SFAdminForumTaxonomyDeleteDialog.vue'
 import {
   createAdminForumApi,
   createCategoryGroupPayload,
   createCategoryPayload,
   forumCategorySortChoices,
+  forumTaxonomyDeleteErrorKey,
   forumVisibilityChoices,
   type AdminForumCategoryGroupPayload,
-  type AdminForumCategoryPayload
+  type AdminForumCategoryPayload,
+  type AdminForumTaxonomyDeleteTarget
 } from '~/utils/admin/adminForum'
 import type { ForumCategory, ForumCategoryGroup } from '~/utils/forum/forumTaxonomy'
 
@@ -33,6 +36,17 @@ const editingGroupId = ref<number | null>(null)
 const editingCategoryId = ref<number | null>(null)
 const savingGroup = ref(false)
 const savingCategory = ref(false)
+const taxonomyDeleteTarget = ref<AdminForumTaxonomyDeleteTarget | null>(null)
+const deletingTaxonomy = ref(false)
+
+const taxonomyDeleteOpen = computed({
+  get: () => taxonomyDeleteTarget.value !== null,
+  set: (value: boolean) => {
+    if (!value) {
+      taxonomyDeleteTarget.value = null
+    }
+  }
+})
 
 const groupForm = reactive(createCategoryGroupPayload())
 const categoryForm = reactive(createCategoryPayload())
@@ -172,6 +186,62 @@ function groupPayload(): AdminForumCategoryGroupPayload {
     description: groupForm.description.trim(),
     visibility: groupForm.visibility,
     position: Number(groupForm.position) || 0
+  }
+}
+
+function requestDeleteGroup(group: ForumCategoryGroup) {
+  const count = group.categories?.length ?? 0
+  taxonomyDeleteTarget.value = {
+    kind: 'group',
+    id: group.id,
+    name: group.name,
+    blockedReason: count > 0 ? t('admin.forum.categories.delete.groupBlockedReason', { count }) : ''
+  }
+}
+
+function requestDeleteCategory(category: ForumCategory) {
+  const count = category.topicCount ?? 0
+  taxonomyDeleteTarget.value = {
+    kind: 'category',
+    id: category.id,
+    name: category.name,
+    blockedReason: count > 0 ? t('admin.forum.categories.delete.categoryBlockedReason', { count }) : ''
+  }
+}
+
+function closeTaxonomyDelete() {
+  taxonomyDeleteTarget.value = null
+}
+
+async function confirmTaxonomyDelete() {
+  const target = taxonomyDeleteTarget.value
+  if (!target || target.blockedReason) {
+    return
+  }
+  deletingTaxonomy.value = true
+  try {
+    if (target.kind === 'group') {
+      await forumApi.deleteCategoryGroup(target.id)
+      successToast(t('admin.forum.categories.delete.groupDeleted'))
+    } else {
+      await forumApi.deleteCategory(target.id)
+      successToast(t('admin.forum.categories.delete.categoryDeleted'))
+    }
+    closeTaxonomyDelete()
+    await refresh()
+  } catch (error) {
+    const key = forumTaxonomyDeleteErrorKey(apiErrorMessage(error))
+    if (key) {
+      toast.add({
+        color: 'error',
+        icon: 'i-lucide-triangle-alert',
+        title: t(`admin.forum.categories.delete.errors.${key}`)
+      })
+    } else {
+      errorToast(error, t('admin.forum.categories.delete.failed'))
+    }
+  } finally {
+    deletingTaxonomy.value = false
   }
 }
 
@@ -333,6 +403,17 @@ function errorToast(error: unknown, fallback: string) {
               >
                 {{ t('admin.common.edit') }}
               </UButton>
+              <UButton
+                color="error"
+                variant="ghost"
+                size="sm"
+                leading-icon="i-lucide-trash-2"
+                :aria-label="t('admin.forum.categories.delete.groupAction')"
+                :title="t('admin.forum.categories.delete.groupAction')"
+                @click="requestDeleteGroup(group)"
+              >
+                {{ t('admin.common.delete') }}
+              </UButton>
             </div>
           </div>
 
@@ -364,9 +445,22 @@ function errorToast(error: unknown, fallback: string) {
                   {{ t('admin.forum.categories.categoryMeta', { topics: category.topicCount, comments: category.commentCount, sort: t(`admin.forum.sort.${category.defaultSort}`), position: category.position }) }}
                 </p>
               </div>
-              <UButton color="neutral" variant="ghost" size="sm" leading-icon="i-lucide-pencil" @click="openEditCategory(category)">
-                {{ t('admin.common.edit') }}
-              </UButton>
+              <div class="flex shrink-0 items-center gap-1">
+                <UButton color="neutral" variant="ghost" size="sm" leading-icon="i-lucide-pencil" @click="openEditCategory(category)">
+                  {{ t('admin.common.edit') }}
+                </UButton>
+                <UButton
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  leading-icon="i-lucide-trash-2"
+                  :aria-label="t('admin.forum.categories.delete.categoryAction')"
+                  :title="t('admin.forum.categories.delete.categoryAction')"
+                  @click="requestDeleteCategory(category)"
+                >
+                  {{ t('admin.common.delete') }}
+                </UButton>
+              </div>
             </div>
           </div>
           <SFEmptyState
@@ -572,4 +666,13 @@ function errorToast(error: unknown, fallback: string) {
       </form>
     </template>
   </UModal>
+
+  <!-- 分组 / 分类：删除确认 -->
+  <SFAdminForumTaxonomyDeleteDialog
+    v-model:open="taxonomyDeleteOpen"
+    :target="taxonomyDeleteTarget"
+    :busy="deletingTaxonomy"
+    @cancel="closeTaxonomyDelete"
+    @confirm="confirmTaxonomyDelete"
+  />
 </template>

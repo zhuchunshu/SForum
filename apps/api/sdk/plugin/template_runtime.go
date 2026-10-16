@@ -38,7 +38,9 @@ func PreflightExactTemplateRuntime(root string, manifest extensionmanifest.Manif
 	if err != nil {
 		return fmt.Errorf("theme package: %w", err)
 	}
-	digest, err := extensionpackage.DigestTree(contentRoot)
+	// 作者源码树可能已经装过依赖；预检只关心会进入 artifact 的内容，
+	// 因此跳过打包阶段本就会排除的 node_modules/.git/vendor。
+	digest, err := extensionpackage.DigestAuthorTree(contentRoot)
 	if err != nil {
 		return fmt.Errorf("package digest: %w", err)
 	}
@@ -60,6 +62,11 @@ func PreflightExactTemplateRuntime(root string, manifest extensionmanifest.Manif
 	}
 	if err != nil {
 		return fmt.Errorf("page package preflight: %w", err)
+	}
+	// view=schema 公开页在进入运行时快照前先做精确制品 + 契约 + 有界校验：
+	// 作者（CLI）与激活路径共用这一个入口，避免出现「CLI 0 error、激活被拒」。
+	if err := validateSchemaViewPages(contentRoot, manifest, contributions); err != nil {
+		return fmt.Errorf("schema view preflight: %w", err)
 	}
 	if !themePackageHasPageTemplates(pkg) {
 		// L0-only 包仍完成 CSS/包级预检，但无需精确模板运行时快照。

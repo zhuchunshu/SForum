@@ -9,8 +9,10 @@ import {
 import { applyPublicPageDocumentPolicy } from '~/composables/errors/usePublicPageDocumentPolicy'
 import SFFooter from './SFFooter.vue'
 import SFNavbar from './SFNavbar.vue'
+import SFContentColumnFooter from './forum/SFContentColumnFooter.vue'
 import SFNotFoundPageContent from './errors/SFNotFoundPageContent.vue'
 import SFTopicShowPage from './forum/SFTopicShowPage.vue'
+import SFSettingsAccountSidebar from './settings/SFSettingsAccountSidebar.vue'
 import {
   collectPublicL2ComponentRefsFromRenderNodes,
   normalizePublicFrontendComponentRefs,
@@ -54,6 +56,13 @@ const islandComponents: Record<string, Component> = {
   'forum.component.tag_show': defineAsyncComponent(() => import('./forum/SFTagShowPage.vue')),
   // 帖子详情是高频核心阅读路径，避免主题岛自身再制造一层异步导航边界。
   'forum.component.topic_show': SFTopicShowPage,
+  // 主题外壳的正文岛：渲染受审查的正文出口，内容由外壳 provide。
+  'plugin.component.page_body': defineAsyncComponent(() => import('./extensions/public/SFPluginPageBodyIsland.vue')),
+  // 账号设置左栏岛：插件公开页与 /settings/profile 共用同一份左栏实现。
+  // 该组件自身 await 数据，再套一层异步边界只会把 SSR 留空，因此同步导入。
+  'settings.component.account_sidebar': SFSettingsAccountSidebar,
+  // 内容列页脚岛：插件公开页在自身中列末尾声明，复用宿主设置页同款页脚实现。
+  'ui.component.content_footer': SFContentColumnFooter,
   'forum.component.profile_show': defineAsyncComponent(() => import('./profile/SFProfileShowPage.vue')),
   'forum.component.notifications': defineAsyncComponent(() => import('./notifications/SFNotificationsPage.vue')),
   'forum.component.notification_detail': defineAsyncComponent(() => import('./notifications/detail/SFNotificationDetailPage.vue')),
@@ -100,9 +109,13 @@ const legacyIslandBindings = {
   'sf-privacy-page': { componentId: 'site.component.privacy' },
   'sf-guidelines-page': { componentId: 'site.component.guidelines' },
   'sf-not-found-page': { componentId: 'system.component.not_found' },
+  // 插件正文岛：主题外壳用它声明插件正文的位置。
+  'sf-plugin-page-body': { componentId: 'plugin.component.page_body' },
   'sf-navbar': { componentId: 'navigation.component.navbar' },
   'sf-footer': { componentId: 'navigation.component.footer' },
   'sf-home-navigation': { componentId: 'navigation.component.home' },
+  'sf-account-settings-sidebar': { componentId: 'settings.component.account_sidebar' },
+  'sf-content-column-footer': { componentId: 'ui.component.content_footer' },
   'sf-topic-composer': { componentId: 'forum.component.topic_composer' },
   'sf-topic-reply': { componentId: 'forum.component.topic_reply' },
   'sf-topic-editor': { componentId: 'forum.component.topic_editor' },

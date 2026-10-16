@@ -469,6 +469,8 @@ async function shareProfile() {
             </div>
           </header>
 
+          <SFRegionOutlet page="forum.profile.show" region="profile_header_after" />
+
           <!-- 分区 tab：主题 / 回复 / 关于 -->
           <nav class="sf-profile-tabs" :aria-label="t('profile.tabs.ariaLabel')">
             <button

@@ -116,6 +116,9 @@ type Manager struct {
 	renewalGate       RenewalGate
 	renewalEffectGate RenewalEffectGate
 	now               func() time.Time
+	// pluginSessionState 是装配层注入的插件命名空间会话状态擦除钩子。
+	// 未注入（nil）时登出/登录完全照常；见 plugin_session_state.go 的语义说明。
+	pluginSessionState PluginSessionStateInvalidator
 }
 
 type Info struct {
@@ -250,6 +253,9 @@ func (m *Manager) beginWithContext(
 		return nil, err
 	}
 	m.revokeSessionDirectory(ctx, previousUserID, previousSID, sessionReplacedReason)
+	// 登录替换掉旧 sid：旧会话的插件状态不得被新会话继承（S4/S5），
+	// best-effort 擦除（失败不影响登录）。
+	m.dropPluginSessionState(ctx, previousSID)
 	m.resetRequestRenewal(c)
 	sess.Set(sessionUserIDKey, userID)
 	sess.Set(sessionCreatedAtKey, now)
@@ -424,6 +430,8 @@ func (m *Manager) Destroy(c fiber.Ctx) error {
 
 	// 登出时在目录标记本会话已下线（保留为历史记录），best-effort，不阻塞登出。
 	m.revokeSessionDirectory(c.Context(), userID, sid, "logout")
+	// 登出擦除该会话的插件状态；同样是 best-effort，失败不阻塞登出。
+	m.dropPluginSessionState(c.Context(), sid)
 	return destroyErr
 }
 

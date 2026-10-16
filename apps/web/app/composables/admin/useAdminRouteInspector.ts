@@ -697,6 +697,104 @@ function apiStatusCode(error: unknown): number | null {
   return null
 }
 
+
+/** M5：崩溃循环隔离账本的持久状态投影（与 API RouteRuntimeIncidentView 一一对应）。 */
+export type RouteIncidentLocalResult = 'pending' | 'quarantined' | 'stale_missing' | 'stale_artifact' | 'failed'
+
+export type RouteIncidentRecord = {
+  id: number
+  incidentKey: string
+  routeId: string
+  contractVersion?: string
+  method: string
+  pathSignature: string
+  phase: string
+  action: string
+  failureCode: string
+  causeClass: string
+  commitState: string
+  extensionId: string
+  extensionVersion: string
+  packageDigest: string
+  runtimeInstanceId: string
+  localResult: RouteIncidentLocalResult
+  quarantined: boolean
+  resolved: boolean
+  auditEventId: number
+  createdAt: string
+  resolvedAt?: string
+}
+
+export type RouteIncidentLedger = {
+  limit: number
+  summary: { pending: number; quarantined: number; recovered: number; failed: number }
+  incidents: RouteIncidentRecord[]
+}
+
+/** 只接受形状完整的账本：缺字段说明服务端契约变了，宁可报错也不要渲染半份状态。 */
+export function parseRouteIncidentLedger(raw: unknown): RouteIncidentLedger | null {
+  if (!raw || typeof raw !== 'object') return null
+  const source = raw as Record<string, unknown>
+  const incidents = Array.isArray(source.incidents) ? source.incidents : null
+  const summary = source.summary as Record<string, unknown> | undefined
+  if (!incidents || !summary || typeof source.limit !== 'number') return null
+  const parsed: RouteIncidentRecord[] = []
+  for (const item of incidents) {
+    if (!item || typeof item !== 'object') return null
+    const record = item as Record<string, unknown>
+    if (
+      typeof record.id !== 'number'
+      || typeof record.incidentKey !== 'string'
+      || typeof record.routeId !== 'string'
+      || typeof record.method !== 'string'
+      || typeof record.localResult !== 'string'
+      || typeof record.quarantined !== 'boolean'
+    ) {
+      return null
+    }
+    parsed.push({
+      id: record.id,
+      incidentKey: record.incidentKey,
+      routeId: record.routeId,
+      contractVersion: typeof record.contractVersion === 'string' ? record.contractVersion : undefined,
+      method: record.method,
+      pathSignature: typeof record.pathSignature === 'string' ? record.pathSignature : '',
+      phase: typeof record.phase === 'string' ? record.phase : '',
+      action: typeof record.action === 'string' ? record.action : '',
+      failureCode: typeof record.failureCode === 'string' ? record.failureCode : '',
+      causeClass: typeof record.causeClass === 'string' ? record.causeClass : '',
+      commitState: typeof record.commitState === 'string' ? record.commitState : '',
+      extensionId: typeof record.extensionId === 'string' ? record.extensionId : '',
+      extensionVersion: typeof record.extensionVersion === 'string' ? record.extensionVersion : '',
+      packageDigest: typeof record.packageDigest === 'string' ? record.packageDigest : '',
+      runtimeInstanceId: typeof record.runtimeInstanceId === 'string' ? record.runtimeInstanceId : '',
+      localResult: record.localResult as RouteIncidentLocalResult,
+      quarantined: record.quarantined,
+      resolved: record.resolved === true,
+      auditEventId: typeof record.auditEventId === 'number' ? record.auditEventId : 0,
+      createdAt: typeof record.createdAt === 'string' ? record.createdAt : '',
+      resolvedAt: typeof record.resolvedAt === 'string' ? record.resolvedAt : undefined
+    })
+  }
+  return {
+    limit: source.limit,
+    summary: {
+      pending: Number(summary.pending ?? 0),
+      quarantined: Number(summary.quarantined ?? 0),
+      recovered: Number(summary.recovered ?? 0),
+      failed: Number(summary.failed ?? 0)
+    },
+    incidents: parsed
+  }
+}
+
+/** 隔离结果 → 徽章色：已隔离是 error，待处理是 warning，制品消失/恢复是 neutral。 */
+export function routeIncidentResultColor(result: RouteIncidentLocalResult) {
+  if (result === 'quarantined') return 'error'
+  if (result === 'pending' || result === 'failed') return 'warning'
+  return 'neutral'
+}
+
 export function useAdminRouteInspector() {
   const { request } = useApiClient()
   const basePath = '/admin/extensions/route-inspector'
@@ -730,5 +828,22 @@ export function useAdminRouteInspector() {
     return snapshot
   }
 
-  return { inspect }
+  const incidentsBasePath = '/admin/extensions/route-incidents'
+
+  const loadIncidents = async () => {
+    const raw = await request<unknown>(incidentsBasePath)
+    const ledger = parseRouteIncidentLedger(raw)
+    if (!ledger) {
+      throw Object.assign(new Error('route incident ledger response invalid'), {
+        data: {
+          code: 503,
+          message: 'invalid incident ledger response',
+          data: { reason: 'extensions.route_inspector_unavailable' }
+        }
+      })
+    }
+    return ledger
+  }
+
+  return { inspect, loadIncidents }
 }

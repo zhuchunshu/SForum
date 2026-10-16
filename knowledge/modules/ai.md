@@ -156,27 +156,26 @@ live in configuration, not in Core code.
   「什么都没产出」，`GenerateReplyWorker` 把 `ErrEmptyReply` 翻译成
   `river.JobCancel`（确定性失败重试只会把账单乘以 `MaxAttempts`）。
 
-## 自我身份注入（2026-10-15）
+## 出站 system 不含身份与部署声明（2026-10-16）
 
-- **模型不会「知道」自己是哪个模型**：这件事既不在权重里也不在提示词里，只在站点
-  配置中（成本等级 → profile 绑定）。因此身份只能由解析出 profile 的那一层写进
-  system：`Gateway.Execute` 在脱敏之后、缓存键之前调用
-  `ApplyIdentity(system, profile, disclose)`。生成器与运营者写不出它——同一个系统
-  提示词同时服务三档绑定。
-- 声明是自包含的（事实 + 回答规则）：运营者可以整体替换系统提示词，把规则留在内置
-  默认提示词里会随替换一起消失。`IdentityAppendixVersion` 随 `request.System` 进入
-  缓存键，改动它必须递增。
-- `settings.identity.discloseModel` 是**指针**，nil 与 true 都表示公开。存量配置文档
-  没有这一项，普通 `bool` 会让升级后的站点读到 false，缺陷原样保留（与
-  `GateSettings.ToolCallsPerReply`、`Profile.SupportsTools` 同一套缺省语义）。
-  关闭公开不是「让模型不知道」，而是给它一个能如实说出口的答案（「本站的 AI 助手，
-  本站不公开所用模型」）——编造供应商与模型名同样是错误答案。
-- 控制台开关在「回复提示词」页签（`SFAdminAIIdentityBlock`）。开关用 getter/setter
-  computed（`?? true`）而不是直接 `v-model`，否则挂载即写入显式值、面板一打开就是
-  dirty；`normalizedAISettingsForComparison` 把显式 true 与字段缺失归一成同一形状。
-- 已知边界：`MaxSystemBytes`（100 KB）是调用方 system 的上限，注入发生在校验之后。
-  贴着上限的请求会以既有的 `ErrRequestInvalid` 失败；实际不可达（控制台编辑器上限
-  8000 字符），接受为已知边界而不是改写调用方的提示词。
+- **网关不向 system 追加任何宿主文本**：`Gateway.Execute` 只做脱敏（`ApplyRedaction`），
+  随后原样发出调用方给出的 system。模型读到的指令就是生成器与运营者写下的那一份。
+- 因此 profile 的 `Label`（供应商标识）、`Model`（模型名）与 `Protocol`（协议名）只出现
+  在运营者可见的执行记录里（`ExecutionRecord.Model` / `Protocol`），不进入会话内容。
+  成员问「你是哪个模型」时，回答完全来自模型自身：说不知道、说得不准，都是这种输入的
+  诚实结果。决策与取舍见 `decisions/2026-10-16-remove-ai-identity-injection.md`。
+- 历史：2026-10-15 曾由 `Support/AI/identity.go` 注入一段身份声明（`identity@1`，含
+  `settings.identity.discloseModel` 开关）。该机制已整体移除：Go 类型、REST DTO、
+  OpenAPI `AIIdentitySettings`、控制台 `SFAdminAIIdentityBlock` 与双语键全部删除，
+  组件身份转入退役账本。配置文档里残留的 `identity` 字段在读取时被忽略
+  （`decodeSettingsDocument` 不做严格解码），无需迁移。
+- 三个用途的提示词版本因此递增：`forum-reply@6`、`forum-reply-triage@3`、`diagnose@3`。
+  system 参与缓存键摘要（`CacheKey`），旧结果缓存自然失效；键里同时带
+  `profile.ID` / `profile.Model` / `revision`，不存在跨供应商串答案。
+- 回归守卫：`gateway_test.go` 的 `TestGatewaySendsCallerSystemUnchanged` 用哨兵
+  profile 断言出站 system 与调用方逐字节一致，`TestGatewayKeepsEmptySystemEmpty`
+  断言空 system 不被补全；Web 侧 `tests/admin/adminAINoModelIdentity.test.ts` 覆盖
+  契约、控制台与文案三层。
 
 ## 回复输出预算（2026-10-15）
 
@@ -280,3 +279,11 @@ live in configuration, not in Core code.
   `Support/AI` → `Models/Extensions` 与 `Models/Extensions` 测试 → `Support/HostAPI`
   → `Support/AI` 构成测试期 import 环，导致 `Models/Extensions` 测试包完全无法编译；
   移到子包即修复，依赖方向也正确（适配层依赖 AI 契约，反之不然）。
+- **工具插件可以自带设置页探测**：设置动作 kind `ai_tool_probe` 让插件用草稿值起一个
+  短命 runtime 并调用自己声明的某个 `aiTools[]`。探测 starter 必须继承活动运行时的
+  信任来源，否则上传型插件的探测会在 `protocolV2ClientConfig` 处被拒
+  （`ErrTrustGrantNotFound`），表现为一句无原因的 `extension.settings_action_unavailable`。
+  见 `decisions/2026-10-15-ai-tool-probe-settings-action.md`。
+- 站内已有一个真实的上传型 AI 工具插件在跑：`sforum.fetch-url`（仓库外
+  `~/Code/github/sforum-fetch-url`，域名白名单 + 总开关 + 出站代理的网页抓取工具）。
+  它是「插件工具 + 用途白名单点名 + 设置页探测」这条链路的活样例。

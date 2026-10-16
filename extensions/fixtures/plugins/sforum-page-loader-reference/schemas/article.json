@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "required": [
+    "title",
+    "state"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "published",
+        "archived"
+      ]
+    }
+  }
+}

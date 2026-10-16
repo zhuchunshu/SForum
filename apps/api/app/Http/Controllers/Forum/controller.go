@@ -27,6 +27,7 @@ type Controller struct {
 	publicReads       *forum.PublicReadService
 	editableSources   *forum.EditableSourceService
 	referenceSelector *forum.ReferenceSelector
+	taxonomy          *forum.TaxonomyService
 	searchService     SearchService
 	reindexer         ReindexService
 	searchProviders   SearchProviderAdmin
@@ -96,7 +97,8 @@ func NewController(service *forum.Service, users identity.ActorStore, sessions *
 	return &Controller{
 		service: service, publicReads: forum.NewPublicReadService(service),
 		editableSources: forum.NewEditableSourceService(service), referenceSelector: forum.ReferenceSelectorFromService(service),
-		users: users, sessions: sessions,
+		taxonomy: forum.NewTaxonomyService(service),
+		users:    users, sessions: sessions,
 	}
 }
 
@@ -105,6 +107,7 @@ func NewControllerWithSearch(service *forum.Service, searchSvc SearchService, re
 	return &Controller{
 		service: service, publicReads: forum.NewPublicReadService(service), editableSources: forum.NewEditableSourceService(service),
 		referenceSelector: forum.ReferenceSelectorFromService(service), searchService: searchSvc,
+		taxonomy:  forum.NewTaxonomyService(service),
 		reindexer: reindexer, users: users, sessions: sessions,
 	}
 }
@@ -249,7 +252,7 @@ func (h *Controller) categories(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
 	}
-	items, err := h.service.ListCategories(c.Context())
+	items, err := h.service.ListCategories(c.Context(), false)
 	if err != nil {
 		return mapForumError(err)
 	}
@@ -260,7 +263,7 @@ func (h *Controller) categoryGroups(c fiber.Ctx) error {
 	if err := h.requireGuestRead(c); err != nil {
 		return err
 	}
-	items, err := h.service.ListCategoryGroups(c.Context())
+	items, err := h.service.ListCategoryGroups(c.Context(), false)
 	if err != nil {
 		return mapForumError(err)
 	}
@@ -853,6 +856,16 @@ func mapForumError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidTag)
 	case errors.Is(err, forum.ErrTagNotFound):
 		return fiber.NewError(fiber.StatusNotFound, forum.CodeTagNotFound)
+	case errors.Is(err, forum.ErrCategoryNotFound):
+		return fiber.NewError(fiber.StatusNotFound, forum.CodeCategoryNotFound)
+	case errors.Is(err, forum.ErrCategoryGroupNotFound):
+		return fiber.NewError(fiber.StatusNotFound, forum.CodeCategoryGroupNotFound)
+	case errors.Is(err, forum.ErrCategoryNotEmpty):
+		return fiber.NewError(fiber.StatusConflict, forum.CodeCategoryNotEmpty)
+	case errors.Is(err, forum.ErrCategoryGroupNotEmpty):
+		return fiber.NewError(fiber.StatusConflict, forum.CodeCategoryGroupNotEmpty)
+	case errors.Is(err, forum.ErrCategoryIsDefault):
+		return fiber.NewError(fiber.StatusConflict, forum.CodeCategoryIsDefault)
 	case errors.Is(err, forum.ErrInvalidSettings):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, forum.CodeInvalidSettings)
 	case errors.Is(err, forum.ErrInvalidAction):

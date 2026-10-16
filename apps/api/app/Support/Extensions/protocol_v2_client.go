@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
-	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
@@ -75,6 +74,7 @@ type protocolV2ClientConfig struct {
 	hostAPI            ProtocolV2HostRegistrar
 	delegations        hostapi.ProtocolV2ActorDelegationBundleIssuer
 	shortcodeQueries   hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer
+	sessionDelegations hostapi.ProtocolV2SessionDelegationIssuer
 	hostCommands       bool
 	hostBrokerID       uint32
 }
@@ -103,6 +103,7 @@ type protocolV2Client struct {
 	hostBrokerID       uint32
 	delegations        hostapi.ProtocolV2ActorDelegationBundleIssuer
 	shortcodeQueries   hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer
+	sessionDelegations hostapi.ProtocolV2SessionDelegationIssuer
 	hostCommands       bool
 	serviceMu          sync.RWMutex
 	services           []*protocolv2.ServiceDescriptor
@@ -145,7 +146,8 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 		lifecycle:          cloneManifestLifecycle(config.lifecycle),
 		token:              append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 		delegations: config.delegations, shortcodeQueries: config.shortcodeQueries,
-		hostCommands: config.hostCommands,
+		sessionDelegations: config.sessionDelegations,
+		hostCommands:       config.hostCommands,
 	}
 }
 
@@ -271,6 +273,7 @@ func (s *ProtocolStarter) protocolV2ClientConfig(
 		hostAPI:            protocolV2HostRegistrarFor(s.hostAPI),
 		delegations:        protocolV2ActorDelegationBundleIssuerFor(s.hostAPI),
 		shortcodeQueries:   protocolV2ShortcodeProjectionDelegationIssuerFor(s.hostAPI),
+		sessionDelegations: protocolV2SessionDelegationIssuerFor(s.hostAPI),
 		hostCommands:       extensionmanifest.HasDatabaseGrant(extension.Manifest.Database, extensionmanifest.DatabaseGrantHostCommands),
 	}, nil
 }
@@ -673,10 +676,11 @@ func (c *protocolV2Client) invokeAdminSurface(
 	}
 	ctx, cancel := protocolV2Deadline(parent, DefaultProtocolV2RequestTimeout)
 	defer cancel()
-	requestContext, err := c.invocationRequestContext(ctx, contract.ID, actor, idempotencyKey)
+	requestContext, retireSessionDelegation, err := c.invocationRequestContext(ctx, contract.ID, actor, idempotencyKey)
 	if err != nil {
 		return nil, err
 	}
+	defer retireSessionDelegation()
 	response, err := c.client.InvokeHook(ctx, &pluginv2.HookRequest{
 		Context: requestContext, HookId: contract.ID,
 		HookName: contract.Handler, HookKind: "admin_surface", ContractVersion: contract.ContractVersion,
@@ -975,34 +979,6 @@ func (c *protocolV2Client) requestContext(ctx context.Context, correlation strin
 	}
 }
 
-func protocolV2Authority(grants []extensions.CapabilityGrant) []*protocolv2.AuthorityGrant {
-	result := make([]*protocolv2.AuthorityGrant, 0, len(grants))
-	for _, grant := range grants {
-		source := "declared"
-		if grant.Implied {
-			source = "host-implied"
-		}
-		result = append(result, &protocolv2.AuthorityGrant{
-			Key: grant.Key, ContractVersion: hostAPIV2Version,
-			RiskTier: protocolV2Risk(grant.Risk), Source: source,
-		})
-	}
-	return result
-}
-
-func protocolV2Risk(risk string) protocolv2.RiskTier {
-	switch risk {
-	case capabilities.RiskLow:
-		return protocolv2.RiskTier_RISK_TIER_LOW
-	case capabilities.RiskMedium:
-		return protocolv2.RiskTier_RISK_TIER_MEDIUM
-	case capabilities.RiskHigh:
-		return protocolv2.RiskTier_RISK_TIER_HIGH
-	default:
-		return protocolv2.RiskTier_RISK_TIER_UNSPECIFIED
-	}
-}
-
 func protocolV2Document(schemaID, version string, values map[string]any) (*protocolv2.TypedDocument, error) {
 	// Host 业务 payload 常含 []string、具名 struct（如 forum.ContentInput）。
 	// structpb.NewStruct 只接受 JSON 友好类型；先 JSON round-trip 再编码。
@@ -1046,39 +1022,6 @@ func randomProtocolV2Bytes(size int) ([]byte, error) {
 		return nil, err
 	}
 	return value, nil
-}
-
-func cloneV2Identity(value *protocolv2.ExtensionIdentity) *protocolv2.ExtensionIdentity {
-	if value == nil {
-		return nil
-	}
-	return proto.Clone(value).(*protocolv2.ExtensionIdentity)
-}
-
-func cloneManifestIdentity(value *extensions.ManifestIdentity) *extensions.ManifestIdentity {
-	if value == nil {
-		return nil
-	}
-	result := *value
-	result.UserFields = append([]extensionmanifest.ManifestIdentityUserField(nil), value.UserFields...)
-	result.Providers = append([]extensions.ManifestIdentityProvider(nil), value.Providers...)
-	for index := range result.Providers {
-		result.Providers[index].Operations = append(
-			[]extensions.ManifestIdentityProviderOperation(nil), value.Providers[index].Operations...,
-		)
-	}
-	result.RiskHooks = append([]string(nil), value.RiskHooks...)
-	return &result
-}
-
-func cloneV2Authority(values []*protocolv2.AuthorityGrant) []*protocolv2.AuthorityGrant {
-	result := make([]*protocolv2.AuthorityGrant, 0, len(values))
-	for _, value := range values {
-		if value != nil {
-			result = append(result, proto.Clone(value).(*protocolv2.AuthorityGrant))
-		}
-	}
-	return result
 }
 
 func booleanValue(values map[string]any, key string) bool {

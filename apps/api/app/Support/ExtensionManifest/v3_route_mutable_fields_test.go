@@ -214,14 +214,16 @@ func TestManifestV3RouteMutableCredentialsRequireRawRequestGuard(t *testing.T) {
 				t.Fatal("filtered guard accepted a credential mutation declaration")
 			}
 
+			// 决定 R1（2026-10-16）：Host 拥有的 core.guard.raw_request 不再是路由守卫，
+			// 凭证头声明不能靠它铸造；要 raw 权限必须引用包内声明的 kind=raw_request 守卫。
 			coreRaw := mutableRouteManifest(RouteActionFilter)
 			coreRaw.Routes[0].Guard = GuardCoreRaw
 			coreRaw.Routes[0].MutableRequestFields = []string{"/headers/" + header}
-			assertMutableRouteAccepted(t, coreRaw)
+			assertCoreRawRouteGuardRefused(t, coreRaw)
 
 			customRaw := mutableRouteManifest(RouteActionFilter)
 			customRaw.Routes[0].Guard = customRaw.Guards[0].ID
-			customRaw.Guards[0].Kind = "raw_request"
+			customRaw.Guards[0].Kind = GuardKindRawRequest
 			customRaw.Routes[0].MutableRequestFields = []string{"/headers/" + header}
 			assertMutableRouteAccepted(t, customRaw)
 		})

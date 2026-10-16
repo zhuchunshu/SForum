@@ -1,0 +1,30 @@
+{
+  "pages": [
+    {
+      "id": "sforum.page-layout-reference.page.bare",
+      "action": "add",
+      "path": "/page-layout-reference/bare",
+      "template": "templates/page-bare.html",
+      "access": "public",
+      "contract": "sforum.page.sforum_page_layout_reference_bare@1",
+      "layout": "bare"
+    },
+    {
+      "id": "sforum.page-layout-reference.page.site",
+      "action": "add",
+      "path": "/page-layout-reference/site",
+      "template": "templates/page-site.html",
+      "access": "public",
+      "contract": "sforum.page.sforum_page_layout_reference_site@1",
+      "layout": "site"
+    },
+    {
+      "id": "sforum.page-layout-reference.page.default",
+      "action": "add",
+      "path": "/page-layout-reference/default",
+      "template": "templates/page-default.html",
+      "access": "public",
+      "contract": "sforum.page.sforum_page_layout_reference_default@1"
+    }
+  ]
+}

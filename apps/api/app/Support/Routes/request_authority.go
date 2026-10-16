@@ -187,8 +187,11 @@ func routeRequestGuardKind(step RouteExecutionStep) (RequestGuardKind, bool) {
 		extensionmanifest.GuardCorePermission, extensionmanifest.GuardCoreGuest,
 		extensionmanifest.GuardCoreInherit:
 		return RequestGuardHost, equalPluginGuardBinding(step.PluginGuard, PluginGuardBinding{})
-	case extensionmanifest.GuardCoreRaw:
-		return RequestGuardRawRequest, equalPluginGuardBinding(step.PluginGuard, PluginGuardBinding{})
+	}
+	// 决定 R1（2026-10-16）：core.guard.raw_request 不再授予 raw 请求权限。
+	// 清单校验已拒绝该守卫；这里再 fail closed 一次，防止旧制品/绕过路径拿到凭证。
+	if step.Guard == extensionmanifest.GuardCoreRaw {
+		return "", false
 	}
 	if !validPluginGuardBinding(step) {
 		return "", false

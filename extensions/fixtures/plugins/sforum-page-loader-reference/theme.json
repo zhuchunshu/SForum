@@ -1,0 +1,17 @@
+{
+  "pages": [
+    {
+      "id": "sforum.page-loader-reference.article",
+      "action": "add",
+      "path": "/loader-articles/:slug",
+      "template": "templates/article.html",
+      "access": "public",
+      "contract": "sforum.page-loader-reference.page.article@1",
+      "data": {
+        "source": "plugin",
+        "route": "/page-data/article",
+        "schema": "schemas/article.json"
+      }
+    }
+  ]
+}

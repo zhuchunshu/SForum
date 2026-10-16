@@ -135,6 +135,16 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(home).toContain('padding: 34px 28px;')
   })
 
+  test('paints the shared list shell surface at every width so narrow screens match desktop', () => {
+    const css = homepageCss()
+    // 基规则（无断点）必须自带 surface 底：PC 与窄屏同色，透明话题行才不会落在画布色上。
+    const baseStart = css.indexOf('.sforum-home__layout {')
+    expect(baseStart).toBeGreaterThan(-1)
+    const baseRule = css.slice(baseStart, css.indexOf('}', baseStart))
+    expect(baseRule).toContain('background: var(--sf-public-surface);')
+    expect(baseRule).not.toContain('background: var(--sf-public-bg);')
+  })
+
   test('renders topic table rows using only API-backed summary data', () => {
     const row = topicRow()
 
@@ -460,7 +470,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(themeCss()).toContain('.sforum-content-column')
     expect(themeCss()).toContain('.sf-host-public-chrome--fullwidth-3col:has(.sforum-content-footer)')
     expect(defaultHomeTemplate()).toContain('<sf-footer>')
-    expect(source('../../app/components/SFHostPublicChrome.vue')).toContain('<SFFooter')
+    expect(source('../../app/components/SFHostPublicChrome.vue')).toContain('<SFContentColumnFooter')
     expect(defaultThemeHybridCss()).not.toContain('.sf-theme--default:not(.sf-page--not-found) .sf-footer')
     expect(defaultThemeHybridCss()).toContain('.sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col > .sf-footer')
     expect(defaultThemeHybridCss()).toContain('.sforum-content-footer .sf-footer')

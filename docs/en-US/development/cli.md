@@ -24,7 +24,8 @@ go run ./cmd/sforum --version
 | `make:theme` | Scaffold a theme |
 | `seed:forum` | Bulk-write fake forum data (small profile) |
 | `seed:perf` | Million-scale read-path seed (alias of `seed:forum --profile=perf-1m`) |
-| `users:reset-password` | Interactively reset a user's password (alias `user:reset-password`) |
+| `users:reset-password` | Reset a user's password (interactive by default; `--email/--password/--yes` for automation; alias `user:reset-password`) |
+| `privacy:erase-user` | Erase a user's privacy data (production entry of `privacy.Registry.EraseUser`; `--actor-user-id` must be super_admin / `user.manage`; `--user-id`/`--user-email` pick one; automation requires `--yes`) |
 | `revisions backfill` | Backfill the forum content revision ledger in batches |
 | `extension build` | Build author frontend assets, refresh digests, and run all package gates |
 | `extension validate` | Validate an extension package (includes/template preflight) |
@@ -38,6 +39,8 @@ go run ./cmd/sforum --version
 | `extension command list/run` | List / run trusted plugin commands |
 | `extension api-lts` | Print Host/Frontend API LTS and shim telemetry |
 | `extension system-tier list/upsert/disable` | Out-of-band system tier management (no package code) |
+| `extension dev` | Development edit loop: watch package source inputs and rebuild (requires `APP_ENV=development`) |
+| `extension builtins` | Discover the built-in package list from the manifest tree (single source for the build script) |
 | `dev:cleanup-orphan-plugins` | Stop reparented extension backend plugin processes (safe for live `sforum-api` children) |
 
 > This table is the authoritative command list; adding or removing commands must
@@ -108,6 +111,31 @@ go run ./cmd/sforum make:plugin \
 | `--prebuilt-settings` | both | Author-prebuilt Admin settings component + Schema fallback |
 | `--vue-admin-page` | plugin | Vue/Vite admin page workspace using the Plugin UI SDK |
 | `--provider-slot` | plugin | Declare a provider slot + `provider_probe` (requires `--backend`) |
+| `--public-page` | both | Add a public Page Registry page (path `/<slug>`, L1 template, exact declarations). The slug is lowercase alphanumeric plus `-` |
+| `--public-page-layout` | both | Page layout: `site` (default; the theme owns the site shell) or `bare` (the page owns its chrome) |
+| `--schema-page` | both | Add a declarative public page (path `/<slug>`, `view: schema`, a bounded in-package descriptor plus a JSON Schema contract). Same slug rules as `--public-page` |
+| `--schema-page-kind` | both | Descriptor kind: `list` (default) | `detail` | `form` | `notice` (requires `--schema-page`) |
+| `--route-middleware` | plugin | Add a before request patch and an after response patch route (requires `--backend`); the guard is always `core.guard.inherit` |
+
+`--public-page` writes the `theme.json` page mapping and adds the template to both
+`templates[]` and `packageFiles[]` (three-way identity, equal digests). The page it
+generates is **static**: plugin page data sources (`dataSource`/`dataRoute`) have no
+usable transport today, so the Loader Gateway would fall back and the scaffold does not
+generate one. `--schema-page` generates a **declarative** public page: `theme.json` only names the
+descriptor file id and the exact schema reference it must satisfy
+(`<schemaFileId>@1`), and both are `kind: schema` with a `version` in the manifest. The
+Host renders the body - there is no Vue, no Go template, and no build step in the
+package. The Host enforces bounded rules: `kind` must be one of
+`list`/`detail`/`form`/`notice`, field types are limited to
+`text`/`textarea`/`number`/`boolean`/`select`, and the caps are 24 fields, 64 items,
+64 options and 64 cells. `form` renders read-only today: submission needs the page's
+declared `dataRoute` binding, which is still blocked by the loader-transport gap (the
+same blocker as `dataSource`). Sharing a slug with `--public-page` is rejected outright
+so one path cannot carry two declarations.
+
+`--route-middleware` writes only the mutable fields it declares, never
+requests raw request authority, and never restates `access`/`permission` - a patch
+inherits the target route's authorization.
 
 ### After scaffolding
 
@@ -131,6 +159,7 @@ import host business packages such as `app/Models/*`. Full authoring rules:
 go run ./cmd/sforum extension build <package-root>
 go run ./cmd/sforum extension build --allow-scaffold <package-root>
 go run ./cmd/sforum extension build --skip-install <package-root>
+go run ./cmd/sforum extension build --sdk-dir apps/web/packages <package-root>
 ```
 
 When `frontend/admin/package.json` exists, the command runs `bun install` and
@@ -139,8 +168,21 @@ When `frontend/admin/package.json` exists, the command runs `bun install` and
 and template validation, and runs Host contract tests. Packages without an
 author frontend skip Bun but still run all three package gates.
 
+Preflight hashes only what would reach a release artifact: `node_modules`,
+`.git`, and `vendor` are skipped exactly as `extension package` already skips
+them, so an author tree with installed dependencies still validates. The install
+path keeps the strict whole-tree digest and still rejects every symlink.
+
 - `--skip-install` skips `bun install` when dependencies already exist; it does not skip the build.
 - `--allow-scaffold` permits only a missing backend binary during contract tests; other errors still fail.
+- `--sdk-dir <dir>` (or `SFORUM_SDK_DIR`): **development only.** Rewrites the
+  workspace's `@sforum/*` dependencies to the local SDK packages in that
+  directory before building, so a new SDK version (for example the
+  `@sforum/plugin-ui` icon components) can be exercised before Release publishes
+  it. `frontend/admin/package.json` and the Bun lockfile are restored byte for
+  byte afterwards; if the build fails or is killed, a
+  `package.json.sforum-sdk-backup` file is left for manual recovery. Release and
+  production flows never set it.
 
 This is an author-invoked local command and executes the plugin's own
 `package.json` scripts. Upload, install, enable, and production runtime never
@@ -302,6 +344,49 @@ go run ./cmd/sforum extension quarantine <extension-id> \
 `--expect-version` and `--expect-digest` must match the active version to avoid
 mis-quarantines.
 
+### Development edit loop — `dev`
+
+```bash
+cd apps/api
+APP_ENV=development go run ./cmd/sforum extension dev ../../extensions/dev/acme.demo
+```
+
+Development-only: production, staging and test are refused at command entry (the same
+predicate the orphan reaper uses). The package must live under `extensions/dev`,
+`extensions/optional` or `extensions/fixtures`; protected `extensions/builtin` source
+trees are refused because built-ins must go through
+`scripts/build-builtin-plugins.sh` plus the admin activation flow.
+
+The loop watches **package-contained source inputs only**: `dist/`, `node_modules/`,
+`.git/`, archives, editor swap files and temp files are ignored, and the manifest the
+build transaction itself rewrites does not count as an author edit (content-stamp
+snapshot), so the loop cannot trigger itself.
+
+| flag | Effect |
+| --- | --- |
+| `--once` | Run one build transaction and exit (no watcher; CI friendly) |
+| `--json` | One JSON object per phase for editor integrations |
+| `--debounce` | Event coalescing window (default `400ms`) |
+| `--skip-install` | Skip `bun install` and reuse existing frontend dependencies |
+
+**It does not bypass trust.** Each cycle prints the new package digest and the next
+step: the exact artifact still has to be confirmed by an operator in the admin
+extensions flow before it is staged or activated. A failed build or preflight keeps
+the last healthy artifact and reports the failing stage and reason.
+
+### Built-in discovery — `builtins`
+
+```bash
+cd apps/api
+go run ./cmd/sforum extension builtins
+go run ./cmd/sforum extension builtins --json
+```
+
+Walks the built-in root (default `extensions/builtin`) and reports every Manifest V3
+package with its `id`, relative path, backend entry and whether it has a Go backend.
+`scripts/build-builtin-plugins.sh` consumes that output, so adding or renaming a
+built-in no longer requires syncing a hardcoded id list in shell.
+
 ### API LTS status
 
 ```sh
@@ -384,15 +469,26 @@ parameters (`--count` 1,000,000, `--users` 200, `--categories` 20,
 
 ## Account maintenance: `users:reset-password`
 
-Interactively resets any user's password (reads only
-`DATABASE_URL`/`--database-url`; no other app config is loaded):
+Resets any user's password (reads only `DATABASE_URL`/`--database-url`; no other app
+config is loaded). The default flow is interactive; automation (CI, release-image
+smoke) uses the non-interactive mode:
 
 ```sh
+# Interactive
 go run ./cmd/sforum users:reset-password
 go run ./cmd/sforum users:reset-password --database-url 'postgres://…'
 # Alias:
 go run ./cmd/sforum user:reset-password
+
+# Non-interactive (requires --yes; a missing flag fails before touching the database)
+go run ./cmd/sforum users:reset-password --database-url 'postgres://…' \
+  --email admin@example.com --password '<password meeting the site policy>' --yes
 ```
+
+Non-interactive mode uses the same site password policy and the same
+`AdminSetUserPassword` path as the interactive flow: a weak password is still
+rejected, and the reset still bumps the token version and revokes the user's active
+sessions.
 
 ---
 

@@ -1,6 +1,7 @@
 package extensionmanifest
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -90,11 +91,15 @@ func (v *v3Validator) validateBackendAndMigrations() error {
 }
 
 func (v *v3Validator) validateGuardsAndRoutes() error {
+	// 决定 R1（2026-10-16）：Host 拥有的 core.guard.raw_request 不再作为路由守卫接受。
+	// 它以前允许「零守卫代码」的路由拿到 raw 请求权限（cookie/authorization 等凭证会被
+	// 转发给插件处理器），运维方判定这是漏洞。要 raw 权限必须由包内**显式声明**一个
+	// kind=raw_request 的守卫（带 entry + digest + contract，并在信任期披露）。
 	guards := map[string]bool{
 		GuardCorePublic: true, GuardCoreLogin: true, GuardCorePermission: true,
-		GuardCoreGuest: true, GuardCoreRaw: true, GuardCoreInherit: true,
+		GuardCoreGuest: true, GuardCoreInherit: true,
 	}
-	rawRequestGuards := map[string]bool{GuardCoreRaw: true}
+	rawRequestGuards := map[string]bool{}
 	for _, guard := range v.manifest.Guards {
 		if err := v.versionedID(guard.ID, guard.ContractVersion, "guard"); err != nil {
 			return err
@@ -103,7 +108,7 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 			return ErrInvalidManifest
 		}
 		switch guard.Kind {
-		case "custom", "raw_request":
+		case GuardKindCustom, GuardKindRawRequest:
 		default:
 			return ErrInvalidManifest
 		}
@@ -113,13 +118,21 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 			}
 		}
 		guards[guard.ID] = true
-		rawRequestGuards[guard.ID] = guard.Kind == "raw_request"
+		rawRequestGuards[guard.ID] = guard.Kind == GuardKindRawRequest
 	}
 
 	claims := map[string]bool{}
 	for _, route := range v.manifest.Routes {
 		if err := v.versionedID(route.ID, route.ContractVersion, "route"); err != nil {
 			return err
+		}
+		if route.Guard == GuardCoreRaw {
+			// 作者向的早期失败：给出替代方案，而不是让人以为「写错了 id」。
+			return fmt.Errorf(
+				"%w: %s is no longer accepted as a route guard; declare a guard with kind=%s "+
+					"(entry + digest + contractVersion) and reference that guard id instead",
+				ErrInvalidManifest, GuardCoreRaw, GuardKindRawRequest,
+			)
 		}
 		if !validRouteAction(route.Action) || !validRouteMode(route.Mode) || !guards[route.Guard] || route.TimeoutMS < 0 {
 			return ErrInvalidManifest

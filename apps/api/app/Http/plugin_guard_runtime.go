@@ -7,6 +7,7 @@ import (
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
@@ -50,10 +51,17 @@ func (e *RuntimePluginRouteGuardEvaluator) EvaluatePluginGuard(
 		(lookup.Entry.CurrentTrustRequired || rawAuthority) && !lookup.Entry.CurrentArtifactTrusted {
 		return preInvocationPluginGuardFailure(nil)
 	}
-	// core.guard.raw_request confirms that this exact trusted handler owns policy.
-	// Credential forwarding remains closed until raw-session authority is frozen.
-	if step.PluginGuard.ID == "" {
-		return nil
+	// 更正（2026-10-16，决定 R1）：这里的「空绑定即放行」原本是 Host 守卫
+	// `core.guard.raw_request` 的语义——它在**零守卫代码**下放行，并且（在该守卫铸造
+	// RequestAuthorityRaw 时）让 `protocolV2AuthorizedRequestHeaders` 不再剔除
+	// cookie/authorization/x-api-key/x-auth-token，于是凭证被转发给插件处理器。
+	// 运维方判定这是漏洞：raw 权限只能来自包内**显式声明**的 kind=raw_request 守卫。
+	//
+	// 因此这里改成 fail closed：携带已退役守卫的步骤直接拒绝（生产链已在
+	// `Routes/core_guard_authorizer.go` 的 validPluginGuardBinding 处拦下它，这里是纵深防御，
+	// 避免任何未来调用方把该求值器当成「照单确认传入权限」的盖章）。
+	if step.Guard == extensionmanifest.GuardCoreRaw || step.PluginGuard.ID == "" {
+		return preInvocationPluginGuardFailure(nil)
 	}
 	identity := extensionsruntime.RuntimeInstanceIdentity{
 		ExtensionID: artifact.ExtensionID, InstanceID: artifact.RuntimeInstanceID,

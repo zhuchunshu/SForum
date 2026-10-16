@@ -524,9 +524,12 @@ func TestProtocolV2RouteRawAuthorityCanReadPriorResponseCredentials(t *testing.T
 	})
 	client.routes = []extensions.ManifestRoute{{
 		ID: "demo.route", ContractVersion: "demo.route@1", Action: extensionmanifest.RouteActionAfter,
-		Methods: []string{http.MethodPost}, Guard: extensionmanifest.GuardCoreRaw,
+		Methods: []string{http.MethodPost}, Guard: protocolV2DeclaredRawGuardID,
 		RequestSchema: "demo.request@1", ResponseSchema: "demo.response@1",
 	}}
+	// 决定 R1（2026-10-16）：读取先前响应凭证需要 raw 权限，而 raw 权限只来自包内声明的
+	// kind=raw_request 守卫；Host 的 core.guard.raw_request 已被拒绝。
+	useProtocolV2DeclaredRawGuard(client)
 	request := protocolV2RouteTestRequest()
 	request.RouteAction = extensionmanifest.RouteActionAfter
 	request.InvocationStage = ProtocolV2RouteInvocationStageResponse

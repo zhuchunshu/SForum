@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted（2026-10-15）
+Accepted（2026-10-15）。第 2、3 条（身份声明由网关注入；公开性可配置且缺省公开）已被
+`2026-10-16-remove-ai-identity-injection.md` 取代（2026-10-16）；第 1、4、5 条继续有效。
 
 ## Context
 

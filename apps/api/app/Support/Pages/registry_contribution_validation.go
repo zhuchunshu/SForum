@@ -34,6 +34,11 @@ func prepareContributionsFor(extensionID string, items []PageContribution, sourc
 		if access == AccessPermission && strings.TrimSpace(item.Permission) == "" {
 			return nil, fmt.Errorf("%w: permission key required for access=permission", ErrInvalidAccess)
 		}
+		layout, err := NormalizeLayout(string(item.Layout))
+		if err != nil {
+			return nil, err
+		}
+		item.Layout = layout
 		if err := validateContribution(item); err != nil {
 			return nil, err
 		}
@@ -116,4 +121,44 @@ func prepareAddedRoute(item *PageContribution, seen map[string]struct{}) (string
 		return "", err
 	}
 	return sig, nil
+}
+
+func validateContribution(item PageContribution) error {
+	if strings.TrimSpace(item.ID) == "" {
+		return fmt.Errorf("%w: missing id", ErrInvalidContribution)
+	}
+	if strings.TrimSpace(item.ExtensionID) == "" {
+		return fmt.Errorf("%w: missing extensionId", ErrInvalidContribution)
+	}
+	switch item.Action {
+	case ActionReplace:
+		if strings.TrimSpace(item.Target) == "" {
+			return fmt.Errorf("%w: replace needs target", ErrInvalidContribution)
+		}
+	case ActionAdd:
+		if strings.TrimSpace(item.Path) == "" {
+			return fmt.Errorf("%w: add needs path", ErrInvalidContribution)
+		}
+	default:
+		return fmt.Errorf("%w: action", ErrInvalidContribution)
+	}
+	return nil
+}
+
+func normalizePublicPath(p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return "/"
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	// 折叠重复斜杠
+	for strings.Contains(p, "//") {
+		p = strings.ReplaceAll(p, "//", "/")
+	}
+	if len(p) > 1 {
+		p = strings.TrimRight(p, "/")
+	}
+	return p
 }

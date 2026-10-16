@@ -34,6 +34,28 @@ func (h *Controller) inspectRoute(c fiber.Ctx) error {
 	return apphttp.OK(c, snapshot)
 }
 
+// inspectRouteIncidents 返回崩溃循环隔离的持久状态（M5：重启后管理端与 API 必须
+// 报出同一份状态）。读取有界且已脱敏；空列表就是正常状态，不是错误。
+func (h *Controller) inspectRouteIncidents(c fiber.Ctx) error {
+	if _, err := h.routeProviderViewer(c); err != nil {
+		return err
+	}
+	if h.routeIncidents == nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, routeInspectorUnavailableReason)
+	}
+	records, err := h.routeIncidents.ListRecentRouteRuntimeIncidents(
+		c.Context(), apphttp.RouteRuntimeIncidentReadMaximum,
+	)
+	if err != nil {
+		return fiber.NewError(fiber.StatusServiceUnavailable, routeInspectorUnavailableReason)
+	}
+	return apphttp.OK(c, map[string]any{
+		"limit":     apphttp.RouteRuntimeIncidentReadMaximum,
+		"summary":   apphttp.SummarizeRouteRuntimeIncidents(records),
+		"incidents": apphttp.RouteRuntimeIncidentViews(records),
+	})
+}
+
 func mapRouteInspectorError(err error) error {
 	switch {
 	case errors.Is(err, routes.ErrInspectorInvalid):

@@ -1,19 +1,17 @@
 <script setup lang="ts">
-import { FORUM_PERMISSIONS, usePermissions } from '~/composables/identity/usePermissions'
-import { useForumApi } from '~/composables/forum/useForumApi'
-import SFSettingsAccountNav from '~/components/settings/SFSettingsAccountNav.vue'
-import SFHomeNavigation from '~/components/forum/SFHomeNavigation.vue'
-import SFResponsivePublicSidebar from '~/components/forum/navigation/SFResponsivePublicSidebar.vue'
+import SFSettingsAccountSidebar from '~/components/settings/SFSettingsAccountSidebar.vue'
 import SFContentColumnFooter from '~/components/forum/SFContentColumnFooter.vue'
 import SFPublicPageHeader from '~/components/public/SFPublicPageHeader.vue'
 import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
 import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
-import { useAccountSettingsNavigation, type AccountSettingsNavItem } from '~/composables/settings/useAccountSettingsNavigation'
 /**
  * 账号设置页共享 chrome：三栏布局 + 左侧导航 + 页头 + 移动端抽屉。
  * 页面通过插槽提供主内容 (default)、右栏 (rail，桌面 aside 与移动抽屉复用同一份)、
  * 页头附加操作 (head-actions)。根节点为 main，class / data-* 属性自动透传。
+ *
+ * 左栏由 `SFSettingsAccountSidebar` 拥有（与插件公开页的 `sf-account-settings-sidebar`
+ * 岛共用同一份实现），本组件只负责栏位与右栏抽屉。
  */
 const props = withDefaults(defineProps<{
   /** 左栏账号导航高亮项 */
@@ -33,31 +31,6 @@ const props = withDefaults(defineProps<{
 })
 
 const { t } = useI18n()
-const forumApi = useForumApi()
-const accountSettingsApi = useAccountSettingsNavigation()
-const { can } = usePermissions()
-
-const { data: categoryGroups, pending: categoriesPending } = await useAsyncData(
-  'settings-categories',
-  () => forumApi.listCategoryGroups(),
-  { default: () => [] }
-)
-const { data: accountSettingsNavigation } = await useAsyncData(
-  'settings-account-navigation',
-  async () => {
-    try {
-      const response = await accountSettingsApi.list()
-      return Array.isArray(response?.items) ? response.items : []
-    } catch {
-      return [] as AccountSettingsNavItem[]
-    }
-  },
-  { default: () => [] as AccountSettingsNavItem[] }
-)
-
-const categories = computed(() => categoryGroups.value.flatMap(group => group.categories || []))
-const categoryTopicTotal = computed(() => categories.value.reduce((sum, category) => sum + (category.topicCount || 0), 0))
-const canCreateTopic = computed(() => can(FORUM_PERMISSIONS.topicCreate))
 
 const mobileInfoOpen = useState<boolean>('forum-mobile-info-open', () => false)
 const { closeDrawer: closeMobileMenu } = usePublicSidebarDrawer()
@@ -71,30 +44,11 @@ function closeMobileDrawers() {
 <template>
   <main class="sforum-settings" data-layout="fullwidth-3col">
     <div class="sforum-settings__layout">
-      <SFResponsivePublicSidebar
-        owner-id="forum.settings"
-        :title="t('home.sidebar.drawerTitle')"
-        class="sforum-settings__sidebar sforum-home__sidebar"
-      >
-        <SFHomeNavigation
-          desktop-only
-          navigation-mode="route"
-          :categories="categories"
-          :total-topics="categoryTopicTotal"
-          :pending="categoriesPending"
-          :can-create-topic="canCreateTopic"
-          :show-categories="false"
-        >
-          <template #after-navigation>
-            <SFSettingsAccountNav
-              :active="props.active"
-              :extension-items="accountSettingsNavigation"
-              :public-profile-path="props.publicProfilePath"
-              @navigate="closeMobileDrawers"
-            />
-          </template>
-        </SFHomeNavigation>
-      </SFResponsivePublicSidebar>
+      <SFSettingsAccountSidebar
+        :active="props.active"
+        :public-profile-path="props.publicProfilePath"
+        @navigate="closeMobileDrawers"
+      />
 
       <section class="sforum-settings__main sforum-content-column" :aria-labelledby="props.titleId">
         <SFPublicPageHeader

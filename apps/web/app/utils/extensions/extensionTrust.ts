@@ -107,6 +107,29 @@ export type ExecutableTrustImpact = {
   digest: string
 }
 
+// M5：授权归属派生视图（API 的 status.guardAuthorization）。它不在影响文档摘要内：
+// 摘要覆盖权限本身，该视图只是把已披露的路由范围与守卫声明连接起来。
+export type ExecutableGuardAuthorization = {
+  routeId: string
+  routeAction?: string
+  path: string
+  methods: string[]
+  access?: string
+  permission?: string
+  guardId: string
+  guardContractVersion?: string
+  guardKind?: string
+  guardEntry?: string
+  guardDigest?: string
+  guardPermissions?: string[]
+  risk: 'host_owned' | 'extension_code' | 'raw_request' | string
+  rawRequest: boolean
+  requiresExactTrust: boolean
+  fallback?: string
+  mutableRequestFields?: string[]
+  mutableResponseFields?: string[]
+}
+
 export function executableDatabaseMigrationRisk(impact: Pick<ExecutableTrustImpact, 'database' | 'migrationDeclarations'>) {
   const nonTransactional = impact.migrationDeclarations.filter(migration => migration.transaction === 'forbidden')
   const hasMigrations = impact.migrationDeclarations.length > 0
@@ -124,6 +147,8 @@ export type ExecutableTrustStatus = {
   impact: ExecutableTrustImpact
   trustRequired: boolean
   trusted: boolean
+  // 仅由状态读取路径填充；影响文档本身不携带该派生视图。
+  guardAuthorization?: ExecutableGuardAuthorization[]
 }
 
 export type ExecutableTrustChallenge = {

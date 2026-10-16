@@ -225,7 +225,8 @@ func prepareIdentityProviderDefinition(
 
 func validateIdentityProviderContext(request *protocolwire.RequestContext) *protocolwire.ErrorDetail {
 	if len(request.GetGrantedAuthority()) != 0 || request.GetIdempotencyKey() != "" ||
-		len(request.GetHostCommandDelegations()) != 0 || len(request.GetHostQueryDelegations()) != 0 {
+		len(request.GetHostCommandDelegations()) != 0 || len(request.GetHostQueryDelegations()) != 0 ||
+		request.GetHostSessionDelegation() != nil {
 		return &protocolwire.ErrorDetail{
 			Code: protocolwire.ErrorCode_ERROR_CODE_PERMISSION_DENIED, Reason: "identity_provider.context_authority_forbidden",
 			Message: "Identity provider calls cannot carry subprocess authority, idempotency, or delegation material.",

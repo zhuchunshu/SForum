@@ -69,6 +69,9 @@ node tests/validate-page-registry-runtime.js
 echo "Running V3 platform catalog and traceability validation..."
 node tests/validate-v3-p0-catalogs.mjs
 
+echo "Running public page runtime surface catalog validation..."
+node tests/validate-public-page-surface-catalog.mjs
+
 if [ -d apps/web/node_modules ]; then
   echo "Running web unit tests for trusted editor L2 and registry catalogs..."
   (cd apps/web && bun test \

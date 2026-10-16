@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/huh v1.0.0
 	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/fasthttp/websocket v1.5.12
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gofiber/fiber/v3 v3.4.0
 	github.com/gofiber/storage/redis/v3 v3.5.0
 	github.com/golang-jwt/jwt/v5 v5.3.1

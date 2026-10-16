@@ -24,6 +24,10 @@ type ProtocolV2HostRegistrar interface {
 	RegisterProtocolV2(grpc.ServiceRegistrar)
 }
 
+// protocolV2HostSessionDelegationMaxBytes bounds the echoed session token at
+// the transport boundary. The signing authority applies the same bound.
+const protocolV2HostSessionDelegationMaxBytes = 4096
+
 type protocolV2HostBinding struct {
 	identity  *protocolv2.ExtensionIdentity
 	authority []*protocolv2.AuthorityGrant
@@ -160,6 +164,16 @@ func validateProtocolV2HostContext(ctx *protocolv2.RequestContext, binding proto
 	}
 	if len(ctx.GetHostCommandDelegations()) != 0 || len(ctx.GetHostQueryDelegations()) != 0 {
 		return status.Error(codes.PermissionDenied, "protocol v2 actor delegations are Host-to-plugin only")
+	}
+	// S9 reverses the direction for session state: the Host delivers the session
+	// delegation on the invocation, and the plugin echoes it back on the Host
+	// session-state RPCs. The interceptor therefore only bounds the shape here;
+	// the session service validates the signature, binding, and mint record and
+	// denies without it.
+	if delegation := ctx.GetHostSessionDelegation(); delegation != nil {
+		if token := delegation.GetToken(); token == "" || len(token) > protocolV2HostSessionDelegationMaxBytes {
+			return status.Error(codes.InvalidArgument, "protocol v2 session delegation is malformed")
+		}
 	}
 	deadline := ctx.GetDeadline()
 	if deadline == nil || !deadline.IsValid() {

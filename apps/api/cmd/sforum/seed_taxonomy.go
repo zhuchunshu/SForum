@@ -221,7 +221,7 @@ type seedTaxonomyResult struct {
 
 // seedTaxonomyService 是 seed 场景用到的分类/标签读写子集，由 forum.Service 实现。
 type seedTaxonomyService interface {
-	ListCategoryGroups(ctx context.Context) ([]forum.CategoryGroup, error)
+	ListCategoryGroups(ctx context.Context, includeHidden bool) ([]forum.CategoryGroup, error)
 	ListTags(ctx context.Context, includePending bool) ([]forum.Tag, error)
 	CreateCategoryGroup(ctx context.Context, actor identity.Actor, input forum.CreateCategoryGroupInput) (forum.CategoryGroup, error)
 	CreateCategory(ctx context.Context, actor identity.Actor, input forum.CreateCategoryInput) (forum.Category, error)
@@ -288,7 +288,8 @@ func ensureSeedTaxonomy(
 		return result, nil
 	}
 
-	groups, err := svc.ListCategoryGroups(ctx)
+	// 去重需要看到隐藏分组/隐藏分类，否则会重复创建同名 slug。
+	groups, err := svc.ListCategoryGroups(ctx, true)
 	if err != nil {
 		return result, fmt.Errorf("list category groups: %w", err)
 	}

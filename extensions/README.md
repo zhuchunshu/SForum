@@ -90,11 +90,18 @@ Apply the same mapping to a standalone `worker` service.
 [`scripts/build-builtin-plugins.sh`](../scripts/build-builtin-plugins.sh):
 
 1. rsync/copy `extensions/builtin/` → `storage/builtin-dev/` (gitignored).
-2. `go build` **only the plugins hard-coded in that script** (today:
-   `sforum-smtp`, `sforum-content-policy`, `sforum-storage-fs`,
-   `sforum-storage-s3`, `sforum-search-site`).
+   This copies the whole tree, so **themes are staged here too** (they need no
+   `go build` step). A theme source change therefore takes effect after this
+   script runs plus an API restart, with no separate theme step.
+2. `go build` **only the plugins hard-coded in that script** (today, the eight
+   that actually ship a `backend/`: `sforum-smtp`, `sforum-content-policy`,
+   `sforum-storage-fs`, `sforum-storage-s3`, `sforum-search-site`,
+   `sforum-auth-github`, `sforum-web-push`, `sforum-shortcodes`).
 3. Refresh Manifest V3 digests **in staging only** (source tree digests stay
-   stable for git).
+   stable for git). Because themes are copied verbatim rather than rebuilt, a
+   theme's source manifest digest must already be correct before staging - run
+   `extension digest --write` / `validate` / `test` on the theme source package
+   when you change a template.
 4. Export `BUILTIN_EXTENSION_ROOT=…/storage/builtin-dev` for Air.
 
 Implications:
@@ -165,7 +172,7 @@ for upload when it is operator-installed software.
 
 | Goal | Put the package here |
 | --- | --- |
-| Protected core vertical that must appear after every boot | `extensions/builtin/plugins/<dir>/` (+ extend `build-builtin-plugins.sh` if it has a Go backend) |
+| Protected core vertical that must appear after every boot | `extensions/builtin/plugins/<dir>/` (packages are discovered from the manifest tree by `sforum extension builtins`, so `build-builtin-plugins.sh` needs no edit) |
 | Bundled default / alternate theme | `extensions/builtin/themes/<dir>/` |
 | Local experiment, not committed | `extensions/dev/{plugins,themes}/` (default scaffold) |
 | Ship in git but operator must install | `extensions/optional/plugins/<dir>/` |

@@ -1,0 +1,536 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+)
+
+// M3 作者工作流生成器：公开 Page Registry 页与 before/after 路由中间件。
+//
+// 只写包内文件与清单声明：不改 Page Registry、Route Dispatcher、信任、guard
+// 或会话契约。生成的公开页默认 layout: site，生成的中间件只用目标路由继承的
+// guard（绝不请求 raw request authority），并且只写清单里已声明的可变字段。
+
+const (
+	publicPageLayoutSite = "site"
+	publicPageLayoutBare = "bare"
+
+	// 中间件示例固定挂在一个已审阅的核心读路由上，并使用 core.guard.inherit：
+	// 作者拿到的是「继承目标路由授权」的安全模板，而不是自造 guard。
+	middlewareTargetID             = "core.route.forum.topics"
+	middlewareTargetPath           = "/api/v1/topics"
+	middlewareTargetMethod         = "GET"
+	middlewareRequestTracePointer  = "query"
+	middlewareResponseTracePointer = "headers"
+)
+
+var workflowSlugPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
+
+// packageFileAdder 由 finalizeGeneratedManifest 提供，负责登记精确包文件并返回摘要。
+type packageFileAdder func(id, kind, relative string) (string, error)
+
+// packageFileVersionedAdder 声明带版本的 packageFile：精确 schema 引用
+// （`<schemaId>@<version>`）依赖版本字段，模板/资源不需要。
+type packageFileVersionedAdder func(id, kind, relative, version string) (string, error)
+
+func normalizeWorkflowOptions(opts makeOptions) makeOptions {
+	opts.PublicPage = strings.ToLower(strings.TrimSpace(opts.PublicPage))
+	opts.PublicPageLayout = strings.ToLower(strings.TrimSpace(opts.PublicPageLayout))
+	if opts.PublicPageLayout == "" {
+		opts.PublicPageLayout = publicPageLayoutSite
+	}
+	opts.SchemaPage = strings.ToLower(strings.TrimSpace(opts.SchemaPage))
+	opts.SchemaPageKind = strings.ToLower(strings.TrimSpace(opts.SchemaPageKind))
+	if opts.SchemaPageKind == "" {
+		opts.SchemaPageKind = schemaPageKindList
+	}
+	return opts
+}
+
+func validateWorkflowOptions(opts makeOptions) error {
+	if opts.PublicPageLayout != publicPageLayoutSite && opts.PublicPageLayout != publicPageLayoutBare {
+		return fmt.Errorf("public-page-layout must be %s or %s", publicPageLayoutSite, publicPageLayoutBare)
+	}
+	if opts.PublicPage == "" && opts.PublicPageLayout != publicPageLayoutSite {
+		return fmt.Errorf("public-page-layout requires --public-page")
+	}
+	if opts.PublicPage != "" && !workflowSlugPattern.MatchString(opts.PublicPage) {
+		return fmt.Errorf("public-page must be a lowercase slug such as docs or release-notes")
+	}
+	if !validSchemaPageKind(opts.SchemaPageKind) {
+		return fmt.Errorf("schema-page-kind must be one of %s", strings.Join(schemaPageKinds(), ", "))
+	}
+	if opts.SchemaPage == "" && opts.SchemaPageKind != schemaPageKindList {
+		return fmt.Errorf("schema-page-kind requires --schema-page")
+	}
+	if opts.SchemaPage != "" && !workflowSlugPattern.MatchString(opts.SchemaPage) {
+		return fmt.Errorf("schema-page must be a lowercase slug such as orders or release-notes")
+	}
+	if opts.SchemaPage != "" && opts.SchemaPage == opts.PublicPage {
+		// 同 slug 会同时写入 /slug 与同一组 packageFile id：提前拒绝，别让激活期报错。
+		return fmt.Errorf("schema-page and public-page cannot share the slug %s", opts.SchemaPage)
+	}
+	if opts.RouteMiddleware && (opts.Kind != extensionmanifest.TypePlugin || !opts.Backend) {
+		return fmt.Errorf("route-middleware requires a plugin scaffold with --backend")
+	}
+	return nil
+}
+
+const (
+	schemaPageKindList   = "list"
+	schemaPageKindDetail = "detail"
+	schemaPageKindForm   = "form"
+	schemaPageKindNotice = "notice"
+)
+
+func schemaPageKinds() []string {
+	return []string{schemaPageKindList, schemaPageKindDetail, schemaPageKindForm, schemaPageKindNotice}
+}
+
+func validSchemaPageKind(kind string) bool {
+	for _, candidate := range schemaPageKinds() {
+		if kind == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func schemaPageSlug(opts makeOptions) string { return opts.SchemaPage }
+
+func schemaPageID(opts makeOptions) string { return opts.ID + ".page." + schemaPageSlug(opts) }
+
+func schemaPagePath(opts makeOptions) string { return "/" + schemaPageSlug(opts) }
+
+func schemaPageDescriptorPath(opts makeOptions) string {
+	return "schemas/page-" + schemaPageSlug(opts) + ".json"
+}
+
+func schemaPageContractPath(opts makeOptions) string {
+	return "schemas/page-" + schemaPageSlug(opts) + "-contract.json"
+}
+
+// schemaPageDescriptorFileID / schemaPageContractFileID 是 packageFiles[] 的 id；
+// schemaPageContractRef 是页面声明里必须满足的精确 schema 引用（<id>@<version>）。
+func schemaPageDescriptorFileID(opts makeOptions) string {
+	return opts.ID + ".file.page-" + schemaPageSlug(opts)
+}
+
+func schemaPageContractFileID(opts makeOptions) string {
+	return opts.ID + ".file.page-" + schemaPageSlug(opts) + "-contract"
+}
+
+func schemaPageContractRef(opts makeOptions) string {
+	return schemaPageContractFileID(opts) + "@1"
+}
+
+// schemaPageDescriptorBody 生成一份**能通过宿主有界校验**的最小描述符：
+// 只使用 list|detail|form|notice 允许的字段与字段类型。
+func schemaPageDescriptorBody(opts makeOptions) string {
+	document := map[string]any{
+		"kind":        opts.SchemaPageKind,
+		"title":       opts.Name + " · " + schemaPageSlug(opts),
+		"description": "Declarative page descriptor generated by sforum make. Replace the placeholder data with your own; the Host renders it without any package code.",
+		"tone":        "neutral",
+	}
+	switch opts.SchemaPageKind {
+	case schemaPageKindForm:
+		document["fields"] = []map[string]any{{
+			"key": "note", "label": "Note", "type": "text", "required": false,
+		}}
+	case schemaPageKindNotice:
+		document["message"] = "Replace this notice with your own message."
+	default:
+		document["items"] = []map[string]any{
+			{"label": "Item", "value": "value"},
+		}
+	}
+	body, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return "{}"
+	}
+	return string(body) + "\n"
+}
+
+// schemaPageContractBody 是包内声明的 JSON Schema：描述符必须满足它。
+// 默认契约刻意保持宽松（只约束 kind 形状），因为宿主还会独立执行有界规则。
+func schemaPageContractBody(opts makeOptions) string {
+	document := map[string]any{
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"title":   schemaPageContractRef(opts),
+		"type":    "object",
+		"required": []string{
+			"kind",
+		},
+		"properties": map[string]any{
+			"kind":        map[string]any{"type": "string"},
+			"title":       map[string]any{"type": "string"},
+			"description": map[string]any{"type": "string"},
+			"message":     map[string]any{"type": "string"},
+			"tone":        map[string]any{"type": "string"},
+			"items":       map[string]any{"type": "array"},
+			"cells":       map[string]any{"type": "object"},
+			"options":     map[string]any{"type": "array"},
+			"fields":      map[string]any{"type": "array"},
+			"values":      map[string]any{"type": "object"},
+		},
+	}
+	body, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return "{}"
+	}
+	return string(body) + "\n"
+}
+
+func publicPageSlug(opts makeOptions) string { return opts.PublicPage }
+
+func publicPageID(opts makeOptions) string { return opts.ID + ".page." + publicPageSlug(opts) }
+
+func publicPagePath(opts makeOptions) string { return "/" + publicPageSlug(opts) }
+
+func publicPageTemplatePath(opts makeOptions) string {
+	return "templates/page-" + publicPageSlug(opts) + ".html"
+}
+
+func publicPageTemplateID(opts makeOptions) string {
+	return opts.ID + ".template.page-" + publicPageSlug(opts)
+}
+
+// publicPageContract 与探测插件（运行时验证过的插件公开页）保持同一形状：
+// theme.json 的 contract 与模板 viewModelSchema 必须是同一个精确引用。
+func publicPageContract(opts makeOptions) string {
+	return "sforum.page." + strings.ReplaceAll(opts.ID, ".", "_") + "_" + strings.ReplaceAll(publicPageSlug(opts), "-", "_") + "@1"
+}
+
+func publicPageTemplateBody(opts makeOptions) string {
+	return "<!-- " + publicPageContract(opts) + " -->\n" +
+		"<section class=\"sf-scaffold-page sf-scaffold-page--" + publicPageSlug(opts) + "\">\n" +
+		"  <h1>" + opts.Name + " · " + publicPageSlug(opts) + "</h1>\n" +
+		"  <p>Scaffolded public page. layout: " + opts.PublicPageLayout + ".</p>\n" +
+		"  <p>Replace this markup with the real presentation. Add host islands where you need\n" +
+		"  interactive content and keep exactly one chrome owner per render path: with\n" +
+		"  <code>layout: site</code> the active theme owns navbar and footer, so do not repeat them here.</p>\n" +
+		"</section>\n"
+}
+
+// writePublicPageFiles 写出 L1 模板，并把页面映射合并进 theme.json。
+// 插件包没有 theme.json 时创建一份；主题包必须合并而不是覆盖（skin/shell 等键要保留）。
+func writePublicPageFiles(target string, opts makeOptions) error {
+	if opts.PublicPage == "" {
+		return nil
+	}
+	if err := writeFile(filepath.Join(target, filepath.FromSlash(publicPageTemplatePath(opts))), publicPageTemplateBody(opts), 0o644); err != nil {
+		return err
+	}
+	pagePath := filepath.Join(target, "theme.json")
+	theme := map[string]any{}
+	if raw, err := os.ReadFile(pagePath); err == nil {
+		if err := json.Unmarshal(raw, &theme); err != nil {
+			return fmt.Errorf("existing theme.json is not valid JSON: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	existing, _ := theme["pages"].([]any)
+	next := make([]any, 0, len(existing)+1)
+	for _, entry := range existing {
+		declared, _ := entry.(map[string]any)
+		// 明确拒绝重复输出，而不是静默覆盖：同 id 或同 path 的第二个页会让
+		// 激活期的路径签名校验在作者看不到的地方失败。
+		if id, _ := declared["id"].(string); id != "" && id == publicPageID(opts) {
+			return fmt.Errorf("public page id %s is already declared in theme.json", publicPageID(opts))
+		}
+		if path, _ := declared["path"].(string); path != "" && path == publicPagePath(opts) {
+			return fmt.Errorf("public page path %s is already declared in theme.json", publicPagePath(opts))
+		}
+		next = append(next, entry)
+	}
+	next = append(next, map[string]any{
+		"id":       publicPageID(opts),
+		"action":   "add",
+		"path":     publicPagePath(opts),
+		"template": publicPageTemplatePath(opts),
+		"access":   "public",
+		"contract": publicPageContract(opts),
+		"layout":   opts.PublicPageLayout,
+	})
+	theme["pages"] = next
+	return writeJSON(pagePath, theme)
+}
+
+// writeSchemaPageFiles 写出 view=schema 公开页：描述符 + 契约 + theme.json 声明。
+//
+// 与 --public-page 共用同一套「重复即拒绝」的规则：同 id/同 path 的第二个页会让
+// 激活期的路径签名校验在作者看不到的地方失败。
+func writeSchemaPageFiles(target string, opts makeOptions) error {
+	if opts.SchemaPage == "" {
+		return nil
+	}
+	if err := writeFile(
+		filepath.Join(target, filepath.FromSlash(schemaPageDescriptorPath(opts))),
+		schemaPageDescriptorBody(opts), 0o644,
+	); err != nil {
+		return err
+	}
+	if err := writeFile(
+		filepath.Join(target, filepath.FromSlash(schemaPageContractPath(opts))),
+		schemaPageContractBody(opts), 0o644,
+	); err != nil {
+		return err
+	}
+	pagePath := filepath.Join(target, "theme.json")
+	theme := map[string]any{}
+	if raw, err := os.ReadFile(pagePath); err == nil {
+		if err := json.Unmarshal(raw, &theme); err != nil {
+			return fmt.Errorf("existing theme.json is not valid JSON: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	existing, _ := theme["pages"].([]any)
+	next := make([]any, 0, len(existing)+1)
+	for _, entry := range existing {
+		declared, _ := entry.(map[string]any)
+		if id, _ := declared["id"].(string); id != "" && id == schemaPageID(opts) {
+			return fmt.Errorf("schema page id %s is already declared in theme.json", schemaPageID(opts))
+		}
+		if path, _ := declared["path"].(string); path != "" && path == schemaPagePath(opts) {
+			return fmt.Errorf("schema page path %s is already declared in theme.json", schemaPagePath(opts))
+		}
+		next = append(next, entry)
+	}
+	next = append(next, map[string]any{
+		"id":     schemaPageID(opts),
+		"action": "add",
+		"path":   schemaPagePath(opts),
+		"access": "public",
+		"layout": publicPageLayoutSite,
+		"view":   "schema",
+		"schema": map[string]any{
+			"descriptor": schemaPageDescriptorFileID(opts),
+			"contract":   schemaPageContractRef(opts),
+		},
+	})
+	theme["pages"] = next
+	return writeJSON(pagePath, theme)
+}
+
+// middlewareRouteIDs 返回生成的 before/after 路由 id。
+func middlewareRouteIDs(opts makeOptions) (string, string) {
+	return opts.ID + ".route.target-before", opts.ID + ".route.target-after"
+}
+
+// middlewareTraceName 用连字符形式，避免 JSON Pointer 转义并保持可读。
+func middlewareTraceName(opts makeOptions) string {
+	return strings.ReplaceAll(opts.ID, ".", "-")
+}
+
+func middlewareRequestFields(opts makeOptions) []string {
+	return []string{"/" + middlewareRequestTracePointer + "/" + middlewareTraceName(opts) + "-trace"}
+}
+
+func middlewareResponseFields(opts makeOptions) []string {
+	return []string{"/" + middlewareResponseTracePointer + "/x-" + middlewareTraceName(opts) + "-trace"}
+}
+
+// writeRouteMiddlewareFiles 写出示例处理器。
+//
+// 文件带 `//go:build ignore`，因此它永远不会破坏作者的构建；脚手架的后端目前
+// 只是一个占位可执行文件，作者建立自己的 go.mod 后再把它并入模块。
+func writeRouteMiddlewareFiles(target string, opts makeOptions) error {
+	if !opts.RouteMiddleware {
+		return nil
+	}
+	beforeID, afterID := middlewareRouteIDs(opts)
+	body := `//go:build ignore
+
+// 该文件由 ` + "`sforum make:plugin --route-middleware`" + ` 生成，是一份**示例**：
+// 它带有 //go:build ignore，在你把它并入自己的后端模块（先建 go.mod）之前不会参与构建。
+//
+// 清单已经声明了两条路由：
+//   - ` + beforeID + `（action: before，guard: core.guard.inherit）
+//   - ` + afterID + `（action: after，guard: core.guard.inherit）
+//
+// 它们只允许写清单里列出的可变字段：请求侧 ` + strings.Join(middlewareRequestFields(opts), ", ") + `，
+// 响应侧 ` + strings.Join(middlewareResponseFields(opts), ", ") + `。
+// 宿主只把这些指针交给插件；越界写入会被拒绝。
+//
+// 注意：before/after 是**继承目标路由授权**的补丁，不是 guard。不要在这里
+// 重新实现登录或权限判断。
+
+package main
+
+import (
+	"context"
+	"net/http"
+
+	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2"
+	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
+	protocolwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
+	"google.golang.org/protobuf/types/known/structpb"
+)
+
+const (
+	beforeRouteID = "` + beforeID + `"
+	afterRouteID  = "` + afterID + `"
+)
+
+func main() {
+	pluginv2.Serve(pluginv2.NewServer())
+}
+
+// ExampleInvokeRoute 演示两条补丁阶段的返回形状；把它并入你的 server 类型即可。
+func ExampleInvokeRoute(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+	response := &pluginwire.RouteResponse{
+		Context:    request.GetContext(),
+		StatusCode: http.StatusOK,
+	}
+	switch request.GetRouteId() {
+	case beforeRouteID:
+		patched, err := structpb.NewStruct(map[string]any{
+			"` + middlewareRequestPatchKey(opts) + `": "` + opts.ID + `",
+		})
+		if err != nil {
+			return nil, err
+		}
+		response.RequestPatch = patched
+	case afterRouteID:
+		patched, err := structpb.NewStruct(map[string]any{
+			"` + middlewareResponsePatchKey(opts) + `": "` + opts.ID + `",
+		})
+		if err != nil {
+			return nil, err
+		}
+		response.ResponsePatch = patched
+	default:
+		response.Error = &protocolwire.ErrorDetail{
+			Code: protocolwire.ErrorCode_ERROR_CODE_NOT_FOUND, Reason: "scaffold.route_unknown",
+			Message: "unknown scaffold route",
+		}
+	}
+	return response, nil
+}
+`
+	return writeFile(filepath.Join(target, "backend", "routes_example.go"), body, 0o644)
+}
+
+// middlewareRequestPatchKey / middlewareResponsePatchKey 是示例补丁里的键名：
+// 请求侧补丁以 query 参数名作键，响应侧补丁以 header 名作键。
+func middlewareRequestPatchKey(opts makeOptions) string {
+	return middlewareTraceName(opts) + "-trace"
+}
+
+func middlewareResponsePatchKey(opts makeOptions) string {
+	return "x-" + middlewareTraceName(opts) + "-trace"
+}
+
+// applyWorkflowManifest 把公开页模板声明与中间件路由声明写进清单根。
+// templates[] 与 packageFiles[] 必须成对且摘要一致（三方身份契约）。
+func applyWorkflowManifest(
+	root map[string]any,
+	opts makeOptions,
+	addFile packageFileAdder,
+	addVersionedFile packageFileVersionedAdder,
+) error {
+	if opts.PublicPage != "" {
+		digest, err := addFile("template-page-"+publicPageSlug(opts), "template", publicPageTemplatePath(opts))
+		if err != nil {
+			return err
+		}
+		appendManifestEntries(root, "templates", map[string]any{
+			"id": publicPageTemplateID(opts), "contractVersion": publicPageTemplateID(opts) + "@1",
+			"action": "add", "path": publicPageTemplatePath(opts), "digest": digest,
+			"viewModelSchema": publicPageContract(opts),
+		})
+	}
+	if opts.SchemaPage != "" {
+		// 描述符与契约都是 kind=schema 且带版本：页面声明里的 contract 是
+		// `<schemaFileId>@<version>`，宿主按精确制品匹配。
+		if _, err := addVersionedFile(
+			"page-"+schemaPageSlug(opts), "schema", schemaPageDescriptorPath(opts), "1",
+		); err != nil {
+			return err
+		}
+		if _, err := addVersionedFile(
+			"page-"+schemaPageSlug(opts)+"-contract", "schema", schemaPageContractPath(opts), "1",
+		); err != nil {
+			return err
+		}
+	}
+	if opts.RouteMiddleware {
+		beforeID, afterID := middlewareRouteIDs(opts)
+		appendManifestEntries(root, "routes",
+			map[string]any{
+				"id": beforeID, "contractVersion": beforeID + "@1", "action": "before",
+				"targetId": middlewareTargetID,
+				"path":     middlewareTargetPath, "methods": []string{middlewareTargetMethod},
+				"guard": "core.guard.inherit", "fallback": "closed", "mode": "http",
+				"handler": beforeID, "mutableRequestFields": middlewareRequestFields(opts),
+			},
+			map[string]any{
+				"id": afterID, "contractVersion": afterID + "@1", "action": "after",
+				"targetId": middlewareTargetID,
+				"path":     middlewareTargetPath, "methods": []string{middlewareTargetMethod},
+				"guard": "core.guard.inherit", "fallback": "closed", "mode": "http",
+				"handler": afterID, "mutableResponseFields": middlewareResponseFields(opts),
+			},
+		)
+	}
+	return nil
+}
+
+// appendManifestEntries 追加清单数组条目，兼容三种既有形状：缺失、[]any（JSON
+// 解码而来）以及 []map[string]any（脚手架分支直接构造）。只做类型归一化，不做
+// 去重或覆盖：重复声明留给清单校验去拒绝。
+func appendManifestEntries(root map[string]any, key string, entries ...map[string]any) {
+	next := make([]any, 0, len(entries))
+	switch existing := root[key].(type) {
+	case nil:
+	case []any:
+		next = append(next, existing...)
+	case []map[string]any:
+		for _, entry := range existing {
+			next = append(next, entry)
+		}
+	}
+	for _, entry := range entries {
+		next = append(next, entry)
+	}
+	root[key] = next
+}
+
+// workflowReadme 追加 M3 相关说明（地图式，不重复 CLI 帮助）。
+func workflowReadme(opts makeOptions) string {
+	body := ""
+	if opts.PublicPage != "" {
+		body += "\n## Public page\n\n"
+		body += "`theme.json` declares `" + publicPageID(opts) + "` at `" + publicPagePath(opts) + "` with `layout: " + opts.PublicPageLayout + "`,\n"
+		body += "and the manifest declares the exact template `" + publicPageTemplatePath(opts) + "` in both `templates[]` and\n"
+		body += "`packageFiles[]`. `contract` and `viewModelSchema` must stay the same exact reference.\n\n"
+		body += "- `layout: site` (default) means the active theme (or the Host fallback) owns the site chrome; do not\n"
+		body += "  repeat navbar/footer inside the template.\n"
+		body += "- `layout: bare` means this page owns all of its chrome.\n"
+		body += "- Plugin-owned page **data** (`dataSource: dataRoute` + `dataSchema`) is not generated: the Page\n"
+		body += "  Loader Gateway has no transport for Protocol V2 runtimes today, so such a page would always fall\n"
+		body += "  back. Keep scaffolded pages static until that decision lands.\n"
+		body += "- After editing the template run `sforum extension digest --write <package-root>`, then validate.\n"
+	}
+	if opts.RouteMiddleware {
+		beforeID, afterID := middlewareRouteIDs(opts)
+		body += "\n## Route middleware\n\n"
+		body += "The manifest declares two patch routes against `" + middlewareTargetID + "` (`" + middlewareTargetMethod + " " + middlewareTargetPath + "`):\n\n"
+		body += "- `" + beforeID + "` — `action: before`, may write `" + strings.Join(middlewareRequestFields(opts), ", ") + "`.\n"
+		body += "- `" + afterID + "` — `action: after`, may write `" + strings.Join(middlewareResponseFields(opts), ", ") + "`.\n\n"
+		body += "Both use `core.guard.inherit`: a patch inherits the target route's authorization and never re-implements\n"
+		body += "login or permission checks. Neither declares raw request authority.\n\n"
+		body += "`backend/routes_example.go` is an example handler with `//go:build ignore`; merge it into your backend\n"
+		body += "module (create `go.mod` first) and keep the writes inside the declared pointers only.\n"
+	}
+	return body
+}

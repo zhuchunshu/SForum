@@ -77,9 +77,9 @@ func (c *protocolV2Client) frozenRouteAuthority(
 			Mode: ProtocolV2RequestAuthorityFiltered, GuardKind: ProtocolV2RequestGuardHost,
 		}, nil
 	case extensionmanifest.GuardCoreRaw:
-		return ProtocolV2RequestAuthority{
-			Mode: ProtocolV2RequestAuthorityRaw, GuardKind: ProtocolV2RequestGuardRawRequest,
-		}, nil
+		// 决定 R1（2026-10-16）：该 Host 守卫不再授予 raw 权限（此前零守卫代码即可拿到
+		// 凭证转发）。清单校验已拒绝它；运行时再 fail closed，避免旧制品继续生效。
+		return ProtocolV2RequestAuthority{}, ErrProtocolV2RequestAuthorityInvalid
 	}
 	var matched *extensions.ManifestGuard
 	for index := range c.guards {

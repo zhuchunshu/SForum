@@ -109,15 +109,21 @@ func (s *PostgresStore) ListUserSessions(ctx context.Context, userID int64, curr
 // RevokeSession 下线单个会话（标记 revoked_at），仅作用于属于该用户且当前活跃的行。
 // 不匹配（sid 不存在或不属于该用户）返回 ErrSessionNotFound，以便上层区分 404 与成功。
 func (s *PostgresStore) RevokeSession(ctx context.Context, userID int64, sid string, reason string) error {
-	tag, err := s.pool.Exec(ctx, `
+	// RETURNING sid：撤销事实落库后要据此擦除该会话的插件状态（best-effort）。
+	rows, err := s.pool.Query(ctx, `
 		UPDATE user_sessions
 		SET revoked_at = now(), revoke_reason = $3
 		WHERE user_id = $1 AND sid = $2 AND revoked_at IS NULL
+		RETURNING sid
 	`, userID, sid, reason)
 	if err != nil {
 		return fmt.Errorf("revoke user session: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
+	revoked, err := collectRevokedSIDs(rows)
+	if err != nil {
+		return fmt.Errorf("collect revoked sessions: %w", err)
+	}
+	if len(revoked) == 0 {
 		// 可能已下线或根本不存在；进一步区分以给出准确错误。
 		var exists bool
 		if err := s.pool.QueryRow(ctx, `
@@ -128,22 +134,31 @@ func (s *PostgresStore) RevokeSession(ctx context.Context, userID int64, sid str
 		if !exists {
 			return ErrSessionNotFound
 		}
-		// 行存在但已下线：视为幂等成功（已是期望状态）。
+		// 行存在但已下线：视为幂等成功（已是期望状态），但仍要确保插件状态不残留。
+		s.dropPluginSessionState(ctx, []string{sid})
+		return nil
 	}
+	s.dropPluginSessionState(ctx, revoked)
 	return nil
 }
 
 // RevokeOtherSessions 下线除当前会话外的所有活跃会话，返回被下线的条数。
 func (s *PostgresStore) RevokeOtherSessions(ctx context.Context, userID int64, currentSID string, reason string) (int, error) {
-	tag, err := s.pool.Exec(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		UPDATE user_sessions
 		SET revoked_at = now(), revoke_reason = $3
 		WHERE user_id = $1 AND sid <> $2 AND revoked_at IS NULL
+		RETURNING sid
 	`, userID, currentSID, reason)
 	if err != nil {
 		return 0, fmt.Errorf("revoke other user sessions: %w", err)
 	}
-	return int(tag.RowsAffected()), nil
+	revoked, err := collectRevokedSIDs(rows)
+	if err != nil {
+		return 0, fmt.Errorf("collect revoked sessions: %w", err)
+	}
+	s.dropPluginSessionState(ctx, revoked)
+	return len(revoked), nil
 }
 
 // RevokeUserSessions 下线某用户的全部活跃会话（管理员强制下线），返回下线条数。
@@ -176,18 +191,25 @@ func (s *PostgresStore) revokeUserSessions(ctx context.Context, userID int64, re
 		}
 		return 0, fmt.Errorf("advance user session authority: %w", err)
 	}
-	tag, err := tx.Exec(ctx, `
+	rows, err := tx.Query(ctx, `
 		UPDATE user_sessions
 		SET revoked_at = transaction_timestamp(), revoke_reason = $2
 		WHERE user_id = $1 AND revoked_at IS NULL
+		RETURNING sid
 	`, userID, reason)
 	if err != nil {
 		return 0, fmt.Errorf("revoke user sessions: %w", err)
 	}
+	revoked, err := collectRevokedSIDs(rows)
+	if err != nil {
+		return 0, fmt.Errorf("collect revoked sessions: %w", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, fmt.Errorf("commit revoke user sessions: %w", err)
 	}
-	return int(tag.RowsAffected()), nil
+	// 只在提交成功后擦除：回滚过的事务不该产生副作用。
+	s.dropPluginSessionState(ctx, revoked)
+	return len(revoked), nil
 }
 
 // DeleteOldRevokedSessions 清理已下线超过保留期的历史会话行（periodic job 调用）。
@@ -223,7 +245,7 @@ func (s *PostgresStore) EnforceMaxSessions(ctx context.Context, userID int64, cu
 		return 0, nil
 	}
 	// 单条 SQL：保留当前会话 + 其余活跃会话中最新的 (maxDevices-1) 个，把其余活跃行标记下线。
-	tag, err := s.pool.Exec(ctx, `
+	rows, err := s.pool.Query(ctx, `
 		UPDATE user_sessions
 		SET revoked_at = now(), revoke_reason = $4
 		WHERE user_id = $1
@@ -235,11 +257,18 @@ func (s *PostgresStore) EnforceMaxSessions(ctx context.Context, userID int64, cu
 		    ORDER BY last_seen_at DESC
 		    LIMIT $3
 		  )
+		RETURNING sid
 	`, userID, currentSID, maxDevices-1, RevokeReasonMaxExceeded)
 	if err != nil {
 		return 0, fmt.Errorf("enforce max sessions: %w", err)
 	}
-	return int(tag.RowsAffected()), nil
+	evicted, err := collectRevokedSIDs(rows)
+	if err != nil {
+		return 0, fmt.Errorf("collect evicted sessions: %w", err)
+	}
+	// 设备数驱逐同样是「会话结束」，被踢出设备的插件状态不得残留。
+	s.dropPluginSessionState(ctx, evicted)
+	return len(evicted), nil
 }
 
 // TouchSessionLastSeen 刷新会话最后活跃时间，用于展示「最后活跃」。

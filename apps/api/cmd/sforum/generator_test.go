@@ -197,6 +197,30 @@ func TestGenerateVueAdminPageScaffold(t *testing.T) {
 	if !strings.Contains(string(viteConfig), "emptyOutDir: false") || !strings.Contains(string(viteConfig), "dashboard.mjs") {
 		t.Fatalf("Vite output must preserve sibling admin components: %s", viteConfig)
 	}
+	adminEntry, err := os.ReadFile(filepath.Join(target, "frontend", "admin", "src", "admin.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 图标解析器由 SDK 的 definePluginPage 注入；作者手写 createApp 会让图标静默消失。
+	if !strings.Contains(string(adminEntry), "definePluginPage") || strings.Contains(string(adminEntry), "createApp(") {
+		t.Fatalf("Vue admin entry must mount through the SDK adapter: %s", adminEntry)
+	}
+	dashboard, err := os.ReadFile(filepath.Join(target, "frontend", "admin", "src", "AdminDashboard.vue"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dashboard), "i-lucide-") {
+		t.Fatalf("reference page must demonstrate host icons: %s", dashboard)
+	}
+	adminPackage, err := os.ReadFile(filepath.Join(target, "frontend", "admin", "package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dependency := range []string{"\"@sforum/admin-sdk\": \"^1.1.0\"", "\"@sforum/plugin-ui\": \"^1.1.0\""} {
+		if !strings.Contains(string(adminPackage), dependency) {
+			t.Fatalf("author workspace must depend on %s: %s", dependency, adminPackage)
+		}
+	}
 	readme, err := os.ReadFile(filepath.Join(target, "README.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -256,7 +280,10 @@ func TestGenerateThemeScaffoldNonInteractive(t *testing.T) {
 	if manifest.Type != extensionmanifest.TypeTheme {
 		t.Fatalf("unexpected theme manifest: %#v", manifest)
 	}
-	if extensionmanifest.EffectiveManifestVersion(manifest) != extensionmanifest.ManifestVersionV3 || len(manifest.Templates) != 1 || len(manifest.Components) != 1 || len(manifest.Assets) != 2 || len(manifest.PackageFiles) != 3 {
+	// 主题脚手架不得声明 components[]：组件 propsSchema 是宿主核心页契约，
+	// 主题无法提供同包精确 schema 声明，声明组件会让包必然激活失败。详见
+	// theme_scaffold_activation_test.go。
+	if extensionmanifest.EffectiveManifestVersion(manifest) != extensionmanifest.ManifestVersionV3 || len(manifest.Templates) != 1 || len(manifest.Components) != 0 || len(manifest.Assets) != 2 || len(manifest.PackageFiles) != 3 {
 		t.Fatalf("theme scaffold must declare V3 presentation contracts: %#v", manifest)
 	}
 	if manifest.Admin.Entry != "/settings" || len(manifest.Admin.Pages) != 1 || len(manifest.Settings) == 0 {
@@ -309,6 +336,54 @@ func TestExtensionValidateCommand(t *testing.T) {
 	// 内置 SMTP 已迁到 Manifest V3；validate 输出应报告 sforum.manifest@3。
 	if !strings.Contains(out.String(), "contract: sforum.manifest@3") {
 		t.Fatalf("expected manifest contract in output:\n%s", out.String())
+	}
+}
+
+// 没有 packageFiles 的包（只声明 routes/events 契约、不携带包内文件）也必须能跑作者循环。
+// 修正（2026-10-16）：`digest --write` 此前对它直接报
+// “Manifest V3 packageFiles must be inline for digest refresh”，而同一个包在
+// `extension validate` / `extension test` 下是绿的——作者按文档跑 digest 就撞墙。
+func TestExtensionDigestCommandAcceptsPackageWithoutPackageFiles(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "contract-only")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{
+  "manifestVersion": 3,
+  "id": "acme.contract-only",
+  "name": "Acme Contract Only",
+  "description": "Package with contract declarations and no package files.",
+  "url": "https://example.com/contract-only",
+  "author": {"name": "Acme"},
+  "version": "1.0.0",
+  "type": "plugin",
+  "sforumVersion": ">=0.1.0",
+  "events": [{
+    "id": "acme.contract-only.event.topic-created",
+    "contractVersion": "acme.contract-only.event.topic-created@1",
+    "name": "topic.created", "kind": "observe",
+    "handler": "acme.contract-only.event.topic-created",
+    "inputSchema": "acme.contract-only.event.topic-created.input@1",
+    "resultSchema": "acme.contract-only.event.topic-created.result@1"
+  }]
+}
+`
+	if err := os.WriteFile(filepath.Join(target, extensionmanifest.ManifestFileName), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := extensionmanifest.LoadPackage(target); err != nil {
+		t.Fatalf("fixture manifest must be valid: %v", err)
+	}
+	cmd := newRootCommand()
+	cmd.SetArgs([]string{"extension", "digest", "--write", target})
+	var out strings.Builder
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("digest refresh on a package without package files: %v\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), "no package files declared") {
+		t.Fatalf("expected an explicit no-op message, got: %s", out.String())
 	}
 }
 

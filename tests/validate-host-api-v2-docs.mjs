@@ -16,7 +16,8 @@ const hostProtoPaths = [
   'contracts/proto/sforum/host/v2/data_work.proto',
   'contracts/proto/sforum/host/v2/platform.proto',
   'contracts/proto/sforum/host/v2/query_command.proto',
-  'contracts/proto/sforum/host/v2/resources.proto'
+  'contracts/proto/sforum/host/v2/resources.proto',
+  'contracts/proto/sforum/host/v2/session.proto'
 ]
 const hostProto = hostProtoPaths.map(read).join('\n')
 const server = read('apps/api/sdk/plugin/v2/transport.go')
@@ -31,6 +32,17 @@ for (const [source, packageName] of [
 ]) {
   assert(source.includes(`package ${packageName};`), `missing Protobuf package ${packageName}`)
   assert(doc.includes(`\`${packageName}\``), `Host API v2 docs omit package ${packageName}`)
+}
+
+// S9: the plugin session-state surface is served, so it must be documented and
+// its authority property must stay documented too.
+for (const field of [
+  'PluginSessionService', 'PluginSessionGetRequest', 'PluginSessionSetRequest',
+  'PluginSessionDeleteRequest', 'namespace_key', 'host_session_delegation',
+  'HostSessionDelegation', 'Actor.session_id'
+]) {
+  assert(hostProto.includes(field) || commonProto.includes(field), `wire contract no longer defines ${field}`)
+  assert(doc.includes(field), `Host API v2 docs omit wire field ${field}`)
 }
 
 for (const field of [

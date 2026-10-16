@@ -163,10 +163,13 @@ func (c *protocolV2Client) InvokeRouteContext(parent context.Context, input Prot
 	ctx, cancel := protocolV2Deadline(parent, timeout)
 	defer cancel()
 
-	requestContext, err := c.invocationRequestContext(ctx, input.CorrelationID, input.Actor, input.IdempotencyKey)
+	requestContext, retireSessionDelegation, err := c.invocationRequestContext(
+		ctx, input.CorrelationID, input.Actor, input.IdempotencyKey,
+	)
 	if err != nil {
 		return ProtocolV2RouteResponse{}, err
 	}
+	defer retireSessionDelegation()
 	var body *protocolv2.TypedDocument
 	if input.BodyPresent {
 		schemaID, schemaVersion, err := protocolV2SchemaRef(input.RequestSchema)

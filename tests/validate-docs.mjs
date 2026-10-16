@@ -272,6 +272,7 @@ const TOP_LEVEL_COMMANDS = {
   'newSeedCommand': 'seed:forum',
   'newSeedPerfCommand': 'seed:perf',
   'newUsersResetPasswordCommand': 'users:reset-password',
+  'newPrivacyEraseUserCommand': 'privacy:erase-user',
   'newRevisionsCommand': 'revisions',
   'newExtensionCommand': 'extension',
   'newDevCleanupOrphanPluginsCommand': 'dev:cleanup-orphan-plugins',
@@ -289,6 +290,8 @@ const EXTENSION_COMMAND_FILES = {
   'plugin_command.go': ['extension', 'command'],
   'api_lts.go': ['extension'],
   'system_tier.go': ['extension', 'system-tier'],
+  'dev_extension.go': ['extension', 'dev'],
+  'dev_builtins.go': ['extension', 'builtins'],
 }
 
 function collectUseTokens(filePath) {

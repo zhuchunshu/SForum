@@ -20,6 +20,43 @@ const (
 	AccessPermission Access = "permission"
 )
 
+// PageLayout 描述公开页是否由宿主提供完整公共外壳（选中主题外壳，缺失时宿主回退）。
+//
+// 默认值是 site：公开页共享同一几何契约（AGENTS.md），而插件公开页此前是全站唯一
+// 没有 navbar/footer 的页面。曾经的顾虑是「追溯性加 chrome 可能造成双层导航」，
+// 但实测不成立——全仓 5 个插件页模板无一挂载 sf-navbar/sf-footer（对照：主题模板
+// 34 个全部挂载），因此没有任何现有制品会被双层 chrome。外壳属于呈现层，平台本来
+// 就在切主题时重渲染公开页呈现而不重新批准插件制品。
+//
+// 作者想要自己拥有 chrome（例如自行挂载导航岛）时显式声明 bare。
+type PageLayout string
+
+const (
+	LayoutSite PageLayout = "site"
+	LayoutBare PageLayout = "bare"
+)
+
+// NormalizeLayout 空值 → site（平台默认，与其他公开页一致）；
+// 仅允许已知枚举，未知非空值 fail closed（安装/启用预检即失败）。
+func NormalizeLayout(raw string) (PageLayout, error) {
+	v := strings.TrimSpace(strings.ToLower(raw))
+	if v == "" {
+		return LayoutSite, nil
+	}
+	switch PageLayout(v) {
+	case LayoutSite, LayoutBare:
+		return PageLayout(v), nil
+	default:
+		return "", fmt.Errorf("%w: %q", ErrInvalidLayout, raw)
+	}
+}
+
+// ValidLayout 是否为已规范化的合法 layout。
+func ValidLayout(l PageLayout) bool {
+	_, err := NormalizeLayout(string(l))
+	return err == nil
+}
+
 // NormalizeAccess 空值 → public；仅允许已知枚举。
 func NormalizeAccess(raw string) (Access, error) {
 	v := strings.TrimSpace(strings.ToLower(raw))
@@ -68,8 +105,15 @@ type ResolvedPage struct {
 	// L1 渲染载荷（provider 非 core 时由 HTTP 层填充 HTML）。
 	TemplatePath string `json:"templatePath,omitempty"`
 	TemplateHTML string `json:"templateHtml,omitempty"`
-	DataSource   string `json:"dataSource,omitempty"`
-	DataRoute    string `json:"dataRoute,omitempty"`
+	// View 与 Component 描述正文的提供方式：view=component 时 Component 为包内公开
+	// L2 组件 id，正文由 Web 端经既有公开前端描述符端点挂载（TemplateHTML 为空）。
+	View      string `json:"view,omitempty"`
+	Component string `json:"component,omitempty"`
+	// SchemaDescriptorFile / SchemaContractRef：view=schema 的正文来源（包内描述符文件与其契约引用）。
+	SchemaDescriptorFile string `json:"schemaDescriptorFile,omitempty"`
+	SchemaContractRef    string `json:"schemaContractRef,omitempty"`
+	DataSource           string `json:"dataSource,omitempty"`
+	DataRoute            string `json:"dataRoute,omitempty"`
 	// DataSchema 为包内相对路径；replace 必须带入 ResolvedPage，否则 LoadForResolved 会丢 schema 校验。
 	DataSchema        string `json:"dataSchema,omitempty"`
 	Version           string `json:"version,omitempty"`

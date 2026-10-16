@@ -49,6 +49,19 @@ func productionThemeIslandBindings() map[string]themecompiler.IslandBinding {
 		"sf-email-verification":         {ComponentID: "identity.component.email_verification"},
 		"sf-recovery-request":           {ComponentID: "identity.component.recovery_request_form"},
 		"sf-recovery-confirm":           {ComponentID: "identity.component.recovery_confirm_form"},
+		"sf-plugin-page-body":           {ComponentID: "plugin.component.page_body"},
+		// 插件公开设置页左栏岛：active prop 必填，插件模板只能传已声明的属性。
+		// 插件页（如 /settings/oauth-apps）与 /settings/profile 因此共用同一份左栏实现，
+		// 不会各自维护一份会漂移的导航标记。
+		"sf-account-settings-sidebar": {
+			ComponentID: "settings.component.account_sidebar",
+			Props: []themecompiler.IslandPropContract{
+				{Name: "active", Type: themecompiler.IslandPropString, Required: true},
+			},
+		},
+		// 插件公开页内容列页脚岛：与宿主设置页同一份 SFContentColumnFooter，
+		// 渲染在中列末尾，页脚出血宽度与内容列对齐（不越出视口）。
+		"sf-content-column-footer": {ComponentID: "ui.component.content_footer"},
 		"sf-extension-widget": {
 			ComponentID:   "core.component.shared.sfextension_widget",
 			AllowFallback: true,

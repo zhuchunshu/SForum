@@ -314,6 +314,8 @@ onBeforeUnmount(() => stopRealtime())
           @close="actionError = ''"
         />
 
+        <SFRegionOutlet page="forum.notifications" region="list_before" />
+
         <SFAlert
           v-if="initialError"
           class="sforum-notifications__alert"
@@ -396,6 +398,8 @@ onBeforeUnmount(() => stopRealtime())
               </button>
             </div>
           </section>
+
+          <SFRegionOutlet page="forum.notifications" region="list_after" />
 
           <div v-if="items.length && !initialError" class="sforum-notifications__more">
             <button

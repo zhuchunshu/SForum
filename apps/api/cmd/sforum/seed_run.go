@@ -32,7 +32,7 @@ type identityService interface {
 
 // forumService 是 forum.Service 在 seed 场景下用到的方法子集。
 type forumService interface {
-	ListCategories(ctx context.Context) ([]forum.Category, error)
+	ListCategories(ctx context.Context, includeHidden bool) ([]forum.Category, error)
 	CreateTopic(ctx context.Context, actor identity.Actor, input forum.CreateTopicInput) (forum.TopicDetail, error)
 	CreateComment(ctx context.Context, actor identity.Actor, input forum.CreateCommentInput) (forum.Comment, error)
 }
@@ -91,8 +91,9 @@ func runSeed(
 	rng := newSeededRand()
 
 	// 1. 显式 --category-slug 时先做存在性校验，避免写了一半才失败。
+	// seed 关注「分类是否存在」，隐藏分类同样可投放，因此包含隐藏项。
 	if explicitSlug := strings.TrimSpace(opts.CategorySlug); explicitSlug != "" {
-		categories, err := deps.forumService.ListCategories(ctx)
+		categories, err := deps.forumService.ListCategories(ctx, true)
 		if err != nil {
 			return result, fmt.Errorf("list categories: %w", err)
 		}
@@ -136,7 +137,7 @@ func runSeed(
 	if categorySlug == "" {
 		categorySlug = defaultSeedCategorySlug
 	}
-	categories, err := deps.forumService.ListCategories(ctx)
+	categories, err := deps.forumService.ListCategories(ctx, true)
 	if err != nil {
 		return result, fmt.Errorf("list categories: %w", err)
 	}

@@ -23,6 +23,11 @@ import (
 
 const p6RouteMatrixPermission = "topic.create"
 
+// p6RouteMatrixRawGuard 是包内显式声明的 kind=raw_request 守卫（entry + digest +
+// contractVersion 齐备）。R1 之后 raw 权限只能来自这种声明，不能再来自 Host 拥有的
+// core.guard.raw_request。
+const p6RouteMatrixRawGuard = "p6.matrix.raw_request"
+
 func TestP6RoutePermissionCSRFLocaleQueryAndBodyMatrix(t *testing.T) {
 	harness := newP6RouteRequestHarness(t, extensionmanifest.GuardCorePermission, "", true)
 
@@ -92,13 +97,27 @@ func TestP6RouteCustomGuardOwnsPolicyAndFailsClosed(t *testing.T) {
 }
 
 func TestP6RouteRawRequestDeclarationRequiresExactTrustAndForwardsCredentials(t *testing.T) {
-	harness := newP6RouteRequestHarness(t, extensionmanifest.GuardCoreRaw, "", false)
+	// 决定 R1（2026-10-16）：raw 权限只能来自包内显式声明的 kind=raw_request 守卫。
+	// 本测试原先用 Host 拥有的 core.guard.raw_request 作为载体；该守卫已被拒绝，
+	// 因此改用声明的守卫，保持「声明的 raw_request 守卫获得 raw 权限并转发浏览器
+	// 凭证」这一侧覆盖（拒绝侧见 TestRouteRetiredCoreRawRequestGuardIsRejectedAtPublication）。
+	harness := newP6RouteRequestHarness(t, p6RouteMatrixRawGuard, "raw_request", false)
 	harness.actor = p6RouteMatrixActor(true)
 
 	status, _ := p6RouteMatrixDo(t, harness.app, p6RouteMatrixRequest(`{"title":"hello"}`, "view=full", "opaque-csrf"))
-	if status != stdhttp.StatusCreated || harness.runtime.guardCalls != 0 || harness.runtime.routeCalls != 1 {
-		t.Fatalf("raw allow status=%d guard=%d route=%d", status, harness.runtime.guardCalls, harness.runtime.routeCalls)
+	if status != stdhttp.StatusCreated || harness.runtime.guardCalls != 1 || harness.runtime.routeCalls != 1 ||
+		!reflect.DeepEqual(harness.runtime.events, []string{"guard", "route"}) {
+		t.Fatalf("raw allow status=%d guard=%d route=%d events=%#v", status,
+			harness.runtime.guardCalls, harness.runtime.routeCalls, harness.runtime.events)
 	}
+	// 声明的 raw_request 守卫自身以 raw 权限被调用，并且同样收到浏览器凭证。
+	if harness.runtime.guardRequest.GuardID != p6RouteMatrixRawGuard ||
+		harness.runtime.guardRequest.Authority != (extensionsruntime.ProtocolV2RequestAuthority{
+			Mode: extensionsruntime.ProtocolV2RequestAuthorityRaw, GuardKind: extensionsruntime.ProtocolV2RequestGuardRawRequest,
+		}) {
+		t.Fatalf("raw guard request = %#v", harness.runtime.guardRequest)
+	}
+	assertP6RouteMatrixHeaders(t, harness.runtime.guardRequest.Headers, true)
 	assertP6RouteMatrixRuntimeRequest(t, harness.runtime.routeRequest, extensionsruntime.ProtocolV2RequestAuthority{
 		Mode: extensionsruntime.ProtocolV2RequestAuthorityRaw, GuardKind: extensionsruntime.ProtocolV2RequestGuardRawRequest,
 	})
@@ -106,8 +125,9 @@ func TestP6RouteRawRequestDeclarationRequiresExactTrustAndForwardsCredentials(t 
 	// raw_request 是单独声明的高风险权限，只对 exact trusted artifact 转发浏览器凭据。
 	harness.policy.lookup.Entry.CurrentArtifactTrusted = false
 	status, _ = p6RouteMatrixDo(t, harness.app, p6RouteMatrixRequest(`{"title":"hello"}`, "view=full", "opaque-csrf"))
-	if status != stdhttp.StatusBadGateway || harness.runtime.guardCalls != 0 || harness.runtime.routeCalls != 1 {
-		t.Fatalf("raw trust drift status=%d guard=%d route=%d", status, harness.runtime.guardCalls, harness.runtime.routeCalls)
+	if status != stdhttp.StatusBadGateway || harness.runtime.guardCalls != 1 || harness.runtime.routeCalls != 1 {
+		t.Fatalf("raw trust drift status=%d guard=%d route=%d", status,
+			harness.runtime.guardCalls, harness.runtime.routeCalls)
 	}
 }
 
@@ -153,7 +173,9 @@ func newP6RouteRequestHarness(t *testing.T, guard, guardKind string, csrfEnabled
 	harness := &p6RouteRequestHarness{runtime: runtime, schemas: schemas}
 
 	policies := ProductionRouteGuardPolicies{}
-	if guard == extensionmanifest.GuardCoreRaw || guardKind != "" {
+	// R1 之后 core.guard.raw_request 既不能发布也不再有守卫绑定；raw 载体只剩
+	// 包内显式声明的 kind=raw_request 守卫，因此只按声明装配插件守卫策略。
+	if guardKind != "" {
 		harness.policy = &testExtensionGuardPolicy{lookup: exactPluginGuardLookup(step), ok: true}
 		policies.PluginGuards = NewRuntimePluginRouteGuardEvaluator(runtime, harness.policy)
 	}

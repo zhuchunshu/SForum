@@ -581,7 +581,7 @@ func TestManifestV3TrustImpactIncludesEveryDeclarationAndExecutableDigest(t *tes
 		impact.Database == nil || len(impact.Cache) != 1 || len(impact.SEO) != 1 || len(impact.Services) != 1 || len(impact.Commands) != 1 ||
 		len(impact.AdminSurfaces) != 1 || len(impact.Queries) != 1 || len(impact.QueryResultFilters) != 1 || impact.Identity == nil || len(impact.PermissionDefinitions) != 1 ||
 		len(impact.Media) != 1 || len(impact.Navigation) != 1 || len(impact.Regions) != 1 || len(impact.Dependencies) != 1 ||
-		impact.Lifecycle == nil || len(impact.OpenAPI) != 1 || len(impact.PackageFiles) != 8 {
+		impact.Lifecycle == nil || len(impact.OpenAPI) != 1 || len(impact.PackageFiles) != 10 {
 		t.Fatalf("incomplete V3 trust impact: %#v", impact)
 	}
 }
@@ -885,11 +885,13 @@ func completeV3TrustExtension(t *testing.T, id string) Extension {
 	t.Helper()
 	item := exactTrustExtension(t, id)
 	for relative, body := range map[string]string{
-		"backend/guard":       "guard-binary",
-		"frontend/card.mjs":   "export function mount() {}\n",
-		"frontend/card.css":   ".card {}\n",
-		"templates/card.html": "<article></article>\n",
-		"openapi/routes.yaml": "openapi: 3.1.0\n",
+		"backend/guard":            "guard-binary",
+		"frontend/card.mjs":        "export function mount() {}\n",
+		"frontend/card.css":        ".card {}\n",
+		"templates/card.html":      "<article></article>\n",
+		"openapi/routes.yaml":      "openapi: 3.1.0\n",
+		"schemas/card-props.json":  "{\"type\":\"object\"}\n",
+		"schemas/card-result.json": "{\"type\":\"object\"}\n",
 	} {
 		writeTrustFile(t, &item, relative, body, 0o600)
 	}
@@ -907,6 +909,9 @@ func completeV3TrustExtension(t *testing.T, id string) Extension {
 	assetDigest := mustDigest("frontend/card.css")
 	templateDigest := mustDigest("templates/card.html")
 	openAPIDigest := mustDigest("openapi/routes.yaml")
+	// 组件 props/result schema 必须有同包精确声明（与 provider 同一规则）。
+	cardPropsDigest := mustDigest("schemas/card-props.json")
+	cardResultDigest := mustDigest("schemas/card-result.json")
 
 	item.Manifest.ManifestVersion = extensionmanifest.ManifestVersionV3
 	item.Manifest.Backend = ManifestBackend{
@@ -924,7 +929,9 @@ func completeV3TrustExtension(t *testing.T, id string) Extension {
 	}}
 	item.Manifest.Routes = []ManifestRoute{{
 		ID: id + ".route.run", ContractVersion: id + ".route.run@1", Action: "add",
-		Path: "/api/demo/run", Methods: []string{"POST"}, Guard: extensionmanifest.GuardCoreRaw,
+		// 决定 R1（2026-10-16）：raw 权限来自本 helper 已声明的 kind=raw_request 守卫，
+		// 不再引用已退役的 core.guard.raw_request。
+		Path: "/api/demo/run", Methods: []string{"POST"}, Guard: id + ".guard.raw",
 		Fallback: "closed", Mode: "http", Handler: "route.run", RequestSchema: id + ".route.run.request@1",
 		ResponseSchema: id + ".route.run.response@1",
 	}}
@@ -1032,6 +1039,8 @@ func completeV3TrustExtension(t *testing.T, id string) Extension {
 		{ID: id + ".file.asset", Kind: "asset", Path: "frontend/card.css", Digest: assetDigest},
 		{ID: id + ".file.template", Kind: "template", Path: "templates/card.html", Digest: templateDigest},
 		{ID: id + ".file.openapi", Kind: "openapi", Path: "openapi/routes.yaml", Digest: openAPIDigest},
+		{ID: id + ".component.card.props", Kind: "schema", Path: "schemas/card-props.json", Digest: cardPropsDigest, Version: "1"},
+		{ID: id + ".component.card.result", Kind: "schema", Path: "schemas/card-result.json", Digest: cardResultDigest, Version: "1"},
 	}
 	refreshTrustPackageIdentity(t, &item)
 	return item

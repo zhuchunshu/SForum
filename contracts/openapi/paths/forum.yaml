@@ -312,6 +312,29 @@ adminForumCategoryGroupByID:
         "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Delete an empty category group
+    description: Only empty groups can be deleted; a group that still contains categories
+      returns 409 `forum.category_group_not_empty`. The group may be hidden; admin
+      listing includes hidden groups so they stay maintainable.
+    operationId: adminDeleteForumCategoryGroup
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CategoryGroupID"
+    responses:
+      '200':
+        description: Category group deleted.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategoryGroup"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
 adminForumCategories:
   get:
     summary: List categories for admin management
@@ -380,6 +403,30 @@ adminForumCategoryByID:
         "$ref": "../components/responses.yaml#/Conflict"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+  delete:
+    summary: Delete a category
+    description: Only categories without topics can be deleted; otherwise 409
+      `forum.category_not_empty`. The current default posting category is protected
+      and returns 409 `forum.category_is_default` until another default is selected.
+      Hidden categories can be deleted from the admin listing.
+    operationId: adminDeleteForumCategory
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CategoryID"
+    responses:
+      '200':
+        description: Category deleted.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCategory"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
+      '409':
+        "$ref": "../components/responses.yaml#/Conflict"
 adminForumTags:
   get:
     summary: List tags for admin management

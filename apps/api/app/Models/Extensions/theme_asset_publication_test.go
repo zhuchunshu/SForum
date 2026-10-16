@@ -176,6 +176,31 @@ func TestThemeAssetTransitionRejectsStaleDriftAndMultipleThemes(t *testing.T) {
 		}
 	})
 
+	// 观察到「主题发布既不匹配 outgoing 也不匹配 incoming」这一分支（此前只是代码阅读
+	// 得出的候选）：残留的第三方主题发布会让任何后续切换失败，即使新主题包本身完全合法。
+	// 与上一个子测试不同：这里只有一个主题发布，因此不会在「多于一个主题」处提前返回，
+	// 而是走到 source/target 匹配判断。
+	t.Run("stale third theme publication blocks every switch", func(t *testing.T) {
+		assets := assetregistry.New()
+		service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{}, WithExecutableTrust(trust, true), WithAssetRegistry(assets))
+		stale := assetServiceFixture(t, "asset.stale-theme", TypeTheme, SourceBuiltin, StatusDisabled)
+		store.items[stale.ID] = stale
+		if _, err := assets.Publish(mustAssetPublication(t, service, stale)); err != nil {
+			t.Fatal(err)
+		}
+		expected := service.captureAssetPublicationSnapshot()
+		if err := service.validateThemeAssetTransition(ctx, expected, &target, &source); !errors.Is(err, errAssetPublicationConflict) {
+			t.Fatalf("stale third theme publication must be rejected, got %v", err)
+		}
+		// 清理残留发布后，同一切换必须通过：证明拒绝来自残留状态而不是新主题包。
+		if _, err := assets.ReplaceAll(nil); err != nil {
+			t.Fatal(err)
+		}
+		if err := service.validateThemeAssetTransition(ctx, service.captureAssetPublicationSnapshot(), &target, &source); err != nil {
+			t.Fatalf("after clearing the stale publication the same switch must pass: %v", err)
+		}
+	})
+
 	t.Run("exactly one theme owner", func(t *testing.T) {
 		assets := assetregistry.New()
 		service := NewServiceWithOptions(store, t.TempDir(), "", LocalRuntimeManager{}, WithExecutableTrust(trust, true), WithAssetRegistry(assets))

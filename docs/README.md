@@ -30,6 +30,7 @@ docs/
 ├── en-US/                    # English handbook (maintained in parallel)
 ├── extensions/               # technical extension contracts (path stable for CI)
 │   ├── authoring-guide.md
+│   ├── migrating-from-sforum-v2.md   # SForum-old -> V3 mapping + quick starts
 │   ├── catalogs/             # generated host catalogs
 │   └── v3/                   # V3 governance, matrices, evidence
 └── archive/                  # historical plans, old root drafts, security notes

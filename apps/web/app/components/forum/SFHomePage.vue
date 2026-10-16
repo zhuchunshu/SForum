@@ -674,6 +674,8 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
+        <SFRegionOutlet :page="registryPage" region="list_before" />
+
         <div
           id="feed-list-container"
           class="sforum-home__feed-list"
@@ -728,6 +730,8 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <SFRegionOutlet :page="registryPage" region="list_after" />
+
         <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="sforum-home__pagination">
           <SFPagination
             :page="currentPage"
@@ -771,7 +775,9 @@ onBeforeUnmount(() => {
         :can-create-topic="canCreateTopic"
         @select-tag="selectTag"
       >
+        <SFRegionOutlet :page="registryPage" region="sidebar_top" />
         <SFRegionOutlet :page="registryPage" region="sidebar" />
+        <SFRegionOutlet :page="registryPage" region="sidebar_bottom" />
       </SFHomeRightRail>
     </div>
 

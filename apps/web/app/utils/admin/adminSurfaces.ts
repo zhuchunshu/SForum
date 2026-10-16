@@ -1,4 +1,5 @@
 import { adminSurfacePlacements, type AdminSurfacePlacement } from '~/config/adminSurfaceCatalog.gen'
+import { HOST_ICON_NAME_PATTERN } from '../iconPicker'
 
 export const adminSurfaceKinds = [
   'navigation',
@@ -87,7 +88,8 @@ export type AdminSurfaceViewModel = {
   download?: { url: string, filename?: string }
 }
 
-const iconPattern = /^i-(?:lucide|tabler)-[a-z0-9]+(?:-[a-z0-9]+)*$/
+// 图标名校验复用宿主唯一的一份语法，避免 surface、贡献点与插件 bridge 三处漂移。
+const iconPattern = HOST_ICON_NAME_PATTERN
 const fieldKeyPattern = /^[a-z0-9][a-z0-9._-]{0,79}$/
 const surfaceIdPattern = /^[a-z0-9][a-z0-9._-]{1,160}$/
 const tones = new Set<AdminSurfaceTone>(['neutral', 'primary', 'success', 'warning', 'error'])

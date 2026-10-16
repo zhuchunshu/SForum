@@ -53,6 +53,7 @@ func registerProtocolV2(
 	secrets *ProtocolV2SecretServiceServer,
 	files *ProtocolV2FileServiceServer,
 	httpClient *ProtocolV2HttpServiceServer,
+	session *ProtocolV2SessionServiceServer,
 	providers ProtocolV2ProviderBroker,
 ) {
 	core := &protocolV2Core{
@@ -78,6 +79,13 @@ func registerProtocolV2(
 	}
 	if httpClient != nil {
 		hostv2.RegisterHttpServiceServer(server, httpClient)
+	}
+	// S9: the session-state service is registered only when the production
+	// assembly bound it. Until then the RPC answers Unimplemented, which is the
+	// honest state — a declared-but-unserved capability is what this program
+	// forbids.
+	if session != nil {
+		hostv2.RegisterPluginSessionServiceServer(server, session)
 	}
 }
 

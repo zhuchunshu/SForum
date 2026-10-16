@@ -49,6 +49,8 @@ type Controller struct {
 	gateway        RouteGateway
 	routeProviders *routes.ProviderSelectionAPI
 	routeInspector *routes.Inspector
+	// routeIncidents 是崩溃循环隔离持久状态的只读边界（M5 管理员诊断）。
+	routeIncidents apphttp.RouteRuntimeIncidentReader
 	cacheRegistry  *cacheregistry.Registry
 	cacheInspect   func(*cacheregistry.Registry, int) (hostapi.HostCacheInspectionSnapshot, error)
 	// componentInspector / navigationInspector /
@@ -136,6 +138,12 @@ func (h *Controller) WithRouteProviderSelection(
 
 func (h *Controller) WithRouteInspector(inspector *routes.Inspector) *Controller {
 	h.routeInspector = inspector
+	return h
+}
+
+// WithRouteIncidentReader 注入崩溃循环隔离持久状态的只读边界。
+func (h *Controller) WithRouteIncidentReader(reader apphttp.RouteRuntimeIncidentReader) *Controller {
+	h.routeIncidents = reader
 	return h
 }
 

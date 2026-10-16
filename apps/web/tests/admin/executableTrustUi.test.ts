@@ -12,6 +12,7 @@ const plugins = await Bun.file(new URL('../../app/pages/admin/extensions/plugins
 const themesPage = await Bun.file(new URL('../../app/pages/admin/extensions/themes.vue', import.meta.url)).text()
 const frontendPanel = await Bun.file(new URL('../../app/components/admin/SFAdminFrontendTrustPanel.vue', import.meta.url)).text()
 const frontendTrust = await Bun.file(new URL('../../app/composables/admin/useAdminFrontendTrust.ts', import.meta.url)).text()
+const trust = await Bun.file(new URL('../../app/utils/extensions/extensionTrust.ts', import.meta.url)).text()
 
 describe('V3 exact-artifact trust operator flow', () => {
   test('loads the canonical preview and consumes a server-issued one-use token', () => {
@@ -175,4 +176,39 @@ describe('V3 exact-artifact trust operator flow', () => {
       stagedVersion: { version: '2.0.0' }
     } as AdminExtension, 'upgrade')).toBe('/admin/extensions/example.plugin/trust?target=staged')
   })
+  // M5：操作员必须在确认对话框里看懂「哪条路由的授权由哪个精确制品拥有」。
+  // 该视图由 API 派生（不进入影响摘要），因此这里同时固定 UI 契约与两端语言键。
+  test('discloses guard authorization ownership with risk and requested fields', () => {
+    expect(impact).toContain('data-testid="extension-guard-authorization"')
+    expect(impact).toContain('data-testid="extension-guard-raw-request"')
+    expect(impact).toContain('guardAuthorization?: ExecutableGuardAuthorization[]')
+    expect(impact).toContain('props.guardAuthorization ?? []')
+    expect(impact).toContain('row.guardDigest')
+    expect(impact).toContain('row.guardId')
+    expect(impact).toContain('guardRequestedFields(row)')
+    expect(impact).toContain('guardScope(row)')
+    // 风险徽章直接取 API 词汇，未知风险不会被静默渲染成安全状态。
+    expect(impact).toContain('admin.extensions.trust.guardAuthorization.risks.${row.risk}')
+    expect(dialog).toContain(':guard-authorization="trustStatus.guardAuthorization"')
+    expect(trust).toContain('guardAuthorization?: ExecutableGuardAuthorization[]')
+  })
+
+  test('localizes every guard risk the API can report', async () => {
+    const risks = ['host_owned', 'extension_code', 'raw_request']
+    for (const locale of ['zh-CN', 'en-US']) {
+      const bundle = await Bun.file(
+        new URL(`../../i18n/locales/${locale}.json`, import.meta.url)
+      ).json()
+      const block = bundle.admin.extensions.trust.guardAuthorization
+      for (const key of ['title', 'owner', 'kind', 'digest', 'fallback', 'requestedFields', 'rawRequestTitle', 'rawRequestDescription']) {
+        expect(typeof block[key]).toBe('string')
+        expect(block[key].length).toBeGreaterThan(0)
+      }
+      for (const risk of risks) {
+        expect(typeof block.risks[risk]).toBe('string')
+        expect(block.risks[risk].length).toBeGreaterThan(0)
+      }
+    }
+  })
 })
+

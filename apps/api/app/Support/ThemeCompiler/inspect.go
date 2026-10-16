@@ -21,7 +21,7 @@ var (
 		"and": {}, "or": {}, "not": {},
 		"eq": {}, "ne": {}, "lt": {}, "le": {}, "gt": {}, "ge": {},
 		"len": {}, "index": {},
-		"asset": {}, "route": {}, "i18n": {}, "safeHTML": {}, "siteName": {},
+		"asset": {}, "route": {}, "i18n": {}, "safeHTML": {}, "siteName": {}, "icon": {},
 	}
 	unsafeTags = map[string]struct{}{
 		"script": {}, "style": {}, "iframe": {}, "object": {}, "embed": {},

@@ -1,0 +1,89 @@
+{
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
+  "backend": {
+    "digest": "63c6dd73a3efcf2b8ad2e16cca477b5e39e2ab6848f11447ce89ff1747aff7fd",
+    "entry": "backend/plugin",
+    "hostApiVersion": "sforum.host@2",
+    "protocolVersion": 2,
+    "rpc": "hashicorp-go-plugin"
+  },
+  "description": "Reference plugin whose minimal multi-step checkout workflow stores its step and draft in Host-namespaced plugin session state and loses it exactly when the Host session ends.",
+  "id": "sforum.session-checkout-reference",
+  "manifestVersion": 3,
+  "name": "SForum Session Checkout Reference",
+  "openapi": [
+    {
+      "contractVersion": "sforum.session-checkout-reference.openapi.routes@1",
+      "digest": "4909ec4d86034c02858c812986f1a68f27cfd695ec5ccd03a13e089abf42ffc5",
+      "id": "sforum.session-checkout-reference.openapi.routes",
+      "namespace": "sforum.session-checkout-reference",
+      "path": "openapi/routes.yaml"
+    }
+  ],
+  "packageFiles": [
+    {
+      "digest": "63c6dd73a3efcf2b8ad2e16cca477b5e39e2ab6848f11447ce89ff1747aff7fd",
+      "id": "sforum.session-checkout-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin"
+    },
+    {
+      "digest": "2b0e33ceddf6f480abd98e17fe8aa6ad7dfce59dfb92cbfc9646e9849fbb99e7",
+      "id": "sforum.session-checkout-reference.checkout-state",
+      "kind": "schema",
+      "path": "schemas/checkout-state.json",
+      "version": "1"
+    },
+    {
+      "digest": "863732ca42ccb6096dda4b3793505e77bff11491819708f34f6e3bc846a866f1",
+      "id": "sforum.session-checkout-reference.advance.request",
+      "kind": "schema",
+      "path": "schemas/advance-request.json",
+      "version": "1"
+    },
+    {
+      "digest": "4909ec4d86034c02858c812986f1a68f27cfd695ec5ccd03a13e089abf42ffc5",
+      "id": "sforum.session-checkout-reference.file.openapi",
+      "kind": "openapi",
+      "path": "openapi/routes.yaml"
+    }
+  ],
+  "routes": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.session-checkout-reference.route.state@1",
+      "fallback": "closed",
+      "guard": "core.guard.public",
+      "handler": "sforum.session-checkout-reference.route.state",
+      "id": "sforum.session-checkout-reference.route.state",
+      "methods": [
+        "GET"
+      ],
+      "mode": "http",
+      "path": "/session-checkout/state",
+      "responseSchema": "sforum.session-checkout-reference.checkout-state@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.session-checkout-reference.route.advance@1",
+      "fallback": "closed",
+      "guard": "core.guard.public",
+      "handler": "sforum.session-checkout-reference.route.advance",
+      "id": "sforum.session-checkout-reference.route.advance",
+      "methods": [
+        "POST"
+      ],
+      "mode": "http",
+      "path": "/session-checkout/advance",
+      "requestSchema": "sforum.session-checkout-reference.advance.request@1",
+      "responseSchema": "sforum.session-checkout-reference.checkout-state@1"
+    }
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "type": "plugin",
+  "url": "https://sforum.local/plugins/session-checkout-reference",
+  "version": "1.0.0"
+}

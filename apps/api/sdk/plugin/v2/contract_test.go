@@ -27,6 +27,7 @@ func TestGeneratedServiceCatalog(t *testing.T) {
 		"sforum.host.v2.MediaService",
 		"sforum.host.v2.NavigationService",
 		"sforum.host.v2.PermissionService",
+		"sforum.host.v2.PluginSessionService",
 		"sforum.host.v2.ScheduleService",
 		"sforum.host.v2.SecretService",
 		"sforum.host.v2.ServiceDiscoveryService",
@@ -54,7 +55,8 @@ func TestGeneratedServiceCatalog(t *testing.T) {
 
 func TestRequiredEnvelopeAndCommandFields(t *testing.T) {
 	assertFields(t, "sforum.protocol.v2.RequestContext",
-		"request_id", "trace", "actor", "locale", "deadline", "extension", "granted_authority", "idempotency_key", "host_command_delegations", "host_query_delegations")
+		"request_id", "trace", "actor", "locale", "deadline", "extension", "granted_authority", "idempotency_key", "host_command_delegations", "host_query_delegations", "host_session_delegation")
+	assertExactFields(t, "sforum.protocol.v2.HostSessionDelegation", "token")
 	assertFields(t, "sforum.protocol.v2.HostCommandDelegation",
 		"command_id", "command_version", "idempotency_key", "token")
 	assertFields(t, "sforum.protocol.v2.HostQueryDelegation",

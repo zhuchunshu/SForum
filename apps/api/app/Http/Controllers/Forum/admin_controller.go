@@ -119,7 +119,8 @@ func (h *Controller) adminCategoryGroups(c fiber.Ctx) error {
 	if _, err := h.service.ForumSettings(c.Context(), actor); err != nil {
 		return mapForumError(err)
 	}
-	items, err := h.service.ListCategoryGroups(c.Context())
+	// 后台必须看到隐藏分组与隐藏分类，否则隐藏项既不可见也不可维护。
+	items, err := h.service.ListCategoryGroups(c.Context(), true)
 	if err != nil {
 		return mapForumError(err)
 	}
@@ -171,6 +172,18 @@ func (h *Controller) adminUpdateCategoryGroup(c fiber.Ctx) error {
 	return apphttp.OK(c, item)
 }
 
+func (h *Controller) adminDeleteCategoryGroup(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	item, err := h.taxonomy.DeleteCategoryGroup(c.Context(), actor, int64(paramInt(c, "groupID")))
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
 func (h *Controller) adminCategories(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -179,7 +192,8 @@ func (h *Controller) adminCategories(c fiber.Ctx) error {
 	if _, err := h.service.ForumSettings(c.Context(), actor); err != nil {
 		return mapForumError(err)
 	}
-	items, err := h.service.ListCategories(c.Context())
+	// 后台必须看到隐藏分组与隐藏分类，否则隐藏项既不可见也不可维护。
+	items, err := h.service.ListCategories(c.Context(), true)
 	if err != nil {
 		return mapForumError(err)
 	}
@@ -233,6 +247,18 @@ func (h *Controller) adminUpdateCategory(c fiber.Ctx) error {
 		Position:    req.Position,
 		DefaultSort: req.DefaultSort,
 	})
+	if err != nil {
+		return mapForumError(err)
+	}
+	return apphttp.OK(c, item)
+}
+
+func (h *Controller) adminDeleteCategory(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	item, err := h.taxonomy.DeleteCategory(c.Context(), actor, int64(paramInt(c, "categoryID")))
 	if err != nil {
 		return mapForumError(err)
 	}

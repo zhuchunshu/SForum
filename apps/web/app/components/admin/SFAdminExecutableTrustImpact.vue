@@ -2,11 +2,17 @@
 import {
   executableDatabaseGrants,
   executableDatabaseMigrationRisk,
+  type ExecutableGuardAuthorization,
   type ExecutableTrustImpact,
   type ExecutableTrustMigrationDeclaration
 } from '~/utils/extensions/extensionTrust'
 
-const props = defineProps<{ impact: ExecutableTrustImpact }>()
+const props = defineProps<{
+  impact: ExecutableTrustImpact
+  // M5：授权归属派生视图（API 的 status.guardAuthorization）。它不在 impact 摘要内，
+  // 因此缺失时不影响其余披露内容的渲染。
+  guardAuthorization?: ExecutableGuardAuthorization[]
+}>()
 const { t } = useI18n()
 const showBackupGuidance = ref(true)
 let backupGuidanceTimer: ReturnType<typeof setTimeout> | undefined
@@ -50,6 +56,20 @@ watch(() => props.impact.digest, scheduleBackupGuidanceDismissal)
 onBeforeUnmount(() => {
   if (backupGuidanceTimer) clearTimeout(backupGuidanceTimer)
 })
+
+const guardAuthorization = computed(() => props.guardAuthorization ?? [])
+const rawRequestGuards = computed(() => guardAuthorization.value.filter(row => row.rawRequest))
+function guardRiskColor(row: ExecutableGuardAuthorization) {
+  if (row.risk === 'raw_request') return 'error'
+  if (row.risk === 'extension_code') return 'warning'
+  return 'neutral'
+}
+function guardScope(row: ExecutableGuardAuthorization) {
+  return `${row.methods.join(', ')} ${row.path}`.trim()
+}
+function guardRequestedFields(row: ExecutableGuardAuthorization) {
+  return [...(row.mutableRequestFields ?? []), ...(row.mutableResponseFields ?? [])]
+}
 
 const sections = computed(() => [
   { key: 'artifactDigests', value: props.impact.artifactDigests },
@@ -241,6 +261,80 @@ function formatted(value: unknown) {
           </li>
         </ul>
       </div>
+    </section>
+
+    <section
+      v-if="guardAuthorization.length"
+      class="space-y-3 border-y border-slate-200 py-4 dark:border-zinc-800"
+      data-testid="extension-guard-authorization"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex min-w-0 items-center gap-2">
+          <UIcon name="i-lucide-shield-check" class="size-5 shrink-0 text-slate-500 dark:text-zinc-400" />
+          <h3 class="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+            {{ t('admin.extensions.trust.guardAuthorization.title') }}
+          </h3>
+        </div>
+        <UBadge color="neutral" variant="subtle">{{ guardAuthorization.length }}</UBadge>
+      </div>
+      <UAlert
+        v-if="rawRequestGuards.length"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="t('admin.extensions.trust.guardAuthorization.rawRequestTitle')"
+        :description="t('admin.extensions.trust.guardAuthorization.rawRequestDescription', { count: rawRequestGuards.length })"
+        data-testid="extension-guard-raw-request"
+      />
+      <ul class="grid gap-2 lg:grid-cols-2">
+        <li
+          v-for="row in guardAuthorization"
+          :key="row.routeId"
+          class="min-w-0 rounded-md border border-slate-200 px-3 py-2.5 dark:border-zinc-700"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="truncate font-mono text-xs text-slate-900 dark:text-zinc-100">{{ guardScope(row) }}</p>
+              <p class="mt-1 truncate text-[11px] text-slate-500 dark:text-zinc-400">{{ row.routeId }} · {{ row.routeAction }}</p>
+            </div>
+            <UBadge :color="guardRiskColor(row)" variant="subtle" size="xs">
+              {{ t(`admin.extensions.trust.guardAuthorization.risks.${row.risk}`) }}
+            </UBadge>
+          </div>
+          <dl class="mt-2 grid gap-2 text-[11px] sm:grid-cols-2">
+            <div class="min-w-0">
+              <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.guardAuthorization.owner') }}</dt>
+              <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">{{ row.guardId }}</dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.guardAuthorization.kind') }}</dt>
+              <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">
+                {{ row.guardKind || t('admin.extensions.trust.guardAuthorization.hostOwned') }}
+              </dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.guardAuthorization.digest') }}</dt>
+              <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">
+                {{ row.guardDigest || t('admin.extensions.trust.guardAuthorization.noArtifact') }}
+              </dd>
+            </div>
+            <div class="min-w-0">
+              <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.guardAuthorization.fallback') }}</dt>
+              <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">
+                {{ row.fallback || t('admin.extensions.trust.guardAuthorization.notDeclared') }}
+              </dd>
+            </div>
+            <div class="min-w-0 sm:col-span-2">
+              <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.trust.guardAuthorization.requestedFields') }}</dt>
+              <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">
+                {{ guardRequestedFields(row).length
+                  ? guardRequestedFields(row).join(' · ')
+                  : t('admin.extensions.trust.guardAuthorization.noRequestedFields') }}
+              </dd>
+            </div>
+          </dl>
+        </li>
+      </ul>
     </section>
 
     <div class="grid gap-2 sm:grid-cols-2">

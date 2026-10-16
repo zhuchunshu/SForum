@@ -434,6 +434,145 @@ func TestControllerAdminForumPermissions(t *testing.T) {
 	}
 }
 
+// 后台分类/分组列表必须包含隐藏项，否则隐藏项既不可见也不可维护；
+// 公开读接口仍只返回公开项。
+func TestControllerAdminForumTaxonomyListsHiddenEntries(t *testing.T) {
+	app, _, store := newForumTestApp()
+	cookie := loginForumUser(t, app, 3)
+
+	resp := performForumRequest(t, app, nethttp.MethodGet, "/api/v1/admin/forum/category-groups", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 admin category groups, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var groups forumTestEnvelope[[]forum.CategoryGroup]
+	if err := json.NewDecoder(resp.Body).Decode(&groups); err != nil {
+		t.Fatalf("decode admin category groups: %v", err)
+	}
+	if len(groups.Data) != 2 || groups.Data[1].Visibility != "hidden" || len(groups.Data[1].Categories) != 1 {
+		t.Fatalf("expected hidden group in admin listing, got %#v", groups.Data)
+	}
+	if !store.listGroupsIncludeHidden {
+		t.Fatal("admin category group listing must request hidden entries")
+	}
+
+	resp = performForumRequest(t, app, nethttp.MethodGet, "/api/v1/category-groups", nil, nil)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 public category groups, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var publicGroups forumTestEnvelope[[]forum.CategoryGroup]
+	if err := json.NewDecoder(resp.Body).Decode(&publicGroups); err != nil {
+		t.Fatalf("decode public category groups: %v", err)
+	}
+	if len(publicGroups.Data) != 1 || store.listGroupsIncludeHidden {
+		t.Fatalf("public listing must stay public-only, got %#v", publicGroups.Data)
+	}
+}
+
+func TestControllerAdminForumDeleteTaxonomyRequiresPermission(t *testing.T) {
+	app, _, store := newForumTestApp()
+
+	resp := performForumRequest(t, app, nethttp.MethodDelete, "/api/v1/admin/forum/categories/2", nil, nil)
+	if resp.StatusCode != nethttp.StatusUnauthorized {
+		t.Fatalf("expected 401 without login, got %d", resp.StatusCode)
+	}
+
+	cookie := loginForumUser(t, app, 2)
+	resp = performForumRequest(t, app, nethttp.MethodDelete, "/api/v1/admin/forum/categories/2", nil, cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 without category.manage, got %d", resp.StatusCode)
+	}
+	resp = performForumRequest(t, app, nethttp.MethodDelete, "/api/v1/admin/forum/category-groups/2", nil, cookie)
+	if resp.StatusCode != nethttp.StatusForbidden {
+		t.Fatalf("expected 403 for group delete without category.manage, got %d", resp.StatusCode)
+	}
+	if store.deletedCategoryID != 0 || store.deletedGroupID != 0 {
+		t.Fatalf("denied requests must not reach the store: category=%d group=%d", store.deletedCategoryID, store.deletedGroupID)
+	}
+}
+
+func TestControllerAdminForumDeleteTaxonomy(t *testing.T) {
+	app, _, store := newForumTestApp()
+	cookie := loginForumUser(t, app, 3)
+
+	resp := performForumRequest(t, app, nethttp.MethodDelete, "/api/v1/admin/forum/categories/2", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 delete category, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+	if store.deletedCategoryID != 2 {
+		t.Fatalf("expected store delete for category 2, got %d", store.deletedCategoryID)
+	}
+
+	resp = performForumRequest(t, app, nethttp.MethodDelete, "/api/v1/admin/forum/category-groups/5", nil, cookie)
+	if resp.StatusCode != nethttp.StatusOK {
+		t.Fatalf("expected 200 delete category group, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+	if store.deletedGroupID != 5 {
+		t.Fatalf("expected store delete for group 5, got %d", store.deletedGroupID)
+	}
+}
+
+func TestControllerAdminForumDeleteTaxonomyConflictReasons(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		path        string
+		categoryErr error
+		groupErr    error
+		wantStatus  int
+		wantReason  string
+	}{
+		{name: "category still has topics", path: "/api/v1/admin/forum/categories/2", categoryErr: forum.ErrCategoryNotEmpty, wantStatus: nethttp.StatusConflict, wantReason: forum.CodeCategoryNotEmpty},
+		{name: "category missing", path: "/api/v1/admin/forum/categories/2", categoryErr: forum.ErrCategoryNotFound, wantStatus: nethttp.StatusNotFound, wantReason: forum.CodeCategoryNotFound},
+		{name: "group still has categories", path: "/api/v1/admin/forum/category-groups/2", groupErr: forum.ErrCategoryGroupNotEmpty, wantStatus: nethttp.StatusConflict, wantReason: forum.CodeCategoryGroupNotEmpty},
+		{name: "group missing", path: "/api/v1/admin/forum/category-groups/2", groupErr: forum.ErrCategoryGroupNotFound, wantStatus: nethttp.StatusNotFound, wantReason: forum.CodeCategoryGroupNotFound},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			app, _, store := newForumTestApp()
+			store.deleteCategoryErr = test.categoryErr
+			store.deleteGroupErr = test.groupErr
+			cookie := loginForumUser(t, app, 3)
+
+			resp := performForumRequest(t, app, nethttp.MethodDelete, test.path, nil, cookie)
+			if resp.StatusCode != test.wantStatus {
+				t.Fatalf("expected %d, got %d", test.wantStatus, resp.StatusCode)
+			}
+			defer resp.Body.Close()
+			var failure forumTestEnvelope[forumTestErrorData]
+			if err := json.NewDecoder(resp.Body).Decode(&failure); err != nil {
+				t.Fatalf("decode failure envelope: %v", err)
+			}
+			if failure.Data.Reason != test.wantReason {
+				t.Fatalf("expected reason %q, got %q", test.wantReason, failure.Data.Reason)
+			}
+		})
+	}
+}
+
+// 默认发帖分类被删除会让发帖失去兜底归属，服务端必须在删除前拦截。
+func TestControllerAdminForumDeleteDefaultCategoryRejected(t *testing.T) {
+	app, _, store := newForumTestApp()
+	cookie := loginForumUser(t, app, 3)
+
+	resp := performForumRequest(t, app, nethttp.MethodDelete, "/api/v1/admin/forum/categories/1", nil, cookie)
+	if resp.StatusCode != nethttp.StatusConflict {
+		t.Fatalf("expected 409 for default category delete, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var failure forumTestEnvelope[forumTestErrorData]
+	if err := json.NewDecoder(resp.Body).Decode(&failure); err != nil {
+		t.Fatalf("decode failure envelope: %v", err)
+	}
+	if failure.Data.Reason != forum.CodeCategoryIsDefault {
+		t.Fatalf("expected reason %q, got %q", forum.CodeCategoryIsDefault, failure.Data.Reason)
+	}
+	if store.deletedCategoryID != 0 {
+		t.Fatalf("default category must not reach the store, got %d", store.deletedCategoryID)
+	}
+}
+
 func TestControllerAdminForumVisualFields(t *testing.T) {
 	app, _, _ := newForumTestApp()
 	cookie := loginForumUser(t, app, 4)
@@ -934,6 +1073,13 @@ type controllerForumStore struct {
 	commentEditSource    forum.EditableContentSource
 	referenceInput       forum.ReferenceSelectorInput
 	protectedSource      string
+	// 分类/分组列表的公开 vs 后台口径记录，以及删除路径的调用记录与可注入错误。
+	listCategoriesIncludeHidden bool
+	listGroupsIncludeHidden     bool
+	deletedCategoryID           int64
+	deletedGroupID              int64
+	deleteCategoryErr           error
+	deleteGroupErr              error
 }
 
 func (s *controllerForumStore) LoadPublicShortcodeSources(_ context.Context, resources []contentregistry.ShortcodeResourceKey) (map[contentregistry.ShortcodeResourceKey]forum.PublicShortcodeSource, error) {
@@ -952,18 +1098,50 @@ func (s *controllerForumStore) ListReferenceOptions(_ context.Context, input for
 	return []forum.ReferenceOption{{ID: 10, Label: "Release topic", SecondaryLabel: "General"}}, nil
 }
 
-func (s *controllerForumStore) ListCategories(context.Context) ([]forum.Category, error) {
-	return []forum.Category{{ID: 1, Slug: "general", Name: "综合讨论", Visibility: "public"}}, nil
+func (s *controllerForumStore) ListCategories(_ context.Context, includeHidden bool) ([]forum.Category, error) {
+	s.listCategoriesIncludeHidden = includeHidden
+	items := []forum.Category{{ID: 1, Slug: "general", Name: "综合讨论", Visibility: "public"}}
+	if includeHidden {
+		items = append(items, forum.Category{ID: 2, Slug: "internal", Name: "内部版块", Visibility: "hidden"})
+	}
+	return items, nil
 }
 
-func (s *controllerForumStore) ListCategoryGroups(context.Context) ([]forum.CategoryGroup, error) {
-	return []forum.CategoryGroup{{
+func (s *controllerForumStore) ListCategoryGroups(_ context.Context, includeHidden bool) ([]forum.CategoryGroup, error) {
+	s.listGroupsIncludeHidden = includeHidden
+	groups := []forum.CategoryGroup{{
 		ID:         1,
 		Slug:       "default",
 		Name:       "默认版块",
 		Visibility: "public",
 		Categories: []forum.Category{{ID: 1, Slug: "general", Name: "综合讨论", Visibility: "public"}},
-	}}, nil
+	}}
+	if includeHidden {
+		groups = append(groups, forum.CategoryGroup{
+			ID:         2,
+			Slug:       "internal",
+			Name:       "内部版块",
+			Visibility: "hidden",
+			Categories: []forum.Category{{ID: 2, Slug: "internal", Name: "内部版块", Visibility: "hidden"}},
+		})
+	}
+	return groups, nil
+}
+
+func (s *controllerForumStore) DeleteCategoryGroup(_ context.Context, groupID int64) (forum.CategoryGroup, error) {
+	s.deletedGroupID = groupID
+	if s.deleteGroupErr != nil {
+		return forum.CategoryGroup{}, s.deleteGroupErr
+	}
+	return forum.CategoryGroup{ID: groupID, Slug: "default", Name: "默认版块", Visibility: "public"}, nil
+}
+
+func (s *controllerForumStore) DeleteCategory(_ context.Context, categoryID int64) (forum.Category, error) {
+	s.deletedCategoryID = categoryID
+	if s.deleteCategoryErr != nil {
+		return forum.Category{}, s.deleteCategoryErr
+	}
+	return forum.Category{ID: categoryID, GroupID: 1, Slug: "general", Name: "综合讨论", Visibility: "public"}, nil
 }
 
 func (s *controllerForumStore) ListTags(_ context.Context, includePending bool) ([]forum.Tag, error) {

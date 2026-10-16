@@ -13,6 +13,7 @@ import { ADMIN_MICRO_FRONTEND_API_VERSION } from '@sforum/admin-sdk'
 
 import type { AdminExtension, AdminExtensionSettings, AdminFrontendStatus } from '~/utils/admin/adminExtensions'
 import { assertAdminExtensionRelativePath, extensionRequestPath } from '~/runtime/admin-extensions/types'
+import { hostIconResolver } from '~/utils/icons/hostIcons'
 import {
   clearContributionFailures,
   contributionFailureKey,
@@ -111,6 +112,7 @@ function bridge(): AdminMicroFrontendBridgeV1 {
     extensionVersion: props.extension.version,
     locale: locale.value,
     appearance: appearance(),
+    icons: hostIconResolver,
     settings: {
       items: props.context.items,
       values: () => ({ ...props.context.values }),

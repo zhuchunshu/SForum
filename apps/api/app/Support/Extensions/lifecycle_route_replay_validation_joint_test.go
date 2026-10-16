@@ -215,10 +215,24 @@ paths:
 		jointReplayLifecycleWriteFile(t, extension.PackagePath, "openapi/routes.yaml", openAPIBody)
 	} else {
 		routeID := extensionID + "." + action
+		// 决定 R1（2026-10-16）：Host 拥有的 core.guard.raw_request 不再是路由守卫，
+		// 凭证头变更声明只能由包内显式声明的 kind=raw_request 守卫铸造。本用例需要
+		// 一份**合法**的凭证头变更声明来触发重放/凭证变更冲突，所以声明自己的守卫。
+		guardID := extensionID + ".guard.raw"
+		guardBody := []byte("joint-replay-guard-" + extensionID)
+		guardDigest := jointReplayLifecycleDigest(guardBody)
+		extension.Manifest.Guards = []extensions.ManifestGuard{{
+			ID: guardID, ContractVersion: guardID + "@1", Kind: extensionmanifest.GuardKindRawRequest,
+			Entry: "backend/guard", Digest: guardDigest,
+		}}
+		extension.Manifest.PackageFiles = append(extension.Manifest.PackageFiles, extensions.ManifestPackageFile{
+			ID: extensionID + ".file.guard", Kind: "executable", Path: "backend/guard", Digest: guardDigest,
+		})
+		jointReplayLifecycleWriteFile(t, extension.PackagePath, "backend/guard", guardBody)
 		route := extensions.ManifestRoute{
 			ID: routeID, ContractVersion: routeID + "@1", Action: action,
 			TargetID: targetRouteID, Path: "/joint-replay", Methods: []string{"POST"},
-			Guard: extensionmanifest.GuardCoreRaw, Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
+			Guard: guardID, Fallback: "closed", Mode: extensionmanifest.RouteModeHTTP,
 			Handler: "route." + action, RequestSchema: "openapi/schemas/common.json",
 			ResponseSchema:       "openapi/schemas/common.json",
 			MutableRequestFields: []string{"/headers/authorization"},

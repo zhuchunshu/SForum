@@ -300,6 +300,8 @@ function topicActivity(topic: ForumTopicSummary) {
           </div>
         </div>
 
+        <SFRegionOutlet page="forum.tag.show" region="list_before" />
+
         <div
           id="feed-list-container"
           class="sforum-home__feed-list mt-3 overflow-hidden rounded-[var(--sf-public-radius,6px)] border border-[var(--sf-public-border)] bg-[var(--sf-public-surface)] shadow-[var(--sf-public-shadow)]"
@@ -334,6 +336,8 @@ function topicActivity(topic: ForumTopicSummary) {
             />
           </div>
         </div>
+
+        <SFRegionOutlet page="forum.tag.show" region="list_after" />
 
         <div v-if="showPagination && !topicsPending" class="mt-3">
           <SFPagination

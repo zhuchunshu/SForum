@@ -369,8 +369,13 @@ func TestStreamDispatcherPreservesAuthorizedRawRequestStamp(t *testing.T) {
 	artifact := routeArtifact("stream.raw", "1.0.0", 'a')
 	stream := pluginRoute("stream.raw.events", "/raw-events", 0, "GET")
 	stream.Mode = extensionmanifest.RouteModeSSE
-	stream.Guard = extensionmanifest.GuardCoreRaw
-	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{stream}}}}); err != nil {
+	// 决定 R1（2026-10-16）：raw 请求权限只能来自包内显式声明的 kind=raw_request
+	// 守卫（entry + digest + contractVersion 必须与包内制品一致）。
+	stream.Guard = "stream.raw.raw_guard"
+	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{stream},
+		Guards: []extensionmanifest.ManifestGuard{pluginGuard(stream.Guard, "raw_request")},
+	}}}); err != nil {
 		t.Fatal(err)
 	}
 	invoker := &authorityStreamInvoker{}

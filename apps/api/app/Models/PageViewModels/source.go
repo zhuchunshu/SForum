@@ -27,7 +27,7 @@ var (
 )
 
 type CoreForumViewReader interface {
-	ListCategoryGroups(context.Context) ([]forum.CategoryGroup, error)
+	ListCategoryGroups(context.Context, bool) ([]forum.CategoryGroup, error)
 	ListTags(context.Context, bool) ([]forum.Tag, error)
 	ListTopics(context.Context, forum.TopicListInput) (forum.TopicList, error)
 	GetTopic(context.Context, int64) (forum.TopicDetail, error)
@@ -319,7 +319,7 @@ func (s *CorePageViewModelSource) populateForumFeed(ctx context.Context, request
 	if s.deps.Forum == nil {
 		return ErrCorePageDataUnavailable
 	}
-	groups, err := s.deps.Forum.ListCategoryGroups(ctx)
+	groups, err := s.deps.Forum.ListCategoryGroups(ctx, false)
 	if err != nil {
 		return err
 	}
@@ -723,7 +723,7 @@ func (s *CorePageViewModelSource) forumGroups(ctx context.Context) ([]forum.Cate
 	if s.deps.Forum == nil {
 		return nil, ErrCorePageDataUnavailable
 	}
-	return s.deps.Forum.ListCategoryGroups(ctx)
+	return s.deps.Forum.ListCategoryGroups(ctx, false)
 }
 
 func (s *CorePageViewModelSource) registrationStatus(ctx context.Context) (identity.RegistrationStatus, error) {

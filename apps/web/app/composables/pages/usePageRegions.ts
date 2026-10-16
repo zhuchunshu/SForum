@@ -1,5 +1,6 @@
 import type { PublicFrontendComponentRef } from '~/runtime/public-extensions/pagePolicy'
 import { normalizePublicFrontendComponentRefs } from '~/runtime/public-extensions/pagePolicy'
+import { PAGE_REGION_IDS, PAGE_REGION_PAGES } from '~/config/pageRegionCatalog.gen'
 
 /**
  * forum.page.regions 区域内容(GET /site/page-regions)。
@@ -7,25 +8,18 @@ import { normalizePublicFrontendComponentRefs } from '~/runtime/public-extension
  * widget 挂载仍由公开 L2 运行时(descriptor 签发 + 信任 + CSP)权威裁决。
  */
 
-/** 与后端 RegionCatalog pageRegionMatrix 同步的白名单;其余页面不发区域请求。 */
-export const PAGE_REGION_PAGES: ReadonlySet<string> = new Set([
-  'forum.home',
-  'forum.search',
-  'forum.category.index',
-  'forum.category.show',
-  'forum.tag.index',
-  'forum.tag.show',
-  'forum.topic.show',
-  'forum.profile.show',
-  'forum.topic.create',
-  'forum.topic.reply',
-  'forum.topic.edit',
-  'forum.notifications'
-])
+// PAGE_REGION_PAGES 由 apps/api/app/Support/RegionCatalog/catalog.go 生成
+// (scripts/v3-catalog/generate.mjs)，不再手工维护；其余页面不发区域请求。
+export { PAGE_REGION_PAGES }
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9._-]{1,120}$/
 const REGION_ID_PATTERN = /^[a-z0-9][a-z0-9_]{1,60}$/
-const MAX_REGIONS = 8
+/**
+ * 单页区域数量上限。由生成的区域目录推导，因此新增区域时不会因为一个写死的
+ * 数字把合法 payload 判成非法（曾经是 8，而 forum.topic.show 现在有 9 个区域）。
+ * 保留一个下限，避免目录退化成空时把上限压到 0。
+ */
+export const MAX_REGIONS = Math.max(8, ...Object.values(PAGE_REGION_IDS).map(ids => ids.length))
 const MAX_ITEMS_PER_REGION = 32
 const PAGE_REGIONS_SCHEMA_VERSION = 'sforum.page-regions@1'
 const PAGE_REGIONS_TIMEOUT_MS = 8000

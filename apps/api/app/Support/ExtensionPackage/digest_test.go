@@ -109,3 +109,52 @@ func writeDigestTestFile(t *testing.T, root string, relativePath string, body st
 	}
 	return target
 }
+
+func TestDigestAuthorTreeSkipsInstalledDependencies(t *testing.T) {
+	installed := t.TempDir()
+	packaged := t.TempDir()
+	for _, root := range []string{installed, packaged} {
+		writeDigestTestFile(t, root, "sforum.extension.json", "{}", 0o644)
+		writeDigestTestFile(t, root, "frontend/admin/dist/dashboard.mjs", "export {}", 0o644)
+	}
+	// 作者源码树：装了依赖，且 .bin 里全是符号链接。
+	writeDigestTestFile(t, installed, "node_modules/.bin/vite", "#!/bin/sh\n", 0o755)
+	writeDigestTestFile(t, installed, "node_modules/vue/package.json", "{}", 0o644)
+	writeDigestTestFile(t, installed, "vendor/legacy.go", "package legacy", 0o644)
+	writeDigestTestFile(t, installed, ".git/HEAD", "ref: refs/heads/main", 0o644)
+
+	authorDigest, err := DigestAuthorTree(installed)
+	if err != nil {
+		t.Fatalf("author tree digest must tolerate installed dependencies: %v", err)
+	}
+	packagedDigest, err := DigestTree(packaged)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if authorDigest != packagedDigest {
+		t.Fatalf("author tree digest must equal the artifact tree digest: %s != %s", authorDigest, packagedDigest)
+	}
+
+	// 信任身份仍然拒绝依赖目录里的符号链接：只有作者预检走宽松变体。
+	if err := os.Symlink(filepath.Join(installed, "node_modules/vue/package.json"), filepath.Join(installed, "node_modules/vue/linked.json")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DigestTree(installed); !errors.Is(err, ErrSymlink) {
+		t.Fatalf("DigestTree must keep rejecting symlinks, got %v", err)
+	}
+	if _, err := DigestAuthorTree(installed); err != nil {
+		t.Fatalf("author tree digest must skip the dependency directory entirely: %v", err)
+	}
+}
+
+func TestDigestAuthorTreeStillRejectsSymlinksOutsideDependencies(t *testing.T) {
+	root := t.TempDir()
+	writeDigestTestFile(t, root, "frontend/admin/dist/dashboard.mjs", "export {}", 0o644)
+	writeDigestTestFile(t, root, "target.txt", "x", 0o644)
+	if err := os.Symlink(filepath.Join(root, "target.txt"), filepath.Join(root, "frontend/admin/dist/linked.mjs")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DigestAuthorTree(root); !errors.Is(err, ErrSymlink) {
+		t.Fatalf("expected symlink rejection, got %v", err)
+	}
+}

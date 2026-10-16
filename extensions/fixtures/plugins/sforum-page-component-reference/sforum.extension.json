@@ -1,0 +1,66 @@
+{
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "components": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.page-component-reference.component.body@1",
+      "id": "sforum.page-component-reference.component.body",
+      "l2Component": "sforum.page-component-reference.file.frontend.page-body",
+      "propsSchema": "sforum.page-component-reference.component.body.props@1"
+    }
+  ],
+  "description": "CI fixture for a public page whose body is provided by a package-declared public L2 component (theme.json page view=component) next to an ordinary template page, so both body sources can be compared on one package.",
+  "id": "sforum.page-component-reference",
+  "manifestVersion": 3,
+  "name": "Page Component Reference Fixture",
+  "packageFiles": [
+    {
+      "digest": "30c5e43ea9250e49e6cced93e34a47c963062fc7a6e4c6f95092ebe883a74f13",
+      "id": "sforum.page-component-reference.component.body.props",
+      "kind": "schema",
+      "path": "schemas/page-body-props.json",
+      "version": "1"
+    },
+    {
+      "digest": "d7d8369da24e65de8374f49ba68938466c6dd321317cca621783ea2a34b5b92e",
+      "id": "sforum.page-component-reference.file.frontend.page-body",
+      "kind": "frontend",
+      "path": "frontend/page-body.mjs",
+      "version": "1"
+    },
+    {
+      "digest": "68fcc77214f8edbc4547352357c17775bce52d68a2cdde6ab181e7830b64adb1",
+      "id": "sforum.page-component-reference.file.template.template",
+      "kind": "template",
+      "path": "templates/page-template.html",
+      "version": "1"
+    },
+    {
+      "digest": "61033dbcaf0627b196dc7ccdb63745e1f1959aaaed2e546a3514ee10c0f4f79d",
+      "id": "sforum.page-component-reference.file.theme",
+      "kind": "asset",
+      "path": "theme.json"
+    }
+  ],
+  "permissions": [
+    "sforum.page-component-reference.view"
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "templates": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.page-component-reference.template.template@1",
+      "digest": "68fcc77214f8edbc4547352357c17775bce52d68a2cdde6ab181e7830b64adb1",
+      "id": "sforum.page-component-reference.template.template",
+      "path": "templates/page-template.html",
+      "themeOverrideKey": "sforum.page-component-reference.template",
+      "viewModelSchema": "sforum.page-component-reference.template.template.data@1"
+    }
+  ],
+  "type": "plugin",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "version": "1.0.0"
+}

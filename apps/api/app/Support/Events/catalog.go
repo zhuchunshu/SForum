@@ -25,6 +25,7 @@ const (
 	CommentUpdated      = "comment.updated"
 	CategoryCreated     = "category.created"
 	CategoryUpdated     = "category.updated"
+	CategoryDeleted     = "category.deleted"
 	TagCreated          = "tag.created"
 	TagUpdated          = "tag.updated"
 	// AttachmentBeforeUpload E1.4：存储写入前同步 validate；仅元数据，无文件字节。
@@ -67,6 +68,7 @@ var definitions = []Definition{
 	observe(TopicUnpinned, "Emitted after a topic is unpinned with its current public-safe snapshot.", topicObservePayload("actorUserId")),
 	observe(CategoryCreated, "Emitted after a category is created.", []string{"categoryId", "categorySlug", "groupId"}),
 	observe(CategoryUpdated, "Emitted after a category is updated.", []string{"categoryId", "categorySlug", "groupId"}),
+	observe(CategoryDeleted, "Emitted after a category or an empty category group is deleted. Groups report categoryGroupId with the group slug in categorySlug.", []string{"categoryId", "categoryGroupId", "categorySlug", "groupId"}),
 	observe(TagCreated, "Emitted after a tag is created.", []string{"tagId", "tagSlug", "status"}),
 	observe(TagUpdated, "Emitted after a tag is updated.", []string{"tagId", "tagSlug", "status"}),
 	filter(CommentBeforeCreate,

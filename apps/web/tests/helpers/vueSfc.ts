@@ -6,7 +6,7 @@ installTestDom()
 export const testVue = await import('vue')
 export const { mount, flushPromises } = await import('@vue/test-utils')
 
-export async function compileVueSfc(path: string, id = 'test-sfc') {
+export async function compileVueSfc(path: string, id = 'test-sfc', bindings: Record<string, unknown> = {}) {
   const parsed = parse(await Bun.file(path).text(), { filename: path })
   const script = compileScript(parsed.descriptor, { id })
   const template = compileTemplate({
@@ -17,10 +17,20 @@ export async function compileVueSfc(path: string, id = 'test-sfc') {
   })
   if (template.errors.length) throw new Error(String(template.errors[0]))
 
-  const scriptCode = `const { defineComponent: _defineComponent } = Vue\n${script.content
+  // `vue` 的运行时应先改写成从注入的 Vue 对象解构，再统一剥掉其余 import，
+  // 否则使用 inject/ref/watch 等运行时的 SFC 在这个测试环境里拿不到它们。
+  const rewrittenScript = script.content
+    .replace(/^import\s*\{([^}]+)\}\s*from\s*['"]vue['"];?\s*$/gm, (_match, names: string) =>
+      `const {${names.replace(/\b(\w+)\s+as\s+(\w+)\b/g, '$1: $2')}} = Vue`)
     .replace(/^import(?:[\s\S]*?from\s+)?['"][^'"]+['"];?\s*$/gm, '')
     .replace(/^export type /gm, 'type ')
-    .replace(/^export interface /gm, 'interface ')}`
+    .replace(/^export interface /gm, 'interface ')
+  // `<script setup>` 的编译结果自带 `_defineComponent` 导入（已被上面的改写声明掉）；
+  // 普通 `<script>` 没有，需要补一个。
+  const defineComponentPrefix = /(?:const|let|var)\s*\{[^}]*_defineComponent/.test(rewrittenScript)
+    ? ''
+    : 'const { defineComponent: _defineComponent } = Vue\n'
+  const scriptCode = `${defineComponentPrefix}${rewrittenScript}`
   const templateCode = template.code
     .replace(/import \{([^}]+)\} from "vue"/, (_match, names) => `const {${names.replace(/(\w+) as (\w+)/g, '$1: $2')}} = Vue`)
     .replace('export function render', 'function render')
@@ -29,5 +39,9 @@ ${templateCode}
 __sfc__.render = render
 return __sfc__`
   const executable = new Bun.Transpiler({ loader: 'ts', target: 'esnext' }).transformSync(source)
-  return new Function('Vue', executable)(testVue)
+  // 编译时所有 import 语句都被剥掉，但 `<script setup>` 的 bindingMetadata 仍把导入名
+  // 当作 setup 绑定引用。通过 `bindings` 把这些名字以函数参数注入，就能让单文件 SFC
+  // 依赖其它模块（例如 @sforum/plugin-ui 的组件与注入键）而不破坏现有用例。
+  const names = Object.keys(bindings)
+  return new Function('Vue', ...names, executable)(testVue, ...names.map((name) => bindings[name]))
 }

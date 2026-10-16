@@ -286,16 +286,19 @@ func TestDispatcherFailsClosedForGuardAndSchema(t *testing.T) {
 
 func TestDispatcherIssuesRawAuthorityOnlyAfterExactStepAuthorization(t *testing.T) {
 	tests := []struct {
-		name string
-		step RouteExecutionStep
-		raw  bool
+		name   string
+		step   RouteExecutionStep
+		raw    bool
+		denied bool
 	}{
 		{name: "ordinary", step: dispatchPluginStep(RoutePhaseHandler, "demo.route.ordinary", extensionmanifest.RouteActionAdd)},
-		{name: "direct raw", step: func() RouteExecutionStep {
+		// 决定 R1（2026-10-16）：Host 拥有的 core.guard.raw_request 不再授予 raw 权限，
+		// 该步骤必须在授权阶段就被拒绝，绝不带 raw 权限进入传输层。
+		{name: "legacy core raw refused", step: func() RouteExecutionStep {
 			step := dispatchPluginStep(RoutePhaseHandler, "demo.route.raw", extensionmanifest.RouteActionAdd)
 			step.Guard = extensionmanifest.GuardCoreRaw
 			return step
-		}(), raw: true},
+		}(), denied: true},
 		{name: "declared raw guard", step: func() RouteExecutionStep {
 			step := dispatchPluginStep(RoutePhaseHandler, "demo.route.declared_raw", extensionmanifest.RouteActionAdd)
 			step.Guard = "demo.route.raw_guard"
@@ -333,6 +336,12 @@ func TestDispatcherIssuesRawAuthorityOnlyAfterExactStepAuthorization(t *testing.
 			result, err := dispatcher.Dispatch(
 				context.Background(), DispatchRequest{Method: "POST", Path: "/authority"}, nil,
 			)
+			if test.denied {
+				if err == nil || !errors.Is(err, ErrDispatchDenied) || invoked || result.Handled {
+					t.Fatalf("result=%#v invoked=%v err=%v", result, invoked, err)
+				}
+				return
+			}
 			if err != nil || !result.Handled || !invoked {
 				t.Fatalf("result=%#v invoked=%v err=%v", result, invoked, err)
 			}
@@ -359,7 +368,15 @@ func TestDispatcherLegacyGuardCannotAuthorizeRawRequest(t *testing.T) {
 
 func TestRouteInvocationAuthorityRejectsExactBindingDrift(t *testing.T) {
 	step := dispatchPluginStep(RoutePhaseAfter, "demo.route.bound_raw", extensionmanifest.RouteActionAfter)
-	step.Guard = extensionmanifest.GuardCoreRaw
+	// 决定 R1（2026-10-16）：raw 权限只能来自包内显式声明的 kind=raw_request 守卫。
+	// 继续用 core.guard.raw_request 会让这个响应阶段步骤在授权时被拒绝，而拒绝又会
+	// 被「提交后失败」路径吸收，使整张漂移矩阵静默地不再执行。
+	step.Guard = "demo.route.bound_raw_guard"
+	step.PluginGuard = PluginGuardBinding{
+		ID: step.Guard, ContractVersion: step.Guard + "@1", Kind: "raw_request",
+		Entry: "backend/bound_raw_guard", Digest: strings.Repeat("b", 64),
+	}
+	reached := false
 	request := DispatchRequest{
 		Method: "POST", Path: "/authority", Headers: http.Header{"Cookie": {"session=secret"}},
 		Body: []byte(`{"ok":true}`), ActorID: 42, Authenticated: true,
@@ -371,6 +388,7 @@ func TestRouteInvocationAuthorityRejectsExactBindingDrift(t *testing.T) {
 		Plans: dispatchPlanResolver{plan: plan}, Guard: &dispatchAuthorityGuard{}, Schemas: &dispatchSchemas{},
 		Failures: &recordingRouteFailureSink{},
 		Steps: &dispatchStepInvoker{invoke: func(_ context.Context, input RouteInvocation) (RouteInvocationResult, error) {
+			reached = true
 			if !input.RawRequestAuthorized() {
 				t.Fatal("exact invocation lost raw authority")
 			}
@@ -415,6 +433,9 @@ func TestRouteInvocationAuthorityRejectsExactBindingDrift(t *testing.T) {
 	}}
 	if _, err := dispatcher.Dispatch(context.Background(), request, core); err != nil {
 		t.Fatal(err)
+	}
+	if !reached {
+		t.Fatal("raw-authority drift matrix never reached the exact plugin invocation")
 	}
 }
 

@@ -4,12 +4,14 @@ import "strings"
 
 // CoreReplyPromptVersion 是回复用途提示词的版本。它参与缓存键与执行记录：改动
 // 提示词时必须递增，否则历史记录无法对应到产出它的那版提示词。
+// forum-reply@6：网关不再向 system 追加任何宿主文本（此前追加的是自我身份声明
+// identity@1）。提示词正文没动，但模型读到的内容不同，版本必须跟上。
 // forum-reply@5：网关开始注入自我身份声明（identity@1），回复用途实际生效的
 // 系统指令因此变了——提示词正文没动，但模型读到的内容不同，版本必须跟上。
 // forum-reply@4：发言标签改为「显示名（@用户名）」并声明成员检索工具。
 // forum-reply@3：默认提示词不再包含字面量尖括号标签（富文本编辑器会剥离它）。
 // forum-reply@2：主楼正文进入上下文、站内工具与引用要求写进系统指令。
-const CoreReplyPromptVersion = "forum-reply@5"
+const CoreReplyPromptVersion = "forum-reply@6"
 
 // CoreReplyToolAllowlist 是回复用途声明的默认模型可见工具。
 //
@@ -146,8 +148,10 @@ func (r ReplySettings) Customized() bool {
 
 // CoreTriagePromptVersion 是自主参与判定（triage）提示词的版本，规则与回复
 // 用途相同：改动提示词必须递增，否则历史执行记录无法对应产出它的那版提示词。
+// forum-reply-triage@3：网关不再向 system 追加任何宿主文本；判定用途实际生效的
+// 系统指令因此回到「内置判定指令本身」。
 // forum-reply-triage@2：网关开始注入自我身份声明，判定用途实际生效的系统指令变了。
-const CoreTriagePromptVersion = "forum-reply-triage@2"
+const CoreTriagePromptVersion = "forum-reply-triage@3"
 
 // DefaultTriageSystemPrompt 是自主参与判定的内置系统指令。它与回复提示词分离：
 // 判定只需要「这条发言是否在向 AI 或社区提出一个值得回答的问题」，不需要回复

@@ -12,6 +12,7 @@ import { useTopicSelectionQuoteReply } from '~/composables/forum/useTopicSelecti
 import { useForumImageViewer } from '~/composables/forum/useForumImageViewer'
 import SFReportDialog from '~/components/moderation/SFReportDialog.vue'
 import SFTopicSideCard from '~/components/forum/SFTopicSideCard.vue'
+import SFTopicMobileInfoDrawer from '~/components/forum/SFTopicMobileInfoDrawer.vue'
 import SFTopicReplyComposer from '~/components/forum/SFTopicReplyComposer.vue'
 import SFTopicCommentComposerDrawer from '~/components/forum/SFTopicCommentComposerDrawer.vue'
 import SFTopicHeading from '~/components/forum/SFTopicHeading.vue'
@@ -24,8 +25,6 @@ import SFCommentStreamNotice from '~/components/forum/SFCommentStreamNotice.vue'
 import SFMentionContent from '~/components/forum/SFMentionContent.vue'
 import SFUserMentionPreview from '~/components/forum/SFUserMentionPreview.vue'
 import SFSelectionQuoteAction from '~/components/forum/SFSelectionQuoteAction.vue'
-import SFPublicMobileRightDrawerHeader from '~/components/navigation/SFPublicMobileRightDrawerHeader.vue'
-import SFPublicMobileUserMenu from '~/components/navigation/SFPublicMobileUserMenu.vue'
 import { usePublicSidebarDrawer } from '~/composables/navigation/usePublicSidebarDrawer'
 import { buildAuthPageLink } from '~/utils/identity/authReturn'
 /**
@@ -900,7 +899,7 @@ async function shareTopic() {
                       @select="handleTopicActionSelect"
                     />
                   </div>
-
+                  <SFRegionOutlet page="forum.topic.show" region="detail_before" />
                   <div class="sforum-topic-page__post-card">
                     <!-- 正文（后端已 sanitize）；v-highlight 高亮代码块，SFMentionContent 负责 @提及 链接化与预览 -->
                     <SFMentionContent v-highlight class="sforum-topic-page__prose sf-prose" data-sforum-image-gallery="topic" data-selection-quote-source="topic" :html="sanitizeHtml(topic.content.htmlContent)" />
@@ -931,7 +930,7 @@ async function shareTopic() {
                     />
                   </div>
                 </article>
-
+                <SFRegionOutlet page="forum.topic.show" region="detail_after" />
                 <section id="topic-latest" class="sforum-topic-comments">
                   <header class="sf-comment-stream-controls">
                     <div>
@@ -947,7 +946,7 @@ async function shareTopic() {
                       {{ t('topicDetail.progress.latest') }}
                     </a>
                   </header>
-
+                  <SFRegionOutlet page="forum.topic.show" region="comments_before" />
                   <div v-if="commentsError" class="sforum-topic-comments__error">
                     <SFAlert variant="danger" :title="t('topicDetail.commentsLoadFailed')" />
                     <SFButton variant="ghost" size="sm" @click="() => { void refreshComments() }">
@@ -1044,6 +1043,7 @@ async function shareTopic() {
                     :title="t('topicDetail.lockedNotice')"
                     closable
                   />
+                  <SFRegionOutlet page="forum.topic.show" region="comments_after" />
                 </section>
               </div>
             </div>
@@ -1066,7 +1066,9 @@ async function shareTopic() {
         :latest-comment-id="comments[comments.length - 1]?.id"
         :extension-sidebar="topic.extensionSidebar || []"
       >
+        <SFRegionOutlet page="forum.topic.show" region="sidebar_top" />
         <SFRegionOutlet page="forum.topic.show" region="sidebar" />
+        <SFRegionOutlet page="forum.topic.show" region="sidebar_bottom" />
       </SFTopicSideCard>
     </div>
 
@@ -1078,24 +1080,16 @@ async function shareTopic() {
       @click="closeMobileDrawers"
     />
 
-    <aside v-if="mobileInfoOpen && topic" class="sforum-mobile-drawer sforum-mobile-drawer--right">
-      <SFPublicMobileRightDrawerHeader
-        :title="t('topicDetail.side.title')"
-        :close-label="t('topicDetail.cancel')"
-        @close="closeMobileDrawers"
-      />
-      <SFPublicMobileUserMenu />
-      <SFTopicSideCard
-        :topic="topic"
-        :author-name="authorName"
-        :author-to="authorPath"
-        :tags="headingTags"
-        :category-to="categoryPath(topic.categorySlug)"
-        :first-comment-id="comments[0]?.id"
-        :latest-comment-id="comments[comments.length - 1]?.id"
-        :extension-sidebar="topic.extensionSidebar || []"
-      />
-    </aside>
+    <SFTopicMobileInfoDrawer
+      v-if="mobileInfoOpen && topic"
+      :topic="topic"
+      :author-name="authorName"
+      :author-to="authorPath"
+      :tags="headingTags"
+      :category-to="categoryPath(topic.categorySlug)"
+      :comments="comments"
+      @close="closeMobileDrawers"
+    />
 
     <SFTopicCommentComposerDrawer
       v-if="topic"

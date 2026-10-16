@@ -314,6 +314,31 @@ func (r *ComponentRegistry) ValidateRemoveRuntime(extensionID, instanceID string
 	return err
 }
 
+// PublishComponentPackageRuntime 注册一个扩展包的公开 L2 组件运行时。
+// 实例 id 由 componentPackageRuntimeInstanceID 按 type+id+version+digest 派生，
+// 因此「启动恢复」（RestoreRuntimes）与「生命周期启用」得到同一注册结果。
+// 无组件声明的包是空操作，便于调用方无条件下发。
+func (r *ComponentRegistry) PublishComponentPackageRuntime(extension extensions.Extension) error {
+	if r == nil || len(extension.Manifest.Components) == 0 ||
+		extension.Status != extensions.StatusEnabled {
+		return nil
+	}
+	return r.ReplaceRuntime(extension, componentPackageRuntimeInstanceID(extension))
+}
+
+// RemoveComponentPackageRuntime 移除该包的组件运行时注册（禁用/卸载收敛）。
+// 未注册时返回 false，不视为错误。
+func (r *ComponentRegistry) RemoveComponentPackageRuntime(extensionID string) (bool, error) {
+	if r == nil || strings.TrimSpace(extensionID) == "" {
+		return false, nil
+	}
+	registration, found := r.RuntimeSnapshot(extensionID)
+	if !found {
+		return false, nil
+	}
+	return r.RemoveRuntime(extensionID, registration.InstanceID)
+}
+
 func (r *ComponentRegistry) RemoveRuntime(extensionID, instanceID string) (bool, error) {
 	if r == nil || strings.TrimSpace(extensionID) == "" || strings.TrimSpace(instanceID) == "" {
 		return false, ErrComponentRegistryInvalid

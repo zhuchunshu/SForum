@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -95,9 +96,13 @@ func ValidateDataRoute(route string) error {
 	if !strings.HasPrefix(route, "/") {
 		route = "/" + route
 	}
-	// 禁止指向宿主敏感前缀（即便经插件代理）
+	// 禁止指向宿主敏感前缀（即便经插件代理）。
+	//
+	// 修正（R2，2026-10-16）：此前用 `bad + "/"` 拼前缀，导致带尾斜杠的 "/api/" 实际
+	// 只匹配 "/api//"，于是 "/api/anything" 能通过校验。改为按去尾斜杠后的段前缀比较，
+	// 让 /admin、/api、/control-panel 及其子路径都被拒绝。
 	lower := strings.ToLower(route)
-	for _, bad := range []string{"/admin", "/api/", "/control-panel"} {
+	for _, bad := range []string{"/admin", "/api", "/control-panel"} {
 		if lower == bad || strings.HasPrefix(lower, bad+"/") {
 			return fmt.Errorf("pages: data route reserved")
 		}
@@ -239,6 +244,13 @@ func (l *PageDataLoader) Fetch(ctx context.Context, in LoaderRequest) LoaderResu
 	if err != nil {
 		return LoaderResult{Error: "pages: loader read failed", Fallback: true, Status: 502}
 	}
+	return validateLoaderDocument(in, body, resp.StatusCode)
+}
+
+// validateLoaderDocument 是所有 loader 传输共用的响应后校验：大小上限、JSON 结构、
+// 敏感键粗检、可选 schema。HTTP（loopback）与 Protocol V2 两条传输必须走同一份校验，
+// 否则两条路径的安全边界会漂移。
+func validateLoaderDocument(in LoaderRequest, body []byte, status int) LoaderResult {
 	if len(body) > MaxLoaderResponseBytes {
 		return LoaderResult{Error: "pages: loader response too large", Fallback: true, Status: 502}
 	}
@@ -249,21 +261,81 @@ func (l *PageDataLoader) Fetch(ctx context.Context, in LoaderRequest) LoaderResu
 	if !json.Valid(trim) {
 		return LoaderResult{Error: "pages: loader invalid json", Fallback: true, Status: 502}
 	}
-	// 粗检敏感键
 	lowerBody := strings.ToLower(string(trim))
 	for _, sens := range []string{`"password"`, `"secret"`, `"private_key"`, `"session_token"`, `"csrf"`, `"authorization"`} {
 		if strings.Contains(lowerBody, sens) {
 			return LoaderResult{Error: "pages: loader response contains sensitive keys", Fallback: true, Status: 502}
 		}
 	}
-	// 可选 JSON Schema（轻量：若声明了 schema 且响应不是 object/array 结构则已在上面拒绝；
-	// 完整 schema 校验在 gateway 层用声明文件做 required 字段检查时可扩展）
 	if schema := strings.TrimSpace(in.SchemaJSON); schema != "" {
 		if err := validateAgainstSimpleSchema(trim, schema); err != nil {
 			return LoaderResult{Error: "pages: loader schema validation failed: " + err.Error(), Fallback: true, Status: 502}
 		}
 	}
-	return LoaderResult{Data: json.RawMessage(trim), Status: resp.StatusCode}
+	if status == 0 {
+		status = 200
+	}
+	return LoaderResult{Data: json.RawMessage(trim), Status: status}
+}
+
+// ErrLoaderRouteRefused 表示「这条数据路由不允许被 loader 调用」（未声明、守卫非公开、
+// 制品不匹配等），而不是调用失败。两者必须可区分：拒绝要给出稳定且可解释的回退，
+// 传输失败才报 loader request failed。
+var ErrLoaderRouteRefused = errors.New("pages: plugin page data route refused")
+
+// LoaderDocumentFunc 是宿主经 Protocol V2 向插件取页面数据的调用闭包：
+// 由 bootstrap 适配层绑定到 exact runtime instance 与 admission lease，因此这里
+// 只接收已解析的语义输入，不接触 HTTP、loopback 或任意 URL。
+// 返回值是插件返回的**原始 JSON 文档**与状态码；校验统一由 validateLoaderDocument 负责。
+type LoaderDocumentFunc func(
+	ctx context.Context,
+	route string,
+	params map[string]string,
+	locale string,
+	actorID int64,
+) ([]byte, int, error)
+
+// FetchV2 经 Protocol V2 取数：与 Fetch 共用路由校验、超时与响应后校验，
+// 但不要求 loopback BaseURL（V2 明确拒绝 loopback，见 protocol_v2_client 的目标校验）。
+func (l *PageDataLoader) FetchV2(ctx context.Context, in LoaderRequest, invoke LoaderDocumentFunc) LoaderResult {
+	if invoke == nil {
+		return LoaderResult{Error: "pages: plugin runtime unavailable", Fallback: true, Status: 503}
+	}
+	if err := ValidateDataRoute(in.Route); err != nil {
+		return LoaderResult{Error: err.Error(), Fallback: true, Status: 422}
+	}
+	route := strings.TrimSpace(in.Route)
+	if !strings.HasPrefix(route, "/") {
+		route = "/" + route
+	}
+	timeout := in.Timeout
+	if timeout <= 0 {
+		timeout = DefaultLoaderTimeout
+	}
+	if timeout > MaxLoaderTimeout {
+		timeout = MaxLoaderTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	body, status, err := invoke(ctx, route, in.Params, in.Locale, in.ActorID)
+	if err != nil {
+		if errors.Is(err, ErrLoaderRouteRefused) {
+			return LoaderResult{
+				Error: "pages: plugin page data route unavailable", Fallback: true, Status: 503,
+			}
+		}
+		return LoaderResult{Error: "pages: loader request failed", Fallback: true, Status: 504}
+	}
+	if status == http.StatusUnauthorized {
+		return LoaderResult{Error: "auth.required", Status: 401, Fallback: true}
+	}
+	if status == http.StatusForbidden {
+		return LoaderResult{Error: "permission.denied", Status: 403, Fallback: true}
+	}
+	if status < 200 || status >= 300 {
+		return LoaderResult{Error: fmt.Sprintf("pages: loader status %d", status), Status: status, Fallback: true}
+	}
+	return validateLoaderDocument(in, body, status)
 }
 
 // validateAgainstSimpleSchema 轻量 schema 校验：支持 type + required 字段列表的 JSON Schema 子集。

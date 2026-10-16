@@ -18,6 +18,7 @@ import {
 import { loadPublicFrontendRelease } from '~/runtime/public-extensions/assets'
 import { createPublicFrontendLeaseMonitor } from '~/runtime/public-extensions/lease'
 import { mountPublicFrontendModule } from '~/runtime/public-extensions/mount'
+import { hostIconResolver } from '~/utils/icons/hostIcons'
 import {
   clearPublicContributionFailures,
   publicContributionFailureKey,
@@ -132,6 +133,7 @@ function bridge(current: PublicFrontendComponentDescriptor): PublicFrontendBridg
     componentId: current.componentId,
     locale: locale.value,
     appearance: Object.freeze(appearance()),
+    icons: hostIconResolver,
     props: Object.freeze({ ...props.componentProps }),
     ssrRoot: ssrRoot.value,
     request: async <T>(path: string, options: Record<string, unknown> = {}) => {

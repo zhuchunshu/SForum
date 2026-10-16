@@ -82,8 +82,10 @@ const DiagnosePurpose = "admin.connectivity_test"
 const DefaultDiagnoseMessage = "请只回复两个字：收到"
 
 // DiagnosePromptVersion 参与缓存键与执行记录，改动探测提示词时递增。
+// diagnose@3：网关不再向 system 追加任何宿主文本；探测用途实际生效的系统指令
+// 回到探测消息本身。
 // diagnose@2：网关开始注入自我身份声明，探测用途实际生效的系统指令变了。
-const DiagnosePromptVersion = "diagnose@2"
+const DiagnosePromptVersion = "diagnose@3"
 
 // DiagnoseMaxTokens 是探测调用的输出预算。它刻意比「请只回复两个字」所需的
 // token 多得多：推理类模型会先把预算消耗在思考上，64 个 token 几乎必然被耗尽，

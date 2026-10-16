@@ -21,6 +21,7 @@
 - `topic.unpinned`
 - `category.created`
 - `category.updated`
+- `category.deleted`
 - `tag.created`
 - `tag.updated`
 - `comment.before_create`

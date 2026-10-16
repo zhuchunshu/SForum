@@ -236,3 +236,36 @@ func TestNegotiateAcceptLanguage(t *testing.T) {
 		t.Fatalf("expected zh-CN fallback, got %q", got)
 	}
 }
+
+// 主题激活失败文案必须同时点名两族原因，否则作者拿到的唯一线索就是一句泛化提示。
+// 两族：①包内声明不精确（模板 / 组件 schema / theme.json 映射 / assets）；
+// ②残留状态挡住切换（组件注册表栅栏外的主题运行时、既不匹配旧主题也不匹配新主题的资源发布）。
+// 文案还必须把作者指向事件日志与「错误文本指明失败的预检层」。
+// 背景与证据：knowledge/decisions/2026-10-16-theme-activation-preflight-truth.md
+func TestThemeActivationFailureMessageNamesBothCauses(t *testing.T) {
+	for _, locale := range []string{"zh-CN", "en-US"} {
+		message := Message(locale, "extension.build_failed")
+		if message == "" || message == "extension.build_failed" {
+			t.Fatalf("%s: extension.build_failed must have localized text, got %q", locale, message)
+		}
+		// 声明族：必须提到 packageFiles / theme.json 与 assets 这类包内声明。
+		for _, fragment := range []string{"packageFiles", "theme.json"} {
+			if !strings.Contains(message, fragment) {
+				t.Fatalf("%s: activation failure copy must mention %q, got %q", locale, fragment, message)
+			}
+		}
+		// 残留状态族：必须提到「上一次未清理的卸载/禁用」这一来源，而不是只讲包。
+		mentionsStaleState := strings.Contains(message, "uninstall") || strings.Contains(message, "disable") ||
+			strings.Contains(message, "卸载") || strings.Contains(message, "禁用")
+		if !mentionsStaleState {
+			t.Fatalf("%s: activation failure copy must mention leftover uninstall/disable state, got %q", locale, message)
+		}
+		// 细节去向：事件日志 + 失败层。
+		if !strings.Contains(message, "log") && !strings.Contains(message, "日志") {
+			t.Fatalf("%s: activation failure copy must point at the event log, got %q", locale, message)
+		}
+		if !strings.Contains(message, "preflight") && !strings.Contains(message, "预检") {
+			t.Fatalf("%s: activation failure copy must say the error names the preflight layer, got %q", locale, message)
+		}
+	}
+}

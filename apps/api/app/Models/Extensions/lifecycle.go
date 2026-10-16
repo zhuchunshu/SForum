@@ -338,6 +338,8 @@ func (s *LifecycleService) UninstallWithResult(ctx context.Context, actor identi
 		"identityRetained": identityRetained,
 		// v1：settings 随 extensions CASCADE 删除；RetainSettings 记入审计供后续独立备份表使用。
 	})
+	// 卸载后该扩展的插件会话状态不得残留（同 id 重装不得读到上一份字节）。
+	erasePluginSessionState(ctx, s.serviceCore, extension.ID)
 	return UninstallResult{Uninstalled: true, ExtensionID: extension.ID}, nil
 }
 

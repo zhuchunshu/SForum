@@ -122,17 +122,25 @@ func (s *PostgresStore) confirmPasswordResetAtomic(ctx context.Context, tokenHas
 		return 0, fmt.Errorf("increment user token version: %w", err)
 	}
 
-	if _, err := tx.Exec(ctx, `
+	rows, err := tx.Query(ctx, `
 		UPDATE user_sessions
 		SET revoked_at = now(), revoke_reason = $2
 		WHERE user_id = $1 AND revoked_at IS NULL
-	`, userID, revokeReason); err != nil {
+		RETURNING sid
+	`, userID, revokeReason)
+	if err != nil {
 		return 0, fmt.Errorf("revoke user sessions: %w", err)
+	}
+	revokedSIDs, err := collectRevokedSIDs(rows)
+	if err != nil {
+		return 0, fmt.Errorf("collect revoked sessions: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return 0, fmt.Errorf("commit password reset confirm: %w", err)
 	}
+	// 改密即等于「所有旧会话结束」：插件状态同样不得残留（提交后才擦除）。
+	s.dropPluginSessionState(ctx, revokedSIDs)
 	return userID, nil
 }
 

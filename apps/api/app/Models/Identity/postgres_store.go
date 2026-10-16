@@ -23,6 +23,9 @@ type PostgresStore struct {
 	queries               *store.Queries
 	avatarBuilder         *avatar.ViewBuilder
 	authorityMutationGate IdentityAuthorityMutationGate
+	// pluginSessionState 是装配层注入的插件命名空间会话状态擦除钩子；
+	// 未注入时撤销/踢出/改密全部照常，只是不主动擦除那些字节。见 plugin_session_state.go。
+	pluginSessionState PluginSessionStateInvalidator
 }
 
 // IdentityAuthorityMutationGate keeps user-row authority writers outside the

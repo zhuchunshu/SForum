@@ -8,6 +8,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	apphttp "github.com/zhuchunshu/sforum/apps/api/app/Http"
 	extensionscontroller "github.com/zhuchunshu/sforum/apps/api/app/Http/Controllers/Extensions"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -101,6 +102,14 @@ func (p *ExtensionsProvider) WithProviderSlotSelection(
 func (p *ExtensionsProvider) WithRouteInspector(inspector *routes.Inspector) *ExtensionsProvider {
 	if p != nil && p.controller != nil {
 		p.controller.WithRouteInspector(inspector)
+	}
+	return p
+}
+
+// WithRouteIncidentReader 透传崩溃循环隔离持久状态的只读边界。
+func (p *ExtensionsProvider) WithRouteIncidentReader(reader apphttp.RouteRuntimeIncidentReader) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithRouteIncidentReader(reader)
 	}
 	return p
 }

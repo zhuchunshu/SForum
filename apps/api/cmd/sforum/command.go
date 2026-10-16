@@ -28,6 +28,16 @@ type makeOptions struct {
 	ProviderSlot     string
 	// Complex 生成 multi-file manifest（includes + langs 目录 + settings 分片示例）。
 	Complex bool
+	// PublicPage 生成一个公开 Page Registry 页（add 路径 + L1 模板 + 精确声明）。
+	PublicPage string
+	// PublicPageLayout 是公开页的 layout：site（默认）| bare。
+	PublicPageLayout string
+	// SchemaPage 生成一个 view=schema 的公开页（有界描述符 + 包内契约），无 Vue/无 Go 模板。
+	SchemaPage string
+	// SchemaPageKind 是描述符种类：list（默认）| detail | form | notice。
+	SchemaPageKind string
+	// RouteMiddleware 生成 before/after 请求-响应补丁路由与示例处理器。
+	RouteMiddleware bool
 }
 
 func newRootCommand() *cobra.Command {
@@ -44,6 +54,7 @@ func newRootCommand() *cobra.Command {
 		newSeedCommand(),
 		newSeedPerfCommand(),
 		newUsersResetPasswordCommand(),
+		newPrivacyEraseUserCommand(),
 		newRevisionsCommand(),
 		newExtensionCommand(),
 		newDevCleanupOrphanPluginsCommand(),
@@ -92,7 +103,12 @@ func newMakeCommand(kind string) *cobra.Command {
 	cmd.Flags().StringVar(&opts.Out, "out", "", "Output directory for this package")
 	cmd.Flags().BoolVar(&opts.Builtin, "builtin", false, "Create under extensions/builtin instead of extensions/dev")
 	cmd.Flags().BoolVar(&opts.NoInteraction, "no-interaction", false, "Disable interactive prompts")
+	cmd.Flags().StringVar(&opts.PublicPage, "public-page", "", "Add a public Page Registry page with this path slot, such as docs (path /docs)")
+	cmd.Flags().StringVar(&opts.PublicPageLayout, "public-page-layout", "site", "Layout for --public-page: site (default) or bare")
+	cmd.Flags().StringVar(&opts.SchemaPage, "schema-page", "", "Add a declarative view=schema public page with this path slot, such as orders (path /orders)")
+	cmd.Flags().StringVar(&opts.SchemaPageKind, "schema-page-kind", "list", "Descriptor kind for --schema-page: list (default) | detail | form | notice")
 	if kind == "plugin" {
+		cmd.Flags().BoolVar(&opts.RouteMiddleware, "route-middleware", false, "Add a before request patch and an after response patch route (requires --backend)")
 		cmd.Flags().BoolVar(&opts.Backend, "backend", false, "Include a backend plugin stub")
 		cmd.Flags().BoolVar(&opts.Complex, "complex", false, "Scaffold multi-file manifest (includes + langs + settings shards)")
 		cmd.Flags().BoolVar(&opts.PrebuiltSettings, "prebuilt-settings", false, "Include an author-prebuilt Admin Micro-frontend API v1 settings component with Schema fallback")
@@ -134,6 +150,26 @@ func promptMakeOptions(opts *makeOptions) error {
 				huh.NewConfirm().Title("Prebuilt settings component?").Description("Author-built .mjs with Schema fallback; operators do not rebuild SForum.").Value(&opts.PrebuiltSettings),
 				huh.NewConfirm().Title("Vue admin page?").Description("Builds a first-class page with the Plugin UI SDK inside the Host admin shell.").Value(&opts.VueAdminPage),
 				huh.NewInput().Title("Provider slot (optional)").Description("Adds a provider_probe action; requires backend stub.").Value(&opts.ProviderSlot),
+				huh.NewInput().Title("Public page (optional)").Description("Adds a public Page Registry page at /<slug>; leave empty for none.").Value(&opts.PublicPage),
+				huh.NewConfirm().Title("Route middleware?").Description("Adds a before request patch and an after response patch; requires backend stub.").Value(&opts.RouteMiddleware),
+			),
+		)
+	} else {
+		form = huh.NewForm(
+			huh.NewGroup(
+				huh.NewInput().Title("Extension ID").Description("Use a stable id such as acme.skin.").Value(&opts.ID),
+				huh.NewInput().Title("Name").Value(&opts.Name),
+				huh.NewInput().Title("Description").Value(&opts.Description),
+				huh.NewInput().Title("Official URL").Value(&opts.URL),
+				huh.NewInput().Title("Author name").Value(&opts.AuthorName),
+				huh.NewInput().Title("Author URL").Value(&opts.AuthorURL),
+				huh.NewInput().Title("Author email").Value(&opts.AuthorEmail),
+				huh.NewConfirm().Title("Prebuilt settings component?").Description("Author-built .mjs with Schema fallback.").Value(&opts.PrebuiltSettings),
+				huh.NewInput().Title("Public page (optional)").Description("Adds a public Page Registry page at /<slug>; leave empty for none.").Value(&opts.PublicPage),
+				huh.NewSelect[string]().Title("Public page layout").Options(
+					huh.NewOption("site (theme owns the shell)", "site"),
+					huh.NewOption("bare (page owns its chrome)", "bare"),
+				).Value(&opts.PublicPageLayout),
 			),
 		)
 	}

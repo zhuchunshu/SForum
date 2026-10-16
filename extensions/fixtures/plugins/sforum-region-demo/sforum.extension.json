@@ -1,82 +1,108 @@
 {
-  "manifestVersion": 3,
-  "id": "sforum.region.demo",
-  "name": "Region Demo Fixture",
-  "description": "CI fixture for forum.page.regions placements: hostLink card, extensionRoute action card (setting-gated), and an l2Widget reference.",
-  "url": "https://github.com/zhuchunshu/sforum",
   "author": {
     "name": "SForum",
     "url": "https://github.com/zhuchunshu/sforum"
   },
-  "version": "1.0.0",
-  "type": "plugin",
-  "sforumVersion": ">=0.1.0",
-  "settings": [
-    {
-      "key": "show_action_card",
-      "label": { "zh-CN": "显示动作卡", "en-US": "Show action card" },
-      "type": "boolean",
-      "default": "false"
-    }
-  ],
-  "contributions": [
-    {
-      "point": "forum.page.regions",
-      "id": "sforum.region.demo.tags-card",
-      "order": 10,
-      "label": { "en-US": "Browse tags", "zh-CN": "浏览标签" },
-      "icon": "i-lucide-tags",
-      "payload": {
-        "type": "hostLink",
-        "pages": ["forum.home", "forum.tag.index"],
-        "region": "content_after",
-        "href": "/tags"
-      }
-    },
-    {
-      "point": "forum.page.regions",
-      "id": "sforum.region.demo.ping-card",
-      "order": 20,
-      "label": { "en-US": "Region Ping", "zh-CN": "区域探测" },
-      "icon": "i-lucide-zap",
-      "enabledBySetting": "show_action_card",
-      "payload": {
-        "type": "extensionRoute",
-        "pages": ["forum.topic.show"],
-        "region": "sidebar",
-        "method": "POST",
-        "path": "/region/ping"
-      }
-    },
-    {
-      "point": "forum.page.regions",
-      "id": "sforum.region.demo.widget",
-      "order": 30,
-      "label": { "en-US": "Region Widget", "zh-CN": "区域组件" },
-      "payload": {
-        "type": "l2Widget",
-        "pages": ["forum.topic.show"],
-        "region": "sidebar",
-        "componentId": "sforum.region.demo.component.card"
-      }
-    }
-  ],
   "components": [
     {
-      "id": "sforum.region.demo.component.card",
-      "contractVersion": "sforum.region.demo.component.card@1",
       "action": "add",
+      "contractVersion": "sforum.region.demo.component.card@1",
+      "id": "sforum.region.demo.component.card",
       "l2Component": "sforum.region.demo.file.frontend.card",
       "propsSchema": "sforum.region.demo.component.card.props@1"
     }
   ],
+  "contributions": [
+    {
+      "icon": "i-lucide-tags",
+      "id": "sforum.region.demo.tags-card",
+      "label": {
+        "en-US": "Browse tags",
+        "zh-CN": "浏览标签"
+      },
+      "order": 10,
+      "payload": {
+        "href": "/tags",
+        "pages": [
+          "forum.home",
+          "forum.tag.index"
+        ],
+        "region": "content_after",
+        "type": "hostLink"
+      },
+      "point": "forum.page.regions"
+    },
+    {
+      "enabledBySetting": "show_action_card",
+      "icon": "i-lucide-zap",
+      "id": "sforum.region.demo.ping-card",
+      "label": {
+        "en-US": "Region Ping",
+        "zh-CN": "区域探测"
+      },
+      "order": 20,
+      "payload": {
+        "method": "POST",
+        "pages": [
+          "forum.topic.show"
+        ],
+        "path": "/region/ping",
+        "region": "sidebar",
+        "type": "extensionRoute"
+      },
+      "point": "forum.page.regions"
+    },
+    {
+      "id": "sforum.region.demo.widget",
+      "label": {
+        "en-US": "Region Widget",
+        "zh-CN": "区域组件"
+      },
+      "order": 30,
+      "payload": {
+        "componentId": "sforum.region.demo.component.card",
+        "pages": [
+          "forum.topic.show"
+        ],
+        "region": "sidebar",
+        "type": "l2Widget"
+      },
+      "point": "forum.page.regions"
+    }
+  ],
+  "description": "CI fixture for forum.page.regions placements: hostLink card, extensionRoute action card (setting-gated), and an l2Widget reference.",
+  "id": "sforum.region.demo",
+  "manifestVersion": 3,
+  "name": "Region Demo Fixture",
   "packageFiles": [
     {
+      "digest": "30c5e43ea9250e49e6cced93e34a47c963062fc7a6e4c6f95092ebe883a74f13",
+      "id": "sforum.region.demo.component.card.props",
+      "kind": "schema",
+      "path": "schemas/region-card-props.json",
+      "version": "1"
+    },
+    {
+      "digest": "ee199c02cfd74e8bd1a209eeaf399ce4d6a826d2e99bf6a282d1cdf8cdb77fd0",
       "id": "sforum.region.demo.file.frontend.card",
       "kind": "frontend",
       "path": "frontend/region-card.mjs",
-      "digest": "1e4f3f115ed66205991d03c021087e17fab5ea58d002ae74a1832bd34ca1105e",
       "version": "1"
     }
-  ]
+  ],
+  "settings": [
+    {
+      "default": "false",
+      "key": "show_action_card",
+      "label": {
+        "en-US": "Show action card",
+        "zh-CN": "显示动作卡"
+      },
+      "type": "boolean"
+    }
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "type": "plugin",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "version": "1.0.0"
 }

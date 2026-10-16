@@ -49,7 +49,24 @@ func (s *SettingsService) ExecuteSettingsAction(
 		}
 		s.appendAudit(ctx, actor, audit.ActionExtensionSettingsAction, metadata)
 	}()
-	if action.Kind != extensionmanifest.SettingsActionProviderProbe || s.settingsActions == nil || extension.Manifest.Backend.Entry == "" {
+	if s.settingsActions == nil || extension.Manifest.Backend.Entry == "" {
+		return result, ErrSettingsActionUnavailable
+	}
+	// 两条探测路径互斥：provider_probe 需要一个 provider slot，ai_tool_probe
+	// 需要一个已声明的 AI 工具；其余 kind 一律不可执行。
+	probeRequest := SettingsActionProbeRequest{}
+	switch action.Kind {
+	case extensionmanifest.SettingsActionProviderProbe:
+		probeRequest.ProviderSlot = settingsActionProviderSlot(extension.Manifest)
+		if probeRequest.ProviderSlot == "" {
+			return result, ErrSettingsActionUnavailable
+		}
+	case extensionmanifest.SettingsActionAIToolProbe:
+		if !settingsActionToolDeclared(extension.Manifest, action.Tool) {
+			return result, ErrSettingsActionUnavailable
+		}
+		probeRequest.AIToolID = action.Tool
+	default:
 		return result, ErrSettingsActionUnavailable
 	}
 	current, err := s.listDecryptedSettings(ctx, extension)
@@ -60,21 +77,35 @@ func (s *SettingsService) ExecuteSettingsAction(
 	if err != nil {
 		return result, err
 	}
-	slot := settingsActionProviderSlot(extension.Manifest)
-	if slot == "" {
-		return result, ErrSettingsActionUnavailable
-	}
+	probeRequest.Values = values
 	actionCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	probe, err := s.settingsActions.ProbeSettingsAction(actionCtx, extension, slot, values)
+	probe, err := s.settingsActions.ProbeSettingsAction(actionCtx, extension, probeRequest)
 	if err != nil {
 		return result, fmt.Errorf("%w: %v", ErrSettingsActionUnavailable, err)
 	}
+	// AI 工具路径的 Details/Suggestions 恒为空：工具结果契约只有 content/isError，
+	// 所有给人看的说明都由插件放进 message 文本里。
 	return SettingsActionResult{
 		Success: probe.OK, Reason: boundedActionText(probe.Reason, 256), Message: boundedActionText(probe.Message, 4096),
 		Details: boundedActionDetails(probe.Details), Suggestions: boundedActionSuggestions(probe.Suggestions),
 		DurationMS: time.Since(started).Milliseconds(),
 	}, nil
+}
+
+// settingsActionToolDeclared 判断工具 id 是否为本插件声明的 AI 工具：必须落在
+// 插件命名空间下，且逐字匹配 manifest.aiTools[].id。
+func settingsActionToolDeclared(manifest Manifest, tool string) bool {
+	tool = strings.TrimSpace(tool)
+	if !extensionmanifest.IsOwnedID(manifest.ID, tool) {
+		return false
+	}
+	for _, declaration := range manifest.AITools {
+		if declaration.ID == tool {
+			return true
+		}
+	}
+	return false
 }
 
 func declaredSettingsAction(manifest Manifest, actionID string) (SettingsAction, bool) {

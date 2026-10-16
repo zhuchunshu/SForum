@@ -52,6 +52,10 @@
     {
       "id": "core.component.admin.sf_admin_gamification_levels_tab",
       "contractVersion": "sforum.component.admin.sf_admin_gamification_levels_tab@1"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_identity_block",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_identity_block@1"
     }
   ]
 }

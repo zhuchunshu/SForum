@@ -86,7 +86,7 @@ func resolveExtensionSettings(extension Extension, values map[string]string, loc
 	}
 	actions := make([]ExtensionSettingsAction, 0, len(document.Actions))
 	for _, action := range document.Actions {
-		available := extension.Type == TypePlugin && extension.Manifest.Backend.Entry != "" && len(extension.Manifest.Providers) > 0
+		available := settingsActionAvailable(extension, action)
 		reason := ""
 		if !available {
 			reason = "extension.settings_action_unavailable"
@@ -94,7 +94,7 @@ func resolveExtensionSettings(extension Extension, values map[string]string, loc
 		actions = append(actions, ExtensionSettingsAction{
 			ID: action.ID, Kind: action.Kind, Label: action.Label.Resolve(locale), Description: action.Description.Resolve(locale),
 			Placement: action.Placement, UseDraftValues: action.UseDraftValues, Fields: append([]string(nil), action.Fields...),
-			Available: available, UnavailableReason: reason,
+			Tool: action.Tool, Available: available, UnavailableReason: reason,
 		})
 	}
 	return ExtensionSettings{
@@ -322,6 +322,23 @@ func settingsDataVersion(manifest Manifest) int {
 		return 1
 	}
 	return v
+}
+
+// settingsActionAvailable 判断设置页动作在当前制品上是否可执行。
+// 两种 kind 都要求可执行插件后端，但各自还需要自己那条声明：
+// provider_probe 需要 provider slot，ai_tool_probe 需要已声明的 AI 工具。
+func settingsActionAvailable(extension Extension, action SettingsAction) bool {
+	if extension.Type != TypePlugin || extension.Manifest.Backend.Entry == "" {
+		return false
+	}
+	switch action.Kind {
+	case extensionmanifest.SettingsActionProviderProbe:
+		return len(extension.Manifest.Providers) > 0
+	case extensionmanifest.SettingsActionAIToolProbe:
+		return settingsActionToolDeclared(extension.Manifest, action.Tool)
+	default:
+		return false
+	}
 }
 
 func settingsActorID(actor identity.Actor) string {

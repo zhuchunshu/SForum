@@ -240,6 +240,7 @@ func (r *ContentRegistry) resolve(
 	}
 	if request.GetContext().GetActor() != nil || len(request.GetContext().GetGrantedAuthority()) != 0 ||
 		request.GetContext().GetIdempotencyKey() != "" || len(request.GetContext().GetHostCommandDelegations()) != 0 ||
+		request.GetContext().GetHostSessionDelegation() != nil ||
 		!preflightContentHostQueryDelegations(request.GetContext()) {
 		return invalid("content.context_authority_forbidden", "Content calls cannot carry actor, session, authority, or delegation material.")
 	}

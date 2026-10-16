@@ -1,0 +1,36 @@
+openapi: 3.1.0
+info:
+  title: SForum Page Loader Reference
+  version: 1.0.0
+paths:
+  /page-data/article:
+    get:
+      operationId: sforum.page-loader-reference.pageData
+      x-sforum-route-id: sforum.page-loader-reference.route.page-data
+      x-sforum-contract-version: sforum.page-loader-reference.route.page-data@1
+      x-sforum-guard: core.guard.public
+      x-sforum-response-schema: sforum.page-loader-reference.page-data.response@1
+      summary: Page body data served to the Host Page Loader Gateway
+      responses:
+        "200":
+          description: Article page data document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sforum.page-loader-reference.page-data.response@1"
+components:
+  schemas:
+    "sforum.page-loader-reference.page-data.response@1":
+      type: object
+      required:
+        - title
+        - state
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+        state:
+          type: string
+          enum:
+            - published
+            - archived

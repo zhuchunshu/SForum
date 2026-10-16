@@ -1015,6 +1015,13 @@ Architecture sources:
   shown in mobile rows.
   The inline mobile author avatar is 24px; the shared list avatar size remains
   unchanged.
+- The shared list shell (`assets/css/sforum-home.css` `.sforum-home__layout`)
+  owns the page canvas surface for the home/category/tag/search list family and
+  paints `--sf-public-surface` at **every** width. Transparent G1/C1 rows sit on
+  that surface, so the declaration must never be gated to a desktop breakpoint:
+  when it lived only inside `@media (min-width: 981px)`, narrow screens fell
+  through to `--sf-public-bg` and the mobile list background diverged from
+  desktop.
 - Desktop topic rows use the approved C1 flat list: a single white row with
   hairline separators (no five-column table grid). Pinned/hot badges sit on
   their own line above the title; the title line is `[category pill] title`;
@@ -1163,6 +1170,32 @@ returned by the composer reference endpoint.
   brand icon (`siteLogoUrl` + `siteName` from web options, same source as
   `SFNavbar`), the destination side uses warning tokens, and the confirmation
   checks use success tokens. Never hardcode a brand badge in a Host surface.
+
+## Browser Evidence Harnesses (narrow-screen and shell rules)
+
+- Real `390x844` means `tests/browser-public-390x844.mjs`, which launches a real
+  Chrome over CDP and asserts that `Emulation.setDeviceMetricsOverride` actually
+  took effect (it FAILs when `innerWidth !== 390`). The `ego_*` sidebar carrier is
+  **not** a narrow-screen carrier: the override is accepted but never takes effect
+  there (`innerWidth` is always 500), so a 500-wide measurement must never be
+  published as a 390 one. The admin equivalent is
+  `tests/browser-admin-390x844.mjs` (session cookie injected via `Network.setCookie`,
+  because the cookie is httpOnly).
+- **A settle heuristic must not be "the page text stopped changing".** The public
+  harness originally decided a page had settled when `document.body.innerText.length`
+  stopped changing for two polls. That condition is satisfied by the *SSR* text
+  **before hydration**, so it exited at ~2 s while a client-mounted public L2
+  component appears at ~5.4 s in the same context — producing a false negative that
+  read as "the component does not mount and no descriptor request is issued".
+  The loop now waits for real hydration (`#__nuxt.__vue_app__`), refuses to accept
+  stability before hydration, requires a **terminal** public-L2 state
+  (`mounted|fallback|quarantined`, never `idle|loading`) for paths passed in
+  `SFORUM_L2_PATHS`, and fails when hydration never happens. Any new client-rendered
+  surface added to a harness needs the same treatment: wait for the signal that the
+  client work finished, not for text to stop moving.
+- Assertions requiring a mount are opt-in via `SFORUM_L2_PATHS` and were verified
+  non-vacuous with a negative control (pointing it at a page with no L2 widget makes
+  the run FAIL).
 
 ## Next Steps
 

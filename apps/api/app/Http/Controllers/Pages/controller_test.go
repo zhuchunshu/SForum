@@ -126,6 +126,17 @@ func fixtureDemoRoot(t *testing.T) string {
 	return filepath.Join(root, "extensions/fixtures/plugins/page-registry-demo")
 }
 
+// fixtureComponentRoot 指向 view=component 公开页的参照包。
+func fixtureComponentRoot(t *testing.T) string {
+	t.Helper()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("caller")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../../../"))
+	return filepath.Join(root, "extensions/fixtures/plugins/sforum-page-component-reference")
+}
+
 type pagesRouteProvider func(api fiber.Router)
 
 func (f pagesRouteProvider) RegisterRoutes(api fiber.Router) { f(api) }
@@ -186,6 +197,17 @@ func newPagesTestApp(t *testing.T) (*fiber.App, *pages.Registry, *pagesThemeStor
 	_ = bridge.RegisterPluginPackage(context.Background(), pages.ThemeExtension{
 		ID: "sforum.page-registry-demo", Version: "1.0.0",
 		PackagePath: demoRoot, PackageDigest: "digest-v1",
+	})
+	// view=component 公开页的参照包（与模板页同包对照）。
+	componentRoot := fixtureComponentRoot(t)
+	themeStore.items["sforum.page-component-reference"] = extensions.Extension{
+		ID: "sforum.page-component-reference", Type: extensions.TypePlugin,
+		Version: "1.0.0", PackageDigest: "digest-component-v1", PackagePath: componentRoot,
+		Status: extensions.StatusEnabled,
+	}
+	_ = bridge.RegisterPluginPackage(context.Background(), pages.ThemeExtension{
+		ID: "sforum.page-component-reference", Version: "1.0.0",
+		PackagePath: componentRoot, PackageDigest: "digest-component-v1",
 	})
 
 	loader := pages.NewPageDataLoader(roundTripFunc(func(r *nethttp.Request) (*nethttp.Response, error) {

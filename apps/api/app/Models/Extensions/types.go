@@ -524,15 +524,17 @@ type ExtensionSettingsCallout struct {
 }
 
 type ExtensionSettingsAction struct {
-	ID                string   `json:"id"`
-	Kind              string   `json:"kind"`
-	Label             string   `json:"label"`
-	Description       string   `json:"description,omitempty"`
-	Placement         string   `json:"placement"`
-	UseDraftValues    bool     `json:"useDraftValues"`
-	Fields            []string `json:"fields,omitempty"`
-	Available         bool     `json:"available"`
-	UnavailableReason string   `json:"unavailableReason,omitempty"`
+	ID             string   `json:"id"`
+	Kind           string   `json:"kind"`
+	Label          string   `json:"label"`
+	Description    string   `json:"description,omitempty"`
+	Placement      string   `json:"placement"`
+	UseDraftValues bool     `json:"useDraftValues"`
+	Fields         []string `json:"fields,omitempty"`
+	// Tool 是 ai_tool_probe 要调用的 AI 工具声明 id；其它 kind 为空。
+	Tool              string `json:"tool,omitempty"`
+	Available         bool   `json:"available"`
+	UnavailableReason string `json:"unavailableReason,omitempty"`
 }
 
 type ExtensionSettings struct {

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 var ErrInspectorInvalid = errors.New("routes: invalid inspector request")
@@ -49,6 +51,9 @@ type InspectorStep struct {
 	TimeoutMS             int                 `json:"timeoutMs"`
 	Priority              int                 `json:"priority"`
 	PluginGuard           *PluginGuardBinding `json:"pluginGuard,omitempty"`
+	// GuardRisk 是授权归属分类：host_owned | extension_code | raw_request。
+	GuardRisk          string `json:"guardRisk"`
+	GuardRequiresTrust bool   `json:"guardRequiresTrust"`
 }
 
 type InspectorConflict struct {
@@ -262,6 +267,14 @@ func inspectorExecutionStep(index int, step RouteExecutionStep, signature string
 		binding := clonePluginGuardBinding(step.PluginGuard)
 		result.PluginGuard = &binding
 	}
+	// M5：检视器必须能回答「这条路由的授权由宿主还是某个精确插件制品拥有」。
+	// 风险只由已发布的守卫绑定推导，不读取包内文件，也不暴露任何秘密。
+	guardKind := ""
+	if result.PluginGuard != nil {
+		guardKind = result.PluginGuard.Kind
+	}
+	result.GuardRisk = extensionmanifest.GuardRuntimeRisk(step.Guard, guardKind)
+	result.GuardRequiresTrust = extensionmanifest.GuardRequiresExactArtifactTrust(step.Guard, guardKind)
 	return result
 }
 

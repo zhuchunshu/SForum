@@ -49,7 +49,10 @@ type Dependencies struct {
 	// nil 保持旧路由行为，便于独立测试与回滚。
 	RouteDispatcher *routes.Dispatcher
 	RouteActors     RouteActorLoader
-	Options         *options.Service
+	// PluginSessionScopes 解析当前请求的 Core 会话范围（S9）。为 nil 时不签发任何
+	// 会话委派，插件也就看不到会话状态（fail closed）。
+	PluginSessionScopes PluginSessionScopeSource
+	Options             *options.Service
 	// Storage 用于分布式限流。为 nil 时 limiter 退化为进程内存限流。
 	Storage fiber.Storage
 	// Ready 为 /api/v1/ready 探测函数（PG required；Redis degraded）。
@@ -173,6 +176,11 @@ func registerRouteRegistryMiddleware(app *fiber.App, cfg config.Config, deps Dep
 	// F3.4：Bearer PAT 鉴权（在路由前解析，供各 controller 读取 context）。
 	if deps.BearerTokens != nil {
 		app.Use(routeRegistryManagedOnly(bearerMiddleware(deps.BearerTokens, deps.Auditor)))
+	}
+	// S9：宿主解析出的 Core 会话范围只挂在本次请求的 context 上，因此只有宿主
+	// 自己在这次 HTTP 请求里发起的插件调用才拿得到会话委派。必须排在 dispatcher 之前。
+	if deps.PluginSessionScopes != nil {
+		app.Use(routeRegistryManagedOnly(pluginSessionScopeMiddleware(deps.PluginSessionScopes)))
 	}
 	if deps.RouteDispatcher != nil {
 		app.Use(routeRegistryManagedOnly(routeDispatcherMiddleware(deps.RouteDispatcher, deps.RouteActors)))

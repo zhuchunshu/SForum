@@ -87,6 +87,27 @@ func buildFixture(t *testing.T, options fixtureOptions) Artifact {
 			{ID: options.extensionID + ".file.schema", Kind: "schema", Path: "openapi/schemas/common.json", Digest: digestBytes([]byte(options.schema))},
 		},
 	}
+	// 声明式 raw 守卫必须带 entry + digest，且 entry 需要有匹配的 kind=executable
+	// packageFiles 条目（v3_validate_ui.go 的规则）。
+	// 声明式 raw 守卫必须带 entry + digest，且 entry 需要有匹配的 kind=executable
+	// packageFiles 条目（v3_validate_ui.go 的规则）。守卫入口必须是**独立文件**：
+	// packageFiles 的 path 必须唯一，不能复用 openapi/routes.yaml。
+	if route.Guard == fixtureRawGuardID(options.extensionID) {
+		guardEntry := "guard/entry.txt"
+		guardBody := []byte("fixture raw_request guard entry\n")
+		writeFixtureFile(t, root, guardEntry, guardBody)
+		guardDigest := digestBytes(guardBody)
+		manifest.Guards = []extensionmanifest.ManifestGuard{{
+			ID:              fixtureRawGuardID(options.extensionID),
+			ContractVersion: fixtureRawGuardID(options.extensionID) + "@1",
+			Kind:            "raw_request", Entry: guardEntry, Digest: guardDigest,
+		}}
+		manifest.PackageFiles = append(manifest.PackageFiles,
+			extensionmanifest.ManifestPackageFile{
+				ID: options.extensionID + ".file.guard", Kind: "executable",
+				Path: guardEntry, Digest: guardDigest,
+			})
+	}
 	manifestBody, err := json.Marshal(manifest)
 	if err != nil {
 		t.Fatal(err)
@@ -129,6 +150,13 @@ func rebuildFixtureManifest(t *testing.T, artifact Artifact, mutate func(*extens
 	artifact.Manifest = loaded
 	artifact.PackageDigest = packageDigest
 	return artifact
+}
+
+// fixtureRawGuardID 是 fixture 自带的 raw_request 守卫 id。
+// 决定 R1（2026-10-16）：raw 请求权限必须由包内显式声明，Host 的
+// core.guard.raw_request 已被拒绝，因此这里生成一个声明式守卫供测试使用。
+func fixtureRawGuardID(extensionID string) string {
+	return extensionID + ".guard.raw"
 }
 
 func fixtureSecurity(guard string) string {

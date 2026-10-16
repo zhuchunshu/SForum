@@ -68,6 +68,9 @@ var allowedHostIslands = map[string]struct{}{
 	"sf-recovery-request":           {},
 	"sf-recovery-confirm":           {},
 	"sf-extension-widget":           {},
+	"sf-plugin-page-body":           {},
+	"sf-account-settings-sidebar":   {},
+	"sf-content-column-footer":      {},
 }
 
 // 允许的普通 HTML 标签（无 script/style/svg/math/iframe/form/object/embed）。
@@ -333,9 +336,24 @@ func sanitizeIslandAttrs(tag, attrRaw string) (map[string]string, error) {
 	allowedKeys := map[string]struct{}{
 		"name": {}, "page": {}, "variant": {}, "class": {}, "id": {},
 	}
+	// 岛自带的声明式 prop 也是合法属性：白名单由生产绑定表提供，因此新增一个岛
+	// 只需要在 theme_body_island.go 声明它的 prop，不必再回来改这张通用表。
+	// 插件模板写不出绑定表里没声明的属性（ThemeCompiler 的 validateIslandPropNames
+	// 对主题模板有同一条约束）。
+	if binding, ok := productionThemeIslandBindings()[tag]; ok {
+		for _, prop := range binding.Props {
+			allowedKeys[prop.Name] = struct{}{}
+		}
+	}
 	if tag == "sf-extension-widget" {
 		allowedKeys["extension-id"] = struct{}{}
 		allowedKeys["component-id"] = struct{}{}
+	}
+	// 绑定表为该岛显式声明的 prop 名同样放行（值仍受 safeIslandAttrVal 约束）。
+	if binding, ok := productionThemeIslandBindings()[tag]; ok {
+		for _, prop := range binding.Props {
+			allowedKeys[prop.Name] = struct{}{}
+		}
 	}
 	for _, am := range matches {
 		key := strings.ToLower(am[1])
@@ -366,6 +384,15 @@ func sanitizeIslandAttrs(tag, attrRaw string) (map[string]string, error) {
 		if !extensionOK || !componentOK || !publicL2IslandID.MatchString(extensionID) ||
 			!publicL2IslandID.MatchString(componentID) || !strings.HasPrefix(componentID, extensionID+".") {
 			return nil, fmt.Errorf("pages: public L2 host island requires exact component identity")
+		}
+	}
+	// 绑定表声明为 required 的 prop 必须出现：主题侧 validateIslandPropNames 已有同一条
+	// 约束，插件模板在这里补齐，避免漏传必填属性后只在运行时表现成空组件。
+	if binding, ok := productionThemeIslandBindings()[tag]; ok {
+		for _, prop := range binding.Props {
+			if _, present := out[prop.Name]; prop.Required && !present {
+				return nil, fmt.Errorf("pages: host island %q requires attribute %q", tag, prop.Name)
+			}
 		}
 	}
 	return out, nil

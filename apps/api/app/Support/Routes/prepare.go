@@ -63,7 +63,8 @@ func preparePluginRoute(
 	if err != nil {
 		return nil, err
 	}
-	rawRequestAuthority := declaration.Guard == extensionmanifest.GuardCoreRaw || guardBinding.Kind == "raw_request"
+	// 决定 R1：raw 权限只能来自包内显式声明的 kind=raw_request 守卫。
+	rawRequestAuthority := guardBinding.Kind == "raw_request"
 	if !extensionmanifest.ValidRouteMutableFields(declaration, rawRequestAuthority) {
 		return nil, fmt.Errorf("%w: invalid mutable route fields", ErrInvalidRoute)
 	}
@@ -214,8 +215,11 @@ func validRouteGuard(extensionID, guard string) bool {
 	switch guard {
 	case extensionmanifest.GuardCorePublic, extensionmanifest.GuardCoreLogin,
 		extensionmanifest.GuardCorePermission, extensionmanifest.GuardCoreGuest,
-		extensionmanifest.GuardCoreRaw, extensionmanifest.GuardCoreInherit:
+		extensionmanifest.GuardCoreInherit:
 		return true
+	// 决定 R1：Host 拥有的 raw_request 守卫不再合法，作者必须显式声明自己的守卫。
+	case extensionmanifest.GuardCoreRaw:
+		return false
 	default:
 		return routeIDPattern.MatchString(guard) && strings.HasPrefix(guard, extensionID+".")
 	}

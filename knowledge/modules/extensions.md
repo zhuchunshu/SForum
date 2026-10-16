@@ -12,6 +12,36 @@ does not rebuild Nuxt.
 
 ## Current Program State
 
+- **Plugin session state (S9) is complete and production-wired (2026-10-17).**
+  The Gateway implements the S9 issuer that `ProtocolStarter` resolves by type
+  assertion (before the fix, every scoped Host-initiated invocation failed at
+  mint — tests had masked it by injecting the authority directly). The M9
+  reference package `sforum-session-checkout-reference` exercises it through a
+  compiled fixture binary over the real go-plugin transport, and the joined
+  test `TestPluginSessionStateJoinedHostDispatchToStore` replaces the earlier
+  stub. Erasure hooks have their own real-PostgreSQL (Identity) and lifecycle
+  (Extensions) tests; the Identity matrix covers revoke / revoke-others /
+  revoke-all / device-cap eviction / password reset with
+  exactly-the-ended-sid erasure, best-effort semantics, and no-invalidator
+  resilience. The privacy-erase entry is the `privacy:erase-user` CLI
+  (`bootstrap.NewPrivacyRegistryForOutband` registers the Host-owned
+  plugin-session-state contribution through the same path as the API assembly;
+  Redis unreachable = named fail-closed). Anonymous plugin session state is
+  unavailable by construction (decision D1). Session state's Redis keys follow
+  `sforum:plugin-session:v1:installation:<id>:…`; erasure invalidates through
+  per-session/per-extension index sets.
+- **True two-node convergence verified on published images (2026-10-17, M10
+  row 7).** Each node's boot lease (`plugin_runtime_nodes`: hostname + role +
+  boot id, 45s lease / 10s heartbeat) and per-revision acknowledgements work in
+  a real two-node topology sharing one PostgreSQL+Redis: an admin disable on
+  node A converges on node B inside the 5s poll window (plugin subprocess
+  drained), an enable revives it from the byte-identical immutable artifact
+  path, a departing node's lease expires within 45s while the survivor serves
+  on, and a rejoining node registers a fresh boot id and acks the latest
+  revision immediately. Cold-start guidance (sequential first boot / migrate
+  before parallel start) is in the release-image runbook after two measured
+  first-boot races.
+
 - Manifest V3, trust/recovery, lifecycle ledger, Host API v2, registry
   families, Page Registry themes, buildless settings UI, catalogs, and P0-P12
   phase gates are present.
@@ -270,6 +300,328 @@ does not rebuild Nuxt.
   retains named Manager, ProtocolStarter, Protocol V2 Host, lifecycle, and
   SDK/CLI consumers under an exact architecture allowlist.
   Decision: `../decisions/2026-07-28-extension-stable-package-boundaries.md`.
+- Host icons are now a plugin-facing surface (2026-10-16, M1 of the plugin
+  frontend experience program). `GET /_sforum/icons?names=…` (batch JSON, ≤32
+  names) and `GET /_sforum/icons/{lucide|tabler}/{name}.svg` serve sanitized
+  inline SVG generated from the already-bundled `@iconify-json` collections —
+  no new dependency, and plugins never supply markup. `AdminPageBridgeV1.icons`
+  and `PublicFrontendBridgeV1.icons` are optional additive members
+  (`@sforum/admin-sdk@1.1.0`); both the admin page, admin settings, and public
+  L2 hosts supply the shared client resolver in
+  `apps/web/app/utils/icons/hostIcons.ts`. `@sforum/plugin-ui@1.1.0` adds
+  `SPluginIcon`, `icon` props on button/section/alert/empty-state, table column
+  icons, and `definePluginPage`/`mountPluginPage`, which inject the resolver so
+  a hand-written `createApp` can no longer silently drop icons. All 8399
+  bundled lucide/tabler icons (aliases included) sanitize losslessly; only
+  fragment ids are namespaced per icon. Decision:
+  `../decisions/2026-10-16-plugin-frontend-surface-contract.md`.
+- Page regions have one hand-edited source and a generated web projection
+  (2026-10-16, M2/M3 of the plugin frontend experience program).
+  `RegionCatalog.pageRegionMatrix` now exposes 14 regions over 11 pages —
+  `content_before`/`content_after`/`sidebar` plus `list_before`/`list_after`,
+  `detail_before`/`detail_after`, `comments_before`/`comments_after`,
+  `sidebar_top`/`sidebar_bottom`, `profile_header_after` — and
+  `scripts/v3-catalog/generate.mjs` emits
+  `apps/web/app/config/pageRegionCatalog.gen.ts` from it, replacing the
+  hand-maintained whitelist in `usePageRegions.ts`.
+  `apps/web/tests/framework/pageRegions.test.ts` compares the generated matrix
+  against `<SFRegionOutlet>` occurrences in the host components in both
+  directions, so a region cannot be declared without a real render site; that
+  check exposed a pre-existing dead declaration for `forum.topic.reply` (a
+  redirect placeholder) which was removed, and rejected `hero` and
+  `composer_after` as non-distinct slots. `MAX_REGIONS` is derived from the
+  generated catalog instead of a hardcoded 8. `NavigationRegistry` was
+  deliberately **not** merged into this path: it composes navigation chrome,
+  not page content. Decision:
+  `../decisions/2026-10-16-plugin-frontend-surface-contract.md`.
+- Extension authoring contracts frozen (2026-10-16, M0 of
+  `../plans/2026-08-22-extension-authoring-speed-and-controlled-power.md`).
+  Two premises were disproved by reading production code, and the corrections
+  matter more than the milestone:
+  (a) **Custom authorization guards are live, not closed.** Manifest admission
+  accepts `kind: custom` (`app/Support/ExtensionManifest/v3_validate.go:106`),
+  production assembly injects `NewRuntimePluginRouteGuardEvaluator`
+  (`bootstrap/api_assembly_domains.go:618`), and
+  `app/Http/plugin_guard_runtime.go:32` actually invokes plugin code behind exact
+  artifact/version/digest/trust/Safe-Mode gates and a `RuntimeCallGuard` lease,
+  failing closed unconditionally. The public docs
+  (`docs/extensions/routes.md`, `docs/zh-CN/extensions/routes.md`,
+  `docs/en-US/extensions/routes.md`, `docs/extensions/authoring-guide.md`)
+  claimed the executable guard runtime is a later wave; **corrected 2026-10-16**
+  (M4 closure pass), together with the exact gate list and the fail-closed
+  failure modes.
+  `custom` and `raw_request` are different states. **Correction:** an earlier
+  revision of this note said "raw-session credential forwarding is genuinely
+  still closed". It is not: `core.guard.raw_request` requires an empty plugin
+  guard binding, `app/Http/plugin_guard_runtime.go:53-56` then returns allow
+  without running any guard code, that step resolves to `RequestAuthorityRaw`
+  (`app/Support/Routes/request_authority.go:189-191`), and
+  `app/Support/Extensions/protocol_v2_request_authority.go:129-131` stops
+  filtering credential headers in that mode, so `cookie` / `authorization` /
+  `x-api-key` / `x-auth-token` reach the plugin handler.
+  **Resolved 2026-10-16 (decision R1):** the operator judged this a
+  vulnerability. `core.guard.raw_request` is now **refused at manifest
+  validation** (`v3_validate.go` no longer lists it as an acceptable route guard)
+  and every runtime mapping fails closed (`Routes/request_authority.go`,
+  `Routes/prepare.go`, `Routes/core_guard_authorizer.go`,
+  `Extensions/protocol_v2_request_authority.go`). Raw request authority is only
+  reachable through a package-declared guard with `kind: raw_request`
+  (`entry` + `digest` + `contractVersion`), which the Host discloses at trust
+  time. Recorded as Revision 1 in
+  `../decisions/2026-10-16-extension-authoring-contracts-freeze.md`.
+  (b) **Descriptor contribution points are not content surfaces.** Only page
+  regions mount L2 components (`SFExtensionWidget` is used in just
+  `SFRegionOutlet.vue` and `SFThemeTemplate.vue`); every other point is a
+  link/action/badge descriptor, so accepting `l2Widget` there would create a
+  validated, documented, never-rendered capability.
+  Also frozen: public plugin pages gain `layout: site|bare` with **`bare` as the
+  backward-compatible default** (current plugin templates mount no global chrome,
+  and artifacts are digest-bound, so defaulting to `site` would retroactively add
+  chrome); M1 implements the shell by reusing
+  `SFPageOutletRender.vue`/`SFHostPublicChrome.vue` on the plugin `action=add`
+  path, which today bypasses them and hardcodes `max-w-4xl` with no chrome
+  guarantee. Plugin session state and the dev-loop trust model are **not** frozen.
+  Decision: `../decisions/2026-10-16-extension-authoring-contracts-freeze.md`;
+  inventory:
+  `../sessions/2026-10-16-m0-threat-and-inventory-report.md`.
+
+- Extension authoring/shell closure pass (2026-10-16, second session; M1 contract
+  complete, M2 partially blocked, M4 complete as re-scoped, `make:theme` fixed):
+  - **Loader Gateway has no transport for Protocol V2 runtimes.** The gateway's
+    only transport is a plugin loopback HTTP base
+    (`app/Support/Pages/loader_gateway.go:98-108`, denied when empty by
+    `bootstrap/app.go` `pageRouteTargetAdapter`), and Protocol V2 deliberately
+    exposes none (`app/Support/Extensions/protocol_v2_client.go:463`; V1 is
+    `ErrUnsupportedProtocol`). A `dataSource: plugin` page contribution therefore
+    always falls back with `view_model_unavailable`. Pinned by
+    `IntegrationTests/TestPageLoaderGatewayHasNoTransportForProtocolV2Runtime`
+    (real V2 subprocess + real production target source + real gateway).
+  - **Theme activation exactness.** A `components[]` entry whose
+    `propsSchema` is a Host core page schema can never satisfy the component
+    registry's exact-declaration rule
+    (`app/Support/Extensions/provider_slot_schemas.go:59`), which is why a
+    `make:theme` scaffold and the "minimal theme" fixture could not activate even
+    though the CLI passed. Manifest validation now enforces the same rule
+    (`app/Support/ExtensionManifest/v3_validate_ui.go`, components loop), the
+    scaffold no longer declares theme components, and
+    `docs/extensions/runtime-themes.md` documents what activation checks.
+  - **Theme-authored public shell (Route A).** Layers 1-5 verified on the real
+    path (`layout: site|bare` default `site`; `theme.json.shell`; `shellHtml` +
+    exact `shellProvider`/`shellVersion`/`shellPackageDigest`; `sf-plugin-page-body`
+    island registered on both API tables and both web maps). Layer 6 now asserts
+    the composed shell carries exactly one navbar/footer/body island, that the
+    geometry classes survive, that `bare` never receives a shell, and that a
+    declared-but-unreadable shell fails open to the Host shell.
+  - **Footer ownership, measured and fixed.** Footer visibility is owned by the
+    **Host** stylesheet `apps/web/app/assets/css/sforum-theme.css`, not by the
+    theme: it suppresses the default theme's page-level shell footer because a
+    theme page's visible footer comes from `.sforum-content-footer` inside the
+    content column, and a Page Registry `add` page has no content column - so
+    plugin pages had no visible footer at all. A complementary
+    `:not(:has(.sforum-content-footer))` rule now shows the shell footer for
+    plugin pages while theme pages keep exactly one visible owner. Verified in a
+    real headless Chrome over CDP at 390x844 (dpr 3) and 1440x900 (dpr 1):
+    exactly one visible navbar and one visible footer on plugin pages, none on a
+    `bare` page, no horizontal overflow, no clipped controls, no page console
+    errors. Active theme artifact moved `4691a605…` -> `85ddda6a…` through
+    rebuild + admin reactivation, and the source tree matches the staged copy.
+  - The shell's `data-*` markers (`data-theme-region`, `data-theme-owned`,
+    `data-page`, `data-theme-shell`) are stripped from `shellHtml` by the legacy
+    L1 string sanitizer (`LoadTemplate` -> `SanitizeTemplateHTML`); classes and
+    the `SFThemeTemplate` wrapper's `data-extension-id` survive, which is what
+    the built-in theme's CSS keys on.
+
+- Release image smoke (2026-10-16, M10 row 9): the candidate api, migrate and web
+  images build (`--target api|migrate -f apps/api/Dockerfile`, `--target prod -f
+  apps/web/Dockerfile`); the migrate image fills an empty database, the api image
+  serves `/api/v1/health` 200 under `APP_ENV=production`, and the web image serves
+  `/` 200 with live SSR — stopping the api container makes that request fail with no
+  response, which is the control that proves the composition. Against a **seeded**
+  isolated database the images serve real content: `/` 200 with 8 seeded topic links
+  and 4 seeded category links, plus `/c/<slug>` and `/t/<id>/<slug>` pages. The image's
+  boot also syncs its protected built-ins into the database (8 plugins + 1 theme) and
+  starts their runtimes from immutable digest paths; the enabled search plugin indexes
+  the seeded topics. Uploaded packages install (201, inert) and enable (200) through
+  the same images, and their public pages render through the web image with the layout
+  contract intact. Executable trust confirmation applies only to packages that ship an
+  executable artifact: for such a package the release image issues a 64-char
+  exact-artifact challenge (5-minute TTL, `sforum.trust-impact@2` impact payload),
+  refuses enable without it (`extension.trust_challenge_required`), enables with it and
+  starts the backend from the immutable digest path, and refuses a consumed token after
+  `DELETE …/trust` (`extension.trust_challenge_replayed`). The grant itself persists per
+  exact artifact, so a disable/enable cycle needs no new confirmation. Production
+  requires absolute `EXTENSION_ROOT` (compose and the image set
+  `/var/lib/sforum/extensions`), plus the documented secrets and the marketplace
+  Ed25519 public key; a missing or relative `EXTENSION_ROOT` now fails with a named
+  config error instead of `mkdir /storage: permission denied`.
+- Runtime-missing and disabled-owner behaviour (2026-10-16, A2): already covered by
+  `TestResolvePathReportsLayoutRegardlessOfBodyRender` (layout independent of body
+  render), `TestLoaderUnavailableWhenPluginRuntimeMissing` (page resolves with a
+  `loaderError`; the always-path for V2 plugins), the lifecycle page publication
+  tests (exact empty publication clears pages, removal is fenced by exact artifact
+  and runtime instance), and `TestResolvePath404`. No synonymous test was added.
+- Theme activation rejection diagnosis (2026-10-16):
+  `knowledge/runbooks/2026-10-16-theme-activation-rejection-diagnosis.md` maps the
+  failing preflight layer (page / component registry / asset registry) to its family,
+  remedy and durability. Both state-dependent paths are observed in tests: a third
+  theme runtime outside the transition fence, and a stale third-theme asset
+  publication.
+- Theme activation preflight (2026-10-16): page coverage is **not** checked. The
+  page preflight validates package loading, skin CSS, template and shell
+  loadability, contribution normalization and path-signature conflicts only. The
+  state-dependent rejections are the component-registry transition fence and the
+  asset-publication transition; both are usually leftover state, and the
+  `extension.build_failed` copy now names that family in both locales.
+  See `decisions/2026-10-16-theme-activation-preflight-truth.md`.
+- Route A composition check (2026-10-16): `tests/registry-page-shell-runtime-evidence.mjs`
+  is the persistent runtime check for the public shell path — theme shell vs host
+  fallback vs explicit bare, exactly one navbar owner and one footer, layout vs shell
+  source attributes, and shell identity agreement with `/site/active-theme/skin`.
+  It skips when the dev servers are down unless `SFORUM_EVIDENCE_REQUIRE_LIVE=1`.
+  The theme-switch procedure is `knowledge/runbooks/2026-10-16-theme-switch-shell-verification.md`.
+  Note: `bun test` cannot render `.vue` components (no SFC transform), so component
+  composition is proven by runtime evidence plus the source-contract tests.
+- Release-gate status (2026-10-16, M10): the joined acceptance matrix lives in
+  `knowledge/sessions/2026-10-16-m10-joined-release-gate-matrix.md`. Evidenced:
+  compatibility farm (`./scripts/test-api-isolated.sh --compat` → ok) and APILTS
+  contract statuses; SSR and browser chrome counts for `site`/`bare`/default at the
+  carrier's 500px width; selected provider/digest and shell provider/digest from
+  `/pages/resolve-path` agreeing with `/site/active-theme/skin`. Blocked: plugin
+  body loader data (transport decision) and plugin session state (no contract).
+- Author documentation (2026-10-16, M9): `docs/extensions/migrating-from-sforum-v2.md`
+  is the canonical SForum-old → V3 mapping (Controller → `routes[]`, middleware →
+  `before`/`after` route patches with `core.guard.inherit`, Blade → Page Registry
+  three-way templates, `Itf` hook → `hooks[]` + typed events/queries/providers,
+  helpers → Protocol V2 SDK), the closed-operation list (raw Fiber, Core session
+  mutation, arbitrary Nuxt Layer, pre-plugin middleware, actor minting, client-IP
+  claims), and verified quick starts. There is **no** session contract and guards
+  have **no** challenge outcome — both are recorded as contract gaps.
+- Build child processes (2026-10-16, M8): `runExtensionBuildProcess` runs every
+  build child (`bun install`, `bun run build`) in its **own process group** and
+  kills the group when the context is cancelled, so grandchildren cannot survive
+  an interrupted loop. `extension dev` also accepts `--skip-install` to reuse
+  existing frontend dependencies.
+- Built-in discovery (2026-10-16, M8/ADR 6.2.5): `sforum extension builtins
+  [--root <dir>] [--json]` is the single source of truth for the built-in package
+  list; `scripts/build-builtin-plugins.sh` consumes it and hardcodes no id or
+  directory. Discovery reads manifest metadata (not `LoadPackage`, because the
+  protected source tree has no backend binary) and reports the Go-backend flag so
+  themes and frontend-only packages are skipped. The staging root override must
+  stay at the same directory depth as `storage/builtin-dev` because built-in
+  `go.mod` files use a relative `replace`.
+- Browser acceptance modes (2026-10-16, M10 row 8): the 390x844 harness also runs
+  with `SFORUM_DISABLE_JS=1`, which disables script execution over CDP and asserts
+  that the chrome and page body still come from the server render (one navbar and one
+  footer on `site`/`default`, zero on `bare`, no overflow, SSR body text present).
+- Public page body source (2026-10-16, adjacent plan M6 stages 1-2): a public page
+  declared in `theme.json` may set `view: component` with `component.id`, meaning the
+  body is mounted from a public L2 component declared in `manifest.components[]`. The
+  verdict is validated once in `LoadThemePackage` (shared by the CLI and runtime
+  activation), carried through `PageContribution` → `ResolvedPage` → the resolve
+  response, and mounted by the reviewed body exit (`SFRegistryPageBody.vue` →
+  `SFExtensionWidget`, i.e. the descriptor endpoint + release loader + quarantine and
+  lease). A component page is exempt from the "no template ⇒ runtime unavailable"
+  fallback rule; `view: template` (default) behaves exactly as before.
+- Modifier phase order (2026-10-16, M10 row 3): a single plan-order list decides the
+  chain — `global → before → filter → wrap → handler → after` — with exactly one
+  handler step. `global_middleware` is exempt from method matching, so it appears in
+  both safe and unsafe plans, while `before`/`filter`/`wrap`/`after` appear only in
+  the plan for the method they declare; a modifier's `targetId` must match its own
+  method or the registry rejects the input.
+- Evidence-harness self-check (2026-10-16): the three browser/runtime evidence
+  scripts only claim success when they actually measured something; a SKIP path
+  prints `skipped: no assertion ran` instead of a success line (a false positive was
+  found and fixed), and `SFORUM_EVIDENCE_REQUIRE_LIVE=1` turns a skip into a failure.
+- Development scaffold roots are refused in production (2026-10-16):
+  `config.DevelopmentScaffoldRoot` classifies `…/extensions/dev…` and
+  `validateProductionSecrets` panics on such an `EXTERNAL_EXTENSION_ROOTS` entry, so the
+  "never scan the scaffold tree" rule (ADR 6.2.6) is enforced at load time instead of
+  being a convention. Covered by `TestProductionRejectsDevelopmentScaffoldExternalRoots`
+  (refused and not-misclassified cases).
+- Public page runtime surface catalog (2026-10-16):
+  `docs/extensions/v3/catalogs/public-page-surfaces.{json,md}` is generated from
+  `Pages.coreCatalog`, `RegionCatalog.pageRegionMatrix`, the `PageView`/`PageLayout`
+  vocabularies and `allowedHostIslands`, so authors can see per page which body views
+  and layouts are legal, which regions exist and which Host islands a theme may mount.
+  `tests/validate-public-page-surface-catalog.mjs` (in `scripts/ci/contracts-gate.sh`)
+  pins the vocabularies and the two-way page-set equality with the Go catalog.
+- `--schema-page` author tooling (2026-10-16): the generator emits a declarative
+  `view: schema` public page (bounded descriptor + package JSON Schema contract, both
+  `kind: schema` with a version), rejects unknown kinds / unsafe slugs / a slug shared
+  with `--public-page` before writing, and passes the shared CLI+activation preflight
+  without hand-editing. Bilingual CLI docs and the authoring guide document the bounds
+  and the read-only `form` limitation.
+- Component package runtime convergence (2026-10-16): the legacy enable/disable paths
+  now publish/remove the component package runtime
+  (`ComponentRegistry.PublishComponentPackageRuntime` /
+  `RemoveComponentPackageRuntime`, instance id derived in the Support layer), so a package
+  whose only executable surface is a public L2 component becomes reachable immediately
+  after enable instead of only after the next Host start. Failures are recorded as events
+  and degrade to the previous behaviour rather than failing the enable.
+- Admin activation automation (2026-10-16, M8): `tests/admin-extension-activation.sh`
+  drives the approved flow (install → trust challenge → enable) over HTTP with a
+  super_admin session, requires the confirmation token for executable packages,
+  accepts `trust_not_required` for packages that ship no executable artifact, and can
+  uninstall afterwards.
+- Dev-loop failure scenarios (2026-10-16, M10 row 6):
+  `tests/dev-loop-failure-scenarios.sh` exercises the real loop against a package
+  failure, a frontend compile failure, an API restart, and SIGINT, asserting that
+  failures keep the last healthy digest, the loop survives, and the restart probe
+  leaves `catalog.go` byte-identical.
+- Development loop (2026-10-16, M8): `sforum extension dev <package-root>` watches
+  package-contained source inputs and runs one build transaction at a time by
+  calling `runExtensionBuild` (digest refresh + validate + contract tests) and
+  then `extensionpackage.DigestTree`. It is gated on
+  `APP_ENV=development` through the same predicate as the DevHygiene reaper, is
+  refused for protected built-in trees, never bypasses exact-artifact trust (each
+  cycle prints the new digest plus a `reload_required` next step), and keeps the
+  last healthy artifact on failure. `fsnotify` is a direct module dependency.
+  Rebuild loops are prevented by a per-file **content stamp** snapshot re-taken
+  after every transaction, because the transaction itself rewrites the manifest.
+- Request-context contract (2026-10-16, M7): no new request/response field was
+  admitted. The filtered header projection (with `x-sforum-*`, hop-by-hop and
+  credential blocking, plus `httpguts` name/value validation),
+  `locale`/`trace`/`deadline`/`idempotency_key`, Host-validated response headers
+  and lossless query values already cover every candidate with a real consumer;
+  client IP/proxy classification, UA/device summary, plugin-owned response
+  cookies, redirect/cache/rate-limit hints are rejected with named evidence
+  (`decisions/2026-10-16-m7-narrow-typed-request-conveniences-contract.md`).
+  Proxy/client identity headers are forwarded as the client's own claim and the
+  Host vouches for none of them.
+- Durable route runtime incidents (2026-10-16, M5): the crash-loop quarantine
+  ledger is readable at `GET /api/v1/admin/extensions/route-incidents` (bounded
+  to 200 rows, redacted view + status summary, `extension.view` or
+  `extension.manage`), and the Route Inspector renders it with loading / error /
+  stale / empty / quarantined / recovery states. A new read route must also enter
+  `app/Http/core_guard_authorizer.go` `requireExtensionsReadAuthority` — without
+  that entry the production authorizer answers "guard unavailable" at runtime.
+  The incident table is append-only (`resolve_once` / `no_truncate` triggers) and
+  each row must be backed by an audit event with action
+  `routes.runtime_incident` carrying the matching `incidentKey`.
+- Guard authorization disclosure (2026-10-16, M5): the trust status read path
+  exposes `guardAuthorization` (`TrustGuardAuthorizationView`) and every Route
+  Inspector step exposes `guardRisk` / `guardRequiresTrust`, joining route scope,
+  guard kind/entry/digest/permissions, executable digests, fallback, and the
+  declared mutable fields, with the risk vocabulary `host_owned` /
+  `extension_code` / `raw_request` from
+  `app/Support/ExtensionManifest/guard_risk.go`. This is a **derived** view: it
+  must not be moved into `TrustImpact`, whose digest is the live trust-grant
+  identity. Admin review dialogs render it with a raw-request warning.
+- M3 authoring scaffolds (2026-10-16): `make:plugin` / `make:theme` gained
+  `--public-page`, `--public-page-layout site|bare`, and `--route-middleware`
+  through one composed generator path
+  (`apps/api/cmd/sforum/generator_authoring_workflow.go`). Generated public pages
+  are static and honour the three-way identity contract; generated middleware
+  inherits the target guard and declares only its own mutable pointers, never raw
+  request authority. Interactive forms expose the same options. Scaffolds pass
+  `extension build --allow-scaffold`, validate, contract test, and exact-template
+  runtime preflight without hand-editing, and a generated theme was additionally
+  packaged, activated and rendered in the dev instance (390x844 in real Chrome):
+  its generated `layout: bare` page renders with zero chrome, its own home
+  template owns exactly one navbar and one footer. Two scaffold defects found by
+  that render are fixed: the theme home template previously mounted no chrome,
+  and an island tag inside a template HTML comment breaks the exact-template
+  preflight (the island extractor scans comments).
 
 Authoritative sources:
 
@@ -705,6 +1057,15 @@ Relevant plans:
 - Schema UI supports tabs, groups, columns, callouts, common field types,
   secrets, validation, and allowlisted settings actions without an extension
   frontend build.
+- Settings actions come in two kinds. `provider_probe` requires a declared
+  provider slot (storage providers reuse `StorageProbe`); `ai_tool_probe`
+  requires a declared `aiTools[].id` and no provider slot. Both start the same
+  restricted short-lived runtime seeded with the operator's draft values, run
+  while the plugin is disabled, and are gated on the exact artifact being
+  available. The AI tool path dispatches `sforum.ai.tool`/`invoke` with the
+  draft values as JSON arguments and maps `isError` to the action result; it
+  carries no `details`/`suggestions` (the tool result only has `content`). See
+  `../decisions/2026-10-15-ai-tool-probe-settings-action.md`.
 - Complex settings may use an author-prebuilt immutable admin micro-frontend
   only after exact-artifact trust. Import, API, mount, CSS, cleanup, or
   quarantine failure falls back to Schema UI.

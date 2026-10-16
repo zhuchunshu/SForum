@@ -354,10 +354,23 @@ func outboundSystem(t *testing.T, wire ai.WireRequest) string {
 	return ""
 }
 
-// 模型不知道自己是哪个模型，因为没有任何一层告诉过它：身份只在 profile 解析之后
-// 才存在。网关是唯一同时知道「本次用哪个 profile」与「站点是否允许公开」的地方。
-func TestGatewayInjectsModelIdentityIntoSystem(t *testing.T) {
+// 出站 system 就是调用方给出的系统指令：网关不追加身份声明，也不追加任何
+// 「由本站网关调用」这类部署说明。profile 的标识、模型名与协议是后台配置事实，
+// 只出现在运营者可见的执行记录里，不进入会话内容。模型对「你是哪个模型」的回答
+// 因此只来自模型自身。
+//
+// 断言用哨兵值而不是内置预设值：预设值（DeepSeek / deepseek-chat）可能与别处
+// 文本偶然重合，哨兵值一旦出现在 system 里就只能是注入回来的。
+func TestGatewaySendsCallerSystemUnchanged(t *testing.T) {
 	settings := enabledSettings()
+	const sentinelLabel = "sentinel-provider-label"
+	const sentinelModel = "sentinel-model-name"
+	for index := range settings.Profiles {
+		if settings.Profiles[index].ID == "deepseek" {
+			settings.Profiles[index].Label = sentinelLabel
+			settings.Profiles[index].Model = sentinelModel
+		}
+	}
 	gateway, _, _, invoker, _ := newGateway(t, settings)
 	request := validRequest()
 	request.System = "你是社区助手。"
@@ -365,30 +378,32 @@ func TestGatewayInjectsModelIdentityIntoSystem(t *testing.T) {
 		t.Fatalf("execute failed: %v", err)
 	}
 	system := outboundSystem(t, invoker.lastWire)
-	if !strings.Contains(system, "你是社区助手。") {
-		t.Fatalf("system = %q", system)
+	if system != request.System {
+		t.Fatalf("出站 system 必须与调用方一致：got %q want %q", system, request.System)
 	}
-	profile := deepseekProfile()
-	if !strings.Contains(system, profile.Label) || !strings.Contains(system, profile.Model) {
-		t.Fatalf("出站 system 缺少模型标识：%q", system)
+	for _, leaked := range []string{
+		sentinelLabel,
+		sentinelModel,
+		ai.ProtocolOpenAIChat,
+		ai.ProtocolAnthropicMessages,
+		"AI 网关",
+	} {
+		if strings.Contains(system, leaked) {
+			t.Fatalf("system 不得包含后台配置或部署说明 %q：%q", leaked, system)
+		}
 	}
 }
 
-func TestGatewayConcealsModelIdentityWhenDisabled(t *testing.T) {
-	settings := enabledSettings()
-	off := false
-	settings.Identity = ai.IdentitySettings{DiscloseModel: &off}
-	gateway, _, _, invoker, _ := newGateway(t, settings)
-	if _, err := gateway.Execute(context.Background(), validRequest()); err != nil {
+// 空 system 不会被宿主补全：没有身份声明可注入之后，任何填充都只可能来自网关。
+func TestGatewayKeepsEmptySystemEmpty(t *testing.T) {
+	gateway, _, _, invoker, _ := newGateway(t, enabledSettings())
+	request := validRequest()
+	request.System = ""
+	if _, err := gateway.Execute(context.Background(), request); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
-	system := outboundSystem(t, invoker.lastWire)
-	profile := deepseekProfile()
-	if strings.Contains(system, profile.Model) {
-		t.Fatalf("关闭公开时不得注入模型名：%q", system)
-	}
-	if !strings.Contains(system, "AI 助手") {
-		t.Fatalf("关闭公开时模型仍须知道自己是什么：%q", system)
+	if system := outboundSystem(t, invoker.lastWire); strings.TrimSpace(system) != "" {
+		t.Fatalf("空 system 必须保持为空：%q", system)
 	}
 }
 

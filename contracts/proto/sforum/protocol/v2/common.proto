@@ -73,6 +73,11 @@ message RequestContext {
   // Present only on an authenticated Host route/admin invocation. Query tokens
   // are one-use and bound to the exact actor, runtime, artifact, and contract.
   repeated HostQueryDelegation host_query_delegations = 10;
+  // Present only on a plugin invocation the Host initiated inside an HTTP
+  // request, and only when the Host itself knows the Core session. The plugin
+  // echoes the same value back on the Host session-state RPCs; the Host derives
+  // the session scope from its own mint record, never from this message.
+  HostSessionDelegation host_session_delegation = 11;
 }
 
 // HostCommandDelegation is a short-lived Host-signed capability delivered to
@@ -94,6 +99,19 @@ message HostQueryDelegation {
   string result_schema_version = 5;
   string scope = 6;
   string token = 7;
+}
+
+// HostSessionDelegation is a Host-signed, single-invocation capability that
+// scopes Host-owned plugin session state to the Core session the Host resolved
+// for one HTTP request. The Host mints it only where it initiated a plugin
+// invocation itself and knows the session, and retires it when that invocation
+// settles, so a plugin cannot hoard it for a later request.
+//
+// The token is opaque: it carries no session identifier, no session
+// fingerprint, and no user-supplied authority. Plugins can neither construct
+// nor substitute it, and `Actor.session_id` stays unpopulated.
+message HostSessionDelegation {
+  string token = 1;
 }
 
 // ResponseContext correlates a response with the authoritative runtime.

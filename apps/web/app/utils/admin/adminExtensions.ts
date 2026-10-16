@@ -193,12 +193,14 @@ export type AdminExtensionSettingsCallout = {
 
 export type AdminExtensionSettingsAction = {
   id: string
-  kind: 'provider_probe'
+  kind: 'provider_probe' | 'ai_tool_probe'
   label: string
   description?: string
   placement: 'header' | 'footer'
   useDraftValues: boolean
   fields?: string[]
+  /** ai_tool_probe 调用的 AI 工具声明 id；其它 kind 不返回。 */
+  tool?: string
   available: boolean
   unavailableReason?: string
 }

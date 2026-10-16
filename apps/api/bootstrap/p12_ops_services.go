@@ -71,15 +71,11 @@ func bindProductionP12Ops(
 	market.BindInstaller(installer)
 
 	// Privacy：真实 RBAC + PostgreSQL audit，禁止「actor 非空即允许」。
-	privacyReg := privacy.New()
-	auditStore, err := privacy.NewPostgresAuditor(pool)
+	// API 装配与带外 CLI 恢复共用同一个构造器，权限判定不出现第二份真相。
+	privacyReg, err := NewPrivacyRegistry(pool)
 	if err != nil {
-		return nil, fmt.Errorf("create privacy auditor: %w", err)
+		return nil, err
 	}
-	privacyReg.SetAuditor(auditStore)
-	privacyReg.SetPermissionCheck(func(ctx context.Context, actor, userID, operation string) error {
-		return checkPrivacyPermission(ctx, identityStore, actor, userID, operation)
-	})
 
 	// Safe Mode 不在此加载 system extension 代码；仅暴露 registry 供调用方查询。
 	if cfg.SafeMode {
@@ -241,38 +237,6 @@ func newHostMarketplaceInstaller(
 			return err
 		},
 	}
-}
-
-// checkPrivacyPermission 使用真实 RBAC：export/erase 需要 user.manage（或 super_admin）。
-// 禁止「actor 字符串非空即允许」。
-func checkPrivacyPermission(
-	ctx context.Context,
-	store *identity.PostgresStore,
-	actorRef, userID, operation string,
-) error {
-	_ = userID
-	_ = operation
-	actorRef = strings.TrimSpace(actorRef)
-	if actorRef == "" || store == nil {
-		return privacy.ErrPermissionDenied
-	}
-	// actor 形如 user:123
-	var userIDInt int64
-	if !strings.HasPrefix(actorRef, "user:") {
-		return privacy.ErrPermissionDenied
-	}
-	if _, err := fmt.Sscanf(actorRef, "user:%d", &userIDInt); err != nil || userIDInt <= 0 {
-		return privacy.ErrPermissionDenied
-	}
-	actor, err := store.LoadActor(ctx, userIDInt)
-	if err != nil {
-		return privacy.ErrPermissionDenied
-	}
-	// super_admin 或 user.manage 可执行隐私导出/擦除。
-	if actor.IsSuperAdmin() || actor.Can(identity.PermissionUserManage) {
-		return nil
-	}
-	return privacy.ErrPermissionDenied
 }
 
 func isProdLike(cfg config.Config) bool {

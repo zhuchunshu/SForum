@@ -9,13 +9,20 @@ import (
 )
 
 type Store interface {
-	ListCategories(ctx context.Context) ([]Category, error)
-	ListCategoryGroups(ctx context.Context) ([]CategoryGroup, error)
+	// ListCategories includeHidden=false 只返回公开分类（公开读路径）；
+	// 后台管理传 true，隐藏分类仍可见可维护。
+	ListCategories(ctx context.Context, includeHidden bool) ([]Category, error)
+	// ListCategoryGroups 与 ListCategories 同语义：includeHidden 控制隐藏分组与隐藏分类。
+	ListCategoryGroups(ctx context.Context, includeHidden bool) ([]CategoryGroup, error)
 	ListTags(ctx context.Context, includePending bool) ([]Tag, error)
 	CreateCategoryGroup(ctx context.Context, input CreateCategoryGroupInput) (CategoryGroup, error)
 	UpdateCategoryGroup(ctx context.Context, input UpdateCategoryGroupInput) (CategoryGroup, error)
+	// DeleteCategoryGroup 删除空分组；仍有分类时返回 ErrCategoryGroupNotEmpty。
+	DeleteCategoryGroup(ctx context.Context, groupID int64) (CategoryGroup, error)
 	CreateCategory(ctx context.Context, input CreateCategoryInput) (Category, error)
 	UpdateCategory(ctx context.Context, input UpdateCategoryInput) (Category, error)
+	// DeleteCategory 删除无主题的分类；仍有主题时返回 ErrCategoryNotEmpty。
+	DeleteCategory(ctx context.Context, categoryID int64) (Category, error)
 	CreateTag(ctx context.Context, input CreateTagInput) (Tag, error)
 	UpdateTag(ctx context.Context, input UpdateTagInput) (Tag, error)
 	ListTopics(ctx context.Context, input TopicListInput) (TopicList, error)

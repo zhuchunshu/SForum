@@ -20,16 +20,6 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
-    "id": "core.component.admin.sf_admin_ai_identity_block",
-    "contractVersion": "sforum.component.admin.sf_admin_ai_identity_block@1",
-    "kind": "component",
-    "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIIdentityBlock.vue",
-    "owners": [
-      "admin"
-    ],
-    "targetRegistry": "P7/P9 Admin and Component Registries"
-  },
-  {
     "id": "core.component.admin.sf_admin_ai_model_field",
     "contractVersion": "sforum.component.admin.sf_admin_ai_model_field@1",
     "kind": "component",
@@ -2582,6 +2572,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sf_plugin_page_body_island",
+    "contractVersion": "sforum.component.shared.sf_plugin_page_body_island@1",
+    "kind": "component",
+    "source": "apps/web/app/components/extensions/public/SFPluginPageBodyIsland.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfprivacy_page",
     "contractVersion": "sforum.component.shared.sfprivacy_page@1",
     "kind": "component",
@@ -2707,6 +2707,16 @@
     "contractVersion": "sforum.component.shared.sfpublic_page_header@1",
     "kind": "component",
     "source": "apps/web/app/components/public/SFPublicPageHeader.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sf_public_schema_view",
+    "contractVersion": "sforum.component.shared.sf_public_schema_view@1",
+    "kind": "component",
+    "source": "apps/web/app/components/extensions/public/SFPublicSchemaView.vue",
     "owners": [
       "public"
     ],
@@ -2847,6 +2857,16 @@
     "contractVersion": "sforum.component.shared.sfsettings_account_nav@1",
     "kind": "component",
     "source": "apps/web/app/components/settings/SFSettingsAccountNav.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsettings_account_sidebar",
+    "contractVersion": "sforum.component.shared.sfsettings_account_sidebar@1",
+    "kind": "component",
+    "source": "apps/web/app/components/settings/SFSettingsAccountSidebar.vue",
     "owners": [
       "public"
     ],

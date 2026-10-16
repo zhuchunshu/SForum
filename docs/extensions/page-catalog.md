@@ -68,10 +68,34 @@ their templates cannot declare public L2 widgets.
 
 ## Standard page regions (`forum.page.regions`)
 
-`apps/api/app/Support/RegionCatalog` whitelists the standard placement areas
-each public page exposes: `content_before`, `content_after`, and — on pages
-with a right rail — `sidebar`. Plugins place content through the
-`forum.page.regions` contribution point (payload type `regionPlacement`):
+`apps/api/app/Support/RegionCatalog` is the single hand-edited source for page
+regions. `pageRegionMatrix` whitelists which regions each public page exposes:
+
+| Region | Meaning |
+| --- | --- |
+| `content_before` | Top of the page's main column |
+| `content_after` | Bottom of the page's main column |
+| `sidebar` | Right rail (pages that have one) |
+| `sidebar_top` / `sidebar_bottom` | Above / below `sidebar` in the right rail |
+| `list_before` / `list_after` | Above / below the page's primary list |
+| `detail_before` / `detail_after` | Inside a detail body, above / below the main content |
+| `comments_before` / `comments_after` | Above / below the comment list |
+| `profile_header_after` | Directly under the profile header |
+
+A region is only declared for a page that actually renders it. Every
+page×region pair must have a real `<SFRegionOutlet>` in the page's host
+component, and `apps/web/tests/framework/pageRegions.test.ts` fails when the
+matrix and the render sites disagree in either direction. Two consequences
+worth knowing: `forum.topic.reply` is intentionally absent (its component is a
+redirect placeholder with no slots), and `hero`/`composer_after` were rejected
+because they would have sat next to `content_before`/`content_after` without
+adding a distinct slot.
+
+`apps/web/app/config/pageRegionCatalog.gen.ts` is generated from that Go file
+by `scripts/v3-catalog/generate.mjs` — do not hand-edit the web whitelist.
+
+Plugins place content through the `forum.page.regions` contribution point
+(payload type `regionPlacement`):
 
 - `hostLink` — host-rendered link card, host-relative paths only.
 - `extensionRoute` — action card executed via the `/extensions/{id}` proxy.
@@ -85,10 +109,11 @@ The frontend fetches `GET /site/page-regions?page=<id>` during SSR from
 `SFPageOutletResolver`, shares the payload via `usePageRegions`, and renders
 `SFRegionOutlet` instances placed in the native page components (which also
 serve theme L1 templates as body islands, so both render paths get regions).
-CSP is aggregated exactly once per response — by `SFThemeTemplate` on the
-template path, by the resolver otherwise. `enabledBySetting` gating, ordering,
-and safe mode follow the shared EffectiveContributions pipeline. Reference
-fixture: `extensions/fixtures/plugins/sforum-region-demo`.
+An empty region renders no DOM at all. CSP is aggregated exactly once per
+response — by `SFThemeTemplate` on the template path, by the resolver
+otherwise. `enabledBySetting` gating, ordering, and safe mode follow the shared
+EffectiveContributions pipeline. Reference fixture:
+`extensions/fixtures/plugins/sforum-region-demo`.
 
 ## Adding a core page
 
@@ -103,10 +128,13 @@ fixture: `extensions/fixtures/plugins/sforum-region-demo`.
 4. If themes may replace the page, register the body island in
    `SFThemeTemplate.vue` (`islandComponents` + `legacyIslandBindings`) and add
    the island mapping expected by `RequiredThemeBodyIslandTag`.
-5. If the page should expose standard regions, add it to
-   `pageRegionMatrix` in `apps/api/app/Support/RegionCatalog/catalog.go` and
-   to `PAGE_REGION_PAGES` in `apps/web/app/composables/usePageRegions.ts`,
-   then place `<SFRegionOutlet>` instances in the native component.
+5. If the page should expose standard regions, add the page×region entries to
+   `pageRegionMatrix` in `apps/api/app/Support/RegionCatalog/catalog.go`, run
+   `node scripts/v3-catalog/generate.mjs` (the web whitelist is generated from
+   that Go file), and place a `<SFRegionOutlet>` for every declared region in
+   the native component. `apps/web/tests/framework/pageRegions.test.ts` fails
+   until the matrix and the render sites agree, so a region cannot be declared
+   without a slot that actually renders it.
 6. `catalog_coverage_test.go` will fail until catalog and page shell agree.
 
 ## Reserved paths

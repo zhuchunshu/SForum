@@ -251,7 +251,8 @@ func validateQueryRuntimeContextProjection(
 		return detail
 	}
 	if request.GetActor() != nil || len(request.GetGrantedAuthority()) != 0 || request.GetIdempotencyKey() != "" ||
-		len(request.GetHostCommandDelegations()) != 0 || len(request.GetHostQueryDelegations()) != 0 {
+		len(request.GetHostCommandDelegations()) != 0 || len(request.GetHostQueryDelegations()) != 0 ||
+		request.GetHostSessionDelegation() != nil {
 		return queryRuntimeError(protocolwire.ErrorCode_ERROR_CODE_PERMISSION_DENIED,
 			"query_runtime.context_authority_forbidden",
 			"Actor, authority, idempotency, and delegation material are forbidden on query runtime calls.")

@@ -1,0 +1,927 @@
+{
+  "schemaVersion": 1,
+  "views": [
+    "component",
+    "schema",
+    "template"
+  ],
+  "layouts": [
+    "bare",
+    "site"
+  ],
+  "hostIslands": [
+    "sf-account-settings-sidebar",
+    "sf-appearance-settings",
+    "sf-category-index-page",
+    "sf-category-show-page",
+    "sf-email-verification",
+    "sf-error-actions",
+    "sf-error-details",
+    "sf-error-rail",
+    "sf-error-recovery",
+    "sf-error-sidebar",
+    "sf-extension-widget",
+    "sf-external-auth-continuation",
+    "sf-footer",
+    "sf-guidelines-page",
+    "sf-home-navigation",
+    "sf-home-page",
+    "sf-local-password-settings",
+    "sf-login-form",
+    "sf-login-methods-settings",
+    "sf-moderation-review",
+    "sf-navbar",
+    "sf-not-found-page",
+    "sf-notification-detail-page",
+    "sf-notification-settings",
+    "sf-notifications-page",
+    "sf-personal-access-tokens",
+    "sf-plugin-page-body",
+    "sf-privacy-page",
+    "sf-profile-page",
+    "sf-profile-settings",
+    "sf-recovery-confirm",
+    "sf-recovery-request",
+    "sf-register-form",
+    "sf-search-page",
+    "sf-security-settings",
+    "sf-tag-index-page",
+    "sf-tag-show-page",
+    "sf-terms-page",
+    "sf-topic-composer",
+    "sf-topic-editor",
+    "sf-topic-reply",
+    "sf-topic-show-page"
+  ],
+  "regions": [
+    {
+      "id": "content_before",
+      "kind": "content"
+    },
+    {
+      "id": "content_after",
+      "kind": "content"
+    },
+    {
+      "id": "sidebar",
+      "kind": "sidebar"
+    },
+    {
+      "id": "list_before",
+      "kind": "list"
+    },
+    {
+      "id": "list_after",
+      "kind": "list"
+    },
+    {
+      "id": "detail_before",
+      "kind": "detail"
+    },
+    {
+      "id": "detail_after",
+      "kind": "detail"
+    },
+    {
+      "id": "comments_before",
+      "kind": "comments"
+    },
+    {
+      "id": "comments_after",
+      "kind": "comments"
+    },
+    {
+      "id": "sidebar_top",
+      "kind": "sidebar"
+    },
+    {
+      "id": "sidebar_bottom",
+      "kind": "sidebar"
+    },
+    {
+      "id": "profile_header_after",
+      "kind": "profile"
+    }
+  ],
+  "pages": [
+    {
+      "id": "forum.home",
+      "pathPattern": "/",
+      "access": "public",
+      "contractVersion": "sforum.page.home@1",
+      "coreComponent": "pages/index",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after",
+        "list_before",
+        "list_after",
+        "sidebar",
+        "sidebar_top",
+        "sidebar_bottom"
+      ]
+    },
+    {
+      "id": "forum.search",
+      "pathPattern": "/search",
+      "access": "public",
+      "contractVersion": "sforum.page.search@1",
+      "coreComponent": "pages/search",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after",
+        "list_before",
+        "list_after",
+        "sidebar"
+      ]
+    },
+    {
+      "id": "forum.category.index",
+      "pathPattern": "/categories",
+      "access": "public",
+      "contractVersion": "sforum.page.category_index@1",
+      "coreComponent": "pages/categories/index",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after",
+        "list_before",
+        "list_after",
+        "sidebar"
+      ]
+    },
+    {
+      "id": "forum.category.show",
+      "pathPattern": "/c/:categorySlug",
+      "access": "public",
+      "contractVersion": "sforum.page.category_show@1",
+      "coreComponent": "pages/c/[categorySlug]",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after",
+        "list_before",
+        "list_after"
+      ]
+    },
+    {
+      "id": "forum.tag.index",
+      "pathPattern": "/tags",
+      "access": "public",
+      "contractVersion": "sforum.page.tag_index@1",
+      "coreComponent": "pages/tags/index",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "gated by forum.tags.public_pages",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after",
+        "list_before",
+        "list_after",
+        "sidebar"
+      ]
+    },
+    {
+      "id": "forum.tag.show",
+      "pathPattern": "/tags/:tagSlug",
+      "access": "public",
+      "contractVersion": "sforum.page.tag_show@1",
+      "coreComponent": "pages/tags/[tagSlug]",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "gated by forum.tags.public_pages",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after",
+        "list_before",
+        "list_after",
+        "sidebar"
+      ]
+    },
+    {
+      "id": "forum.topic.show",
+      "pathPattern": "/t/:path(.*)",
+      "access": "public",
+      "contractVersion": "sforum.page.topic_show@1",
+      "coreComponent": "pages/t/[...path]",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "seo.topic_url_mode",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after",
+        "detail_before",
+        "detail_after",
+        "comments_before",
+        "comments_after",
+        "sidebar",
+        "sidebar_top",
+        "sidebar_bottom"
+      ]
+    },
+    {
+      "id": "forum.topic.create",
+      "pathPattern": "/topics/new",
+      "access": "public",
+      "contractVersion": "sforum.page.topic_create@1",
+      "coreComponent": "pages/topics/new",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after"
+      ]
+    },
+    {
+      "id": "forum.topic.reply",
+      "pathPattern": "/topics/reply",
+      "access": "public",
+      "contractVersion": "sforum.page.topic_reply@1",
+      "coreComponent": "pages/topics/reply",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "forum.topic.edit",
+      "pathPattern": "/topics/:topicId/edit",
+      "access": "public",
+      "contractVersion": "sforum.page.topic_edit@1",
+      "coreComponent": "pages/topics/[topicId]/edit",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after"
+      ]
+    },
+    {
+      "id": "forum.profile.show",
+      "pathPattern": "/u/:username",
+      "access": "public",
+      "contractVersion": "sforum.page.profile_show@1",
+      "coreComponent": "pages/u/[username]",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after",
+        "sidebar",
+        "profile_header_after"
+      ]
+    },
+    {
+      "id": "forum.settings.profile",
+      "pathPattern": "/settings/profile",
+      "access": "public",
+      "contractVersion": "sforum.page.settings_profile@1",
+      "coreComponent": "pages/settings/profile",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "forum.settings.appearance",
+      "pathPattern": "/settings/appearance",
+      "access": "public",
+      "contractVersion": "sforum.page.settings_appearance@1",
+      "coreComponent": "pages/settings/appearance",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "forum.settings.login_methods",
+      "pathPattern": "/settings/login-methods",
+      "access": "public",
+      "contractVersion": "sforum.page.settings_login_methods@1",
+      "coreComponent": "pages/settings/login-methods",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "forum.settings.password",
+      "pathPattern": "/settings/password",
+      "access": "public",
+      "contractVersion": "sforum.page.settings_password@1",
+      "coreComponent": "pages/settings/password",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "forum.settings.security",
+      "pathPattern": "/settings/security",
+      "access": "public",
+      "contractVersion": "sforum.page.settings_security@1",
+      "coreComponent": "pages/settings/security",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "forum.settings.tokens",
+      "pathPattern": "/settings/tokens",
+      "access": "public",
+      "contractVersion": "sforum.page.settings_tokens@1",
+      "coreComponent": "pages/settings/tokens",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "forum.settings.notifications",
+      "pathPattern": "/settings/notifications",
+      "access": "public",
+      "contractVersion": "sforum.page.settings_notifications@1",
+      "coreComponent": "pages/settings/notifications",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "forum.notifications",
+      "pathPattern": "/notifications",
+      "access": "public",
+      "contractVersion": "sforum.page.notifications@1",
+      "coreComponent": "pages/notifications/index",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": [
+        "content_before",
+        "content_after",
+        "list_before",
+        "list_after"
+      ]
+    },
+    {
+      "id": "forum.notification.show",
+      "pathPattern": "/notifications/:notificationId",
+      "access": "public",
+      "contractVersion": "sforum.page.notification_show@1",
+      "coreComponent": "pages/notifications/[notificationId]",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "moderation.review",
+      "pathPattern": "/moderation",
+      "access": "public",
+      "contractVersion": "sforum.page.moderation_review@1",
+      "coreComponent": "pages/moderation/index",
+      "replaceable": false,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "theme may place the Host-owned moderation island; plugins cannot replace the workbench",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "auth.login",
+      "pathPattern": "/login",
+      "access": "public",
+      "contractVersion": "sforum.page.login@1",
+      "coreComponent": "pages/login",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "replace must embed host login form island",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "auth.register",
+      "pathPattern": "/register",
+      "access": "public",
+      "contractVersion": "sforum.page.register@1",
+      "coreComponent": "pages/register",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "auth.external_continuation",
+      "pathPattern": "/auth/continue",
+      "access": "public",
+      "contractVersion": "sforum.page.external_auth_continuation@1",
+      "coreComponent": "pages/auth/continue",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "replace must embed host external-auth continuation island",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "auth.email_verification",
+      "pathPattern": "/email-verification",
+      "access": "public",
+      "contractVersion": "sforum.page.email_verification@1",
+      "coreComponent": "pages/email-verification",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "replace must embed host email-verification island",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "auth.forgot_password",
+      "pathPattern": "/forgot-password",
+      "access": "public",
+      "contractVersion": "sforum.page.forgot_password@1",
+      "coreComponent": "pages/forgot-password",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "auth.reset_password",
+      "pathPattern": "/reset-password",
+      "access": "public",
+      "contractVersion": "sforum.page.reset_password@1",
+      "coreComponent": "pages/reset-password",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "site.terms",
+      "pathPattern": "/terms",
+      "access": "public",
+      "contractVersion": "sforum.page.terms@1",
+      "coreComponent": "pages/terms",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "site.privacy",
+      "pathPattern": "/privacy",
+      "access": "public",
+      "contractVersion": "sforum.page.privacy@1",
+      "coreComponent": "pages/privacy",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "site.guidelines",
+      "pathPattern": "/guidelines",
+      "access": "public",
+      "contractVersion": "sforum.page.guidelines@1",
+      "coreComponent": "pages/guidelines",
+      "replaceable": true,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "site.outbound",
+      "pathPattern": "/outbound",
+      "access": "public",
+      "contractVersion": "sforum.page.outbound@1",
+      "coreComponent": "pages/outbound",
+      "replaceable": false,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "host-owned 站外链接中转页；access 恒为 public，判定在点击时进行",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "system.forbidden",
+      "pathPattern": "",
+      "access": "public",
+      "contractVersion": "sforum.page.forbidden@1",
+      "coreComponent": "error",
+      "replaceable": true,
+      "virtual": true,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "system.not_found",
+      "pathPattern": "",
+      "access": "public",
+      "contractVersion": "sforum.page.not_found@1",
+      "coreComponent": "error",
+      "replaceable": true,
+      "virtual": true,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "system.rate_limited",
+      "pathPattern": "",
+      "access": "public",
+      "contractVersion": "sforum.page.rate_limited@1",
+      "coreComponent": "error",
+      "replaceable": true,
+      "virtual": true,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "system.server_error",
+      "pathPattern": "",
+      "access": "public",
+      "contractVersion": "sforum.page.server_error@1",
+      "coreComponent": "error",
+      "replaceable": true,
+      "virtual": true,
+      "requiresFeatures": [],
+      "notes": "",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    },
+    {
+      "id": "dev.components",
+      "pathPattern": "/components",
+      "access": "public",
+      "contractVersion": "sforum.page.dev_components@1",
+      "coreComponent": "pages/components",
+      "replaceable": false,
+      "virtual": false,
+      "requiresFeatures": [],
+      "notes": "dev gallery",
+      "views": [
+        "component",
+        "schema",
+        "template"
+      ],
+      "layouts": [
+        "bare",
+        "site"
+      ],
+      "regions": []
+    }
+  ]
+}

@@ -25,6 +25,7 @@ Project memory for future sessions and contributors.
 | `glossary.md` | Shared terms |
 | `archive/` | Stale audits, legacy comparisons, and historical research |
 | `reports/` | Point-in-time scans |
+| `runbooks/` | Reproducible operational procedures with their expected signals |
 
 ## Hygiene
 

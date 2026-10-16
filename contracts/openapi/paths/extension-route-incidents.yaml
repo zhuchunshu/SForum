@@ -1,0 +1,20 @@
+adminExtensionRouteIncidents:
+  get:
+    summary: List durable route runtime incidents and quarantine results
+    operationId: listAdminExtensionRouteIncidents
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. Returns
+      the durable crash-loop incident ledger (bounded to 200 rows, newest first)
+      with the local quarantine result, so an operator sees the same state after a
+      restart that the Host acted on. Records are redacted: no request headers,
+      bodies, or credentials are disclosed.
+    responses:
+      '200':
+        description: Bounded, redacted incident ledger plus a status summary.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-route-inspector.yaml#/ApiResponseRouteIncidentLedger"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }

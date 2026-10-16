@@ -7,12 +7,15 @@ import {
   type AdminNavigationFolderEntry
 } from '../../app/config/adminModules'
 import {
+  createAdminForumApi,
   createCategoryPayload,
   createDefaultForumSettings,
   createTagPayload,
   forumSettingsPartialPayload,
   forumSettingsPayload,
-  normalizeForumSettings
+  forumTaxonomyDeleteErrorKey,
+  normalizeForumSettings,
+  type AdminForumRequestOptions
 } from '../../app/utils/admin/adminForum'
 
 describe('admin forum helpers', () => {
@@ -115,6 +118,49 @@ describe('admin forum helpers', () => {
       icon: 'i-lucide-tag',
       iconColor: '#2563eb'
     })
+  })
+
+  test('exposes admin taxonomy delete endpoints', async () => {
+    const calls: Array<{ path: string, options?: AdminForumRequestOptions }> = []
+    const api = createAdminForumApi(async (path, options) => {
+      calls.push({ path, options })
+      return {} as never
+    })
+
+    await api.deleteCategoryGroup(4)
+    await api.deleteCategory(9)
+
+    expect(calls).toEqual([
+      { path: '/admin/forum/category-groups/4', options: { method: 'DELETE' } },
+      { path: '/admin/forum/categories/9', options: { method: 'DELETE' } }
+    ])
+  })
+
+  test('maps delete rejection reasons to localized message keys', () => {
+    expect(forumTaxonomyDeleteErrorKey('forum.category_group_not_empty')).toBe('groupNotEmpty')
+    expect(forumTaxonomyDeleteErrorKey('forum.category_not_empty')).toBe('categoryNotEmpty')
+    expect(forumTaxonomyDeleteErrorKey('forum.category_is_default')).toBe('categoryIsDefault')
+    expect(forumTaxonomyDeleteErrorKey('forum.category_not_found')).toBe('notFound')
+    expect(forumTaxonomyDeleteErrorKey('forum.category_group_not_found')).toBe('notFound')
+    expect(forumTaxonomyDeleteErrorKey('forum.something_else')).toBe('')
+  })
+
+  test('ships delete dialog copy in both locales and wires it into the categories page', () => {
+    const categoriesPage = readFileSync(new URL('../../app/pages/admin/forum/categories.vue', import.meta.url), 'utf8')
+    const zhCN = JSON.parse(readFileSync(new URL('../../i18n/locales/zh-CN.json', import.meta.url), 'utf8'))
+    const enUS = JSON.parse(readFileSync(new URL('../../i18n/locales/en-US.json', import.meta.url), 'utf8'))
+
+    expect(categoriesPage).toContain('SFAdminForumTaxonomyDeleteDialog')
+    expect(categoriesPage).toContain('forumApi.deleteCategoryGroup(')
+    expect(categoriesPage).toContain('forumApi.deleteCategory(')
+    expect(categoriesPage).toContain('requestDeleteGroup(group)')
+    expect(categoriesPage).toContain('requestDeleteCategory(category)')
+
+    const zhKeys = Object.keys(zhCN.admin.forum.categories.delete).sort()
+    const enKeys = Object.keys(enUS.admin.forum.categories.delete).sort()
+    expect(zhKeys).toEqual(enKeys)
+    expect(zhCN.admin.common.delete).toBe('删除')
+    expect(enUS.admin.common.delete).toBe('Delete')
   })
 
   test('wires taxonomy visual controls into admin category and tag pages', () => {

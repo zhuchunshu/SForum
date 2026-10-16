@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SPluginIcon from '../icons/SPluginIcon.vue'
 import type { SPluginTableColumn, SPluginTableRow } from '../../types'
 
 withDefaults(defineProps<{
@@ -25,6 +26,7 @@ withDefaults(defineProps<{
             scope="col"
             :class="`splugin-table__cell--${column.align || 'start'}`"
           >
+            <SPluginIcon v-if="column.icon" :name="column.icon" size="sm" class="splugin-table__head-icon" />
             {{ column.label }}
           </th>
         </tr>

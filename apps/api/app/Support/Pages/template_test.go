@@ -168,8 +168,37 @@ func TestExtractHostIslands(t *testing.T) {
 	}
 }
 
-func TestLoadDefaultHomeTemplate(t *testing.T) {
-	// 相对 monorepo：从 apps/api 运行时 path 不同；用 testdata 风格内联
+// 插件模板的岛属性白名单 = 通用属性 + 该岛在生产绑定表里声明的 prop。
+// 声明之外一律拒绝，避免插件用插件页模板给宿主组件塞未审查的自定义属性。
+func TestIslandAttributesAllowDeclaredPropsOnly(t *testing.T) {
+	src, err := SanitizeTemplateHTML(
+		`<sf-account-settings-sidebar active="demo.nav.apps"></sf-account-settings-sidebar>`,
+	)
+	if err != nil {
+		t.Fatalf("declared island prop rejected: %v", err)
+	}
+	if !strings.Contains(src, `active="demo.nav.apps"`) {
+		t.Fatalf("declared island prop lost during sanitize: %s", src)
+	}
+
+	rejected := []string{
+		// 未声明的属性
+		`<sf-account-settings-sidebar active="a" rail="b"></sf-account-settings-sidebar>`,
+		// 已声明的岛也不接受别的通用属性之外的写法
+		`<sf-account-settings-sidebar></sf-account-settings-sidebar>`,
+		// 绑定表里没有的岛
+		`<sf-unreviewed-sidebar active="a"></sf-unreviewed-sidebar>`,
+		// 非 widget 岛必须为空
+		`<sf-account-settings-sidebar active="a"><p>fallback</p></sf-account-settings-sidebar>`,
+	}
+	for _, candidate := range rejected {
+		if _, err := SanitizeTemplateHTML(candidate); err == nil {
+			t.Fatalf("expected rejection for %s", candidate)
+		}
+	}
+}
+
+func TestLoadDefaultHomeTemplate(t *testing.T) {	// 相对 monorepo：从 apps/api 运行时 path 不同；用 testdata 风格内联
 	src := `<!-- home --><div class="sf-page" data-page="forum.home"><sf-home-page></sf-home-page></div>`
 	// data-page 不在 allowlist attrs globally for data-* — div 上 data-page 会被 strip，这可接受
 	// 调整为 class only

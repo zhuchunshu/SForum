@@ -69,9 +69,25 @@ func runExtensionDigest(cmd *cobra.Command, root string, write bool) error {
 	if int(version) != extensionmanifest.ManifestVersionV3 {
 		return fmt.Errorf("%s is not an explicit Manifest V3 package", manifestPath)
 	}
-	files, ok := manifest["packageFiles"].([]any)
+	// 没有 packageFiles 是合法形态（例如只声明 routes/events 契约、不携带任何包内文件的包）。
+	// 此时没有可刷新的摘要：仍然执行 --write 的校验，但不再以一句难以理解的错误中断作者循环。
+	// 修正（2026-10-16）：此前直接报 “Manifest V3 packageFiles must be inline for digest refresh”，
+	// 而 `extension validate` / `test` 对同一包是绿的——又一个「CLI 与作者预期不一致」。
+	rawFiles, present := manifest["packageFiles"]
+	files, ok := rawFiles.([]any)
+	if !present || rawFiles == nil {
+		if !write {
+			cmd.Printf("no package files declared; nothing to refresh\n")
+			return nil
+		}
+		if _, err := extensionmanifest.LoadPackage(abs); err != nil {
+			return fmt.Errorf("package is invalid: %w", err)
+		}
+		cmd.Printf("no package files declared; %s validated\n", manifestPath)
+		return nil
+	}
 	if !ok {
-		return fmt.Errorf("Manifest V3 packageFiles must be inline for digest refresh")
+		return fmt.Errorf("Manifest V3 packageFiles must be an inline array for digest refresh")
 	}
 	digests := make(map[string]string, len(files))
 	for _, raw := range files {

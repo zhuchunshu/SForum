@@ -55,6 +55,9 @@ type Host struct {
 	Navigation  hostwire.NavigationServiceClient
 	Audit       hostwire.AuditServiceClient
 	Tracing     hostwire.TracingServiceClient
+	// PluginSession 是 S9 的宿主会话状态服务。插件只能通过
+	// Host.SessionState(parent) 使用它：请求形状里没有扩展/用户/会话 id 字段。
+	PluginSession hostwire.PluginSessionServiceClient
 
 	conn      *grpc.ClientConn
 	identity  *protocolwire.ExtensionIdentity
@@ -105,6 +108,7 @@ func newHost(
 	host.Navigation = hostwire.NewNavigationServiceClient(conn)
 	host.Audit = hostwire.NewAuditServiceClient(conn)
 	host.Tracing = hostwire.NewTracingServiceClient(conn)
+	host.PluginSession = hostwire.NewPluginSessionServiceClient(conn)
 	return host, nil
 }
 
@@ -124,6 +128,7 @@ func (h *Host) RequestContext(parent *protocolwire.RequestContext) *protocolwire
 	// helper and must not be copied onto arbitrary plugin-to-Host calls.
 	result.HostCommandDelegations = nil
 	result.HostQueryDelegations = nil
+	result.HostSessionDelegation = nil
 	if result.Locale == "" {
 		result.Locale = "und"
 	}

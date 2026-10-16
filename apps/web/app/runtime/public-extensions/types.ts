@@ -52,6 +52,10 @@ export type PublicFrontendComponentDescriptor = {
   csp: string[]
 }
 
+export type PublicFrontendIconResolver = Readonly<{
+  resolve: (names: readonly string[]) => Promise<Readonly<Record<string, string>>>
+}>
+
 export type PublicFrontendBridgeV1 = Readonly<{
   apiVersion: typeof PUBLIC_FRONTEND_API_VERSION
   trust: typeof PUBLIC_FRONTEND_TRUST_NOTICE
@@ -66,6 +70,8 @@ export type PublicFrontendBridgeV1 = Readonly<{
     accent: string
     accentContrast: string
   }>
+  /** 可选：宿主未提供时为 `undefined`，插件必须优雅降级。 */
+  icons?: PublicFrontendIconResolver
   props: Readonly<Record<string, unknown>>
   ssrRoot: HTMLElement
   request: <T>(path: string, options?: Record<string, unknown>) => Promise<T>

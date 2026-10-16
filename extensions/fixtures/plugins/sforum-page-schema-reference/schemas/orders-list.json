@@ -1,0 +1,20 @@
+{
+  "kind": "list",
+  "title": "Schema view reference",
+  "description": "Bounded page descriptor rendered by the Host without any package code.",
+  "tone": "neutral",
+  "items": [
+    {
+      "label": "Plan",
+      "value": "pro"
+    },
+    {
+      "label": "Seats",
+      "value": "12"
+    }
+  ],
+  "cells": {
+    "owner": "sforum",
+    "state": "active"
+  }
+}

@@ -9,6 +9,10 @@ import (
 	"testing"
 )
 
+// full-route-plugin fixture 的 replace 路由用它声明 raw 请求权威：决定 R1 之后，
+// raw 权限必须来自包内 kind=raw_request 守卫，Host 拥有的 core.guard.raw_request 被拒绝。
+const fullRouteRawGuardID = "fixture.routes.guard.raw"
+
 func TestManifestV3AuthoritativeFixtures(t *testing.T) {
 	paths, err := filepath.Glob("testdata/v3/*.json")
 	if err != nil {
@@ -88,10 +92,19 @@ func TestManifestV3AuthoritativeFixtures(t *testing.T) {
 		}
 	}
 	for _, route := range routes {
-		if route.Action == RouteActionReplace && route.Guard != GuardCoreRaw {
+		if route.Action == RouteActionReplace && route.Guard != fullRouteRawGuardID {
 			t.Fatalf("explicit raw replacement guard = %q", route.Guard)
 		}
 	}
+	// 反向覆盖：同一个 fixture 把 replace 守卫换成 Host 拥有的 core.guard.raw_request
+	// 后必须被拒绝，且错误要指向 kind=raw_request 的包内守卫作为替代。
+	coreRaw := manifests["full-route-plugin.json"]
+	for index := range coreRaw.Routes {
+		if coreRaw.Routes[index].Action == RouteActionReplace {
+			coreRaw.Routes[index].Guard = GuardCoreRaw
+		}
+	}
+	assertCoreRawRouteGuardRefused(t, coreRaw)
 	for _, mode := range []string{RouteModeHTTP, RouteModeSSE, RouteModeWebSocket, RouteModeStream, RouteModeMultipart} {
 		if !modes[mode] {
 			t.Fatalf("full route fixture missing mode %s", mode)

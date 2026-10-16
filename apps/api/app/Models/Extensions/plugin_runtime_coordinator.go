@@ -57,6 +57,10 @@ type PluginRuntimeCoordinatorConfig struct {
 	PollInterval      time.Duration
 	OnError           func(error)
 	OnReady           func()
+	// OnPending 上报「本轮无法收敛但不是错误」的原因（未播种/开放中的
+	// lifecycle operation）。它不改变 Run 的行为，只让装配层的有界启动等待
+	// 在到期时能给出根因，而不是只有一个沉默的超时。
+	OnPending func(error)
 }
 
 // PluginRuntimeCoordinator converges one API or worker boot to PostgreSQL's
@@ -403,9 +407,11 @@ func (c *PluginRuntimeCoordinator) reconcileAndReport(ctx context.Context) (bool
 		return true, nil
 	}
 	if errors.Is(err, errPluginRuntimeDesiredNotSeeded) {
+		c.reportPending(err)
 		return false, nil
 	}
 	if errors.Is(err, errPluginRuntimeLifecyclePending) {
+		c.reportPending(err)
 		return false, nil
 	}
 	if ctx.Err() != nil {
@@ -454,5 +460,14 @@ func (c *PluginRuntimeCoordinator) recordPluginRuntimeApplyFailure(
 func (c *PluginRuntimeCoordinator) report(err error) {
 	if err != nil && c.config.OnError != nil {
 		c.config.OnError(err)
+	}
+}
+
+// reportPending 与 report 分开：pending 不是失败，绝不能走 OnError（那会让
+// 启动边界把「还在等 lifecycle 结束」当成协调器终止）。它只把原因交给装配层
+// 用于有界启动等待的诊断输出。
+func (c *PluginRuntimeCoordinator) reportPending(err error) {
+	if err != nil && c.config.OnPending != nil {
+		c.config.OnPending(err)
 	}
 }

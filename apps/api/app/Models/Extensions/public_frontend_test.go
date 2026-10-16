@@ -974,6 +974,7 @@ func publicFrontendFixtureFor(t *testing.T, id string, assetDependencies []strin
 		"frontend/public/font.woff2":  []byte("test-font"),
 		"frontend/public/unsafe.html": []byte("<script>top.location='https://example.invalid'</script>"),
 		"frontend/public/unsafe.svg":  []byte("<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"),
+		"schemas/card-props.json":     []byte("{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}}}\n"),
 	}
 	for name, body := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
@@ -997,6 +998,8 @@ func publicFrontendFixtureFor(t *testing.T, id string, assetDependencies []strin
 			{ID: id + ".file.font", Kind: "asset", Path: "frontend/public/font.woff2", Digest: bytesDigest(files["frontend/public/font.woff2"])},
 			{ID: id + ".file.html", Kind: "asset", Path: "frontend/public/unsafe.html", Digest: bytesDigest(files["frontend/public/unsafe.html"])},
 			{ID: id + ".file.svg", Kind: "asset", Path: "frontend/public/unsafe.svg", Digest: bytesDigest(files["frontend/public/unsafe.svg"])},
+			// 组件 props/result schema 必须有同包精确声明（与 provider 同一规则）。
+			{ID: id + ".component.card.props", Kind: "schema", Path: "schemas/card-props.json", Digest: bytesDigest(files["schemas/card-props.json"]), Version: "1"},
 		},
 		Assets: []ManifestAsset{{
 			Handle: id + ".asset.style", ContractVersion: id + ".asset.style@1",

@@ -23,6 +23,11 @@ export type PageResolvePayload = {
   extensionId?: string
   contributionId?: string
   action?: string
+  /**
+   * site | bare。默认 `site`：宿主提供完整公共外壳（恰好一个 navbar/footer + 共享几何），
+   * 与其它公开页一致。作者要自持 chrome 时显式声明 `bare`。未知值在安装预检即被拒绝。
+   */
+  layout?: string
   fallback?: boolean
   reason?: PageResolveReason | string
   selectedProvider?: string
@@ -34,11 +39,26 @@ export type PageResolvePayload = {
   nodeRevision?: number
   templatePath?: string
   templateHtml?: string
+  /**
+   * 正文提供方式：template（L1 Go 模板，历史行为）| component（包内公开 L2 组件）。
+   * component 时 templateHtml 为空是正常状态，正文由 SFRegistryPageBody 挂载组件提供。
+   */
+  view?: string
+  /** view=component 时包内公开 L2 组件 id。 */
+  component?: string
+  /** view=schema 时的有界页面描述符；API 已完成精确制品 + 契约 + 有界校验。 */
+  schemaView?: Record<string, unknown>
   renderOutput?: ThemeRenderOutput
   dataSource?: string
   dataRoute?: string
   loaderData?: unknown
   loaderError?: string
+  /** 选中主题声明的 L1 外壳模板（仅 layout=site 时可能非空）。 */
+  shellHtml?: string
+  /** 外壳的来源与精确制品身份；空表示回落到宿主公共外壳。 */
+  shellProvider?: string
+  shellVersion?: string
+  shellPackageDigest?: string
 }
 
 export type PageResolveRequest = (

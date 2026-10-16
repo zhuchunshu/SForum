@@ -37,7 +37,9 @@ const pageSidebarSources = [
   '../../app/components/forum/SFTopicEditPage.vue',
   '../../app/components/forum/SFTopicShowPage.vue',
   '../../app/components/profile/SFProfileShowPage.vue',
-  '../../app/components/settings/SFSettingsShell.vue',
+  // 账号设置三栏页的左栏所有者是侧栏组件本身（插件公开页的
+  // sf-account-settings-sidebar 岛复用同一份），不再是 SFSettingsShell。
+  '../../app/components/settings/SFSettingsAccountSidebar.vue',
   '../../app/components/notifications/SFNotificationsPage.vue',
   '../../app/components/notifications/detail/SFNotificationDetailPage.vue',
   '../../app/components/moderation/SFModerationReviewPage.vue',

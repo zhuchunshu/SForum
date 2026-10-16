@@ -6,6 +6,7 @@ import {
   parsePageRegionsPayload,
   safePageRegionHref
 } from '../../app/composables/pages/usePageRegions'
+import { PAGE_REGION_IDS } from '../../app/config/pageRegionCatalog.gen'
 
 function source(relative: string) {
   return readFileSync(new URL(relative, import.meta.url), 'utf8')
@@ -95,7 +96,28 @@ describe('forum.page.regions payload parsing', () => {
     expect(safePageRegionHref('/a/../b')).toBe(false)
   })
 
+  it('accepts a payload that fills every region the catalog declares for a page', () => {
+    // MAX_REGIONS 由生成的区域目录推导：写死的 8 会把 forum.topic.show（9 个区域）
+    // 的合法 payload 整页判成非法，于是页面静默失去所有区域内容。
+    const page = 'forum.topic.show'
+    const template = validPayload.regions[0]!
+    const regions = PAGE_REGION_IDS[page]!.map(id => ({
+      id,
+      kind: 'content',
+      items: template.items
+    }))
+    const parsed = parsePageRegionsPayload({
+      schemaVersion: 'sforum.page-regions@1',
+      page,
+      regions
+    }, page)
+    expect(parsed?.regions).toHaveLength(regions.length)
+  })
+
   it('mirrors the backend RegionCatalog page whitelist', () => {
+    // PAGE_REGION_PAGES 现在由 scripts/v3-catalog/generate.mjs 从
+    // apps/api/app/Support/RegionCatalog/catalog.go 生成，不再手工维护；
+    // 这里钉住结果集合，让目录的增删必须显式经过这个测试。
     expect([...PAGE_REGION_PAGES].sort()).toEqual([
       'forum.category.index',
       'forum.category.show',
@@ -107,7 +129,6 @@ describe('forum.page.regions payload parsing', () => {
       'forum.tag.show',
       'forum.topic.create',
       'forum.topic.edit',
-      'forum.topic.reply',
       'forum.topic.show'
     ])
   })
@@ -140,35 +161,69 @@ describe('region outlet wiring contracts', () => {
     expect(template.match(/applyPublicPageDocumentPolicy\(/g)).toHaveLength(1)
   })
 
-  it('every region page ships its outlets', () => {
-    const placements: Record<string, string[]> = {
-      'forum/SFTopicShowPage.vue': ['forum.topic.show'],
-      'forum/SFCategoryShowPage.vue': ['forum.category.show'],
-      'forum/SFCategoryIndexPage.vue': ['forum.category.index'],
-      'forum/SFTagShowPage.vue': ['forum.tag.show'],
-      'forum/SFTagIndexPage.vue': ['forum.tag.index'],
-      'profile/SFProfileShowPage.vue': ['forum.profile.show'],
-      'forum/SFTopicComposerPage.vue': ['forum.topic.create'],
-      'forum/SFTopicEditPage.vue': ['forum.topic.edit'],
-      'notifications/SFNotificationsPage.vue': ['forum.notifications']
+  it('every declared page×region has a real render site', () => {
+    // 挂载点只存在于模板里，所以这是不可避免的静态契约。用生成的区域目录驱动，
+    // 而不是手写页面清单：手写清单曾经漏掉 forum.topic.reply，而那个页面组件只是
+    // 一个跳转占位、没有任何 outlet——作者会声明出一个永远不渲染的插槽。
+    const placements: Record<string, string> = {
+      'forum.home': 'forum/SFHomePage.vue',
+      // SFHomePage 同时承载首页与搜索页，页面 id 由 registryPage 决定。
+      'forum.search': 'forum/SFHomePage.vue',
+      'forum.category.index': 'forum/SFCategoryIndexPage.vue',
+      'forum.category.show': 'forum/SFCategoryShowPage.vue',
+      'forum.tag.index': 'forum/SFTagIndexPage.vue',
+      'forum.tag.show': 'forum/SFTagShowPage.vue',
+      'forum.topic.show': 'forum/SFTopicShowPage.vue',
+      'forum.profile.show': 'profile/SFProfileShowPage.vue',
+      'forum.topic.create': 'forum/SFTopicComposerPage.vue',
+      'forum.topic.edit': 'forum/SFTopicEditPage.vue',
+      'forum.notifications': 'notifications/SFNotificationsPage.vue'
     }
-    for (const [file, pages] of Object.entries(placements)) {
-      const content = source(`../../app/components/${file}`)
-      for (const page of pages) {
-        expect(content).toContain(`<SFRegionOutlet page="${page}" region="content_before"`)
-        expect(content).toContain(`<SFRegionOutlet page="${page}" region="content_after"`)
+    const contents = new Map<string, string>()
+    for (const file of new Set(Object.values(placements))) {
+      contents.set(file, source(`../../app/components/${file}`))
+    }
+
+    const missing: string[] = []
+    for (const [page, regions] of Object.entries(PAGE_REGION_IDS)) {
+      const file = placements[page]
+      if (!file) {
+        missing.push(`${page} (no component mapping)`)
+        continue
+      }
+      const content = contents.get(file) || ''
+      for (const region of regions) {
+        if (!content.includes(`region="${region}"`)) {
+          missing.push(`${page}/${region} → ${file}`)
+        }
       }
     }
+    expect(missing).toEqual([])
+
+    // 反向：outlet 不得引用目录之外的区域。
+    const declared = new Set(Object.values(PAGE_REGION_IDS).flat())
+    const orphans: string[] = []
+    for (const [file, content] of contents) {
+      for (const match of content.matchAll(/region="([a-z0-9_]+)"/g)) {
+        if (!declared.has(match[1])) {
+          orphans.push(`${file}: region="${match[1]}"`)
+        }
+      }
+    }
+    expect(orphans).toEqual([])
+
+    // 跳转占位页面不得重新出现在目录里（重新声明等于给作者一个死插槽）。
+    expect(Object.keys(PAGE_REGION_IDS)).not.toContain('forum.topic.reply')
+
     const home = source('../../app/components/forum/SFHomePage.vue')
     expect(home).toContain("const registryPage = computed(() => isSearchPage.value ? 'forum.search' : 'forum.home')")
-    expect(home).toContain('<SFRegionOutlet :page="registryPage" region="content_before"')
-    expect(home).toContain('<SFRegionOutlet :page="registryPage" region="content_after"')
+
     // 有右栏的页面提供 sidebar 区域。
     for (const file of [
       'forum/SFHomePage.vue', 'forum/SFTopicShowPage.vue', 'forum/SFCategoryIndexPage.vue',
       'forum/SFTagShowPage.vue', 'forum/SFTagIndexPage.vue', 'profile/SFProfileShowPage.vue'
     ]) {
-      expect(source(`../../app/components/${file}`)).toContain('region="sidebar"')
+      expect(contents.get(file) || source(`../../app/components/${file}`)).toContain('region="sidebar"')
     }
   })
 })

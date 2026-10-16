@@ -8,6 +8,8 @@ import (
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	"github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pluginv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
@@ -380,6 +382,17 @@ func protocolV2ActorDelegationBundleIssuerFor(registrar HostAPIRegistrar) hostap
 	return result
 }
 
+// protocolV2SessionDelegationIssuerFor mirrors the two delegation issuers above:
+// the production Gateway implements the S9 capability and is the only object
+// that may mint a session delegation.
+func protocolV2SessionDelegationIssuerFor(registrar HostAPIRegistrar) hostapi.ProtocolV2SessionDelegationIssuer {
+	if registrar == nil {
+		return nil
+	}
+	result, _ := registrar.(hostapi.ProtocolV2SessionDelegationIssuer)
+	return result
+}
+
 func protocolV2ShortcodeProjectionDelegationIssuerFor(
 	registrar HostAPIRegistrar,
 ) hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer {
@@ -387,5 +400,68 @@ func protocolV2ShortcodeProjectionDelegationIssuerFor(
 		return nil
 	}
 	result, _ := registrar.(hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer)
+	return result
+}
+
+// Host 侧的身份/权限投影与克隆助手。原先住在 protocol_v2_client.go，该文件已顶到
+// 自己的大小基线；这些函数只做投影与深拷贝，与 identity runtime 同属一层。
+func protocolV2Authority(grants []extensions.CapabilityGrant) []*protocolv2.AuthorityGrant {
+	result := make([]*protocolv2.AuthorityGrant, 0, len(grants))
+	for _, grant := range grants {
+		source := "declared"
+		if grant.Implied {
+			source = "host-implied"
+		}
+		result = append(result, &protocolv2.AuthorityGrant{
+			Key: grant.Key, ContractVersion: hostAPIV2Version,
+			RiskTier: protocolV2Risk(grant.Risk), Source: source,
+		})
+	}
+	return result
+}
+
+func protocolV2Risk(risk string) protocolv2.RiskTier {
+	switch risk {
+	case capabilities.RiskLow:
+		return protocolv2.RiskTier_RISK_TIER_LOW
+	case capabilities.RiskMedium:
+		return protocolv2.RiskTier_RISK_TIER_MEDIUM
+	case capabilities.RiskHigh:
+		return protocolv2.RiskTier_RISK_TIER_HIGH
+	default:
+		return protocolv2.RiskTier_RISK_TIER_UNSPECIFIED
+	}
+}
+
+func cloneV2Identity(value *protocolv2.ExtensionIdentity) *protocolv2.ExtensionIdentity {
+	if value == nil {
+		return nil
+	}
+	return proto.Clone(value).(*protocolv2.ExtensionIdentity)
+}
+
+func cloneManifestIdentity(value *extensions.ManifestIdentity) *extensions.ManifestIdentity {
+	if value == nil {
+		return nil
+	}
+	result := *value
+	result.UserFields = append([]extensionmanifest.ManifestIdentityUserField(nil), value.UserFields...)
+	result.Providers = append([]extensions.ManifestIdentityProvider(nil), value.Providers...)
+	for index := range result.Providers {
+		result.Providers[index].Operations = append(
+			[]extensions.ManifestIdentityProviderOperation(nil), value.Providers[index].Operations...,
+		)
+	}
+	result.RiskHooks = append([]string(nil), value.RiskHooks...)
+	return &result
+}
+
+func cloneV2Authority(values []*protocolv2.AuthorityGrant) []*protocolv2.AuthorityGrant {
+	result := make([]*protocolv2.AuthorityGrant, 0, len(values))
+	for _, value := range values {
+		if value != nil {
+			result = append(result, proto.Clone(value).(*protocolv2.AuthorityGrant))
+		}
+	}
 	return result
 }

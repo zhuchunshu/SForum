@@ -705,3 +705,89 @@ func waitPluginRuntimeCoordinatorBootstrapSignal(t *testing.T, signal <-chan str
 		t.Fatal("plugin runtime coordinator bootstrap signal timed out")
 	}
 }
+
+// 首轮就绪必须有界。开放中的 lifecycle operation 会让 fence 持续拒绝 apply；
+// 若无界等待，API 就永久停在启动阶段：不监听端口、不打日志、不启插件，
+// 调用方也拿不到错误、无法降级启动。
+func TestPluginRuntimeCoordinatorBootstrapStartupWaitIsBounded(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("startup-deadline", extensions.PluginRuntimeProcessAPI)
+	ensurer := &pluginRuntimeCoordinatorBootstrapTestEnsurer{
+		publication: pluginRuntimeCoordinatorBootstrapTestPublication(),
+	}
+	pending := errors.New("extensions: plugin runtime lifecycle operation is pending")
+	var runnerStopped atomic.Bool
+	result := make(chan pluginRuntimeCoordinatorBootstrapStartResult, 1)
+	go func() {
+		runtime, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+			Identity: identity,
+			Ensurer:  ensurer,
+			Build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+				// 永不 onReady：等价于 fence 因开放中的 lifecycle operation 拒绝 apply。
+				return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+					<-ctx.Done()
+					runnerStopped.Store(true)
+					return nil
+				}), nil
+			},
+			StartupWaitTimeout: 20 * time.Millisecond,
+			PendingReason:      func() error { return pending },
+			StopTimeout:        time.Second,
+		})
+		result <- pluginRuntimeCoordinatorBootstrapStartResult{runtime: runtime, err: err}
+	}()
+
+	started := waitPluginRuntimeCoordinatorBootstrapStart(t, result)
+	if started.runtime != nil {
+		t.Fatalf("runtime=%#v want nil after startup deadline", started.runtime)
+	}
+	if !errors.Is(started.err, errPluginRuntimeCoordinatorStartupPending) {
+		t.Fatalf("error=%v want errPluginRuntimeCoordinatorStartupPending", started.err)
+	}
+	// 根因必须随错误返回，否则运维只知道超时、不知道是谁挡住了收敛。
+	if started.err == nil || !strings.Contains(started.err.Error(), pending.Error()) {
+		t.Fatalf("error=%v must carry pending reason %q", started.err, pending.Error())
+	}
+	if !runnerStopped.Load() {
+		t.Fatal("startup deadline must stop the runner (fail-closed)")
+	}
+}
+
+// 有界等待不能把「稍后就会就绪」的正常启动判死。
+func TestPluginRuntimeCoordinatorBootstrapStartupWaitAllowsLateReadiness(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("startup-late-ready", extensions.PluginRuntimeProcessAPI)
+	ensurer := &pluginRuntimeCoordinatorBootstrapTestEnsurer{
+		publication: pluginRuntimeCoordinatorBootstrapTestPublication(),
+	}
+	result := make(chan pluginRuntimeCoordinatorBootstrapStartResult, 1)
+	go func() {
+		runtime, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+			Identity: identity,
+			Ensurer:  ensurer,
+			Build: func(_ extensions.PluginRuntimeNodeIdentity, onReady func(), _ func(error)) (pluginRuntimeCoordinatorRunner, error) {
+				return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+					timer := time.NewTimer(15 * time.Millisecond)
+					defer timer.Stop()
+					select {
+					case <-ctx.Done():
+						return nil
+					case <-timer.C:
+					}
+					onReady()
+					<-ctx.Done()
+					return nil
+				}), nil
+			},
+			StartupWaitTimeout: time.Second,
+			StopTimeout:        time.Second,
+		})
+		result <- pluginRuntimeCoordinatorBootstrapStartResult{runtime: runtime, err: err}
+	}()
+
+	started := waitPluginRuntimeCoordinatorBootstrapStart(t, result)
+	if started.err != nil || started.runtime == nil || !started.runtime.Active() {
+		t.Fatalf("runtime=%#v err=%v want active runtime", started.runtime, started.err)
+	}
+	if err := started.runtime.Stop(t.Context()); err != nil {
+		t.Fatalf("stop: %v", err)
+	}
+}

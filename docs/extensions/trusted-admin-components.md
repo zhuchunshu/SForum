@@ -128,7 +128,8 @@ SDK version that the OIDC Release job actually publishes.
 - layout: `SPluginPage`, `SPluginSection`;
 - forms: `SPluginButton`, `SPluginField`, `SPluginInput`, `SPluginSelect`;
 - feedback: `SPluginAlert`, `SPluginEmptyState`;
-- data: `SPluginTable`.
+- data: `SPluginTable`;
+- icons: `SPluginIcon`.
 
 The generated Vite build bundles Vue and these components into the plugin's
 own ESM/CSS. The SDK reads stable SForum appearance variables with standalone
@@ -136,10 +137,37 @@ fallbacks, so authors normally write no CSS. It does not import Nuxt UI, Nuxt
 composables, Host route modules, or private `SF*` components. Those remain
 implementation details rather than a plugin ABI.
 
-The generated `admin.ts` exports the required API version and mount/cleanup
-adapter. `AdminDashboard.vue` receives the typed `AdminPageBridgeV1`, uses SDK
-components like ordinary Vue components, and can call namespaced APIs, Host
-Toasts, translation, and navigation through that bridge.
+The generated `admin.ts` mounts through `definePluginPage`, which injects the
+Host icon resolver. `AdminDashboard.vue` receives the typed
+`AdminPageBridgeV1`, uses SDK components like ordinary Vue components, and can
+call namespaced APIs, Host Toasts, translation, and navigation through that
+bridge.
+
+### Host icons
+
+`SPluginIcon` (and the `icon` prop on `SPluginButton`, `SPluginSection`,
+`SPluginAlert`, `SPluginEmptyState`, and `SPluginTable` columns) uses the Host
+icon set instead of a plugin-bundled one:
+
+```vue
+<SPluginSection title="Queue" icon="i-lucide-inbox">
+  <SPluginEmptyState icon="i-lucide-inbox" title="Nothing queued" />
+</SPluginSection>
+```
+
+- Names use the Host grammar `i-(lucide|tabler)-<kebab-name>`. A name outside
+  that grammar is ignored locally and never reaches the Host.
+- The Host renders and sanitizes the SVG; plugins supply a name only. This is
+  why a plugin never bundles an icon package and never inlines its own SVG.
+- `SPluginIcon` is decorative by default. Pass `label` when the icon carries
+  meaning, and the element becomes `role="img"` with that accessible name.
+- An unknown name, a Host that exposes no `icons` resolver, or a failed request
+  degrades to an empty placeholder plus a single console warning. It never
+  throws and never blocks the page from mounting.
+
+`definePluginPage` is the only supported mount adapter because it is what wires
+the resolver; a hand-written `createApp` call still works but silently loses
+icons.
 
 ## Module API
 
@@ -161,7 +189,11 @@ The v1 bridge supplies:
 - extension id/version, locale, and appearance tokens;
 - declared settings metadata, current draft values, update/save/reset;
 - namespaced extension API requests;
-- host Toasts, translation, and admin navigation.
+- host Toasts, translation, and admin navigation;
+- an optional `icons` resolver (`bridge.icons?.resolve(names)`), present from
+  `@sforum/admin-sdk@1.1.0`. It is a presentation convenience over public
+  static data, not an authorization grant, and a plugin must tolerate its
+  absence.
 
 It does not expose Cookie or Authorization values. The extension API remains
 permission checked by the backend; bridge access is not an authorization grant.
@@ -190,6 +222,34 @@ an internal/compatibility upstream, not the browser-facing URL. Responses use
 immutable private caching, exact
 digest verification, MIME checks, `nosniff`, and
 `Cross-Origin-Resource-Policy: same-origin`.
+
+## Host icon surface
+
+`/_sforum/icons` is the Host-owned, versioned source of plugin-facing icons. It
+serves only public static data generated from the Host's own bundled
+`@iconify-json` collections; no authorization is involved, and no plugin ever
+supplies markup.
+
+```text
+GET /_sforum/icons?names=i-lucide-inbox,i-tabler-x   # ≤32 names, JSON { items: [{ name, svg }] }
+GET /_sforum/icons/{lucide|tabler}/{name}.svg        # one standalone document
+```
+
+- Names must match `i-(lucide|tabler)-<kebab-name>`. Anything else is rejected;
+  in the batch response an unknown or malformed name is simply omitted, so one
+  bad name cannot blank a component.
+- Every body is rebuilt through an element/attribute allowlist before it leaves
+  the process: `script`/`style` blocks, `on*` handlers, non-allowlisted
+  elements, and non-fragment references are dropped, and fragment ids are
+  namespaced per icon. The current source is a first-party build-time
+  dependency; the sanitizer keeps a future icon-source change from silently
+  becoming an XSS surface.
+- Responses are `1em`-sized inline SVG that inherits `currentColor`, with
+  immutable public caching, `nosniff`, and `Cross-Origin-Resource-Policy:
+  same-origin` on the document route.
+- Consumers: `AdminPageBridgeV1.icons` / `PublicFrontendBridgeV1.icons`,
+  `@sforum/plugin-ui`'s `SPluginIcon` and component `icon` props, and the theme
+  template `{{ icon "…" }}` helper via the Host client runtime.
 
 ## Failure behavior
 

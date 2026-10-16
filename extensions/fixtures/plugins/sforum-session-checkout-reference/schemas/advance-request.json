@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": [
+    "action"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": [
+        "next"
+      ]
+    }
+  }
+}

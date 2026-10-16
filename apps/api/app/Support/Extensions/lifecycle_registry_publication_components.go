@@ -1,6 +1,9 @@
 package extensionsruntime
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -146,4 +149,29 @@ func wrapLifecycleComponentError(action string, err error) error {
 		return fmt.Errorf("%w: %s: %w", ErrLifecycleRegistryPublicationConflict, action, err)
 	}
 	return fmt.Errorf("%s: %w", action, err)
+}
+
+// 生命周期注册表材料的身份/摘要助手。
+//
+// 放在这里而不是新文件：`app/Support/Extensions` 已到 flat-directory 上限（148 个非测试
+// 文件），不能再加文件；这些助手被全部 per-registry 发布路径共用，与组件发布同属
+// 「材料契约」一层。
+func registryMaterialDigest(material *lifecycleRegistryMaterial, extensionID string) string {
+	if material != nil {
+		return material.digest
+	}
+	raw, _ := json.Marshal(struct {
+		Schema      string `json:"schema"`
+		ExtensionID string `json:"extensionId"`
+		State       string `json:"state"`
+	}{"sforum.lifecycle.registry-plan@1", extensionID, "absent"})
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
+}
+
+func registryMaterialCompatibleDigests(material *lifecycleRegistryMaterial) []string {
+	if material == nil || len(material.compatibleDigests) == 0 {
+		return nil
+	}
+	return append([]string(nil), material.compatibleDigests...)
 }

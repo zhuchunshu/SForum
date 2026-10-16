@@ -2630,3 +2630,22 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/*
+ * 主题模板 {{ icon "i-lucide-*" }} 产生的宿主图标占位元素。
+ * 标记由宿主客户端运行时注入；未填充时是空的行内元素，不占位也不报错。
+ */
+.sf-host-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  vertical-align: -0.125em;
+}
+
+.sf-host-icon > svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}

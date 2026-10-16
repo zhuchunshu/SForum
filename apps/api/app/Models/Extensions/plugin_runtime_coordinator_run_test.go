@@ -545,3 +545,48 @@ func TestPluginRuntimeCoordinatorEmptyPublicationIsAppliedAndAcknowledged(t *tes
 		t.Fatalf("empty full set was not applied: %v", calls)
 	}
 }
+
+// 未就绪原因必须可被装配层观测：pending 不改行为，但启动等待需要它才能在
+// 有界超时后给出根因（否则现场只剩「启动未就绪」这一个现象）。
+func TestPluginRuntimeCoordinatorReportsPendingReasonWithoutApplying(t *testing.T) {
+	identity := uniquePluginRuntimeCoordinatorTestIdentity("lifecycle-pending-report", PluginRuntimeProcessAPI)
+	repository := newPluginRuntimeCoordinatorTestRepository()
+	repository.addPublication(pluginRuntimeCoordinatorPublicationFixture(1, []PluginRuntimeMember{
+		pluginRuntimeCoordinatorMemberFixture("lifecycle-pending-report.plugin", 1, "a"),
+	}))
+	repository.seedNode(identity, 0, time.Minute)
+	repository.setOpenLifecycleOperations(LifecycleOperation{
+		ID: 77, ExtensionID: "lifecycle-pending-report.plugin", Operation: LifecycleOperationEnable,
+	})
+	applier := &pluginRuntimeCoordinatorTestApplier{}
+	config := pluginRuntimeCoordinatorConfigFixture(identity)
+	var pendingMu sync.Mutex
+	var pending []error
+	config.OnPending = func(err error) {
+		pendingMu.Lock()
+		defer pendingMu.Unlock()
+		pending = append(pending, err)
+	}
+	coordinator, err := NewPluginRuntimeCoordinator(repository, applier, nil, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	converged, err := coordinator.reconcileAndReport(t.Context())
+	if err != nil || converged {
+		t.Fatalf("converged=%v err=%v want false/nil", converged, err)
+	}
+	pendingMu.Lock()
+	reported := append([]error(nil), pending...)
+	pendingMu.Unlock()
+	if len(reported) != 1 || !errors.Is(reported[0], errPluginRuntimeLifecyclePending) {
+		t.Fatalf("pending reports=%v want exactly one errPluginRuntimeLifecyclePending", reported)
+	}
+	if calls, _ := applier.snapshot(); len(calls) != 0 {
+		t.Fatalf("pending reconcile applied full set: %v", calls)
+	}
+	snapshot := repository.snapshot()
+	if snapshot.beginCalls != 0 || snapshot.completeCalls != 0 || snapshot.node.LastAppliedRevision != 0 {
+		t.Fatalf("pending reconcile wrote runtime evidence: %#v", snapshot)
+	}
+}

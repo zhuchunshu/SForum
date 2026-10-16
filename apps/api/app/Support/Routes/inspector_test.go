@@ -279,10 +279,38 @@ func TestInspectorDisclosesExactCustomGuardBinding(t *testing.T) {
 	if !equalPluginGuardBinding(*snapshot.Chain[0].PluginGuard, want) {
 		t.Fatalf("inspected guard = %#v", snapshot.Chain[0].PluginGuard)
 	}
+	// M5：检视器必须同时披露授权归属，操作员不必推断该路由是否由插件代码授权。
+	if snapshot.Chain[0].GuardRisk != extensionmanifest.GuardRiskExtensionCode || !snapshot.Chain[0].GuardRequiresTrust {
+		t.Fatalf("inspected guard risk = %q trust=%v", snapshot.Chain[0].GuardRisk, snapshot.Chain[0].GuardRequiresTrust)
+	}
 	snapshot.Chain[0].PluginGuard.Permissions[0] = "forged"
 	again, err := NewInspector(registry, nil, nil).Inspect(t.Context(), "GET", route.Path)
 	if err != nil || !equalPluginGuardBinding(*again.Chain[0].PluginGuard, want) {
 		t.Fatalf("detached inspected guard = %#v, %v", again.Chain[0].PluginGuard, err)
+	}
+}
+
+// 宿主核心守卫的路由必须被标注为 host_owned，且不得因为存在插件守卫绑定而误报。
+func TestInspectorMarksHostOwnedGuardRisk(t *testing.T) {
+	registry := NewRegistry()
+	artifact := routeArtifact("inspect.host", "1.0.0", 'c')
+	route := pluginRoute("inspect.host.route", "/inspect-host", 0, "GET")
+	if _, err := registry.Publish(Publication{Plugins: []PluginRouteSet{{
+		Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{route},
+	}}}); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := NewInspector(registry, nil, nil).Inspect(t.Context(), "GET", route.Path)
+	if err != nil || len(snapshot.Chain) == 0 {
+		t.Fatalf("inspection = %#v, %v", snapshot, err)
+	}
+	for _, step := range snapshot.Chain {
+		if step.GuardRisk == "" {
+			t.Fatalf("step %d discloses no guard risk: %#v", step.Index, step)
+		}
+		if step.PluginGuard == nil && (step.GuardRisk != extensionmanifest.GuardRiskHostOwned || step.GuardRequiresTrust) {
+			t.Fatalf("step %d without a plugin binding = %q trust=%v", step.Index, step.GuardRisk, step.GuardRequiresTrust)
+		}
 	}
 }
 

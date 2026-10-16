@@ -18,6 +18,11 @@ import (
 
 type resetPasswordOptions struct {
 	DatabaseURL string
+	// 非交互路径：CI/自动化（例如发布镜像 smoke）需要一个可脚本化的管理员凭据。
+	// 传 --password 时必须同时传 --yes，避免误重置；两者都不传时保持原有交互式流程。
+	Email    string
+	Password string
+	Confirm  bool
 }
 
 func newUsersResetPasswordCommand() *cobra.Command {
@@ -40,17 +45,35 @@ func newUsersResetPasswordCommand() *cobra.Command {
   set -a; . ./.env; set +a
   go run ./cmd/sforum users:reset-password
 
-或用 --database-url 显式覆盖连接串。`,
+或用 --database-url 显式覆盖连接串。
+
+自动化（CI、发布镜像 smoke）使用非交互模式，必须显式确认：
+
+  go run ./cmd/sforum users:reset-password \
+    --database-url "$DATABASE_URL" --email admin@example.com \
+    --password '<符合站点策略的密码>' --yes`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runUsersResetPasswordCommand(cmd.Context(), opts, cmd)
 		},
 	}
 	cmd.Flags().StringVar(&opts.DatabaseURL, "database-url", "", "PostgreSQL URL (defaults to DATABASE_URL; no other app config is loaded)")
+	cmd.Flags().StringVar(&opts.Email, "email", "", "Non-interactive mode: target user email")
+	cmd.Flags().StringVar(&opts.Password, "password", "", "Non-interactive mode: new password (requires --yes)")
+	cmd.Flags().BoolVar(&opts.Confirm, "yes", false, "Non-interactive mode: confirm the reset without prompting")
 	return cmd
 }
 
 func runUsersResetPasswordCommand(ctx context.Context, opts resetPasswordOptions, cmd *cobra.Command) error {
+	// 用法契约先于连接配置校验：CI/脚本应在触碰数据库之前就因缺少 --yes 失败。
+	nonInteractive := strings.TrimSpace(opts.Email) != "" || strings.TrimSpace(opts.Password) != ""
+	if nonInteractive && !opts.Confirm {
+		return errors.New("non-interactive reset requires --yes (pass --email and --password together with --yes)")
+	}
+	if nonInteractive && (strings.TrimSpace(opts.Email) == "" || strings.TrimSpace(opts.Password) == "") {
+		return errors.New("non-interactive reset requires both --email and --password")
+	}
+
 	databaseURL := strings.TrimSpace(opts.DatabaseURL)
 	if databaseURL == "" {
 		databaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
@@ -59,9 +82,19 @@ func runUsersResetPasswordCommand(ctx context.Context, opts resetPasswordOptions
 		return fmt.Errorf("database url is empty: set DATABASE_URL or pass --database-url")
 	}
 
-	email, err := promptResetPasswordEmail()
-	if err != nil {
-		return err
+	email := ""
+	if nonInteractive {
+		normalized, err := normalizeResetPasswordEmail(opts.Email)
+		if err != nil {
+			return err
+		}
+		email = normalized
+	} else {
+		prompted, err := promptResetPasswordEmail()
+		if err != nil {
+			return err
+		}
+		email = prompted
 	}
 
 	pool, err := postgres.NewPool(ctx, databaseURL, 2)
@@ -82,17 +115,28 @@ func runUsersResetPasswordCommand(ctx context.Context, opts resetPasswordOptions
 		return err
 	}
 
-	if err := confirmResetPasswordTarget(user); err != nil {
-		return err
+	if !nonInteractive {
+		if err := confirmResetPasswordTarget(user); err != nil {
+			return err
+		}
 	}
 
 	policy, err := optionService.PasswordPolicy(ctx)
 	if err != nil {
 		return fmt.Errorf("load password policy: %w", err)
 	}
-	password, err := promptResetPasswordNewPassword(policy)
-	if err != nil {
-		return err
+	password := ""
+	if nonInteractive {
+		if err := validateResetPasswordCandidate(policy, opts.Password); err != nil {
+			return err
+		}
+		password = opts.Password
+	} else {
+		prompted, err := promptResetPasswordNewPassword(policy)
+		if err != nil {
+			return err
+		}
+		password = prompted
 	}
 
 	result, err := identityService.AdminSetUserPassword(ctx, recoverySuperAdminActor(), user.ID, password)

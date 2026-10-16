@@ -79,12 +79,15 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 		RouteActors: func(c fiber.Ctx) (identity.Actor, error) {
 			return loadSessionPolicyAwareRouteActor(c, core.authSessions, core.identityStore)
 		},
-		Options:      core.optionsService,
-		Storage:      core.redisStorage,
-		Ready:        core.readyEvaluate,
-		BearerTokens: httpserver.TokenServiceAdapter{Service: core.apiTokenService},
-		Auditor:      core.auditWriter,
-		Recovery:     core.pluginRuntimeRecovery,
+		// S9：宿主在这里解析 Core 会话范围；只有本次 HTTP 请求里由宿主发起的插件调用
+		// 才拿得到它（后台任务拿不到）。
+		PluginSessionScopes: core.authSessions.PluginSessionScope,
+		Options:             core.optionsService,
+		Storage:             core.redisStorage,
+		Ready:               core.readyEvaluate,
+		BearerTokens:        httpserver.TokenServiceAdapter{Service: core.apiTokenService},
+		Auditor:             core.auditWriter,
+		Recovery:            core.pluginRuntimeRecovery,
 	})
 	var themeRuntimeWatcher *apiThemeRuntimeWatcherRuntime
 	themeRuntimeStopTimeout := normalizedPluginRuntimeCoordinatorStopTimeout(cfg.WorkerShutdownTimeout)

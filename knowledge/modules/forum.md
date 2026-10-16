@@ -550,6 +550,31 @@ visibility, and mention limits.
   setting family.
 - API policy checks are authoritative. Frontend visibility is only UX.
 
+## Taxonomy Administration
+
+- Admin listing and public listing are one store method with an explicit
+  visibility scope: `ListCategories(ctx, includeHidden)` /
+  `ListCategoryGroups(ctx, includeHidden)`. Public read paths and page view
+  models pass `false`; `GET /admin/forum/categories|category-groups` passes
+  `true`, so hidden groups and hidden categories stay visible and maintainable
+  instead of disappearing from the console. The cached store keeps the two
+  scopes in separate keys (`forum:cats` / `forum:cats:all`) and invalidates
+  both together.
+- Deletion is explicit and guarded: `DELETE /admin/forum/categories/:categoryID`
+  and `DELETE /admin/forum/category-groups/:groupID` require `category.manage`
+  and map database RESTRICT failures to business errors — a category with
+  topics returns `forum.category_not_empty`, a group with categories returns
+  `forum.category_group_not_empty`. Deleting the current default posting
+  category is refused with `forum.category_is_default` before any store write,
+  because `createTopic` falls back to `forum.default_category_slug`.
+- Delete maintenance lives in the focused `TaxonomyService` collaborator
+  (`apps/api/app/Models/Forum/service_taxonomy.go`) exposed on the Forum
+  controller, not as new receiver methods on the legacy `Service`. Its error
+  codes and sentinels live in the same file; keep them out of `types.go`, which
+  sits at its file-size baseline.
+- Deleting a category or an empty group emits the observed
+  `category.deleted` event.
+
 ## Extension Boundary
 
 - Core owns canonical forum tables, policy, revision authority, core handlers,

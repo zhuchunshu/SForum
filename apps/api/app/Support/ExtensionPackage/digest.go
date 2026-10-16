@@ -30,6 +30,32 @@ type digestFile struct {
 // DigestTree returns a stable SHA-256 digest for the complete regular-file tree.
 // Directory metadata and modification times intentionally do not participate.
 func DigestTree(root string) (string, error) {
+	return digestTree(root, false)
+}
+
+// NonArtifactDirectory 判断目录名是否属于打包阶段必然排除的开发/依赖目录。
+// 这些目录从不进入发布 zip，因此也不构成扩展 artifact。
+func NonArtifactDirectory(name string) bool {
+	switch name {
+	case ".git", "node_modules", "vendor":
+		return true
+	default:
+		return false
+	}
+}
+
+// DigestAuthorTree 是 DigestTree 的作者源码树变体：规则完全一致，只是跳过
+// NonArtifactDirectory 目录。作者在本地跑过 bun/npm install 后，包内会出现
+// node_modules（含 .bin 符号链接），而打包阶段本就会排除它；预检若把依赖目录
+// 也算进 artifact，就会让「脚手架 → extension build」这条主循环直接失败。
+//
+// 信任身份仍由 DigestTree 计算：安装路径的树来自发布 zip，永远不含这些目录，
+// 且 snapshot/archive 校验各自独立拒绝符号链接。
+func DigestAuthorTree(root string) (string, error) {
+	return digestTree(root, true)
+}
+
+func digestTree(root string, skipNonArtifactDirs bool) (string, error) {
 	rootInfo, err := os.Lstat(root)
 	if err != nil {
 		return "", err
@@ -49,6 +75,9 @@ func DigestTree(root string) (string, error) {
 		}
 		if current == root {
 			return nil
+		}
+		if skipNonArtifactDirs && entry.IsDir() && NonArtifactDirectory(entry.Name()) {
+			return filepath.SkipDir
 		}
 		info, err := entry.Info()
 		if err != nil {

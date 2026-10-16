@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/grpc"
 )
 
@@ -31,6 +32,7 @@ type Gateway struct {
 	secrets                       *ProtocolV2SecretServiceServer
 	files                         *ProtocolV2FileServiceServer
 	httpClient                    *ProtocolV2HttpServiceServer
+	session                       *ProtocolV2SessionServiceServer
 	providers                     ProtocolV2ProviderBroker
 	protocolV2CommandsFrozen      bool
 	protocolV2QueriesFrozen       bool
@@ -40,6 +42,7 @@ type Gateway struct {
 	protocolV2SecretsFrozen       bool
 	protocolV2FilesFrozen         bool
 	protocolV2HTTPFrozen          bool
+	protocolV2SessionFrozen       bool
 	protocolV2ProvidersFrozen     bool
 	server                        *http.Server
 	ln                            net.Listener
@@ -64,6 +67,7 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	secrets := g.secrets
 	files := g.files
 	httpClient := g.httpClient
+	session := g.session
 	providers := g.providers
 	g.protocolV2CommandsFrozen = true
 	g.protocolV2QueriesFrozen = true
@@ -73,9 +77,10 @@ func (g *Gateway) RegisterProtocolV2(server grpc.ServiceRegistrar) {
 	g.protocolV2SecretsFrozen = true
 	g.protocolV2FilesFrozen = true
 	g.protocolV2HTTPFrozen = true
+	g.protocolV2SessionFrozen = true
 	g.protocolV2ProvidersFrozen = true
 	g.mu.Unlock()
-	registerProtocolV2(server, service, services, commands, queries, queryRegistry, database, cache, secrets, files, httpClient, providers)
+	registerProtocolV2(server, service, services, commands, queries, queryRegistry, database, cache, secrets, files, httpClient, session, providers)
 }
 
 // BindProtocolV2CacheService installs the production cache boundary before any
@@ -94,6 +99,25 @@ func (g *Gateway) BindProtocolV2CacheService(server *ProtocolV2CacheServiceServe
 		return fmt.Errorf("hostapi: protocol v2 cache service is already bound")
 	}
 	g.cache = server
+	return nil
+}
+
+// BindProtocolV2SessionService installs the S9 plugin session-state boundary
+// before any plugin broker is registered, so every broker for this boot serves
+// the same session contract.
+func (g *Gateway) BindProtocolV2SessionService(server *ProtocolV2SessionServiceServer) error {
+	if g == nil || server == nil || server.store == nil || server.delegations == nil {
+		return fmt.Errorf("hostapi: protocol v2 session service is required")
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.protocolV2SessionFrozen {
+		return fmt.Errorf("hostapi: protocol v2 session service is frozen until the next Gateway boot")
+	}
+	if g.session != nil {
+		return fmt.Errorf("hostapi: protocol v2 session service is already bound")
+	}
+	g.session = server
 	return nil
 }
 
@@ -336,6 +360,46 @@ func NewGateway(service *Service) *Gateway {
 		services: NewServiceRegistry(),
 		tokens:   map[string]string{},
 	}
+}
+
+// MintProtocolV2SessionDelegation 让 Gateway 本身成为 S9 会话委派的签发者。
+//
+// 生产装配把裸 Gateway 作为 `HostAPIRegistrar` 传给 ProtocolStarter
+// （bootstrap/app.go），protocolV2Client 通过类型断言解析 S9 签发方；缺这两个
+// 方法时带会话范围的宿主发起调用会直接失败。语义与延迟策略照旧：只在绑定了
+// 会话服务的 Gateway 上可用，未绑定时 fail closed，不静默降级。
+func (g *Gateway) MintProtocolV2SessionDelegation(
+	ctx context.Context,
+	identity *protocolv2.ExtensionIdentity,
+	scope ProtocolV2SessionScope,
+) (string, error) {
+	if g == nil {
+		return "", ErrProtocolV2SessionDelegationInvalid
+	}
+	g.mu.RLock()
+	session := g.session
+	g.mu.RUnlock()
+	if session == nil {
+		return "", fmt.Errorf("hostapi: protocol v2 session service is not bound; cannot mint a session delegation")
+	}
+	// Safe Mode 不拦 mint：签发只是悬挂一个令牌，真正的边界在三个操作上
+	// （读静默未命中 + 写拒绝）。把失败推迟到操作层，插件得到的是它设计里的
+	// 「按调用降级」，而不是整次调用失败。
+	return session.delegations.MintProtocolV2SessionDelegation(ctx, identity, scope)
+}
+
+// RetireProtocolV2SessionDelegation 在调用结算时收回签发台账记录（幂等）。
+func (g *Gateway) RetireProtocolV2SessionDelegation(token string) error {
+	if g == nil {
+		return ErrProtocolV2SessionDelegationInvalid
+	}
+	g.mu.RLock()
+	session := g.session
+	g.mu.RUnlock()
+	if session == nil {
+		return fmt.Errorf("hostapi: protocol v2 session service is not bound; cannot retire a session delegation")
+	}
+	return session.delegations.RetireProtocolV2SessionDelegation(token)
 }
 
 // ReplaceProtocolV2Services atomically publishes one runtime's complete

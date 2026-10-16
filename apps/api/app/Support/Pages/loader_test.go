@@ -31,6 +31,12 @@ func TestValidateDataRoute(t *testing.T) {
 	if err := ValidateDataRoute("/docs/data"); err != nil {
 		t.Fatal(err)
 	}
+	// R2 修正：带尾斜杠的前缀此前只匹配 "//"，/api/... 与 /control-panel/... 漏过校验。
+	for _, reserved := range []string{"/api/internal", "/api", "/admin/users", "/control-panel/settings"} {
+		if err := ValidateDataRoute(reserved); err == nil {
+			t.Fatalf("reserved route %q accepted", reserved)
+		}
+	}
 }
 
 func TestLoaderGatewayUsesAndReleasesRuntimeAdmission(t *testing.T) {
@@ -280,6 +286,7 @@ type fakeTargets struct {
 type admissionTargets struct {
 	ctx     context.Context
 	baseURL string
+	invoke  LoaderDocumentFunc
 	release func()
 }
 
@@ -295,9 +302,116 @@ func (f countingExactTargets) AcquireRouteTarget(context.Context, RuntimeArtifac
 func (f admissionTargets) AcquireRouteTarget(context.Context, RuntimeArtifact) (LoaderRouteTarget, bool) {
 	return LoaderRouteTarget{
 		BaseURL: f.baseURL,
+		Invoke:  f.invoke,
 		Context: f.ctx,
 		Release: f.release,
 	}, true
+}
+
+// Protocol V2 loader 传输：无 loopback，经 exact runtime instance 的调用闭包取数。
+// 允许侧证明数据真的到达网关；拒绝侧证明两条传输共用同一份响应后校验
+// （route 校验、大小、JSON、敏感键、schema）。
+func TestLoaderGatewayPrefersProtocolV2TransportWithoutLoopback(t *testing.T) {
+	var calls atomic.Int32
+	gateway := NewLoaderGateway(NewPageDataLoader(nil), admissionTargets{
+		ctx:     context.Background(),
+		release: func() {},
+		invoke: func(_ context.Context, route string, params map[string]string, locale string, actorID int64) ([]byte, int, error) {
+			calls.Add(1)
+			if route != "/page-data/article" || params["slug"] != "hello" || locale != "zh-CN" || actorID != 0 {
+				t.Errorf("v2 loader input = route=%q params=%v locale=%q actor=%d", route, params, locale, actorID)
+			}
+			return []byte(`{"title":"from protocol v2","count":3}`), 200, nil
+		},
+	})
+	result := gateway.LoadForContribution(context.Background(), PageContribution{
+		ExtensionID: "v2.page", DataSource: "plugin", DataRoute: "/page-data/article",
+	}, map[string]string{"slug": "hello"}, "zh-CN", 0)
+	if result.Fallback || result.Status != 200 || string(result.Data) != `{"title":"from protocol v2","count":3}` {
+		t.Fatalf("v2 loader result = %#v", result)
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("v2 invoke calls = %d", calls.Load())
+	}
+}
+
+func TestProtocolV2LoaderTransportSharesValidation(t *testing.T) {
+	tests := []struct {
+		name       string
+		route      string
+		document   []byte
+		status     int
+		wantStatus int
+	}{
+		{name: "reserved route", route: "/api/internal", document: []byte(`{}`), status: 200, wantStatus: 422},
+		{name: "absolute route", route: "http://evil.test/data", document: []byte(`{}`), status: 200, wantStatus: 422},
+		{name: "non json body", route: "/data", document: []byte(`not json`), status: 200, wantStatus: 502},
+		{name: "sensitive key", route: "/data", document: []byte(`{"authorization":"Bearer x"}`), status: 200, wantStatus: 502},
+		{name: "oversize body", route: "/data", document: append([]byte(`{"pad":"`), append(make([]byte, MaxLoaderResponseBytes), []byte(`"}`)...)...), status: 200, wantStatus: 502},
+		{name: "plugin error status", route: "/data", document: []byte(`{}`), status: 500, wantStatus: 500},
+		{name: "plugin forbidden", route: "/data", document: []byte(`{}`), status: 403, wantStatus: 403},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gateway := NewLoaderGateway(NewPageDataLoader(nil), admissionTargets{
+				ctx:     context.Background(),
+				release: func() {},
+				invoke: func(context.Context, string, map[string]string, string, int64) ([]byte, int, error) {
+					return test.document, test.status, nil
+				},
+			})
+			result := gateway.LoadForContribution(context.Background(), PageContribution{
+				ExtensionID: "v2.page", DataSource: "plugin", DataRoute: test.route,
+				DataSchema: "schemas/page.json",
+			}, nil, "zh-CN", 0)
+			if !result.Fallback || result.Status != test.wantStatus {
+				t.Fatalf("v2 validation result = %#v (want status %d)", result, test.wantStatus)
+			}
+		})
+	}
+}
+
+// FetchV2 必须与 HTTP 路径共用同一份响应后校验；schema 分支在 gateway 层依赖包根
+// 读文件，因此这里直接对 FetchV2 提供 schema 原文。
+func TestFetchV2AppliesDeclaredSchema(t *testing.T) {
+	loader := NewPageDataLoader(nil)
+	result := loader.FetchV2(context.Background(), LoaderRequest{
+		ExtensionID: "v2.page", Route: "/page-data/article",
+		SchemaJSON: `{"type":"object","required":["title"]}`,
+	}, func(context.Context, string, map[string]string, string, int64) ([]byte, int, error) {
+		return []byte(`{"other":1}`), 200, nil
+	})
+	if !result.Fallback || result.Status != 502 || result.Error == "" {
+		t.Fatalf("v2 schema result = %#v", result)
+	}
+	ok := loader.FetchV2(context.Background(), LoaderRequest{
+		ExtensionID: "v2.page", Route: "/page-data/article",
+		SchemaJSON: `{"type":"object","required":["title"]}`,
+	}, func(context.Context, string, map[string]string, string, int64) ([]byte, int, error) {
+		return []byte(`{"title":"ok"}`), 200, nil
+	})
+	if ok.Fallback || ok.Status != 200 || string(ok.Data) != `{"title":"ok"}` {
+		t.Fatalf("v2 schema allowed result = %#v", ok)
+	}
+	if closed := loader.FetchV2(context.Background(), LoaderRequest{Route: "/data"}, nil); closed.Status != 503 || !closed.Fallback {
+		t.Fatalf("nil invoker result = %#v", closed)
+	}
+}
+
+func TestLoaderGatewayWithoutTransportStaysClosed(t *testing.T) {
+	var released atomic.Int32
+	gateway := NewLoaderGateway(NewPageDataLoader(nil), admissionTargets{
+		ctx: context.Background(),
+		release: func() {
+			released.Add(1)
+		},
+	})
+	result := gateway.LoadForContribution(context.Background(), PageContribution{
+		ExtensionID: "v2.page", DataSource: "plugin", DataRoute: "/data",
+	}, nil, "zh-CN", 0)
+	if !result.Fallback || result.Status != 503 || released.Load() != 1 {
+		t.Fatalf("no-transport result=%#v releases=%d", result, released.Load())
+	}
 }
 
 func (f fakeTargets) AcquireRouteTarget(ctx context.Context, artifact RuntimeArtifact) (LoaderRouteTarget, bool) {

@@ -123,6 +123,34 @@ func TestPageRouteTargetAdapterRequiresExactRuntimeAndReleasesMismatches(t *test
 	}
 }
 
+// TestPageRouteTargetAdapterDeniesRuntimeWithoutLoopbackTarget pin 住 Loader 目标
+// 解析的传输前提：exact 制品匹配但插件没有 loopback HTTP BaseURL 时必须拒绝，
+// 且不得泄漏 admission lease。Protocol V2 运行时正是这种情况，所以这条分支决定
+// 了 dataSource=plugin 的页面贡献在生产中的实际行为。
+func TestPageRouteTargetAdapterDeniesRuntimeWithoutLoopbackTarget(t *testing.T) {
+	identity := extensionsruntime.RuntimeInstanceIdentity{ExtensionID: "plugin.page", InstanceID: "runtime-v2"}
+	snapshot := extensionsruntime.RuntimeInstanceSnapshot{
+		Identity: identity, ExtensionVersion: "1.0.0", ArtifactDigest: strings.Repeat("a", 64),
+		// Protocol V2 明确不回报 loopback 地址。
+		Target: extensionsruntime.RouteTarget{BaseURL: "", InstanceID: identity.InstanceID},
+	}
+	gate, err := extensionsruntime.NewRuntimeAdmissionGate(identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := &pageTargetRuntimeStub{snapshot: snapshot, gate: gate}
+	target, ok := NewPageRouteTargetSource(runtime).AcquireRouteTarget(context.Background(), pages.RuntimeArtifact{
+		ExtensionID: identity.ExtensionID, ExtensionVersion: snapshot.ExtensionVersion,
+		PackageDigest: snapshot.ArtifactDigest, RuntimeInstanceID: identity.InstanceID,
+	})
+	if ok || target.BaseURL != "" || target.Release != nil {
+		t.Fatalf("target=%#v ok=%t", target, ok)
+	}
+	if active := gate.Snapshot().ActiveTotal; active != 0 {
+		t.Fatalf("denied resolution leaked %d admission leases", active)
+	}
+}
+
 func TestAPIExtensionRuntimeUsesCipherServiceSettings(t *testing.T) {
 	original := newExtensionRuntimeManager
 	defer func() { newExtensionRuntimeManager = original }()

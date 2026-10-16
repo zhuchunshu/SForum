@@ -196,13 +196,11 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 
 	// 出站脱敏在缓存键与 provider 调用之前完成：所有带内容的出站都经过 Execute，
 	// 因此没有第二条能绕过脱敏的路径；缓存也按脱敏后的正文对齐。
+	//
+	// 这里不再向 system 追加任何宿主文本：调用方给出的系统指令就是模型读到的全部
+	// 指令。本次生效的 profile 标识、模型名与协议属于后台配置事实，只出现在运营者
+	// 可见的执行记录里，不进入会话内容——模型对自身身份的回答只来自模型自身。
 	request = ApplyRedaction(settings.Redaction, request)
-
-	// 自我身份在这里注入，因为只有这里同时知道两件事：本次真正生效的 profile
-	// （成本等级绑定在调用时才解析）与站点是否允许公开它。生成器与运营者写不出
-	// 模型名——同一个提示词服务三档绑定。注入放在脱敏之后（宿主文本不是用户内容）、
-	// 缓存键之前（键摘要 request.System）。
-	request.System = ApplyIdentity(request.System, profile, settings.Identity.ResolvedDiscloseModel())
 
 	if cached, ok := g.cached(ctx, request, profile, settings.Revision); ok {
 		// 命中的结果必须自己带上 cacheHit：它是结果契约的一部分，插件与观测页据此

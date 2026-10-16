@@ -50,6 +50,14 @@ type RuntimeManager interface {
 	EmitHook(ctx context.Context, name string, payload map[string]any)
 }
 
+// SettingsActionProbeRequest 描述一次设置页探测要用的草稿值，以及探测走哪条路径。
+// 两条路径互斥：provider_probe 用 ProviderSlot，ai_tool_probe 用 AIToolID。
+type SettingsActionProbeRequest struct {
+	ProviderSlot string
+	AIToolID     string
+	Values       map[string]string
+}
+
 type SettingsActionRuntime interface {
-	ProbeSettingsAction(ctx context.Context, extension Extension, providerSlot string, values map[string]string) (SettingsActionProbeResult, error)
+	ProbeSettingsAction(ctx context.Context, extension Extension, request SettingsActionProbeRequest) (SettingsActionProbeResult, error)
 }

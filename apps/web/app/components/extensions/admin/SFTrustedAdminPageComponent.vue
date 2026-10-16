@@ -11,6 +11,7 @@ import { useAdminFrontendTrust } from '~/composables/admin/useAdminFrontendTrust
 import SFAdminFrontendTrustPanel from '~/components/admin/SFAdminFrontendTrustPanel.vue'
 import type { AdminExtension, AdminExtensionAdminPage, AdminFrontendStatus } from '~/utils/admin/adminExtensions'
 import { assertAdminExtensionRelativePath, extensionRequestPath } from '~/runtime/admin-extensions/types'
+import { hostIconResolver } from '~/utils/icons/hostIcons'
 import {
   clearContributionFailures,
   contributionFailureKey,
@@ -96,6 +97,7 @@ function bridge(): AdminPageBridgeV1 {
     extensionVersion: props.extension.version,
     locale: locale.value,
     appearance: appearance(),
+    icons: hostIconResolver,
     page: {
       path: props.page.path,
       label: props.page.label,

@@ -119,40 +119,6 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	admin.Post("/:pageId/restore-core", h.adminRestore)
 }
 
-type resolveResponse struct {
-	Page                      pages.PageDefinition     `json:"page"`
-	Provider                  string                   `json:"provider"`
-	ExtensionID               string                   `json:"extensionId,omitempty"`
-	ContributionID            string                   `json:"contributionId,omitempty"`
-	Action                    string                   `json:"action"`
-	Fallback                  bool                     `json:"fallback"`
-	Reason                    string                   `json:"reason,omitempty"`
-	SelectedProvider          string                   `json:"selectedProvider,omitempty"`
-	SelectedExtensionID       string                   `json:"selectedExtensionId,omitempty"`
-	SelectedContributionID    string                   `json:"selectedContributionId,omitempty"`
-	SelectedVersion           string                   `json:"selectedVersion,omitempty"`
-	SelectedPackageDigest     string                   `json:"selectedPackageDigest,omitempty"`
-	SelectedRuntimeInstanceID string                   `json:"selectedRuntimeInstanceId,omitempty"`
-	NodeRevision              uint64                   `json:"nodeRevision,omitempty"`
-	TemplatePath              string                   `json:"templatePath,omitempty"`
-	TemplateHTML              string                   `json:"templateHtml,omitempty"`
-	DataSource                string                   `json:"dataSource,omitempty"`
-	DataRoute                 string                   `json:"dataRoute,omitempty"`
-	RouteParams               map[string]string        `json:"routeParams,omitempty"`
-	LoaderData                any                      `json:"loaderData,omitempty"`
-	LoaderError               string                   `json:"loaderError,omitempty"`
-	Contract                  string                   `json:"contractVersion,omitempty"`
-	RenderOutput              *pages.ThemeRenderedPage `json:"renderOutput,omitempty"`
-}
-
-const (
-	resolveReasonAuthoritativeCore    = "authoritative_core"
-	resolveReasonViewModelUnavailable = "view_model_unavailable"
-	resolveReasonRenderFailed         = "render_failed"
-	resolveReasonArtifactMismatch     = "artifact_mismatch"
-	resolveReasonRuntimeUnavailable   = "runtime_unavailable"
-)
-
 func (h *Controller) resolve(c fiber.Ctx) error {
 	setPrivatePageResponse(c)
 
@@ -361,44 +327,15 @@ func (h *Controller) resolve(c fiber.Ctx) error {
 			}
 		}
 	}
-	if resolved.Provider != pages.ProviderCore && runtimeOutput == nil && strings.TrimSpace(resolved.TemplateHTML) == "" && !resolved.Fallback {
+	// view=component 的页面正文由 Web 端挂载公开 L2 组件提供，view=schema 的正文由
+	// 包内声明的有界描述符提供，两者 TemplateHTML 本来就为空，
+	// 因此不参与「无模板即运行时不可用」的判定。
+	if resolved.Provider != pages.ProviderCore && !pageBodyProvidedByView(resolved) &&
+		runtimeOutput == nil && strings.TrimSpace(resolved.TemplateHTML) == "" && !resolved.Fallback {
 		setFallback(resolveReasonRuntimeUnavailable)
 	}
 
-	// Fallback 时对外 provider 显示 core，避免前台误用失败模板。
-	provider := resolved.Provider
-	action := resolved.Action
-	if resolved.Fallback {
-		provider = pages.ProviderCore
-		if action == "" {
-			action = "core"
-		}
-	}
-
-	resp := resolveResponse{
-		Page:                      resolved.Page,
-		Provider:                  provider,
-		ExtensionID:               resolved.ExtensionID,
-		ContributionID:            resolved.ContributionID,
-		Action:                    action,
-		Fallback:                  resolved.Fallback,
-		Reason:                    reason,
-		SelectedProvider:          selectedProvider(resolved),
-		SelectedExtensionID:       resolved.ExtensionID,
-		SelectedContributionID:    resolved.ContributionID,
-		SelectedVersion:           resolved.Version,
-		SelectedPackageDigest:     resolved.PackageDigest,
-		SelectedRuntimeInstanceID: resolved.RuntimeInstanceID,
-		TemplatePath:              resolved.TemplatePath,
-		TemplateHTML:              resolved.TemplateHTML,
-		DataSource:                resolved.DataSource,
-		DataRoute:                 resolved.DataRoute,
-		RouteParams:               routeParams,
-		Contract:                  resolved.Page.ContractVersion,
-		RenderOutput:              runtimeOutput,
-		LoaderData:                loaderData,
-		LoaderError:               loaderError,
-	}
+	resp := h.resolvePageResponse(resolved, reason, routeParams, runtimeOutput, loaderData, loaderError)
 	if runtimeOutput != nil {
 		resp.NodeRevision = runtimeOutput.NodeRevision
 	}
@@ -710,31 +647,8 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 	}
 	actorID := h.optionalActorID(c)
 
-	resp := resolveResponse{
-		Page: pages.PageDefinition{
-			ID:              contrib.ID,
-			PathPattern:     contrib.Path,
-			Access:          contrib.Access,
-			ContractVersion: contrib.Contract,
-			Replaceable:     false,
-		},
-		Provider:                  contrib.ExtensionID,
-		ExtensionID:               contrib.ExtensionID,
-		ContributionID:            contrib.ID,
-		Action:                    string(pages.ActionAdd),
-		Fallback:                  false,
-		SelectedProvider:          contrib.ExtensionID,
-		SelectedExtensionID:       contrib.ExtensionID,
-		SelectedContributionID:    contrib.ID,
-		SelectedVersion:           contrib.Version,
-		SelectedPackageDigest:     contrib.PackageDigest,
-		SelectedRuntimeInstanceID: contrib.RuntimeInstanceID,
-		TemplatePath:              contrib.Template,
-		DataSource:                contrib.DataSource,
-		DataRoute:                 contrib.DataRoute,
-		RouteParams:               match.Params,
-		Contract:                  contrib.Contract,
-	}
+	resp := h.addedPageResponse(contrib, match.Params)
+
 	setRespFallback := func(reason string) {
 		if resp.Reason == "" {
 			resp.Reason = reason
@@ -812,7 +726,8 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 			setRespFallback(resolveReasonRuntimeUnavailable)
 		}
 	}
-	if resp.RenderOutput == nil && strings.TrimSpace(resp.TemplateHTML) == "" && !resp.Fallback {
+	// view=component/schema 的 add 页正文由包内声明提供，TemplateHTML 为空是正常状态。
+	if !responseBodyProvidedByView(resp) && resp.RenderOutput == nil && strings.TrimSpace(resp.TemplateHTML) == "" && !resp.Fallback {
 		if resp.DataSource == "plugin" && resp.DataRoute != "" && h.loader != nil {
 			lr := h.loader.LoadForContribution(c.Context(), contrib, match.Params, locale, actorID)
 			if lr.Error != "" {
@@ -832,61 +747,8 @@ func (h *Controller) resolvePath(c fiber.Ctx) error {
 		}
 	}
 
+	h.applyThemeShell(c, &resp, match.Params, locale)
 	return apphttp.OK(c, resp)
-}
-
-func setPrivatePageResponse(c fiber.Ctx) {
-	c.Set(fiber.HeaderCacheControl, "private, no-store")
-	c.Vary(fiber.HeaderCookie, fiber.HeaderAuthorization, fiber.HeaderAcceptLanguage)
-}
-
-// enforcePageAccess 严格校验 access；未知值拒绝。
-func (h *Controller) enforcePageAccess(c fiber.Ctx, access pages.Access, permissionKey string) error {
-	normalized, err := pages.NormalizeAccess(string(access))
-	if err != nil {
-		// 已注册贡献不应含未知 access；fail closed
-		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
-	}
-	switch normalized {
-	case pages.AccessPublic:
-		return nil
-	case pages.AccessLogin:
-		actor, aerr := h.actor(c)
-		if aerr != nil || actor.ID == 0 {
-			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-		}
-		return nil
-	case pages.AccessGuest:
-		// 已登录用户：返回冲突，引导离开 guest 页（不模糊放行）
-		if actor, aerr := h.optionalActor(c); aerr == nil && actor.ID > 0 {
-			return fiber.NewError(fiber.StatusConflict, "pages.guest_only")
-		}
-		return nil
-	case pages.AccessModeration:
-		actor, aerr := h.actor(c)
-		if aerr != nil || actor.ID == 0 {
-			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-		}
-		if !actor.Can(identity.PermissionModerationReview) && !actor.IsSuperAdmin() {
-			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
-		}
-		return nil
-	case pages.AccessPermission:
-		actor, aerr := h.actor(c)
-		if aerr != nil || actor.ID == 0 {
-			return fiber.NewError(fiber.StatusUnauthorized, "auth.required")
-		}
-		key := strings.TrimSpace(permissionKey)
-		if key == "" {
-			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
-		}
-		if !actor.Can(key) && !actor.IsSuperAdmin() {
-			return fiber.NewError(fiber.StatusForbidden, "permission.denied")
-		}
-		return nil
-	default:
-		return fiber.NewError(fiber.StatusNotFound, "pages.not_found")
-	}
 }
 
 func (h *Controller) optionalActorID(c fiber.Ctx) int64 {

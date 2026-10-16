@@ -13,7 +13,11 @@ import (
 
 // ThemePackage 描述 L0/L1 运行时主题包（theme.json + assets + templates）。
 type ThemePackage struct {
-	Pages               []ThemePageDecl   `json:"pages"`
+	Pages []ThemePageDecl `json:"pages"`
+	// Shell 是插件公开页外壳的 L1 模板相对路径（可选）。
+	// 外壳承担插件正文之外的 chrome，因此与页面模板一样在激活前预检可加载性；
+	// 消费方（resolve-path 组装）在后续层引入，未声明时插件页回到宿主外壳。
+	Shell               string            `json:"shell,omitempty"`
 	Skin                ThemeSkin         `json:"skin"`
 	NavigationLocations map[string]string `json:"navigationLocations,omitempty"`
 	Widgets             []ThemeWidget     `json:"widgets,omitempty"` // L2 声明保留解析，运行时不加载
@@ -27,15 +31,107 @@ var themeNavigationLocationBindings = map[string]string{
 }
 
 type ThemePageDecl struct {
-	ID         string         `json:"id"`
-	Action     string         `json:"action"` // add | replace
-	Target     string         `json:"target,omitempty"`
-	Path       string         `json:"path,omitempty"`
-	Template   string         `json:"template,omitempty"`
-	Contract   string         `json:"contract,omitempty"`
-	Access     string         `json:"access,omitempty"`
-	Permission string         `json:"permission,omitempty"` // access=permission 时的权限键
-	Data       *ThemePageData `json:"data,omitempty"`
+	ID         string `json:"id"`
+	Action     string `json:"action"` // add | replace
+	Target     string `json:"target,omitempty"`
+	Path       string `json:"path,omitempty"`
+	Template   string `json:"template,omitempty"`
+	Contract   string `json:"contract,omitempty"`
+	Access     string `json:"access,omitempty"`
+	Permission string `json:"permission,omitempty"` // access=permission 时的权限键
+	// Layout: site | bare。空值 = 平台默认 site（见 NormalizeLayout）；未知非空值在
+	// 预检时 fail closed。预检阶段保留声明原样，归一化由 prepareContributions 完成。
+	Layout string         `json:"layout,omitempty"`
+	Data   *ThemePageData `json:"data,omitempty"`
+	// View: template | component。空值等价 template（历史行为）。
+	// component 表示正文由包内已声明的公开 L2 组件提供（manifest.components[].l2Component），
+	// 此时 template 必须为空；未知非空值在预检时 fail closed。
+	View      string              `json:"view,omitempty"`
+	Component *ThemePageComponent `json:"component,omitempty"`
+	// Schema: view=schema 时的有界页面描述符声明。
+	Schema *ThemePageSchema `json:"schema,omitempty"`
+}
+
+// ThemePageComponent 指向 manifest.components[] 中一个公开 L2 组件。
+// 只声明组件 id：入口、摘要、信任与准入仍由既有的公开前端管线裁决
+// （GET /extensions/runtime/{extensionId}/components/{componentId}），
+// 页面声明不重复一份信任判断。
+type ThemePageComponent struct {
+	ID string `json:"id"`
+}
+
+// ThemePageSchema 声明一个 view=schema 公开页的正文来源。
+//
+// 描述符（descriptor）是包内 kind=schema 的 packageFiles[] id，内容是**有界**页面描述符
+// JSON（list | detail | form | notice）；契约（contract）是包内精确 JSON Schema 引用
+// （<schemaFileId>@<version>），描述符必须满足它。两者都只声明 id/引用，文件是否存在、
+// kind 是否匹配、schema 能否编译、描述符是否满足契约与有界规则，全部由扩展层的包预检
+// 裁决（Pages 包不引入扩展注册表，避免反向依赖）。
+type ThemePageSchema struct {
+	Descriptor string `json:"descriptor"`
+	Contract   string `json:"contract"`
+}
+
+// PageView 是公开页正文的提供方式。
+type PageView string
+
+const (
+	// PageViewTemplate：正文由包内 L1 Go 模板渲染（历史行为，空值等价于此）。
+	PageViewTemplate PageView = "template"
+	// PageViewComponent：正文由包内公开 L2 组件挂载。
+	PageViewComponent PageView = "component"
+	// PageViewSchema：正文由包内声明的有界页面描述符渲染（list | detail | form | notice）。
+	PageViewSchema PageView = "schema"
+)
+
+// NormalizePageView 归一化 view 声明：空值等价 template。
+func NormalizePageView(value string) PageView {
+	normalized := PageView(strings.ToLower(strings.TrimSpace(value)))
+	if normalized == "" {
+		return PageViewTemplate
+	}
+	return normalized
+}
+
+// ValidateThemePageViews 校验 view 与 template/component 的互斥关系。
+// 未知 view 一律 fail closed：作者写错时要立刻失败，而不是静默退化成模板页。
+func ValidateThemePageViews(pkg ThemePackage) error {
+	for _, page := range pkg.Pages {
+		view := NormalizePageView(page.View)
+		template := strings.TrimSpace(page.Template)
+		switch view {
+		case PageViewTemplate:
+			if page.Component != nil && strings.TrimSpace(page.Component.ID) != "" {
+				return fmt.Errorf("pages: page %s declares view=template together with a component", page.ID)
+			}
+		case PageViewComponent:
+			if template != "" {
+				return fmt.Errorf("pages: page %s declares view=component together with a template", page.ID)
+			}
+			if page.Component == nil || strings.TrimSpace(page.Component.ID) == "" {
+				return fmt.Errorf("pages: page %s declares view=component without a component id", page.ID)
+			}
+			if page.Schema != nil {
+				return fmt.Errorf("pages: page %s declares view=component together with a schema descriptor", page.ID)
+			}
+		case PageViewSchema:
+			if template != "" {
+				return fmt.Errorf("pages: page %s declares view=schema together with a template", page.ID)
+			}
+			if page.Component != nil && strings.TrimSpace(page.Component.ID) != "" {
+				return fmt.Errorf("pages: page %s declares view=schema together with a component", page.ID)
+			}
+			if page.Schema == nil || strings.TrimSpace(page.Schema.Descriptor) == "" ||
+				strings.TrimSpace(page.Schema.Contract) == "" {
+				return fmt.Errorf(
+					"pages: page %s declares view=schema without a descriptor and contract", page.ID,
+				)
+			}
+		default:
+			return fmt.Errorf("pages: page %s declares unknown view %q", page.ID, page.View)
+		}
+	}
+	return nil
 }
 
 type ThemePageData struct {
@@ -78,6 +174,11 @@ func LoadThemePackage(packageRoot string) (ThemePackage, error) {
 		return ThemePackage{}, err
 	}
 	pkg.NavigationLocations = locations
+	// view 与 template/component 的互斥在这里统一裁决：CLI（extension validate/test）
+	// 与运行时激活都经由此读取点，避免两套校验再次分叉。
+	if err := ValidateThemePageViews(pkg); err != nil {
+		return ThemePackage{}, err
+	}
 	return pkg, nil
 }
 
@@ -131,12 +232,21 @@ func ContributionsFromTheme(extensionID, version, digest string, pkg ThemePackag
 			Target:        p.Target,
 			Path:          p.Path,
 			Template:      p.Template,
+			View:          NormalizePageView(p.View),
 			Contract:      p.Contract,
 			Access:        Access(p.Access),
 			Permission:    p.Permission,
+			Layout:        PageLayout(p.Layout),
 			ExtensionID:   extensionID,
 			Version:       version,
 			PackageDigest: digest,
+		}
+		if p.Component != nil {
+			c.ComponentID = strings.TrimSpace(p.Component.ID)
+		}
+		if p.Schema != nil {
+			c.SchemaDescriptorFile = strings.TrimSpace(p.Schema.Descriptor)
+			c.SchemaContractRef = strings.TrimSpace(p.Schema.Contract)
 		}
 		if p.Data != nil {
 			c.DataSource = p.Data.Source

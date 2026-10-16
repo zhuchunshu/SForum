@@ -1,0 +1,7 @@
+{
+  "type": "object",
+  "properties": {
+    "accepted": { "type": "boolean" }
+  },
+  "additionalProperties": true
+}

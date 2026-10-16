@@ -234,8 +234,10 @@ func (a CoreGuardAuthorizer) authorizePluginGuard(
 }
 
 func validPluginGuardBinding(step RouteExecutionStep) bool {
+	// 决定 R1（2026-10-16）：core.guard.raw_request 不再是可用的 Host 守卫，
+	// 空绑定也不再合法——否则「零守卫代码」就能拿到 raw 权限。
 	if step.Guard == extensionmanifest.GuardCoreRaw {
-		return equalPluginGuardBinding(step.PluginGuard, PluginGuardBinding{})
+		return false
 	}
 	return step.PluginGuard.ID == step.Guard && step.PluginGuard.ContractVersion != "" &&
 		(step.PluginGuard.Kind == "custom" || step.PluginGuard.Kind == "raw_request") &&

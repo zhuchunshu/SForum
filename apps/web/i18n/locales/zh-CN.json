@@ -718,10 +718,6 @@
       "multimodalIntro": "开启后，AI 回复会读取主题与被回复评论里的图片附件，一并发送给模型。请确认所选模型支持图片理解。",
       "multimodalEnabled": "启用多模态输入",
       "multimodalLimitsHint": "每次回复最多携带 4 张图片，单张不超过 2MB；图片请求同样计入成本闸门与用量。",
-      "identity": "AI 身份声明",
-      "identityIntro": "每次调用都会告诉模型它正在使用哪个模型：模型名只在运行期解析（按成本等级绑定的供应商），提示词里写不出来。关闭后模型仍知道自己是什么，只是不知道具体模型。",
-      "identityDisclose": "告诉模型它正在使用的供应商与模型名称",
-      "identityHint": "默认开启。成员询问「你是哪个模型」时，模型会按这个标识如实回答，而不是猜测；两种状态下它都不会编造模型名。",
       "redactEmail": "邮箱",
       "redactPhone": "手机号",
       "redactIp": "IP 地址",
@@ -1342,6 +1338,25 @@
             "auto": "自动选择"
           }
         },
+        "guardAuthorization": {
+          "title": "授权归属",
+          "owner": "授权拥有者",
+          "kind": "守卫类型",
+          "digest": "可执行摘要",
+          "fallback": "失败策略",
+          "requestedFields": "可写字段",
+          "hostOwned": "宿主评估",
+          "noArtifact": "无插件制品",
+          "notDeclared": "未声明",
+          "noRequestedFields": "无（未声明可变字段）",
+          "rawRequestTitle": "存在原始请求授权路由",
+          "rawRequestDescription": "有 {count} 条路由的授权交给原始请求权威：cookie / authorization / x-api-key / x-auth-token 会被转发给插件处理器。确认前请核对每一条路由。",
+          "risks": {
+            "host_owned": "宿主拥有",
+            "extension_code": "插件代码",
+            "raw_request": "原始请求"
+          }
+        },
         "sections": {
           "artifactDigests": "可执行制品摘要",
           "requestedAuthority": "请求的主机权限",
@@ -1904,6 +1919,30 @@
           "outcome": "结果",
           "duration": "耗时",
           "commitState": "提交状态"
+        },
+        "incidentsTitle": "崩溃循环隔离",
+        "incidentsIntro": "路由运行事故与隔离结果的持久账本：关闭的是精确运行时表面，宿主仍继续服务。重启后这份状态不变。",
+        "incidentsSummary": "已隔离 {quarantined} · 待处理 {pending} · 无需隔离 {recovered}",
+        "incidentsRefresh": "刷新",
+        "incidentsErrorTitle": "读取隔离账本失败",
+        "incidentsLoadFailed": "无法读取隔离账本。",
+        "incidentsStaleTitle": "账本可能已过期",
+        "incidentsStaleDescription": "刷新失败，下面显示的是上一次成功读取的状态。确认隔离范围前请重试。",
+        "incidentsEmpty": "没有崩溃循环事故：所有已发布的路由运行都正常结束。",
+        "incidentsQuarantinedTitle": "存在被隔离的运行时表面",
+        "incidentsQuarantinedDescription": "有 {count} 个精确运行时表面因崩溃循环被关闭；相关路由会按各自失败策略处理，宿主恢复不受影响。",
+        "incidentsRecoveryTitle": "如何恢复",
+        "incidentsRecoveryDescription": "隔离只作用于该精确制品与实例。修复并重新发布新版本后隔离自动解除；宿主恢复还可用安全模式启动或 CLI 恢复。",
+        "incidentsTruncated": "只显示最近的 {limit} 条事故。",
+        "incidentFailure": "失败码",
+        "incidentCause": "原因类别",
+        "incidentRecordedAt": "记录时间",
+        "incidentResults": {
+          "pending": "待处理",
+          "quarantined": "已隔离",
+          "stale_missing": "制品已移除",
+          "stale_artifact": "制品已更新",
+          "failed": "隔离失败"
         }
       },
       "cacheInspector": {
@@ -4174,6 +4213,7 @@
       "reset": "重置",
       "save": "保存",
       "edit": "编辑",
+      "delete": "删除",
       "cancel": "取消",
       "loading": "加载中…"
     },
@@ -4346,7 +4386,29 @@
         "emptyCategories": "这个分组还没有分类",
         "emptyCategoriesDescription": "点击「新建分类」为该分组添加版块，让成员有明确的发帖归属。",
         "emptyGroups": "还没有分组",
-        "emptyGroupsDescription": "点击右上角「新建分组」创建一个公开分组，再添加分类。"
+        "emptyGroupsDescription": "点击右上角「新建分组」创建一个公开分组，再添加分类。",
+        "delete": {
+          "groupAction": "删除分组",
+          "categoryAction": "删除分类",
+          "confirm": "确认删除",
+          "groupTitle": "删除分组",
+          "groupBody": "「{name}」分组将被永久删除，此操作不可撤销。",
+          "categoryTitle": "删除分类",
+          "categoryBody": "「{name}」分类将被永久删除，此操作不可撤销。",
+          "groupBlockedTitle": "请先清空该分组",
+          "groupBlockedReason": "分组内仍有 {count} 个分类，请先删除这些分类或把它们移动到其它分组。",
+          "categoryBlockedTitle": "请先迁移该分类的主题",
+          "categoryBlockedReason": "分类内仍有 {count} 个主题，请先把主题移动到其它分类。",
+          "groupDeleted": "分组已删除。",
+          "categoryDeleted": "分类已删除。",
+          "failed": "删除失败。",
+          "errors": {
+            "categoryNotEmpty": "该分类下仍有主题（含已删除或隐藏的主题），请先迁移或彻底删除这些主题。",
+            "groupNotEmpty": "该分组下仍有分类，请先删除这些分类或把它们移动到其它分组。",
+            "categoryIsDefault": "该分类是当前默认发帖分类，请先在论坛设置里更换默认分类。",
+            "notFound": "目标不存在，可能已被删除。请刷新后重试。"
+          }
+        }
       },
       "tags": {
         "metaTitle": "标签管理",

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -286,6 +287,43 @@ func validateProductionSecrets(cfg Config) {
 	if err := ValidateIdentitySubjectHMACSecret(cfg.IdentitySubjectHMACSecret, true); err != nil {
 		panic(fmt.Sprintf("config: IDENTITY_SUBJECT_HMAC_SECRET %v", err))
 	}
+	// EXTENSION_ROOT 在非生产有相对默认值（../../storage/extensions），生产下相对路径会随
+	// 进程工作目录漂移：容器里会解析成 /storage，报出「mkdir /storage: permission denied」
+	// 这种看不出缺失变量的错误。生产必须显式给绝对路径。
+	if root := strings.TrimSpace(cfg.ExtensionRoot); root == "" || !filepath.IsAbs(root) {
+		panic(fmt.Sprintf("config: EXTENSION_ROOT must be an absolute path in production (got %q)", root))
+	}
+	// ADR 6.2.6：`extensions/dev/` 是脚手架输出目录，运行时永不扫描它；M8 任务 7 要求
+	// 生产在解析/bootstrap 期**拒绝**开发根，而不是只把命令藏起来。
+	for _, root := range cfg.ExternalExtensionRoots {
+		if path := DevelopmentScaffoldRoot(root); path != "" {
+			panic(fmt.Sprintf(
+				"config: EXTERNAL_EXTENSION_ROOTS must not scan the development scaffold tree in production (got %q)",
+				path,
+			))
+		}
+	}
+}
+
+// DevelopmentScaffoldRoot 判断一个外部扩展根是否指向开发脚手架树
+// （`…/extensions/dev`，含其子目录）。是则返回规范化后的路径，否则返回空串。
+//
+// 判据只认「extensions 目录下的 dev 段」，不做模糊匹配：生产里合法的外部根
+// （例如 `extensions/optional`、自建目录）不受影响，而 `sforum make` 的默认输出
+// （`extensions/dev/<id>`）无论被写成什么绝对路径都会被拦下。
+func DevelopmentScaffoldRoot(root string) string {
+	trimmed := strings.TrimSpace(root)
+	if trimmed == "" {
+		return ""
+	}
+	cleaned := filepath.Clean(trimmed)
+	segments := strings.Split(filepath.ToSlash(cleaned), "/")
+	for index := 0; index < len(segments)-1; index++ {
+		if segments[index] == "extensions" && segments[index+1] == "dev" {
+			return cleaned
+		}
+	}
+	return ""
 }
 
 // ValidateIdentitySubjectHMACSecret 校验主体 HMAC 密钥材料。

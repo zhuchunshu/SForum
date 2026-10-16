@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -58,17 +59,43 @@ func TestManifestV3TargetRoutesDefaultToInheritedGuard(t *testing.T) {
 		})
 	}
 
-	for _, guard := range []string{"demo.v3.guard.owner", GuardCoreRaw} {
-		t.Run("explicit "+guard, func(t *testing.T) {
-			manifest := targetManifest(RouteActionReplace)
-			manifest.Routes[0].Guard = guard
-			if normalized := Normalize(manifest).Routes[0].Guard; normalized != guard {
-				t.Fatalf("explicit guard normalized to %q", normalized)
-			}
-			if err := Validate(manifest); err != nil {
-				t.Fatalf("explicit guard should remain valid: %v", err)
-			}
-		})
+	t.Run("explicit demo.v3.guard.owner", func(t *testing.T) {
+		manifest := targetManifest(RouteActionReplace)
+		manifest.Routes[0].Guard = "demo.v3.guard.owner"
+		if normalized := Normalize(manifest).Routes[0].Guard; normalized != "demo.v3.guard.owner" {
+			t.Fatalf("explicit guard normalized to %q", normalized)
+		}
+		if err := Validate(manifest); err != nil {
+			t.Fatalf("explicit guard should remain valid: %v", err)
+		}
+	})
+
+	// 决定 R1（2026-10-16）：Host 拥有的 core.guard.raw_request 不再作为路由守卫接受。
+	// 规范化不得把它洗成别的守卫，校验必须拒绝并指向包内 kind=raw_request 守卫作为替代。
+	t.Run("explicit "+GuardCoreRaw+" is refused", func(t *testing.T) {
+		manifest := targetManifest(RouteActionReplace)
+		manifest.Routes[0].Guard = GuardCoreRaw
+		if normalized := Normalize(manifest).Routes[0].Guard; normalized != GuardCoreRaw {
+			t.Fatalf("explicit guard normalized to %q", normalized)
+		}
+		assertCoreRawRouteGuardRefused(t, manifest)
+	})
+}
+
+// assertCoreRawRouteGuardRefused 固定 R1 之后的拒绝契约：core.guard.raw_request 不再是
+// 路由守卫，且拒绝信息必须写明替代方案（包内 kind=raw_request 守卫），否则作者只会看到
+// 「id 写错了」而无从修好。
+func assertCoreRawRouteGuardRefused(t *testing.T, manifest Manifest) {
+	t.Helper()
+	err := Validate(manifest)
+	if err == nil {
+		t.Fatalf("%s must no longer be accepted as a route guard", GuardCoreRaw)
+	}
+	if !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("refusal must wrap ErrInvalidManifest: %v", err)
+	}
+	if !strings.Contains(err.Error(), GuardCoreRaw) || !strings.Contains(err.Error(), "kind="+GuardKindRawRequest) {
+		t.Fatalf("refusal must name the %s replacement: %v", GuardKindRawRequest, err)
 	}
 }
 
@@ -184,16 +211,23 @@ func TestManifestV3ThemePresentationContract(t *testing.T) {
 	manifest.Type = TypeTheme
 	manifest.PackageFiles = []ManifestPackageFile{
 		{ID: "demo.theme.file.template", Kind: "template", Path: "templates/home.html", Digest: digest},
+		{ID: "demo.theme.file.frontend", Kind: "frontend", Path: "frontend/card.mjs", Digest: digest},
+		{ID: "demo.theme.component.home.props", Kind: "schema", Path: "schemas/home-props.json", Digest: digest, Version: "1"},
 	}
 	manifest.Templates = []ManifestTemplate{{
 		ID: "demo.theme.template.home", ContractVersion: "demo.theme.template.home@1",
 		Action: "add", Path: "templates/home.html", Digest: digest,
 		ViewModelSchema: "sforum.page.home@1", ThemeOverrideKey: "demo.theme.home",
 	}}
+	// 主题可以声明组件，但 props/result schema 必须是同包精确声明的本地 schema。
+	// ssrTemplate 组件要求 PropsSchema 与模板 ViewModelSchema 逐字一致，而主题模板
+	// 绑定的是宿主核心页契约（sforum.page.home@1），组件注册表又拒绝没有同包声明的
+	// 引用，所以主题的 L1 面是 theme.json.pages[].template + templates[]；
+	// 组件面只承载自带 schema 的 L2 组件。
 	manifest.Components = []ManifestComponent{{
 		ID: "demo.theme.component.home", ContractVersion: "demo.theme.component.home@1",
-		Action: ComponentActionAdd, SSRTemplate: "demo.theme.template.home",
-		PropsSchema: "sforum.page.home@1", ThemeOverrideKey: "demo.theme.home",
+		Action: ComponentActionAdd, L2Component: "demo.theme.file.frontend",
+		PropsSchema: "demo.theme.component.home.props@1",
 	}}
 	if err := Validate(manifest); err != nil {
 		t.Fatalf("V3 presentation-only theme should validate: %v", err)
@@ -380,6 +414,10 @@ func completeV3Manifest() Manifest {
 		{ID: "demo.v3.file.database.execute", Kind: "database_operation", Path: "database/items-insert.sql", Digest: digest},
 		{ID: "demo.v3.provider.request", Kind: "schema", Path: "schemas/provider-request.json", Digest: digest, Version: "1"},
 		{ID: "demo.v3.provider.response", Kind: "schema", Path: "schemas/provider-response.json", Digest: digest, Version: "1"},
+		// 组件 props/result 与 provider 采用同一条精确声明规则：引用必须有同包 schema 声明，
+		// 否则 CLI 会放行一个运行时组件注册表必然拒绝的包。
+		{ID: "demo.v3.component.card.props", Kind: "schema", Path: "schemas/component-props.json", Digest: digest, Version: "1"},
+		{ID: "demo.v3.component.card.result", Kind: "schema", Path: "schemas/component-result.json", Digest: digest, Version: "1"},
 	}
 	manifest.Templates = []ManifestTemplate{{
 		ID: "demo.v3.template.card", ContractVersion: "demo.v3.template.card@1",

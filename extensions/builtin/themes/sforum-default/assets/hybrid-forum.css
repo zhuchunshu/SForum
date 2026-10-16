@@ -508,6 +508,7 @@
   display: block;
 }
 
+
   .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col > .sf-theme-chrome-body {
     flex: 1 1 auto;
     min-height: 0;

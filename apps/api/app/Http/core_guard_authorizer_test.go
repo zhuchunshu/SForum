@@ -24,10 +24,15 @@ func TestProductionRouteGuardAuthorizerMapsTypedGuardFailures(t *testing.T) {
 		{guard: extensionmanifest.GuardCoreLogin, want: ErrRouteLoginRequired},
 		{guard: extensionmanifest.GuardCoreGuest, request: productionGuardRequest(), want: ErrRouteGuestRequired},
 		{guard: extensionmanifest.GuardCorePermission, permission: "topic.create", request: productionGuardRequest(), want: ErrRoutePermissionDenied},
+		// R1：Host 拥有的 core.guard.raw_request 已不再可发布，故本行改为验证生产授权器
+		// 对仍携带该守卫的旧制品/伪造执行步骤保持 fail closed（见 productionDirectGuardPlan）。
 		{guard: extensionmanifest.GuardCoreRaw, request: productionGuardRequest(), want: ErrRouteGuardUnavailable},
 	}
 	for index, test := range tests {
 		plan, step := productionDirectGuardPlan(t, test.guard, test.permission)
+		if step.Guard != test.guard {
+			t.Fatalf("case %d step guard = %q, want %q", index, step.Guard, test.guard)
+		}
 		request := test.request
 		request.Method, request.Path = plan.Method(), plan.Path()
 		err := authorizer.Authorize(context.Background(), plan, step, request)
@@ -151,8 +156,8 @@ func TestProductionForumReadGuardPartitionsCatalogByProvablePolicy(t *testing.T)
 		"core.route.forum.topic_by_slug":               {method: "GET"},
 		"core.route.forum.comment_page":                {method: "GET"},
 		// 评论区实时信号：修订端点与 SSE 都按评论列表的 guest-read 策略裁决。
-		"core.route.forum.topic_comment_revision":      {method: "GET"},
-		"core.route.forum.topic_comment_stream":        {method: "GET"},
+		"core.route.forum.topic_comment_revision": {method: "GET"},
+		"core.route.forum.topic_comment_stream":   {method: "GET"},
 	}
 	var catalog []routes.CoreRoute
 	for _, route := range routes.CoreRouteCatalog() {
@@ -678,22 +683,24 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		identity.PermissionExtensionManage,
 	}
 	expected := map[string]expectedRoute{
-		"core.route.extensions.list":                         {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.events":                       {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.lifecycle_operations":         {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.lifecycle_operation":          {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.list_migrations":              {method: "GET", supported: true, permissions: migrations},
-		"core.route.extensions.executable_trust_status":      {method: "GET", supported: true, permissions: trust},
-		"core.route.extensions.contribution_points":          {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.contributions":                {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.event_definitions":            {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.event_deliveries":             {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.navigation":                   {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.inspect_provider_slots":       {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.provider_slot_events":         {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.inspect_asset":                {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.inspect_cache":                {method: "GET", supported: true, permissions: viewer},
-		"core.route.extensions.inspect_route":                {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.list":                    {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.events":                  {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.lifecycle_operations":    {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.lifecycle_operation":     {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.list_migrations":         {method: "GET", supported: true, permissions: migrations},
+		"core.route.extensions.executable_trust_status": {method: "GET", supported: true, permissions: trust},
+		"core.route.extensions.contribution_points":     {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.contributions":           {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.event_definitions":       {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.event_deliveries":        {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.navigation":              {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_provider_slots":  {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.provider_slot_events":    {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_asset":           {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_cache":           {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.inspect_route":           {method: "GET", supported: true, permissions: viewer},
+		// M5 隔离账本读取：与其它检视器同一条已审核策略（extension.view 或 manage）。
+		"core.route.extensions.inspect_route_incidents":      {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_templates":            {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.component_inspector":          {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.navigation_inspector":         {method: "GET", supported: true, permissions: viewer},
@@ -2232,8 +2239,18 @@ func productionInheritedGuardPlan(
 	return plan, plan.Terminal()
 }
 
+// productionDirectGuardPlan 发布一条插件路由并返回其执行计划。
+//
+// 决定 R1（2026-10-16）：core.guard.raw_request 已不是合法守卫，注册表发布阶段就会
+// 拒绝它，因此无法再为它构造执行计划。为了让授权器对「旧制品 / 伪造执行步骤」的
+// fail closed 仍然可测，这里先构造等价的可发布路由，再把执行步骤上的守卫替换为已
+// 退役的 Host raw 守卫（计划本身保持注册表产出的原始形态）。
 func productionDirectGuardPlan(t *testing.T, guard, permission string) (routes.RouteExecutionPlan, routes.RouteExecutionStep) {
 	t.Helper()
+	retiredCoreRaw := guard == extensionmanifest.GuardCoreRaw
+	if retiredCoreRaw {
+		guard = "guard.production.custom"
+	}
 	registry := routes.NewRegistry()
 	route := extensionmanifest.ManifestRoute{
 		ID: "guard.production.direct", ContractVersion: "guard.production.direct@1",
@@ -2260,6 +2277,12 @@ func productionDirectGuardPlan(t *testing.T, guard, permission string) (routes.R
 	plan, err := registry.BuildExecutionPlan("GET", route.Path)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if retiredCoreRaw {
+		step := plan.Terminal()
+		step.Guard = extensionmanifest.GuardCoreRaw
+		step.PluginGuard = routes.PluginGuardBinding{}
+		return plan, step
 	}
 	return plan, plan.Terminal()
 }

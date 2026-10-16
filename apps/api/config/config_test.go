@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -279,9 +281,67 @@ func setValidProductionSecrets(t *testing.T) {
 		"ALTCHA_SECRET":                "prod-valid-altcha-secret",
 		"APP_OPTION_ENC_KEY":           "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		"IDENTITY_SUBJECT_HMAC_SECRET": "prod-valid-identity-subject-hmac-secret-32b",
+		// 生产要求绝对路径（compose 与本仓库镜像都用这个值）；测试要显式给出，
+		// 不能依赖开发用的相对默认值。
+		"EXTENSION_ROOT": "/var/lib/sforum/extensions",
 	} {
 		t.Setenv(k, v)
 	}
+}
+
+// M8 任务 7 / ADR 6.2.6：生产必须在解析/bootstrap 期拒绝开发脚手架根，
+// 而不是只把 `extension dev` 命令藏起来。这里同时钉住「拒绝」与「不误伤」两侧。
+func TestProductionRejectsDevelopmentScaffoldExternalRoots(t *testing.T) {
+	cases := []struct {
+		name    string
+		root    string
+		refused bool
+	}{
+		{name: "scaffold output dir", root: "/srv/sforum/extensions/dev", refused: true},
+		{name: "package inside scaffold dir", root: "/srv/sforum/extensions/dev/acme.demo", refused: true},
+		{name: "relative scaffold path", root: "../../extensions/dev/acme.demo", refused: true},
+		{name: "trailing separator", root: "/srv/sforum/extensions/dev/", refused: true},
+		{name: "optional tree stays allowed", root: "/srv/sforum/extensions/optional", refused: false},
+		{name: "operator tree stays allowed", root: "/srv/sforum/extensions", refused: false},
+		{name: "unrelated dev directory", root: "/srv/dev/sforum/extensions", refused: false},
+		{name: "empty entry", root: "", refused: false},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Setenv("APP_ENV", "production")
+			setValidProductionSecrets(t)
+			t.Setenv("EXTERNAL_EXTENSION_ROOTS", testCase.root)
+			if testCase.refused {
+				assertPanicsWith(t, "EXTERNAL_EXTENSION_ROOTS", func() { Load() })
+				return
+			}
+			cfg := Load()
+			if DevelopmentScaffoldRoot(testCase.root) != "" {
+				t.Fatalf("DevelopmentScaffoldRoot misclassified %q", testCase.root)
+			}
+			_ = cfg
+		})
+	}
+	// 非生产保持原样：开发/测试需要直接扫描脚手架树。
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("EXTERNAL_EXTENSION_ROOTS", "/srv/sforum/extensions/dev/acme.demo")
+	if cfg := Load(); len(cfg.ExternalExtensionRoots) != 1 {
+		t.Fatalf("development must keep the scaffold root, got %#v", cfg.ExternalExtensionRoots)
+	}
+}
+
+func assertPanicsWith(t *testing.T, fragment string, fn func()) {
+	t.Helper()
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			t.Fatalf("expected a panic mentioning %q", fragment)
+		}
+		if !strings.Contains(fmt.Sprint(recovered), fragment) {
+			t.Fatalf("panic %v does not mention %q", recovered, fragment)
+		}
+	}()
+	fn()
 }
 
 func TestConfigDoesNotExposeEmbeddedWorkerOverride(t *testing.T) {
@@ -723,4 +783,24 @@ func TestLoadReadsAIAllowPrivateEndpoint(t *testing.T) {
 	if !AllowPrivateAIEndpoint(cfg) {
 		t.Fatal("the test environment is not production, so the opt-in must be effective")
 	}
+}
+
+// 生产下 EXTENSION_ROOT 必须是绝对路径：相对默认值（../../storage/extensions）会随进程
+// 工作目录漂移，在容器里解析成 /storage 并报出「mkdir /storage: permission denied」，
+// 让人看不出是缺了哪个变量。真机候选镜像 smoke 就是先撞上这个才发现的。
+func TestLoadRejectsRelativeExtensionRootInProduction(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	setValidProductionSecrets(t)
+	t.Setenv("EXTENSION_ROOT", "../../storage/extensions")
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			t.Fatal("relative EXTENSION_ROOT must be rejected in production")
+		}
+		message := fmt.Sprint(recovered)
+		if !strings.Contains(message, "EXTENSION_ROOT must be an absolute path") {
+			t.Fatalf("panic must name the variable, got %q", message)
+		}
+	}()
+	Load()
 }

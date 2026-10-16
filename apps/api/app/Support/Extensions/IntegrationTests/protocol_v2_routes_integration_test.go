@@ -248,6 +248,34 @@ type protocolV2RouteE2EServer struct{ *pluginv2sdk.Server }
 
 func (s *protocolV2RouteE2EServer) InvokeRoute(callCtx context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
 	ctx := request.GetContext()
+	if request.GetRouteId() == pageLoaderDataRouteID {
+		// loader 调用必须是 GET + handler 阶段 + 过滤授权（不携带凭证/actor 身份）。
+		if request.GetMethod() != http.MethodGet ||
+			request.GetInvocationStage() != pluginwire.RouteInvocationStage_ROUTE_INVOCATION_STAGE_HANDLER ||
+			request.GetPath() != "/page-data/article" ||
+			request.GetContext().GetActor() != nil ||
+			request.GetRequestAuthorityMode() != pluginwire.RouteRequestAuthorityMode_ROUTE_REQUEST_AUTHORITY_MODE_FILTERED {
+			return &pluginwire.RouteResponse{
+				Context: protocolV2RouteResponseContext(ctx),
+				Error: &protocolwire.ErrorDetail{
+					Code: protocolwire.ErrorCode_ERROR_CODE_INVALID_ARGUMENT, Reason: "page_data.fixture_invalid",
+				},
+			}, nil
+		}
+		value, err := structpb.NewStruct(map[string]any{
+			"title":     "loaded through protocol v2",
+			"slug":      request.GetPathParameters()["slug"],
+			"locale":    request.GetQueryParameters()["locale"],
+			"actorHint": request.GetQueryParameters()["actorHint"],
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &pluginwire.RouteResponse{
+			Context: protocolV2RouteResponseContext(ctx), StatusCode: http.StatusOK,
+			Body: &protocolwire.TypedDocument{SchemaId: "runtime.v2.route.response", SchemaVersion: "1", Value: value},
+		}, nil
+	}
 	if request.GetRouteId() == "runtime.v2.guard.owner" {
 		status := http.StatusNoContent
 		if request.GetQueryParameters()["deny"] == "1" {

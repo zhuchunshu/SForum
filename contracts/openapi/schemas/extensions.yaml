@@ -1109,7 +1109,7 @@ ExtensionManifestSettingsAction:
   required: [id, kind, label]
   properties:
     id: { type: string }
-    kind: { type: string, enum: [provider_probe] }
+    kind: { type: string, enum: [provider_probe, ai_tool_probe] }
     label: { "$ref": "#/LocalizedText" }
     description: { "$ref": "#/LocalizedText" }
     placement: { type: string, enum: [header, footer], default: footer }
@@ -1117,6 +1117,9 @@ ExtensionManifestSettingsAction:
     fields:
       type: array
       items: { type: string }
+    tool:
+      type: string
+      description: AI tool declaration id (aiTools[].id) an ai_tool_probe dispatches to. Required for that kind; absent for provider_probe.
 ExtensionManifestAdmin:
   type: object
   description: Extension admin entry and page declarations. Manage resolves to entry, then settings, then first declared page, then the generated about page.
@@ -1917,7 +1920,7 @@ ExtensionSettingsAction:
     id: { type: string }
     kind:
       type: string
-      enum: [provider_probe]
+      enum: [provider_probe, ai_tool_probe]
     label: { type: string }
     description: { type: string }
     placement: { type: string, enum: [header, footer] }
@@ -1925,6 +1928,9 @@ ExtensionSettingsAction:
     fields:
       type: array
       items: { type: string }
+    tool:
+      type: string
+      description: AI tool declaration id an ai_tool_probe dispatches to; omitted for provider_probe.
     available: { type: boolean }
     unavailableReason: { type: string }
 ExtensionSettingOption:

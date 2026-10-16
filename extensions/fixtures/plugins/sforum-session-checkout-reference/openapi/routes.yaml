@@ -1,0 +1,71 @@
+openapi: 3.1.0
+info:
+  title: SForum Session Checkout Reference
+  version: 1.0.0
+paths:
+  /session-checkout/state:
+    get:
+      operationId: sforum.session-checkout-reference.state
+      x-sforum-route-id: sforum.session-checkout-reference.route.state
+      x-sforum-contract-version: sforum.session-checkout-reference.route.state@1
+      x-sforum-guard: core.guard.public
+      x-sforum-response-schema: sforum.session-checkout-reference.checkout-state@1
+      summary: Read the current checkout step for the calling Host session
+      responses:
+        "200":
+          description: Checkout step state document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sforum.session-checkout-reference.checkout-state@1"
+  /session-checkout/advance:
+    post:
+      operationId: sforum.session-checkout-reference.advance
+      x-sforum-route-id: sforum.session-checkout-reference.route.advance
+      x-sforum-contract-version: sforum.session-checkout-reference.route.advance@1
+      x-sforum-guard: core.guard.public
+      x-sforum-request-schema: sforum.session-checkout-reference.advance.request@1
+      x-sforum-response-schema: sforum.session-checkout-reference.checkout-state@1
+      summary: Advance the checkout workflow by one step for the calling Host session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/sforum.session-checkout-reference.advance.request@1"
+      responses:
+        "200":
+          description: Next checkout step state document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sforum.session-checkout-reference.checkout-state@1"
+components:
+  schemas:
+    "sforum.session-checkout-reference.checkout-state@1":
+      type: object
+      required:
+        - step
+        - sessionBound
+      additionalProperties: false
+      properties:
+        step:
+          type: integer
+          minimum: 0
+          maximum: 3
+        sessionBound:
+          type: boolean
+        persisted:
+          type: boolean
+        delegationEcho:
+          type: string
+    "sforum.session-checkout-reference.advance.request@1":
+      type: object
+      required:
+        - action
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          enum:
+            - next

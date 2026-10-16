@@ -23,7 +23,8 @@ go run ./cmd/sforum --version
 | `make:theme` | 生成主题脚手架 |
 | `seed:forum` | 批量写入论坛假数据（small 模式） |
 | `seed:perf` | 百万级读路径种子（`seed:forum --profile=perf-1m` 的别名） |
-| `users:reset-password` | 交互式重置用户密码（别名 `user:reset-password`） |
+| `users:reset-password` | 重置用户密码（默认交互式；`--email/--password/--yes` 非交互，别名 `user:reset-password`） |
+| `privacy:erase-user` | 擦除一个用户的隐私数据（`privacy.Registry.EraseUser` 的生产入口；`--actor-user-id` 须为 super_admin / `user.manage`；`--user-id/--user-email` 二选一，自动化须 `--yes`） |
 | `revisions backfill` | 分批回填论坛内容修订台账 |
 | `extension build` | 一键构建作者前端、刷新摘要并执行全部包门禁 |
 | `extension validate` | 校验扩展包（含 includes / 模板预检） |
@@ -37,6 +38,8 @@ go run ./cmd/sforum --version
 | `extension command list/run` | 列出 / 运行已信任插件命令 |
 | `extension api-lts` | 打印 Host/Frontend API LTS 与 shim 遥测 |
 | `extension system-tier list/upsert/disable` | 带外管理系统扩展层（不加载包代码） |
+| `extension dev` | 开发模式编辑循环：监视包内源输入并自动重建（仅 `APP_ENV=development`） |
+| `extension builtins` | 从清单树发现内置包清单（构建脚本的唯一来源） |
 | `dev:cleanup-orphan-plugins` | 停止已改属的扩展后端进程（安全用于运行中的 sforum-api） |
 
 > 本表是命令的**权威清单**；新增或删除命令时必须同步更新本表与
@@ -106,6 +109,25 @@ go run ./cmd/sforum make:plugin \
 | `--prebuilt-settings` | 两者 | 预构建 Admin 设置组件 + Schema 回退 |
 | `--vue-admin-page` | plugin | Vue/Vite 后台页面 + Plugin UI SDK 工作区 |
 | `--provider-slot` | plugin | 声明 provider slot + `provider_probe`（需 `--backend`） |
+| `--public-page` | 两者 | 生成一个公开 Page Registry 页（路径 `/<slug>`、L1 模板、精确声明）。slug 为小写字母数字与 `-` |
+| `--public-page-layout` | 两者 | 公开页 layout：`site`（默认，主题拥有站点外壳）或 `bare`（页面自持 chrome） |
+| `--schema-page` | 两者 | 生成一个声明式公开页（路径 `/<slug>`、`view: schema`、包内有界描述符 + JSON Schema 契约）。slug 规则同 `--public-page` |
+| `--schema-page-kind` | 两者 | 描述符种类：`list`（默认）| `detail` | `form` | `notice`（需 `--schema-page`） |
+| `--route-middleware` | plugin | 生成 before 请求补丁 + after 响应补丁路由（需 `--backend`），guard 固定为 `core.guard.inherit` |
+
+`--public-page` 会写入 `theme.json` 的页面映射，并在清单里同时补上 `templates[]` 与
+`packageFiles[]`（三方身份契约，摘要一致）。生成的是**静态**页：插件页数据源
+（`dataSource`/`dataRoute`）当前没有可用传输，Loader Gateway 会回退，所以脚手架不生成它。
+`--schema-page` 生成**声明式**公开页：`theme.json` 只给出描述符文件 id 与它必须满足的精确
+schema 引用（`<schemaFileId>@1`），清单里两者都是 `kind: schema` 且带 `version`。正文由宿主渲染，
+包内没有 Vue、没有 Go 模板、也没有构建步骤。宿主执行有界规则：`kind` 只能是
+`list`/`detail`/`form`/`notice`，字段类型限 `text`/`textarea`/`number`/`boolean`/`select`，
+字段 ≤ 24、条目 ≤ 64、选项 ≤ 64、cells ≤ 64。`form` 目前只读渲染：提交需要页面声明的
+`dataRoute` 绑定，而该绑定仍受 loader 传输缺口阻塞（与 `dataSource` 同一阻塞项）。
+与 `--public-page` 共用同一 slug 会被直接拒绝，避免同一路径两个声明。
+
+`--route-middleware` 只声明清单里列出的可变字段，绝不请求 raw request authority，
+也不允许声明 `access`/`permission`——补丁继承目标路由的授权。
 
 ### 脚手架之后
 
@@ -126,6 +148,7 @@ go run ./cmd/sforum make:plugin \
 go run ./cmd/sforum extension build <package-root>
 go run ./cmd/sforum extension build --allow-scaffold <package-root>
 go run ./cmd/sforum extension build --skip-install <package-root>
+go run ./cmd/sforum extension build --sdk-dir apps/web/packages <package-root>
 ```
 
 当包内存在 `frontend/admin/package.json` 时，命令会先运行 `bun install` 和
@@ -133,8 +156,17 @@ go run ./cmd/sforum extension build --skip-install <package-root>
 `--frozen-lockfile`。之后依次刷新精确摘要、完整校验 Manifest 与模板，并执行
 Host 契约测试。没有作者前端时会跳过 Bun，仍执行后三项门禁。
 
+预检只对「会进入发布制品的内容」计算摘要：`node_modules`、`.git`、`vendor`
+与 `extension package` 的排除规则一致，因此作者本地装过依赖后照样能通过校验。
+安装路径仍使用严格的整树摘要并拒绝任何符号链接。
+
 - `--skip-install`：依赖已经安装时跳过 `bun install`，但仍执行构建。
 - `--allow-scaffold`：只允许契约测试暂时缺少后端二进制，其他错误仍会失败。
+- `--sdk-dir <dir>`（或环境变量 `SFORUM_SDK_DIR`）：**仅开发期**能力。把工作区里
+  声明的 `@sforum/*` 依赖改写成指向该目录下的本地 SDK 包再构建，用于在 Release
+  发布新 SDK 版本之前先行验证（例如 `@sforum/plugin-ui` 的新组件）。构建结束后
+  `frontend/admin/package.json` 与 Bun 锁文件都会逐字节还原；构建失败或进程被强杀时
+  会留下 `package.json.sforum-sdk-backup` 供手工恢复。发布与生产流程永远不使用它。
 
 这是插件作者主动运行的本地命令，会执行插件自己的 `package.json` scripts。
 上传、安装、启用和生产运行时都不会调用它；生产仍只加载 Manifest 精确绑定的
@@ -285,6 +317,45 @@ go run ./cmd/sforum extension quarantine <extension-id> \
 `quarantine` 只隔离**精确匹配**的内置/系统制品：`--expect-version` 与
 `--expect-digest` 都必须与实际活动版本一致，避免误隔离。
 
+### 开发编辑循环 — `dev`
+
+```bash
+cd apps/api
+APP_ENV=development go run ./cmd/sforum extension dev ../../extensions/dev/acme.demo
+```
+
+只允许在 `APP_ENV=development` 下运行；生产、预发与测试环境在入口即拒绝（与
+`dev:cleanup-orphan-plugins` 的孤儿回收器用同一条判据）。包必须位于
+`extensions/dev`、`extensions/optional` 或 `extensions/fixtures` 之下；受保护的
+`extensions/builtin` 源码树被拒绝，因为内置包必须走
+`scripts/build-builtin-plugins.sh` 与管理员激活流程。
+
+循环只监视**包内源输入**：`dist/`、`node_modules/`、`.git/`、归档、编辑器交换文件与
+临时文件都会被忽略；构建事务自身重写的清单也不算作者编辑（靠内容戳快照区分），
+否则循环会自己触发自己。
+
+| flag | 作用 |
+| --- | --- |
+| `--once` | 只跑一次构建事务后退出（无监视器，适合 CI） |
+| `--json` | 每个阶段输出一行 JSON，供编辑器集成消费 |
+| `--debounce` | 事件合并窗口（默认 `400ms`） |
+| `--skip-install` | 跳过 `bun install`，复用已有的前端依赖 |
+
+**它不绕过信任。** 每轮只打印新的包摘要与下一步提示：精确制品仍要在管理端扩展流程里
+由操作员确认后才会暂存与激活。构建或预检失败时保留最后一个健康制品，并打印失败阶段与原因。
+
+### 内置包发现 — `builtins`
+
+```bash
+cd apps/api
+go run ./cmd/sforum extension builtins
+go run ./cmd/sforum extension builtins --json
+```
+
+递归扫描内置根（默认 `extensions/builtin`）下所有 Manifest V3 包，输出
+`id`、相对路径、后端入口与「是否含 Go 后端」。`scripts/build-builtin-plugins.sh`
+消费这份输出，因此新增或改名内置包不再需要在 shell 里同步一份 id 列表。
+
 ### API LTS 状态
 
 ```sh
@@ -364,15 +435,47 @@ small 模式下 `--categories/--tags/--pinned/--views-max` 显式传 `0` 表示�
 
 ## 账号维护：`users:reset-password`
 
-交互式重置任意用户密码（只读 `DATABASE_URL`/`--database-url`，不加载其他
-应用配置）：
+重置任意用户密码（只读 `DATABASE_URL`/`--database-url`，不加载其他应用配置）。
+默认是交互式流程；自动化（CI、发布镜像 smoke）使用非交互模式：
 
 ```sh
+# 交互式
 go run ./cmd/sforum users:reset-password
 go run ./cmd/sforum users:reset-password --database-url 'postgres://…'
 # 别名：
 go run ./cmd/sforum user:reset-password
+
+# 非交互（必须显式 --yes；缺少任一 flag 会在连接数据库之前失败）
+go run ./cmd/sforum users:reset-password --database-url 'postgres://…' \
+  --email admin@example.com --password '<符合站点策略的密码>' --yes
 ```
+
+非交互模式与交互式走同一套站点密码策略与同一 `AdminSetUserPassword` 路径：
+弱密码同样被拒，重置同样递增 token version 并撤销该用户的活跃会话。
+
+---
+
+## 隐私擦除：`privacy:erase-user`
+
+`privacy.Registry.EraseUser` 的生产入口：遍历全部已注册 Privacy contribution 的
+擦除钩子（含宿主侧插件命名空间会话状态），擦除一个用户的可擦除数据。
+
+```sh
+set -a; . ./.env; set +a
+# 交互式（会展示目标摘要并要求确认）
+go run ./cmd/sforum privacy:erase-user --actor-user-id 1 --user-email user@example.com
+
+# 自动化（必须显式 --yes）
+go run ./cmd/sforum privacy:erase-user --database-url 'postgres://…' \
+  --actor-user-id 1 --user-id 42 --yes
+```
+
+- `--actor-user-id` 指向的账号必须真实存在且持有 `super_admin` 或 `user.manage`
+  （权限由真实 RBAC 判定，不认「actor 非空」）；执行者与目标都会写入 privacy 审计台账。
+- 报告只含扩展 id、成败与外部保留警告——任何数据值或命名空间键都不会被打印。
+- Redis（`--redis-addr/--redis-password/--redis-db`，默认取 `REDIS_ADDR`/`REDIS_PASSWORD`/`REDIS_DB`）
+  是插件会话状态擦除的必需依赖：不可达时以命名错误 fail closed，不会静默跳过该 contribution。
+- 部分失败（`partial`）会打印逐项失败原因并以非零退出；完全失败没有报告。
 
 ---
 

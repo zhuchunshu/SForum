@@ -417,6 +417,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		WithRouteContractCatalog(lifecycleStack.RouteSchemas).
 		WithProviderSlotSelection(lifecycleStack.ProviderSlots, lifecycleRuntime, auditWriter).
 		WithRouteInspector(routes.NewProviderSelectionInspector(lifecycleStack.RouteProviders, routeTraceRing)).
+		// M5：崩溃循环隔离的持久状态必须可读，管理员才能在重启后看到同一份状态。
+		WithRouteIncidentReader(httpserver.NewPostgresRouteRuntimeIncidentStore(pool)).
 		WithCacheInspector(hostCacheRuntime.Registry, hostCacheRuntime.Inspector).
 		WithComponentCompositionInspector(lifecycleStack.ComponentInspector).
 		WithAssetInspector(lifecycleStack.AssetRegistry).
@@ -427,10 +429,14 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		WithMediaRegistry(lifecycleStack.MediaRegistry).
 		WithAdminSurfaces(extensionRuntime, auditWriter)
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
-	// PageDataLoader 网关：仅从运行中插件 RouteTarget 拉数据（严格 loopback）。
+	// PageDataLoader 网关：优先用 Protocol V2 精确实例调用取数（插件无需回报
+	// loopback BaseURL）；插件若声明了 loopback 目标则回落到严格 loopback HTTP。
+	// 数据路由必须是插件 manifest 里声明的 `core.guard.public` 路由（见
+	// pageDataRouteAdapter：loader 不携带 actor 身份，不能代评 login/permission 或
+	// custom/raw 守卫的授权）。
 	pageLoaderGateway := pages.NewLoaderGateway(
 		pages.NewPageDataLoader(nil),
-		pageRouteTargetAdapter{runtime: extensionRuntime},
+		NewPageRouteTargetSourceWithRoutes(extensionRuntime, extensionStore),
 	).WithPackages(pagePackageRootAdapter{store: extensionStore})
 	// Core Page ViewModels reuse the same domain services and policy sources as
 	// their JSON endpoints. Only reviewed presentation DTOs cross into themes.

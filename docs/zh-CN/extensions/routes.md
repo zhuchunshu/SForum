@@ -220,7 +220,7 @@ go run ./cmd/sforum extension test <package-root>
 | `targetId` | 该 action 指向的稳定路由 id（`replace` 等定向 action 必填）。 |
 | `path` | 规范 HTTP 路径：静态段、`:name` 参数、末尾 `*name` 通配段（单独的 `*` 命名为 `path`）。路径必须规范（无 `..`、无 `//`）。 |
 | `methods` | 本声明覆盖的 HTTP 方法。 |
-| `guard` | guard id：`core.guard.public`、`core.guard.login`、`core.guard.permission`（配 `permission`）、`core.guard.guest`、`core.guard.inherit`、`core.guard.raw_request` 或自定义 guard id。见 [Guards](#guards)。 |
+| `guard` | guard id：`core.guard.public`、`core.guard.login`、`core.guard.permission`（配 `permission`）、`core.guard.guest`、`core.guard.inherit`，或自定义 guard id（原始请求权威只能经包内显式声明的 `kind: raw_request` 守卫获得；`core.guard.raw_request` 已被拒绝）。见 [Guards](#guards)。 |
 | `access` | 便捷简写，映射到 core guard：`public` → `core.guard.public`、`login` → `core.guard.login`、`permission` → `core.guard.permission`（配 `permission`）。设置了 `guard` 时忽略。 |
 | `permission` | `core.guard.permission`（或 `access: "permission"`）需要的权限键。 |
 | `priority` | 重叠声明的排序提示（整数）。 |
@@ -269,12 +269,39 @@ route-provider 选择与冲突页面（`/api/v1/admin/extensions/route-providers
 | `core.guard.permission` | 持有 `permission` 的已登录用户 | |
 | `core.guard.guest` | 仅游客（未登录） | |
 | `core.guard.inherit` | 未显式声明 guard 的定向 action | 继承目标路由的 guard；目标不可解析前保持关闭。 |
-| `core.guard.raw_request` | 只能经单独受信任的 raw guard 运行时 | **当前 host 版本关闭**（`ErrRouteGuardUnavailable`）。 |
-| 自定义 guard id | 只能经受信任的 guard 运行时 | guard 二进制通过 `guards[]` 族声明（`kind: custom` / `kind: raw_request`，精确 `entry` + `digest`，可选 `permissions`），但可执行 guard 运行时是后续 wave；**当前关闭**。 |
+| `core.guard.raw_request` | **已拒绝** | **2026-10-16 移除。** 它过去允许「插件 guard 绑定为空、零 guard 代码」的路由拿到原始请求权威，并把 `cookie`、`authorization`、`x-api-key`、`x-auth-token` 转发给你的处理器。该行为被判定为漏洞，现在在清单校验阶段直接拒绝。确实需要原始权威时，请自行声明 `kind: raw_request` 的守卫（`entry` + `digest` + `contractVersion`）并引用它，宿主会在信任确认时披露该高风险。 |
+| 自定义 guard id | 只能经受信任的 guard 运行时 | guard 二进制通过 `guards[]` 族声明（`kind: custom` / `kind: raw_request`，精确 `entry` + `digest`，可选 `permissions`）。可执行 guard 运行时**在生产中是活的**：由 `bootstrap/api_assembly_domains.go` 注入，`Support/Routes/core_guard_authorizer.go` 分发。 |
 
 普通路由请用 `core.guard.public` 与 `core.guard.login`。宿主在调用你的处理器
 **之前**完成 guard 检查，并在 RPC 上下文中携带已解析的权威信息；你的处理器
 永远不要用原始请求数据重新实现登录或权限检查。
+
+### 自定义 guard 已上线，门禁与其他插件代码一致
+
+`guards[]` 中 `kind: custom` 的声明会解析成一个经 Protocol V2 运行的插件
+处理器（以 guard id 作为 route id 调用 `InvokeRoute`），它只能回答放行/拒绝，
+不得返回 body。宿主在调用前要求全部满足：
+
+- 精确路由/guard 绑定（声明的 guard id、非空 contractVersion、与执行计划步骤
+  一致的制品）；
+- 精确制品对应的运行实例：扩展 id、插件类型、`enabled` 状态、声明版本与精确
+  包摘要全部一致；
+- 实例不在 Safe Mode；需要信任或请求原始权威时，该精确制品已受信任；
+- 该实例存在有效的运行准入租约。
+
+任一条件失败（无评估器、绑定非法、运行实例缺失/未受信任/处于 Safe Mode，或
+guard 侧报错）都会拒绝请求；不存在绕过 guard 直接执行处理器的回退路径。
+
+以下三点**只有校验与披露，没有强制也没有定论**，不要依赖：
+
+- guard 声明上的 `permissions[]` 属于信任披露的一部分，宿主不据此强制；判断
+  权在 guard 自己。
+- 线协议里不存在 `challenge` 结果（跳转/二次验证）。guard 只能放行或拒绝。
+- `core.guard.raw_request` **不再是可用守卫**（2026-10-16 移除）。它过去在
+  **零 guard 代码**的前提下把原始请求权威交给路由；运维方判定这是漏洞，因此
+  清单校验现在拒绝该 id，运行时也对其 fail closed。原始权威只能通过包内**显式
+  声明**的 `kind: raw_request` 守卫获得，宿主会在精确制品信任确认时把它作为
+  高风险披露。
 
 ---
 
@@ -374,8 +401,10 @@ curl -i http://127.0.0.1:3000/api/acme-notes          # 走 Web 代理
 
 1. 每条路由都有命名空间稳定的 `id` 与显式 `contractVersion`。
 2. `path` 规范；`methods` 显式；`mode` 显式（默认 `http`）。
-3. guard 选自关闭集合（`public`/`login`/`permission`/`guest`）；当前版本不要
-   依赖 `inherit`、`raw_request` 或自定义 guard。
+3. guard 选自关闭集合（`public`/`login`/`permission`/`guest`）。`inherit` 只在
+   目标可解析时生效；`raw_request` 与自定义 guard 都已上线但属高风险：自定义
+   guard 运行受信任门禁约束的精确制品插件代码，而 `raw_request` 不需要任何
+   guard 代码却会转发凭据头。
 4. 带文档的不安全请求都配 `requestSchema`；结构化响应配 `responseSchema`；
    两者都解析到 `packageFiles` 中 `kind: "schema"` 条目。
 5. `fallback` 显式（默认 `closed`）；不安全方法永不回退。

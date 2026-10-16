@@ -61,8 +61,9 @@ type serviceCore struct {
 	// providerSlotSelections 撤销 contract owner/candidate 的精确服务选择。
 	providerSlotSelections ProviderSlotSelectionInvalidator
 	// pageRegistry 运行时主题页面贡献（L0/L1）；nil 时跳过注册。
-	pageRegistry      PageRegistry
-	componentRegistry ComponentRegistry
+	pageRegistry       PageRegistry
+	componentRegistry  ComponentRegistry
+	pluginSessionState PluginSessionStateInvalidator
 	// assetRegistry 与公开 L2 / 生命周期共享的 Host Asset Registry。
 	assetRegistry   *assetregistry.Registry
 	settingsActions SettingsActionRuntime

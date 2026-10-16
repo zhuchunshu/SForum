@@ -3,6 +3,7 @@ package extensionmanifest
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -192,6 +193,21 @@ func (v *v3Validator) validateUIAndPackage() error {
 		}
 		if (component.Action == ComponentActionFilterResult || component.Action == ComponentActionWrap || component.Action == ComponentActionReplace) && !validSchemaRef(component.ResultSchema) {
 			return ErrInvalidManifest
+		}
+		// 组件 props/result schema 与 provider/query/notification 采用同一条精确声明
+		// 规则：引用必须在本包的 packageFiles[] 中有 id+version 对齐的 kind=schema 条目。
+		// 组件注册表编译（compileExactProviderSchema）按同一条规则拒绝，缺了这里，
+		// CLI 会放行一个运行时激活必然失败的主题/插件包，作者只看到一句泛化文案。
+		for _, reference := range []string{component.PropsSchema, component.ResultSchema} {
+			if reference == "" {
+				continue
+			}
+			if !matchingVersionedSchemaFile(packageFiles, reference) {
+				return fmt.Errorf(
+					"%w: component %s schema %s has no exact packageFiles schema declaration",
+					ErrInvalidManifest, component.ID, reference,
+				)
+			}
 		}
 		if component.Action != ComponentActionHide && component.SSRTemplate == "" && component.L2Component == "" {
 			return ErrInvalidManifest

@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs'
 
 import {
   formatDurationMicros,
+  parseRouteIncidentLedger,
   parseRouteInspectorSnapshot,
+  routeIncidentResultColor,
   ROUTE_INSPECTOR_METHODS,
   routeInspectorErrorKind,
   routeInspectorMatchedStep,
@@ -586,7 +588,9 @@ describe('route inspector page, nav, and i18n contracts', () => {
     expect(page).not.toContain('resetProvider')
     expect(page).not.toContain('expectedRevision')
     expect(composable).toContain("const basePath = '/admin/extensions/route-inspector'")
-    expect(composable).toContain('return { inspect }')
+    // 只读契约扩展：新增隔离账本读取，但仍不暴露任何提供者变更入口。
+    expect(composable).toContain('return { inspect, loadIncidents }')
+    expect(composable).toContain("const incidentsBasePath = '/admin/extensions/route-incidents'")
     expect(composable).not.toContain('route-providers/selection')
     expect(composable).not.toContain('selectProvider')
     expect(composable).not.toContain('resetProvider')
@@ -648,4 +652,90 @@ describe('route inspector page, nav, and i18n contracts', () => {
     expect(en).toContain('never selects, resets, or mutates route providers')
     expect(zh).toContain('不会选择、重置或变更路由提供者')
   })
+
+// M5 任务 7：崩溃循环隔离账本的六个状态必须在页面上各自可辨，且账本解析只接受
+// 完整形状（宁可报错，也不渲染半份隔离状态）。
+describe('route incident quarantine ledger', () => {
+  const page = source('../../app/pages/admin/extensions/route-inspector.vue')
+
+  test('renders loading, error, stale, empty, quarantined and recovery states', () => {
+    expect(page).toContain('data-testid="route-incidents"')
+    expect(page).toContain('data-testid="route-incidents-loading"')
+    expect(page).toContain('data-testid="route-incidents-error"')
+    expect(page).toContain('data-testid="route-incidents-stale"')
+    expect(page).toContain('data-testid="route-incidents-empty"')
+    expect(page).toContain('data-testid="route-incidents-quarantined"')
+    expect(page).toContain('data-testid="route-incidents-recovery"')
+    expect(page).toContain('data-testid="route-incidents-truncated"')
+    expect(page).toContain('data-testid="route-incidents-row"')
+    // stale 只在「已有旧账本且刷新失败」时出现，不能被错误页替代。
+    expect(page).toContain('incidentsStale.value = true')
+    expect(page).toContain('if (incidents.value) {')
+  })
+
+  test('parses only complete ledger shapes and keeps durable identity fields', () => {
+    const ledger = parseRouteIncidentLedger({
+      limit: 200,
+      summary: { pending: 0, quarantined: 1, recovered: 2, failed: 0 },
+      incidents: [{
+        id: 9,
+        incidentKey: 'key-9',
+        routeId: 'acme.demo.route.read',
+        contractVersion: 'acme.demo.route.read@1',
+        method: 'GET',
+        pathSignature: '/api/v1/acme-demo',
+        phase: 'handler',
+        action: 'add',
+        failureCode: 'transport_failed',
+        causeClass: 'runtime_transport',
+        commitState: 'committed',
+        extensionId: 'acme.demo',
+        extensionVersion: '1.0.0',
+        packageDigest: 'digest',
+        runtimeInstanceId: 'instance-9',
+        localResult: 'quarantined',
+        quarantined: true,
+        resolved: true,
+        auditEventId: 9001,
+        createdAt: '2026-10-16T07:30:00Z'
+      }]
+    })
+    expect(ledger?.limit).toBe(200)
+    expect(ledger?.summary.quarantined).toBe(1)
+    expect(ledger?.incidents[0]?.runtimeInstanceId).toBe('instance-9')
+    expect(ledger?.incidents[0]?.quarantined).toBe(true)
+
+    // 缺 summary / 缺 incidents / 记录缺 id 都视为契约破损。
+    expect(parseRouteIncidentLedger({ limit: 10, incidents: [] })).toBeNull()
+    expect(parseRouteIncidentLedger({ limit: 10, summary: {} })).toBeNull()
+    expect(parseRouteIncidentLedger({
+      limit: 10,
+      summary: {},
+      incidents: [{ incidentKey: 'k' }]
+    })).toBeNull()
+    expect(parseRouteIncidentLedger(null)).toBeNull()
+  })
+
+  test('maps quarantine results to badge colors and ships both locales', () => {
+    expect(routeIncidentResultColor('quarantined')).toBe('error')
+    expect(routeIncidentResultColor('pending')).toBe('warning')
+    expect(routeIncidentResultColor('failed')).toBe('warning')
+    expect(routeIncidentResultColor('stale_missing')).toBe('neutral')
+    for (const locale of [en, zh]) {
+      for (const key of [
+        'incidentsTitle',
+        'incidentsStaleTitle',
+        'incidentsEmpty',
+        'incidentsQuarantinedTitle',
+        'incidentsRecoveryDescription',
+        'incidentResults'
+      ]) {
+        expect(locale).toContain(`"${key}"`)
+      }
+      for (const result of ['pending', 'quarantined', 'stale_missing', 'stale_artifact', 'failed']) {
+        expect(locale).toContain(`"${result}"`)
+      }
+    }
+  })
+})
 })

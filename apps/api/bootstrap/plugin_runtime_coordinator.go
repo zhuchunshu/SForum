@@ -23,11 +23,18 @@ const (
 	// fail-closed，绝不跳过开放中的 lifecycle 行。
 	defaultPluginRuntimeCoordinatorGenesisWaitTimeout   = 30 * time.Second
 	defaultPluginRuntimeCoordinatorGenesisRetryInterval = 200 * time.Millisecond
+	// 首轮收敛就绪同样必须有界。开放中的 lifecycle operation 会让 fence 持续
+	// 拒绝 apply，若这里无限等待，调用方就再也拿不到错误、也不会进入
+	// recovery-only 模式，进程只会静默挂起（无监听、无日志、无插件进程）。
+	defaultPluginRuntimeCoordinatorStartupWaitTimeout = 30 * time.Second
 )
 
 var (
 	errPluginRuntimeCoordinatorBootstrapInvalid   = errors.New("bootstrap: plugin runtime coordinator is invalid")
 	errPluginRuntimeCoordinatorStoppedBeforeReady = errors.New("bootstrap: plugin runtime coordinator stopped before readiness")
+	// errPluginRuntimeCoordinatorStartupPending 是「有界等待到期仍未就绪」的
+	// 类型化信号：调用方据此进入 recovery-only 而不是终止进程。
+	errPluginRuntimeCoordinatorStartupPending = errors.New("bootstrap: plugin runtime coordinator did not converge before the startup deadline")
 )
 
 // pluginRuntimeCoordinatorRunner keeps the bootstrap lifetime wrapper testable
@@ -54,6 +61,8 @@ type pluginRuntimeCoordinatorBootstrapConfig struct {
 	PollInterval      time.Duration
 	StopTimeout       time.Duration
 	TierOrder         []string
+	// StartupWaitTimeout 是首轮收敛就绪的上界；<=0 用生产默认。
+	StartupWaitTimeout time.Duration
 }
 
 type pluginRuntimeCoordinatorLaunchConfig struct {
@@ -67,6 +76,13 @@ type pluginRuntimeCoordinatorLaunchConfig struct {
 	GenesisWaitTimeout time.Duration
 	// GenesisRetryInterval 是两次 genesis ensure 之间的等待；<=0 用生产默认。
 	GenesisRetryInterval time.Duration
+	// StartupWaitTimeout 限制 builder/runner 启动后「首轮就绪」的总时长；
+	// <=0 用生产默认（约 30s）。到期返回 errPluginRuntimeCoordinatorStartupPending，
+	// 由调用方降级启动，绝不无限等待。
+	StartupWaitTimeout time.Duration
+	// PendingReason 返回最近一次未就绪的原因（通常为开放中的 lifecycle
+	// operation），仅用于把根因带进启动超时错误。
+	PendingReason func() error
 }
 
 // pluginRuntimeCoordinatorRuntime owns the coordinator goroutine. Failures is
@@ -123,10 +139,35 @@ func startPluginRuntimeCoordinator(
 			config.Logger.Warn(message, "error", err)
 		}
 	}
+	// pending 状态跨 Build 闭包与 launch 的启动等待共享：日志按原因去重，
+	// 最新原因用于有界超时时的错误信息。
+	var pendingMu sync.Mutex
+	var lastPending error
+	reportPending := func(err error) {
+		if err == nil {
+			return
+		}
+		pendingMu.Lock()
+		changed := lastPending == nil || lastPending.Error() != err.Error()
+		if changed {
+			lastPending = err
+		}
+		pendingMu.Unlock()
+		if changed {
+			report("plugin runtime convergence is pending", err)
+		}
+	}
+	pendingReason := func() error {
+		pendingMu.Lock()
+		defer pendingMu.Unlock()
+		return lastPending
+	}
 	return launchPluginRuntimeCoordinator(ctx, pluginRuntimeCoordinatorLaunchConfig{
-		Identity:    identity,
-		Ensurer:     config.Store,
-		StopTimeout: config.StopTimeout,
+		Identity:           identity,
+		Ensurer:            config.Store,
+		StopTimeout:        config.StopTimeout,
+		StartupWaitTimeout: config.StartupWaitTimeout,
+		PendingReason:      pendingReason,
 		Build: func(
 			identity extensions.PluginRuntimeNodeIdentity,
 			onReady func(),
@@ -155,6 +196,7 @@ func startPluginRuntimeCoordinator(
 					HeartbeatInterval: config.HeartbeatInterval,
 					PollInterval:      config.PollInterval,
 					OnReady:           onReady,
+					OnPending:         reportPending,
 					OnError: func(err error) {
 						report("plugin runtime convergence degraded", err)
 						onError(err)
@@ -247,6 +289,13 @@ func launchPluginRuntimeCoordinator(
 		return nil, cause
 	}
 
+	// 首轮就绪必须有界：无界等待会让 API 永久停在启动阶段（不监听端口、
+	// 不打日志、不启插件），调用方连降级启动的机会都没有。
+	startupDeadline := time.NewTimer(
+		normalizedPluginRuntimeCoordinatorStartupWaitTimeout(config.StartupWaitTimeout),
+	)
+	defer startupDeadline.Stop()
+
 	select {
 	case <-ready:
 		// 首轮失败可能已入队，而 coordinator 随即重试成功；启动边界仍应
@@ -277,9 +326,23 @@ func launchPluginRuntimeCoordinator(
 			return nil, runErr
 		}
 		return nil, errPluginRuntimeCoordinatorStoppedBeforeReady
+	case <-startupDeadline.C:
+		// 有界等待到期：fail-closed 停止协调器，把根因交给调用方降级启动。
+		return abort(startupPendingError(config))
 	case <-ctx.Done():
 		return abort(ctx.Err())
 	}
+}
+
+// startupPendingError 把「首轮未就绪」转成可诊断错误：带上最近一次 pending
+// 原因（通常是开放中的 lifecycle operation），避免只有超时没有根因。
+func startupPendingError(config pluginRuntimeCoordinatorLaunchConfig) error {
+	if config.PendingReason != nil {
+		if reason := config.PendingReason(); reason != nil {
+			return fmt.Errorf("%w: %w", errPluginRuntimeCoordinatorStartupPending, reason)
+		}
+	}
+	return errPluginRuntimeCoordinatorStartupPending
 }
 
 func (runtime *pluginRuntimeCoordinatorRuntime) run(
@@ -395,6 +458,13 @@ func normalizedPluginRuntimeCoordinatorStopTimeout(value time.Duration) time.Dur
 func normalizedPluginRuntimeCoordinatorGenesisWaitTimeout(value time.Duration) time.Duration {
 	if value <= 0 {
 		return defaultPluginRuntimeCoordinatorGenesisWaitTimeout
+	}
+	return value
+}
+
+func normalizedPluginRuntimeCoordinatorStartupWaitTimeout(value time.Duration) time.Duration {
+	if value <= 0 {
+		return defaultPluginRuntimeCoordinatorStartupWaitTimeout
 	}
 	return value
 }

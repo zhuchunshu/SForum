@@ -9,9 +9,15 @@ import (
 	"strings"
 )
 
-// LoaderRouteTarget 将 loopback 地址与同一 runtime instance 的 admission lease 绑定。
+// LoaderRouteTarget 将传输与同一 runtime instance 的 admission lease 绑定。
+//
+// 两种传输互斥，由 bootstrap 适配层按运行时能力选择：
+//   - BaseURL 非空：V1 风格的 loopback HTTP；
+//   - Invoke 非空：Protocol V2 调用（无 loopback，走精确 runtime instance 的 gRPC 路由）。
 type LoaderRouteTarget struct {
 	BaseURL string
+	// Invoke 为 Protocol V2 取数闭包，已绑定 exact identity 与 admission lease。
+	Invoke  LoaderDocumentFunc
 	Context context.Context
 	Release func()
 }
@@ -103,7 +109,7 @@ func (g *LoaderGateway) loadForContribution(
 		return LoaderResult{Error: "pages: plugin runtime lease unavailable", Fallback: true, Status: 503}
 	}
 	defer target.Release()
-	if strings.TrimSpace(target.BaseURL) == "" {
+	if strings.TrimSpace(target.BaseURL) == "" && target.Invoke == nil {
 		return LoaderResult{Error: "pages: plugin not enabled or runtime unavailable", Fallback: true, Status: 503}
 	}
 	if target.Context != nil {
@@ -121,7 +127,7 @@ func (g *LoaderGateway) loadForContribution(
 			}
 		}
 	}
-	return g.Loader.Fetch(ctx, LoaderRequest{
+	request := LoaderRequest{
 		ExtensionID: contrib.ExtensionID,
 		Route:       route,
 		Params:      params,
@@ -129,7 +135,12 @@ func (g *LoaderGateway) loadForContribution(
 		ActorID:     actorID,
 		TargetBase:  target.BaseURL,
 		SchemaJSON:  schemaJSON,
-	})
+	}
+	if target.Invoke != nil {
+		// Protocol V2：无 loopback 传输，走精确 runtime instance 的调用闭包。
+		return g.Loader.FetchV2(ctx, request, target.Invoke)
+	}
+	return g.Loader.Fetch(ctx, request)
 }
 
 // LoadForResolved 对 Resolve 结果中的 replace 贡献拉数据。

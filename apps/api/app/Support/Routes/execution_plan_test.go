@@ -83,7 +83,9 @@ func TestExecutionPlanSupportsEveryTerminalAction(t *testing.T) {
 	registry := NewRegistry()
 	artifact := routeArtifact("plan.actions", "1.0.0", 'b')
 	add := pluginRoute("plan.actions.add", "/custom", 0, "GET")
-	add.Guard = extensionmanifest.GuardCoreRaw
+	// 决定 R1（2026-10-16）：Host 拥有的 core.guard.raw_request 不再是可登记的路由守卫，
+	// raw 权限改由包内显式声明的 kind=raw_request 守卫承载。
+	add.Guard = "plan.actions.raw_guard"
 	alias := pluginRoute("plan.actions.alias", "/alias", 0, "GET")
 	alias.Action, alias.TargetID, alias.Handler, alias.ResponseSchema = extensionmanifest.RouteActionAlias, "core.route.plan.home", "", ""
 	alias.Guard = extensionmanifest.GuardCoreInherit
@@ -93,10 +95,18 @@ func TestExecutionPlanSupportsEveryTerminalAction(t *testing.T) {
 	rewrite.Action, rewrite.TargetID, rewrite.Handler, rewrite.ResponseSchema = extensionmanifest.RouteActionRewrite, "core.route.plan.home", "", ""
 	rewrite.Guard = extensionmanifest.GuardCoreInherit
 	if _, err := registry.Publish(Publication{
-		Core:    []CoreRoute{coreRoute("core.route.plan.home", "GET", "/home")},
-		Plugins: []PluginRouteSet{{Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{add, alias, redirect, rewrite}}},
+		Core: []CoreRoute{coreRoute("core.route.plan.home", "GET", "/home")},
+		Plugins: []PluginRouteSet{{
+			Artifact: artifact, Routes: []extensionmanifest.ManifestRoute{add, alias, redirect, rewrite},
+			Guards: []extensionmanifest.ManifestGuard{pluginGuard(add.Guard, "raw_request")},
+		}},
 	}); err != nil {
 		t.Fatal(err)
+	}
+	// routeExecutionAccess 仍保留 Host raw 守卫的描述性标签（只用于结构相等/旧制品比对），
+	// 这里直接锁住该映射，避免它被静默删除。
+	if got := routeExecutionAccess(extensionmanifest.GuardCoreRaw, ProviderPlugin); got != "raw_request" {
+		t.Fatalf("core raw_request access label = %q", got)
 	}
 	tests := []struct {
 		path        string
@@ -105,11 +115,12 @@ func TestExecutionPlanSupportsEveryTerminalAction(t *testing.T) {
 		destination string
 		targetPath  string
 		access      string
+		guardKind   string
 	}{
-		{"/custom", extensionmanifest.RouteActionAdd, "", "", "", "raw_request"},
-		{"/alias", extensionmanifest.RouteActionAlias, "core.route.plan.home", "", "/home", "inherit"},
-		{"/old", extensionmanifest.RouteActionRedirect, "", "/new", "", "public"},
-		{"/rewrite", extensionmanifest.RouteActionRewrite, "core.route.plan.home", "", "/home", "inherit"},
+		{"/custom", extensionmanifest.RouteActionAdd, "", "", "", "custom", "raw_request"},
+		{"/alias", extensionmanifest.RouteActionAlias, "core.route.plan.home", "", "/home", "inherit", ""},
+		{"/old", extensionmanifest.RouteActionRedirect, "", "/new", "", "public", ""},
+		{"/rewrite", extensionmanifest.RouteActionRewrite, "core.route.plan.home", "", "/home", "inherit", ""},
 	}
 	for _, test := range tests {
 		plan, err := registry.BuildExecutionPlan("GET", test.path)
@@ -119,7 +130,8 @@ func TestExecutionPlanSupportsEveryTerminalAction(t *testing.T) {
 		terminal := plan.Terminal()
 		if len(plan.Chain()) != 1 || terminal.Action != test.action || terminal.TargetID != test.target ||
 			terminal.Destination != test.destination || terminal.TargetPath != test.targetPath ||
-			terminal.Provider.Artifact != artifact || terminal.Access != test.access {
+			terminal.Provider.Artifact != artifact || terminal.Access != test.access ||
+			terminal.PluginGuard.Kind != test.guardKind {
 			t.Fatalf("%s terminal=%#v chain=%#v", test.path, terminal, plan.Chain())
 		}
 	}

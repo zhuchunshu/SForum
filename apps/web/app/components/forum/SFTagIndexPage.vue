@@ -242,6 +242,8 @@ function retryTags() {
           </div>
         </div>
 
+        <SFRegionOutlet page="forum.tag.index" region="list_before" />
+
         <div v-if="tagsError" class="sforum-tags-page__error" role="alert">
           <span>{{ t('taxonomy.tags.loadFailed') }}</span>
           <button type="button" class="sf-button sf-button--ghost sf-button--sm" @click="retryTags">
@@ -320,6 +322,8 @@ function retryTags() {
             </div>
           </section>
         </template>
+
+        <SFRegionOutlet page="forum.tag.index" region="list_after" />
 
         <SFRegionOutlet page="forum.tag.index" region="content_after" />
 

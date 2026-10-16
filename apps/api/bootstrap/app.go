@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +19,7 @@ import (
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionprotocol "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionProtocol"
 	extensionruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionRuntime"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
@@ -231,9 +234,44 @@ func humanVerifyConfigFromConfig(cfg config.Config) humanverify.RuntimeConfig {
 	}
 }
 
+// PageRouteTargetRuntime 是 Loader 目标解析所需的最小运行时能力。
+// 生产装配注入完整 extensionRuntime；抽成窄接口后，合并测试可以直接复用同一条
+// 准入规则（而不是在测试里重新实现一遍），行为与装配方式均未改变。
+type PageRouteTargetRuntime interface {
+	AcquireActiveRuntimeCall(
+		context.Context, string, extensionsruntime.RuntimeCallClass,
+	) (extensionsruntime.RuntimeInstanceSnapshot, *extensionsruntime.RuntimeAdmissionLease, error)
+}
+
+// NewPageRouteTargetSource 把 Loader 目标解析绑定到 exact runtime admission lease。
+func NewPageRouteTargetSource(runtime PageRouteTargetRuntime) pages.RouteTargetSource {
+	return pageRouteTargetAdapter{runtime: runtime}
+}
+
+// NewPageRouteTargetSourceWithRoutes 组装 V2 取数所需的声明路由来源。
+// 未注入时 V2 分支 fail closed（仍然只有 loopback HTTP 传输可用）。
+func NewPageRouteTargetSourceWithRoutes(runtime PageRouteTargetRuntime, store pageDataRouteRecordSource) pages.RouteTargetSource {
+	return pageRouteTargetAdapter{runtime: runtime, routes: pageDataRouteAdapter{store: store}}
+}
+
+// pageRouteInvoker 由运行时 Manager 实现：按 exact identity 调用 Protocol V2 路由。
+// 与 loopback HTTP 不同，它不需要插件回报 BaseURL。
+type pageRouteInvoker interface {
+	InvokeRouteInstance(
+		context.Context, extensionsruntime.RuntimeInstanceIdentity, extensionsruntime.ProtocolV2RouteRequest,
+	) (extensionsruntime.ProtocolV2RouteResponse, error)
+}
+
 // pageRouteTargetAdapter 为 PageDataLoader 绑定 exact runtime admission lease。
+// 注意：本适配器的传输前提是插件回报 loopback HTTP BaseURL。Protocol V2 明确
+// 拒绝 loopback（`protocol_v2_client.go:463`），而 V1 已不再受支持
+// （`protocol_v2_client.go:188` 返回 ErrUnsupportedProtocol），因此当前没有任何
+// 运行中的插件能通过这里的 BaseURL 检查；dataSource=plugin 的页面贡献会拿到
+// "plugin not enabled or runtime unavailable" 并回退。真实行为由
+// IntegrationTests/TestPageLoaderGatewayHasNoTransportForProtocolV2Runtime pin 住。
 type pageRouteTargetAdapter struct {
-	runtime extensionRuntime
+	runtime PageRouteTargetRuntime
+	routes  pageDataRouteSource
 }
 
 func (a pageRouteTargetAdapter) AcquireRouteTarget(ctx context.Context, artifact pages.RuntimeArtifact) (pages.LoaderRouteTarget, bool) {
@@ -250,14 +288,201 @@ func (a pageRouteTargetAdapter) AcquireRouteTarget(ctx context.Context, artifact
 		admission.Release()
 		return pages.LoaderRouteTarget{}, false
 	}
-	if strings.TrimSpace(target.Target.BaseURL) == "" {
+	if base := strings.TrimSpace(target.Target.BaseURL); base != "" {
+		return pages.LoaderRouteTarget{
+			BaseURL: base,
+			Context: admission.Context,
+			Release: admission.Release,
+		}, true
+	}
+	// Protocol V2 明确拒绝 loopback，因此这里没有 BaseURL 是**正常**形态：
+	// 只要运行时能按 exact identity 调用 V2 路由，就提供一个取数闭包作为传输。
+	// 安全规则见 pageDataRouteAdapter：只有宿主拥有的 public 守卫路由可被调用。
+	invoke, ok := a.protocolV2LoaderInvoker(ctx, target, artifact)
+	if !ok {
 		admission.Release()
 		return pages.LoaderRouteTarget{}, false
 	}
 	return pages.LoaderRouteTarget{
-		BaseURL: target.Target.BaseURL,
+		Invoke:  invoke,
 		Context: admission.Context,
 		Release: admission.Release,
+	}, true
+}
+
+// protocolV2LoaderInvoker 绑定 exact runtime instance 与 V2 路由调用。
+// 闭包只接收已解析的语义输入（route/params/locale/actor 提示），不接触 HTTP 或任意 URL。
+func (a pageRouteTargetAdapter) protocolV2LoaderInvoker(
+	ctx context.Context,
+	target extensionsruntime.RuntimeInstanceSnapshot,
+	artifact pages.RuntimeArtifact,
+) (pages.LoaderDocumentFunc, bool) {
+	if a.routes == nil {
+		return nil, false
+	}
+	invoker, ok := a.runtime.(pageRouteInvoker)
+	if !ok {
+		return nil, false
+	}
+	identity := target.Identity
+	if identity.ExtensionID == "" || identity.InstanceID == "" {
+		return nil, false
+	}
+	return func(
+		callCtx context.Context,
+		route string,
+		params map[string]string,
+		locale string,
+		actorID int64,
+	) ([]byte, int, error) {
+		declaration, ok := a.routes.PageDataRoute(callCtx, artifact.ExtensionID, fiber.MethodGet, route)
+		if !ok {
+			return nil, 0, pageDataRouteRefused("route is not declared as a public data route")
+		}
+		// 精确制品：声明必须与贡献冻结的版本/摘要一致，避免用新声明服务旧制品。
+		if artifact.ExtensionVersion != "" && declaration.ExtensionVersion != artifact.ExtensionVersion {
+			return nil, 0, pageDataRouteRefused("declaration version does not match the frozen artifact")
+		}
+		if artifact.PackageDigest != "" && declaration.PackageDigest != artifact.PackageDigest {
+			return nil, 0, pageDataRouteRefused("declaration digest does not match the frozen artifact")
+		}
+		query := map[string]string{}
+		if locale != "" {
+			query["locale"] = locale
+		}
+		// actor 提示：loader 不携带身份，因此这里只作为**非授权**提示透传，
+		// 插件不得据此判定权限（与 HTTP 传输的 X-SForum-Actor-ID-Hint 同义）。
+		if actorID > 0 {
+			query["actorHint"] = strconv.FormatInt(actorID, 10)
+		}
+		response, err := invoker.InvokeRouteInstance(callCtx, identity, extensionsruntime.ProtocolV2RouteRequest{
+			RouteID: declaration.RouteID, ContractVersion: declaration.ContractVersion,
+			RouteAction: declaration.RouteAction,
+			// 终端阶段：数据取数由插件处理器返回完整文档。
+			InvocationStage: extensionsruntime.ProtocolV2RouteInvocationStageHandler,
+			Method:          fiber.MethodGet, Path: route,
+			PathParameters: params, QueryParameters: query,
+			RequestSchema: declaration.RequestSchema, ResponseSchema: declaration.ResponseSchema,
+			// 过滤授权：loader 绝不转发 cookie/authorization 等凭证。
+			Authority: extensionsruntime.ProtocolV2RequestAuthority{
+				Mode:      extensionsruntime.ProtocolV2RequestAuthorityFiltered,
+				GuardKind: extensionsruntime.ProtocolV2RequestGuardHost,
+			},
+		})
+		if err != nil {
+			return nil, 0, err
+		}
+		status := response.StatusCode
+		if status == 0 {
+			status = httpStatusOK
+		}
+		if !response.BodyPresent || response.Body == nil {
+			return nil, status, pageDataRouteRefused("plugin returned no document body")
+		}
+		document, err := json.Marshal(response.Body)
+		if err != nil {
+			return nil, 0, pageDataRouteRefused("plugin document is not encodable")
+		}
+		return document, status, nil
+	}, true
+}
+
+const httpStatusOK = 200
+
+// pageDataRouteRefused 包装为 pages.ErrLoaderRouteRefused，让 gateway 把「这条数据路由
+// 不允许被调用」与「调用失败」区分开（前者 503 稳定回退，后者 504）。
+func pageDataRouteRefused(reason string) error {
+	return fmt.Errorf("%w: %s", pages.ErrLoaderRouteRefused, reason)
+}
+
+// pageDataRouteDeclaration 是 V2 loader 需要的「已声明数据路由」视图。
+//
+// 为什么从扩展记录读而不是 GuardPolicyCatalog.LookupDeclaredRoute：后者只暴露
+// Access/Permission，缺少 Protocol V2 路由调用必需的 RouteID / ContractVersion /
+// schema 引用。
+type pageDataRouteDeclaration struct {
+	RouteID          string
+	ContractVersion  string
+	RouteAction      string
+	RequestSchema    string
+	ResponseSchema   string
+	Guard            string
+	ExtensionVersion string
+	PackageDigest    string
+}
+
+// pageDataRouteSource 按方法+路径解析插件 manifest 中声明的数据路由。
+type pageDataRouteSource interface {
+	PageDataRoute(ctx context.Context, extensionID, method, path string) (pageDataRouteDeclaration, bool)
+}
+
+// pageDataRouteRecordSource 是 pageDataRouteAdapter 需要的最小读取面。
+// 只依赖 Get（扩展记录含 manifest），避免把整个 extensions.Store 拖进适配器。
+type pageDataRouteRecordSource interface {
+	Get(ctx context.Context, id string) (extensions.Extension, error)
+}
+
+// pageDataRouteAdapter 从扩展记录读取 manifest 路由声明。
+//
+// 安全规则（R2，fail closed）：loader 是宿主发起的取数调用，**不携带 actor 身份**，
+// 因此只能调用宿主可自行判定的守卫：仅接受 `core.guard.public`。
+// login/permission 需要 actor（loader 不提供），custom/raw_request 守卫拥有自己的
+// 授权判断，宿主不得代其判定。
+type pageDataRouteAdapter struct {
+	store pageDataRouteRecordSource
+}
+
+func (a pageDataRouteAdapter) PageDataRoute(
+	ctx context.Context, extensionID, method, path string,
+) (pageDataRouteDeclaration, bool) {
+	if a.store == nil {
+		return pageDataRouteDeclaration{}, false
+	}
+	item, err := a.store.Get(ctx, extensionID)
+	if err != nil {
+		return pageDataRouteDeclaration{}, false
+	}
+	wantedMethod := strings.ToUpper(strings.TrimSpace(method))
+	wantedPath := strings.TrimSpace(path)
+	if wantedPath != "" && !strings.HasPrefix(wantedPath, "/") {
+		wantedPath = "/" + wantedPath
+	}
+	var matched *extensions.ManifestRoute
+	for index := range item.Manifest.Routes {
+		route := &item.Manifest.Routes[index]
+		if strings.TrimSpace(route.Path) != wantedPath {
+			continue
+		}
+		declared := false
+		for _, candidate := range route.Methods {
+			if strings.ToUpper(strings.TrimSpace(candidate)) == wantedMethod {
+				declared = true
+				break
+			}
+		}
+		if !declared {
+			continue
+		}
+		if matched != nil {
+			// 同方法同路径重复声明：歧义即拒绝。
+			return pageDataRouteDeclaration{}, false
+		}
+		matched = route
+	}
+	if matched == nil {
+		return pageDataRouteDeclaration{}, false
+	}
+	// 只有宿主拥有的公开守卫可被 loader 直接调用。
+	if strings.TrimSpace(matched.Guard) != extensionmanifest.GuardCorePublic {
+		return pageDataRouteDeclaration{}, false
+	}
+	if strings.TrimSpace(matched.ID) == "" || strings.TrimSpace(matched.ContractVersion) == "" {
+		return pageDataRouteDeclaration{}, false
+	}
+	return pageDataRouteDeclaration{
+		RouteID: matched.ID, ContractVersion: matched.ContractVersion, RouteAction: matched.Action,
+		RequestSchema: matched.RequestSchema, ResponseSchema: matched.ResponseSchema,
+		Guard: matched.Guard, ExtensionVersion: item.Version, PackageDigest: item.PackageDigest,
 	}, true
 }
 

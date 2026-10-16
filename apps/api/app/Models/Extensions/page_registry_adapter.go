@@ -8,12 +8,49 @@ import (
 	"github.com/zhuchunshu/sforum/apps/api/app/Support/Pages"
 )
 
+// PageRuntimeInstanceSource 解析扩展当前活动 runtime instance id。
+//
+// 为什么 enable 期必须写它：loader 的精确制品检查要求页面贡献携带 runtime instance id，
+// 而此前只有启动恢复路径（`restoreExactPluginPagePublications`）会写——于是「刚启用、
+// 还没重启 API」时 `resolved.RuntimeInstanceID` 为空，插件页数据恒为
+// `pages: exact plugin runtime unavailable`，必须重启一次才生效。把解析注入适配器，
+// 让启用路径与启动恢复写同一份契约。
+type PageRuntimeInstanceSource interface {
+	// ActiveRuntimeInstanceID 只在活动实例与传入的版本/摘要**精确匹配**时返回 id。
+	ActiveRuntimeInstanceID(extensionID, version, packageDigest string) (string, bool)
+}
+
 // PageRegistryAdapter 将 pages.ExtensionBridge 接到 Service.PageRegistry。
 type PageRegistryAdapter struct {
-	Bridge       *pages.ExtensionBridge
-	ThemeRuntime *pages.ThemeRuntimeRegistry
-	SiteName     string
-	Locales      []string
+	Bridge           *pages.ExtensionBridge
+	ThemeRuntime     *pages.ThemeRuntimeRegistry
+	RuntimeInstances PageRuntimeInstanceSource
+	SiteName         string
+	Locales          []string
+}
+
+// WithRuntimeInstances 注入活动 runtime instance 解析（enable 期绑定页面贡献用）。
+func (a *PageRegistryAdapter) WithRuntimeInstances(source PageRuntimeInstanceSource) *PageRegistryAdapter {
+	if a != nil {
+		a.RuntimeInstances = source
+	}
+	return a
+}
+
+// bindPluginRuntimeInstance 把活动 runtime instance id 写进插件页面贡献。
+// 解析不到（运行时未就绪/制品不匹配）时保持为空：注册表会在请求期按 admission 拒绝，
+// 不伪造身份。
+func (a *PageRegistryAdapter) bindPluginRuntimeInstance(extension Extension, contributions []pages.PageContribution) {
+	if a == nil || a.RuntimeInstances == nil || len(contributions) == 0 {
+		return
+	}
+	instanceID, ok := a.RuntimeInstances.ActiveRuntimeInstanceID(extension.ID, extension.Version, extension.PackageDigest)
+	if !ok {
+		return
+	}
+	for index := range contributions {
+		contributions[index].RuntimeInstanceID = instanceID
+	}
 }
 
 func (a *PageRegistryAdapter) WithThemeRuntime(runtime *pages.ThemeRuntimeRegistry, siteName string, locales []string) *PageRegistryAdapter {
@@ -188,6 +225,8 @@ func (a *PageRegistryAdapter) RegisterPluginPackage(ctx context.Context, extensi
 		a.ClearExtension(extension.ID)
 		return nil
 	}
+	// 与启动恢复路径一致：先把活动 runtime instance 绑到贡献上，再编译快照/注册。
+	a.bindPluginRuntimeInstance(extension, contributions)
 	if a.ThemeRuntime == nil {
 		return a.Bridge.Registry.RegisterContributions(extension.ID, contributions)
 	}

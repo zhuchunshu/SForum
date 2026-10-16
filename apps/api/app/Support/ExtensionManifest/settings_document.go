@@ -15,6 +15,9 @@ const (
 	SettingsLayoutForm          = "form"
 	SettingsLayoutTabs          = "tabs"
 	SettingsActionProviderProbe = "provider_probe"
+	// SettingsActionAIToolProbe 让插件在设置页提供一个「测试」按钮：宿主用草稿值
+	// 起一个短命 runtime，再按 aiTools[] 声明调用插件自己的一个 AI 工具。
+	SettingsActionAIToolProbe = "ai_tool_probe"
 )
 
 type ManifestSetting struct {
@@ -96,6 +99,9 @@ type SettingsAction struct {
 	Placement      string        `json:"placement,omitempty"`
 	UseDraftValues bool          `json:"useDraftValues,omitempty"`
 	Fields         []string      `json:"fields,omitempty"`
+	// Tool 是探测要派发到的 AI 工具声明 id（aiTools[].id），只被 kind
+	// ai_tool_probe 使用：provider_probe 走 provider slot，不需要工具。
+	Tool string `json:"tool,omitempty"`
 }
 
 func defaultSettingsDocument(fields []ManifestSetting) SettingsDocument {
@@ -197,6 +203,7 @@ func normalizeSettingsDocument(manifest *Manifest) {
 			action.Fields[fieldIndex] = strings.TrimSpace(action.Fields[fieldIndex])
 		}
 		sort.Strings(action.Fields)
+		action.Tool = strings.TrimSpace(action.Tool)
 	}
 	document.Fields = append([]ManifestSetting(nil), manifest.Settings...)
 	manifest.SettingsDocument = document
@@ -289,7 +296,9 @@ func validateSettingsDocument(manifest Manifest) error {
 	}
 	actionIDs := map[string]struct{}{}
 	for _, action := range document.Actions {
-		if !adminComponentIDPattern.MatchString(action.ID) || action.Label.IsEmpty() || action.Kind != SettingsActionProviderProbe || (action.Placement != "header" && action.Placement != "footer") {
+		if !adminComponentIDPattern.MatchString(action.ID) || action.Label.IsEmpty() ||
+			(action.Kind != SettingsActionProviderProbe && action.Kind != SettingsActionAIToolProbe) ||
+			(action.Placement != "header" && action.Placement != "footer") {
 			return ErrInvalidManifest
 		}
 		if _, exists := actionIDs[action.ID]; exists {
@@ -301,8 +310,21 @@ func validateSettingsDocument(manifest Manifest) error {
 				return ErrInvalidManifest
 			}
 		}
+		// AI 工具探测必须点名一个属于自己的已声明工具，并至少声明一个草稿字段：
+		// 没有字段就没有草稿值可测，探测也就失去意义。
+		if action.Kind == SettingsActionAIToolProbe && !settingsDocumentDeclaresAITool(manifest, action.Tool) {
+			return ErrInvalidManifest
+		}
+		if action.Kind == SettingsActionAIToolProbe && len(action.Fields) == 0 {
+			return ErrInvalidManifest
+		}
 	}
-	if len(document.Actions) > 0 && (manifest.Type != TypePlugin || manifest.Backend.Entry == "" || len(manifest.Providers) == 0) {
+	// 任何设置页动作都需要可执行的插件后端；provider slot 只有 provider_probe
+	// 才要求：AI 工具探测需要的是一个已声明的工具，而不是 provider 槽位。
+	if len(document.Actions) > 0 && (manifest.Type != TypePlugin || manifest.Backend.Entry == "") {
+		return ErrInvalidManifest
+	}
+	if len(document.Actions) > 0 && len(manifest.Providers) == 0 && settingsDocumentHasProviderProbe(document.Actions) {
 		return ErrInvalidManifest
 	}
 	if document.UI.Mode == SettingsUIModeComponent {
@@ -314,6 +336,30 @@ func validateSettingsDocument(manifest Manifest) error {
 		return ErrInvalidManifest
 	}
 	return nil
+}
+
+// settingsDocumentDeclaresAITool 判断 tool 是否为本插件声明的 AI 工具 id：
+// 必须落在插件命名空间下，且逐字匹配 manifest.aiTools[].id。
+func settingsDocumentDeclaresAITool(manifest Manifest, tool string) bool {
+	tool = strings.TrimSpace(tool)
+	if !IsOwnedID(manifest.ID, tool) {
+		return false
+	}
+	for _, declaration := range manifest.AITools {
+		if declaration.ID == tool {
+			return true
+		}
+	}
+	return false
+}
+
+func settingsDocumentHasProviderProbe(actions []SettingsAction) bool {
+	for _, action := range actions {
+		if action.Kind == SettingsActionProviderProbe {
+			return true
+		}
+	}
+	return false
 }
 
 func (document SettingsDocument) canonicalValue(fields []ManifestSetting) any {

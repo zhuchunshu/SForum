@@ -265,6 +265,8 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 		"core.route.extensions.inspect_asset",
 		"core.route.extensions.inspect_cache",
 		"core.route.extensions.inspect_route",
+		// M5 隔离账本：与 route inspector 同一 view/manage 门（同一管理端读取面）。
+		"core.route.extensions.inspect_route_incidents",
 		"core.route.extensions.inspect_templates",
 		"core.route.extensions.component_inspector",
 		"core.route.extensions.navigation_inspector",

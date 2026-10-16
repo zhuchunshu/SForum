@@ -101,7 +101,9 @@ func TestBuildPublishesNonStandardSecurityOwnership(t *testing.T) {
 		want     string
 	}{
 		{name: "inherited", guard: extensionmanifest.GuardCoreInherit, action: extensionmanifest.RouteActionReplace, targetID: "core.route.demo", want: SecurityHostInherited},
-		{name: "raw request", guard: extensionmanifest.GuardCoreRaw, action: extensionmanifest.RouteActionAdd, want: SecurityPluginOwned},
+		// 决定 R1：raw 权限只能来自包内显式声明的守卫，因此这里的载体是 fixture 自己
+		// 声明的 kind=raw_request 守卫（不再是已退役的 core.guard.raw_request）。
+		{name: "raw request", guard: fixtureRawGuardID("security.owner.raw-request"), action: extensionmanifest.RouteActionAdd, want: SecurityPluginOwned},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -132,7 +134,8 @@ func TestBuildPublishesNonStandardSecurityOwnership(t *testing.T) {
 
 func TestBuildRejectsPluginOwnedSecurityDowngradeAndStandardScheme(t *testing.T) {
 	options := defaultFixtureOptions("security.owner.downgrade")
-	options.guard = extensionmanifest.GuardCoreRaw
+	// 同上：载体是声明式 raw_request 守卫。
+	options.guard = fixtureRawGuardID(options.extensionID)
 	options.rateLimit, options.idempotency = PolicyDisabled, PolicyDisabled
 	fixture := buildFixture(t, options)
 	fixture.Policies[0].Security = SecurityPublic
@@ -147,12 +150,18 @@ func TestBuildRejectsPluginOwnedSecurityDowngradeAndStandardScheme(t *testing.T)
 		t.Fatalf("plugin-owned standard security error = %v", err)
 	}
 
+	// 文档里的 x-sforum-guard 必须与清单路由使用的守卫一致，所以这里由 options.guard
+	// 拼出替换目标（R1 之后载体是包内声明的 raw_request 守卫，不再是 core.guard.raw_request）。
+	guardLine := "      x-sforum-guard: " + options.guard + "\n"
 	options.document = strings.Replace(
 		fixtureDocument(options),
-		"      x-sforum-guard: core.guard.raw_request\n",
-		"      x-sforum-guard: core.guard.raw_request\n      x-sforum-security-owner: plugin_owned\n",
+		guardLine,
+		guardLine+"      x-sforum-security-owner: plugin_owned\n",
 		1,
 	)
+	if !strings.Contains(options.document, "x-sforum-security-owner: plugin_owned") {
+		t.Fatal("fixture document did not gain the plugin-authored security owner")
+	}
 	fixture = buildFixture(t, options)
 	fixture.Policies = HostRoutePolicies(fixture.Manifest)
 	if _, err := Build(BuildInput{Artifacts: []Artifact{fixture}}); !errors.Is(err, ErrContractMismatch) {

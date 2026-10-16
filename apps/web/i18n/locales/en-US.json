@@ -678,10 +678,6 @@
       "multimodalIntro": "When enabled, AI replies include image attachments from the topic and the comment being replied to. Make sure the selected model supports image understanding.",
       "multimodalEnabled": "Enable multimodal input",
       "multimodalLimitsHint": "At most 4 images per reply, each up to 2MB; image requests count toward the same cost gates and usage.",
-      "identity": "AI identity statement",
-      "identityIntro": "Every call tells the model which model it is running as: the model is resolved at runtime from the cost-class binding, so a prompt cannot state it. When disabled the model still knows what it is, just not which model.",
-      "identityDisclose": "Tell the model which provider and model it is using",
-      "identityHint": "On by default. When a member asks which model it is, the assistant answers with this identifier instead of guessing; in either mode it never invents a model name.",
       "redactEmail": "Email",
       "redactPhone": "Phone",
       "redactIp": "IP address",
@@ -1302,6 +1298,25 @@
             "auto": "Automatic"
           }
         },
+        "guardAuthorization": {
+          "title": "Authorization ownership",
+          "owner": "Authorization owner",
+          "kind": "Guard kind",
+          "digest": "Executable digest",
+          "fallback": "Failure policy",
+          "requestedFields": "Writable fields",
+          "hostOwned": "Host evaluated",
+          "noArtifact": "No plugin artifact",
+          "notDeclared": "Not declared",
+          "noRequestedFields": "None (no mutable fields declared)",
+          "rawRequestTitle": "A route grants raw request authority",
+          "rawRequestDescription": "{count} route(s) hand authorization to raw request authority: cookie / authorization / x-api-key / x-auth-token are forwarded to the plugin handler. Review every route before confirming.",
+          "risks": {
+            "host_owned": "Host owns",
+            "extension_code": "Extension code",
+            "raw_request": "Raw request"
+          }
+        },
         "sections": {
           "artifactDigests": "Executable artifact digests",
           "requestedAuthority": "Requested host authority",
@@ -1864,6 +1879,30 @@
           "outcome": "Outcome",
           "duration": "Duration",
           "commitState": "Commit state"
+        },
+        "incidentsTitle": "Crash-loop quarantine",
+        "incidentsIntro": "Durable ledger of route runtime incidents and quarantine results: only the exact runtime surface is closed while the Host keeps serving. This state survives a restart.",
+        "incidentsSummary": "quarantined {quarantined} · pending {pending} · no quarantine needed {recovered}",
+        "incidentsRefresh": "Refresh",
+        "incidentsErrorTitle": "Reading the incident ledger failed",
+        "incidentsLoadFailed": "The incident ledger could not be read.",
+        "incidentsStaleTitle": "The ledger may be stale",
+        "incidentsStaleDescription": "The refresh failed; what you see is the last successful read. Retry before acting on the quarantine scope.",
+        "incidentsEmpty": "No crash-loop incidents: every published route runtime finished normally.",
+        "incidentsQuarantinedTitle": "A runtime surface is quarantined",
+        "incidentsQuarantinedDescription": "{count} exact runtime surface(s) were closed after a crash loop; affected routes follow their own failure policy and Host recovery is unaffected.",
+        "incidentsRecoveryTitle": "How to recover",
+        "incidentsRecoveryDescription": "Quarantine applies only to that exact artifact and instance. Publishing a fixed version clears it, and Host recovery is also available through Safe Mode or CLI recovery.",
+        "incidentsTruncated": "Showing only the newest {limit} incidents.",
+        "incidentFailure": "Failure code",
+        "incidentCause": "Cause class",
+        "incidentRecordedAt": "Recorded at",
+        "incidentResults": {
+          "pending": "Pending",
+          "quarantined": "Quarantined",
+          "stale_missing": "Artifact removed",
+          "stale_artifact": "Artifact replaced",
+          "failed": "Quarantine failed"
         }
       },
       "cacheInspector": {
@@ -4134,6 +4173,7 @@
       "reset": "Reset",
       "save": "Save",
       "edit": "Edit",
+      "delete": "Delete",
       "cancel": "Cancel",
       "loading": "Loading…"
     },
@@ -4306,7 +4346,29 @@
         "emptyCategories": "This group has no categories",
         "emptyCategoriesDescription": "Use “Create category” to add a board in this group so members have a clear place to post.",
         "emptyGroups": "No groups yet",
-        "emptyGroupsDescription": "Use “Create group” in the toolbar to add a public group, then add categories."
+        "emptyGroupsDescription": "Use “Create group” in the toolbar to add a public group, then add categories.",
+        "delete": {
+          "groupAction": "Delete group",
+          "categoryAction": "Delete category",
+          "confirm": "Delete",
+          "groupTitle": "Delete group",
+          "groupBody": "The group “{name}” will be permanently deleted. This cannot be undone.",
+          "categoryTitle": "Delete category",
+          "categoryBody": "The category “{name}” will be permanently deleted. This cannot be undone.",
+          "groupBlockedTitle": "Empty this group first",
+          "groupBlockedReason": "This group still contains {count} categories. Delete them or move them to another group first.",
+          "categoryBlockedTitle": "Move this category's topics first",
+          "categoryBlockedReason": "This category still contains {count} topics. Move them to another category first.",
+          "groupDeleted": "Group deleted.",
+          "categoryDeleted": "Category deleted.",
+          "failed": "Delete failed.",
+          "errors": {
+            "categoryNotEmpty": "This category still has topics (including deleted or hidden ones). Move or permanently remove them first.",
+            "groupNotEmpty": "This group still has categories. Delete them or move them to another group first.",
+            "categoryIsDefault": "This category is the current default posting category. Choose another default in forum settings first.",
+            "notFound": "The target no longer exists. Refresh and try again."
+          }
+        }
       },
       "tags": {
         "metaTitle": "Tag management",

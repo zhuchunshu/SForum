@@ -1,0 +1,53 @@
+{
+  "assets": [
+    {
+      "contractVersion": "sforum.page-schema-reference.asset.theme@1",
+      "digest": "e762a0bb6c4cc50c725233280ee73ee48bacbafd669fd82ca14db612dba233ce",
+      "handle": "sforum.page-schema-reference.asset.theme",
+      "path": "assets/theme.css",
+      "type": "style"
+    }
+  ],
+  "author": {
+    "name": "SForum",
+    "url": "https://github.com/zhuchunshu/sforum"
+  },
+  "description": "CI fixture for a public page whose body is a bounded declarative descriptor (theme.json page view=schema): no Vue, no Go template, no build step.",
+  "id": "sforum.page-schema-reference",
+  "manifestVersion": 3,
+  "name": "Page Schema Reference Fixture",
+  "packageFiles": [
+    {
+      "digest": "e49173ca3543ec5a66c928eb9503eba866326eeb404fa14a639ffbc16f9462ff",
+      "id": "sforum.page-schema-reference.file.theme",
+      "kind": "asset",
+      "path": "theme.json",
+      "version": "1"
+    },
+    {
+      "digest": "e762a0bb6c4cc50c725233280ee73ee48bacbafd669fd82ca14db612dba233ce",
+      "id": "sforum.page-schema-reference.file.css",
+      "kind": "asset",
+      "path": "assets/theme.css",
+      "version": "1"
+    },
+    {
+      "digest": "83cb64858ec255c4a5bec69e74a1555ba85bad15e9c49a4c99ca121436e96394",
+      "id": "sforum.page-schema-reference.file.page.list",
+      "kind": "schema",
+      "path": "schemas/orders-list.json",
+      "version": "1"
+    },
+    {
+      "digest": "c6532de7997f2ba5e527e85fd67938c70c6f451e5a3c59e84a75b9e0081c63ae",
+      "id": "sforum.page-schema-reference.schema.page.list",
+      "kind": "schema",
+      "path": "schemas/orders-list-contract.json",
+      "version": "1"
+    }
+  ],
+  "sforumVersion": "^1.0.0",
+  "type": "plugin",
+  "url": "https://github.com/zhuchunshu/sforum",
+  "version": "1.0.0"
+}

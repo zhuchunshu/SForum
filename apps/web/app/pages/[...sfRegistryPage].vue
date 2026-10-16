@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
-import { useNotFoundPagePresentation } from '~/composables/errors/useNotFoundPagePresentation'
-import type { ThemeRenderOutput } from '~/composables/themes/useThemeRenderOutput'
+import { useRegistryPageResolve } from '~/composables/pages/useRegistryPageResolve'
+// 子目录组件必须显式导入：Nuxt 自动导入名会带路径前缀，静态契约测试按名字匹配。
+import SFRegistryPageBody from '~/components/extensions/public/SFRegistryPageBody.vue'
+import SFRegistryPageShell from '~/components/extensions/public/SFRegistryPageShell.vue'
 
 /**
  * 动态公开路由宿主：匹配 Page Registry 的 action=add 贡献。
  * 仅在无其它 Nuxt 文件路由命中时生效（catch-all）。
- * 权威 access/permission 由 API resolve-path 返回 401/403/404。
+ * 权威 access/permission 由 API resolve-path 返回 401/403/404，解析与映射见
+ * `useRegistryPageResolve`；外壳选择见 `SFRegistryPageShell`。
  */
 definePageMeta({
   public: true
 })
 
 const route = useRoute()
-const localePath = useLocalePath()
-const notFoundPresentation = useNotFoundPagePresentation()
 
 const requestPath = computed(() => {
   const raw = route.params.sfRegistryPage
@@ -23,81 +24,43 @@ const requestPath = computed(() => {
   return '/' + parts.join('/')
 })
 
-type ResolvePayload = {
-  page?: { id: string, pathPattern?: string, access?: string }
-  provider?: string
-  extensionId?: string
-  contributionId?: string
-  action?: string
-  fallback?: boolean
-  templateHtml?: string
-  renderOutput?: ThemeRenderOutput
-  dataSource?: string
-  dataRoute?: string
-  loaderData?: unknown
-  loaderError?: string
-}
-
-const { data, error, status } = await useAsyncData(
-  () => `page-resolve-path:${requestPath.value}`,
-  async () => {
-    const { request } = useApiClient()
-    return await request<ResolvePayload>(
-      `/pages/resolve-path?path=${encodeURIComponent(requestPath.value)}`
-    )
-  },
-  { watch: [requestPath] }
-)
-
-// API 404 → 正常 Nuxt 404
-if (error.value) {
-  const err: any = error.value
-  const code = err?.statusCode || err?.status || err?.data?.statusCode
-  if (code === 404) {
-    if (import.meta.client) {
-      await notFoundPresentation.prepare()
-    }
-    throw createError({ statusCode: 404, statusMessage: 'Page not found' })
-  }
-  if (code === 401) {
-    await navigateTo(localePath('/login'))
-  }
-  if (code === 403) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-  }
-}
+const { data, error, status } = await useRegistryPageResolve(requestPath, 'page-resolve-path')
 
 const templateHtml = computed(() => (data.value?.templateHtml || '').trim())
-const useTemplate = computed(() => Boolean(data.value?.renderOutput || templateHtml.value))
+
+// Page Registry 贡献没有 label 字段；页面可见标题优先从正文首个 h1 提取，
+// 没有标题的页面退回路径本身，避免 document.title 出现 page id 噪声。
+const pageTitle = computed(() => {
+  const heading = templateHtml.value.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]
+    ?.replace(/<[^>]*>/g, '').trim()
+  return heading || requestPath.value
+})
 
 useSForumSeo({
-  title: () => data.value?.page?.id || requestPath.value,
+  title: () => pageTitle.value,
   type: 'website',
   noindex: true
 })
 </script>
 
 <template>
-  <main class="sf-public-page sf-registry-add mx-auto w-full max-w-4xl px-4 py-8">
-    <SFAlert
-      v-if="error && status === 'error'"
-      variant="danger"
-      title="Failed to load extension page"
-    />
-    <SFThemeTemplate
-      v-else-if="useTemplate"
-      :html="templateHtml"
-      :render-output="data?.renderOutput"
-      :extension-id="data?.extensionId || data?.provider || ''"
-      :data-source="data?.dataSource"
-      :data-route="data?.dataRoute"
-      :loader-data="data?.loaderData"
-      :loader-error="data?.loaderError"
-    />
-    <SFEmptyState
-      v-else
-      title="Extension page unavailable"
-      :description="data?.loaderError || requestPath"
-    />
-  </main>
+  <SFRegistryPageShell
+    :layout="data?.layout"
+    :shell-html="data?.shellHtml"
+    :shell-provider="data?.shellProvider"
+    :body="{
+      loadFailed: Boolean(error && status === 'error'),
+      templateHtml,
+      renderOutput: data?.renderOutput,
+      view: data?.view,
+      component: data?.component,
+      schemaView: data?.schemaView,
+      extensionId: data?.extensionId || data?.provider || '',
+      dataSource: data?.dataSource,
+      dataRoute: data?.dataRoute,
+      loaderData: data?.loaderData,
+      loaderError: data?.loaderError,
+      fallbackDescription: requestPath
+    }"
+  />
 </template>

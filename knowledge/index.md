@@ -8,17 +8,24 @@ load archived sessions or completed plans as current context.
 
 ### Extension Authoring Speed And Controlled Power
 
-- Status: **ready**; the ordered M0-M10 task book covers selected-theme public
-  page shells, page/middleware scaffolds, route-scoped custom authorization
-  guards, plugin-namespaced session state, typed request conveniences, and a
-  secure one-command development loop. Raw Fiber context, raw Core session
-  mutation, actor minting, and pre-plugin middleware remain closed.
-- Plan:
-  `plans/2026-08-22-extension-authoring-speed-and-controlled-power.md`
-- First step: M0 production call-chain inventory, ADR, threat model, and V3
-  residual ownership reconciliation. No implementation has started.
-- Modules: `modules/extensions.md`, `modules/frontend.md`,
-  `modules/identity.md`
+- Status: **completed and archived (2026-10-17)**. M0–M9 complete; **M10 all ten rows
+  evidenced** — row 5 closed with per-clause evidence (compiled-fixture joined test,
+  real-PostgreSQL erasure matrix, live `privacy:erase-user` erase) and the anonymous
+  clause closed by decision D1 as unavailable by construction; row 9 closed on the
+  real `v3.0.9` registry tag and the production Caddy/TLS layer; **row 7 closed on
+  real two-node evidence** (two API nodes from the published `v3.0.9` images sharing
+  one durable PostgreSQL + Redis: dual registration with live leases, identical
+  revision acks, cross-node disable/enable converge within the poll window with
+  byte-identical artifact paths, graceful node-depart/Return with per-node
+  acknowledgements). Two measured cold-start races are mitigated in the runbook
+  (first-migration deadlock under simultaneous boot; simultaneous first-boot
+  sync-order race — sequential node boot). Raw Fiber context, raw Core session
+  mutation, actor minting, and pre-plugin middleware remain closed by contract.
+- Plan: archived at `plans/archive/2026-08/2026-08-22-extension-authoring-speed-and-controlled-power.md`
+- Handoff: `sessions/2026-10-17-extension-authoring-closeout-handoff.md` (current,
+  amended with Revision 5 row-7 closure)
+- Decision: `decisions/2026-10-16-extension-authoring-contracts-freeze.md`
+- Modules: `modules/extensions.md`, `modules/frontend.md`, `modules/identity.md`
 
 ### Built-in Shortcodes
 
@@ -250,6 +257,288 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **公开列表壳窄屏画布修复：移动端首页背景与 PC 不一致（2026-10-17）**。窄屏（≤980px）首页/分类/标签/搜索列表落在 `--sf-public-bg` 画布色上，而 PC（≥981px）是 `--sf-public-surface`——原因是 `assets/css/sforum-home.css` 的 `.sforum-home__layout` 表面色被 `@media (min-width: 981px)` 独占，透明话题行（G1 白底扁平列表）失去承托。已把该声明上提到基规则（所有宽度生效，深色/各 appearance 预设随 token 自动对齐），桌面逐像素不变，主题不可变制品无需重打包。详见 `sessions/2026-10-17-public-shell-narrow-canvas-handoff.md`。
+
+- **row 7 关闭、工作流整体归档（2026-10-17，更正同日 Revision 5）**。在真两节点拓扑（同一宿主的两个 API 容器，镜像为**已发布的 `v3.0.9`**，共享一次性 PostgreSQL+Redis）上跑完 row 7 的逐探针验收：双节点注册（45s 租约/10s 心跳）、同不可变修订的双侧 `applied` ack、管理端在 A 上的 disable/enable 在 5s 轮询窗口内于 B 收敛（B 的 web-push 子进程消失/以**逐字节相同制品路径**复活）、节点 stop→租约 45s 内失效且 A 不受影响、start→新 boot_id 立即 ack 最近修订且运行时复活。两条**真冷启动运维发现**（同时首启竞态：①首迁移互死锁：A 的 idle 连接持有 campaign goose 会话锁+CIC 等 B 的先开事务；②builtins 同步顺序竞态：`smtp not synchronized`）已在 runbook 写下缓解（顺序启动/先 migrate/`MIGRATE_ON_STARTUP=false`/勿漏 BUILTIN_EXTENSION_ROOT）。矩阵在 Revision 5 里宣布**十行全部取证、工作流关闭**，主计划已移入 `plans/archive/2026-08/`。细节：`sessions/2026-10-17-extension-authoring-closeout-handoff.md`（同日补记 row 7 节）、矩阵 Revision 5。
+
+- **扩展授权计划收尾与闭环交付（2026-10-16，第二轮评分）**：M10 矩阵按现有证据**重新评分（Revision 2）**——行 **1/2/3/4/6/8/9/10 已取证**，只剩**行 5（插件 session state：仓库不存在会话契约，需人工决定后再做 M6）**与**行 7（真多节点：需运维提供第二节点）**；更正表逐条写明每个行"为什么改口"（行 1 按 **R5** 改为「现有内置主题」；行 4 按 **R4** 删掉不存在的 `challenge`；**行 9 是更正——发布镜像 smoke 早已跑过**，上一轮误报为「需外部条件」；行 2 由 **R2** 解锁，活跃实例 `resolve-path` 已返回 `fallback=false` + 插件类型化 `loaderData` + 已绑定运行实例，主题覆盖半由真实 HTTP 测试 `TestResolvePathUsesActiveThemeOverrideForPluginBusinessPage` 覆盖，含 `themeOverrideKey` 漂移时 soft-skip 回插件模板且业务数据不变）。**修掉一个验收支架缺陷**：`tests/browser-public-390x844.mjs` 的"稳定"判据（`body.innerText.length` 连续两次不变）在**水合之前就成立**，于是 ~1 982 ms 就退出测量，而 `view: component` 页面的客户端挂载在 **~5 427 ms**（同一载体/页面/宽度），描述符请求也在那时才发出——因此上一轮记录的"headless 下组件不挂载、连描述符请求都没有"是**测量假象**，不是客户端缺口（也解释了为何把 settle 提到 25s 无效：退出条件是「2 次稳定」而非预算）。支架改为：等真实水合（`#__nuxt.__vue_app__`）→ 对 `SFORUM_L2_PATHS` 要求 L2 终态（`mounted|fallback|quarantined`，绝不在 `idle|loading` 时判稳定）→ 可显式断言挂载，水合失败即 FAIL；负控制（`SFORUM_L2_PATHS=/probe-site`）实测确实 FAIL。**由此关闭相邻任务书 M6 最后一项并交付 T7**：组件页在真实 Chrome 390x844 实测 `l2=mounted/kids=1 trustNotice=true`、header/footer 各一、无溢出/裁切/控制台错误，同包 `view: template` 对照页仍 `l2=null`。**主计划 M6 记录为人工决定项**（Manifest V3 的 `session` 只存在于 `identityProviders[].kind/operations/sessionPolicy` 这一宿主调用的身份提供方策略钩子；Protocol V2 的 `Actor.session_id` 被投影拒绝写入；Host API v2 无会话状态服务），**M9 改为「除该项外完成」**且不造假夹具（新增会话契约属契约变更，须先留 ADR 修订）。本轮复跑命令与输出见
+  `sessions/2026-10-16-extension-authoring-closeout-handoff.md`。**T6 收尾（操作者已拍板）**：保留两个证据支架与 `acme.iconprobe`，台账行留待运维走「缺失制品清理」。同轮**更正任务说明的两处事实**：①「卡住的那条 DB 行现已不存在」不成立——实测 `sforum.page-loader-reference` 行仍在（`disabled`、1.0.0、`active_version_id=7267` 指向 digest `c17221c0…`，磁盘无该目录，这才是真正缺的那份）；②`storage/extensions/sforum.page-loader-reference/1.0.0/{be7d08e4…,e8f86047…}` 与 `1.0.1/90661e93…` **不是**「无害残留」，而是台账版本行 7194／7349／7434 的磁盘制品，因此**未删除**（批准所依据的前提被数据库推翻，删除不可逆，留一轮不损失任何选项）。另：本轮全量 `go test ./...` 期间 air 管理的 dev API 停止服务（非插件启动失败），已用 `./scripts/api-dev.sh` 重启（564 handlers），重启后活动主题摘要与四条证据页解析全部不变。**环境状态（未处理，如实记录）**：操作者自启的 web dev server（`:3000`）在本轮末尾 SSR worker OOM（`Worker terminated due to reaching memory limit: JS heap out of memory`）并持续 500，已按仓库规则**未杀未重启**；本轮所有运行时证据都是在它健康时取得的（最后一次全绿的重跑就在 API 重启之后），OOM 只影响一次可选的额外复跑，建议以更大堆重启（仓库生产构建已用 `NODE_OPTIONS=--max-old-space-size=6144`）。
+
+- 相邻任务书 **M9 已闭环**（2026-10-16）：五项逐条落实——`--public-page`（主计划 M3 交付，本会话核验其 3 个测试）、`--schema-page`（本会话交付：四种 kind、提前拒绝、`extension validate` OK / `extension test` 0 errors）、`extension dev`（主计划 M8 早已交付，本会话核验 `dev_extension.go` + 12 个测试）、公开页运行时面目录（本会话交付：生成物 + 新校验接入 `scripts/ci/contracts-gate.sh`）、双语文档（`docs/zh-CN|en-US/development/cli.md` 覆盖全部四个 flag，迁移文档成对存在）。**归因如实**：五项中两项非本任务书所建，只做核验；本会话实建三项。相邻任务书仅剩 **M8**（委派给导航计划 M7）。
+- 相邻任务书 M9 的**公开页运行时面目录**已交付（2026-10-16）：新增生成物 `docs/extensions/v3/catalogs/public-page-surfaces.{json,md}`（由 `scripts/v3-catalog/generate.mjs` 从运行时同一批手写来源生成：`Pages.coreCatalog`、`RegionCatalog.pageRegionMatrix`、`PageView`/`PageLayout` 词表、`allowedHostIslands`），实测 **36 页 / 12 区域 / 3 视图（template|component|schema）/ 2 layout（site|bare）/ 41 宿主岛**；新增校验 `tests/validate-public-page-surface-catalog.mjs`（钉住词表、页面集合与 Go 目录双向一致、区域存在、受审查正文岛在册、markdown 覆盖词表、目录新鲜度），已接入 `scripts/ci/contracts-gate.sh`；文档：`docs/extensions/v3/README.md` 与 authoring-guide 的 “Where to look before you declare a page”。M9 仅剩 `extension dev` 未开始。
+- 相邻任务书 M9 的 `--schema-page` 已交付（2026-10-16）：`make:plugin`/`make:theme` 新增 `--schema-page <slug>` 与 `--schema-page-kind list|detail|form|notice`（默认 list），生成 `schemas/page-<slug>.json`（有界描述符）+ `schemas/page-<slug>-contract.json`，合并 `theme.json` 的 `view: schema` 声明，并在 `packageFiles[]` 以 **`kind: schema` + `version: "1"`** 声明两者（版本是 `<schemaFileId>@1` 精确引用可解析的前提）。提前拒绝：未知 kind、kind 缺 slug、非法 slug、与 `--public-page` 同 slug。实测：新脚手架直接 `extension validate` → OK、`extension test` → 0 errors、`PreflightExactTemplateRuntime` 对四种 kind 全通过（无需手改）；测试 `TestSchemaPageScaffoldPassesSharedPreflight`(4 kind)/`DeclaresBoundedDescriptorAndContract`/`RejectsUnsafeFlags`。双语文档已更新（`docs/zh-CN|en-US/development/cli.md` + authoring-guide 的 “What `--schema-page` generates”）。M9 其余项（`extension dev`、运行时 surface catalog）仍未开始。
+- 相邻任务书 M7（`view: schema`）阶段 1 完成（2026-10-16）：`theme.json` 新增 `view: schema` 声明（`schema.descriptor` = 包内 `kind: schema` 描述符文件，`schema.contract` = 必须满足的精确 schema 引用）；结构校验在 `app/Support/Pages/theme_package.go`（与 template/component 互斥、未知 view fail closed），描述符/契约/有界规则校验在 `apps/api/sdk/plugin/schema_view.go`，经 `PreflightExactTemplateRuntime` 进入——**CLI（extension validate/test）与运行时激活同一入口**，不会重演「CLI 0 error、激活被拒」。有界规则：`kind` ∈ list|detail|form|notice、五种 tone、五种字段类型、24 字段/64 条目/64 选项/64 cells 上限。CLI 证据：合法包 `OK /tmp/svpkg`；把描述符改成 `{"kind":"dashboard"}` 后 `Error: invalid package … schema descriptor kind "dashboard" is not one of list|detail|form|notice`，`extension test` 报 1 error。**阶段 2 已完成**：`resolveResponse.schemaView` 透传描述符（装载实现唯一，绑定路径与 add 路径共用；读取失败回落到空状态）；两条解析路径的「无模板即运行时不可用」回落改为 `pageBodyProvidedByView`/`responseBodyProvidedByView`（同时覆盖 component 与 schema）；公开渲染器 `SFPublicSchemaView.vue` 渲染 list/detail/notice，form 只读并标 `data-schema-form-pending`（提交依赖仍被阻塞的 dataRoute 绑定，不伪造提交），测试禁止出现管理端标识（`commandSurfaceId`/`invokable`/`visibleResourceIds`/`SFAdminSurfaceOutlet`）；catalog identity 登记 `core.component.shared.sf_public_schema_view`（owners=public）；fixture `sforum-page-schema-reference`（无代码包）。**浏览器证据**：`/page-schema-reference/list` → shell=site/theme、可见 navbar 1 + footer 1、`data-schema-kind=list`、标题/条目/cells 均由描述符渲染、无溢出、0 裁切。声明命名（`schema.descriptor`/`schema.contract`）属**待确认解释**，已在计划正文记录。
+- 相邻任务书 M6 阶段 3 取证（2026-10-16）：新增 fixture `extensions/fixtures/plugins/sforum-page-component-reference`（一个 `view: component` 公开页 + 同包模板页对照），
+  digest/validate/test 全绿；**真实 HTTP 证据**：装入 dev 并启用后 `resolve-path` 返回
+  `{"view":"component","component":"…component.body","fallback":false,"layout":"site"}`，且启用时**要求精确制品信任挑战**（该包无 Go 后端，但声明了公开 L2 浏览器代码，
+  属可执行面，门禁正确）。**仍开放**：正文岛调用的描述符端点返回 `404 extension.frontend_trust_not_found`，而管理端前端信任流程
+  （`POST …/frontend/confirmation` → `…/frontend/trust`）按构造只服务 `admin.entry`（`primaryAdminComponent`），因此无法为「只有公开 L2 组件」的包授权——
+  **跟进更正**：那个 404 码是 `mapPublicFrontendError` 对 **`ErrPublicFrontendUnavailable`** 的折叠（`public_frontend.go:163-167`，刻意不向公开调用方区分 disabled/revoked/stale/changed/undeclared），
+  因此它**不能证明**缺少前端信任授予；我上一轮把管理端前端信任流程当疑似门槛的措辞未被证实（且 `Challenge`/`Grant` 都要求 `primaryAdminComponent`，即 `admin.entry`，按构造与管理端专属）。
+  **根因已定位（三次运行时检视）**：① dev 进程环境里 `SFORUM_V3_TRUST_CHALLENGES=true`、`SFORUM_V3_PUBLIC_L2=true`，`component-inspector` 报 `safeMode:false` → 不是开关或 Safe Mode；
+  ② `asset-inspector` 在 fixture 启用期间显示**资产发布物确实创建了**，handle 正是 `…component.body.l2.entry`（type script）→ 不是发布物缺失；
+  ③ 缺口在**组件注册表**：解析响应 `selectedRuntimeInstanceId: null`（该包无后端 → 无运行时实例），`component-inspector` 的 `contributionCount: 1` 且**没有提及该包的 trace**，
+  而 `ComponentRegistry.AdmitPublicComponent`（component_registry.go:439-465）同时要求按实例 id 匹配的 `registrations[extension.ID]` 与已发布的 `contributionsByID[component.ID]`，
+  否则返回 `ErrPublicFrontendUnavailable`（被公开处理器折叠为 404）。因此**目前无运行时实例（无可执行后端）的包无法让 `view: component` 公开页被准入**；
+  `componentPackageRuntimeInstanceID`（:597-607）按 type+id+version+digest 派生**包级**实例 id → 已确认为**缺陷**而非设计门槛：
+  `RestoreRuntimes`（:245-266）在 Host 启动时注册「已启用 + 有 components」的包，而**启用路径不收敛到同一状态**（实测：启用后 `contributionCount:1` 且无该包 trace、描述符折叠 404；
+  重启一次后描述符 **200**、`contributionCount:2`）。**根因已定位**：`Service.Enable` 仅在 `usesLifecycleV2(extension)` 为真时走 Lifecycle V2，而该谓词要求 `Manifest.Backend.ProtocolVersion == 2` **且**声明 `manifest.lifecycle`
+  （`service_lifecycle_v2.go:64-67`）；只有公开 L2 组件的包两者都不满足 → 走 legacy 启用路径，它发布资产发布物（实测 `.l2.entry` 在），但**从不 reconcile 组件注册表**（`reconcileComponents`/`validateComponentTransition` 都在 V2 发布内）。
+  **已修复并验证（2026-10-16）**：Support 层新增 `PublishComponentPackageRuntime` / `RemoveComponentPackageRuntime`（实例 id 派生留在 Support，避免 Models→Support 环依赖与第二处真相）；
+  legacy 启用/禁用路径调用**自由函数** `publishLegacyComponentRuntime` / `removeLegacyComponentRuntime`（首版写成 `serviceCore` 方法把接收者方法数从 79 推到 81，被架构门禁拦下），
+  经窄接口 `componentPackageRuntimePublisher` 调用（既有 fake 不受影响），且调用发生在启用提交**之后**：发布失败退化为「下次启动生效」并记事件，不使 enable 失败。
+  `service_lifecycle.go` 994→996 行（≤1000）。测试：Support 侧收敛/空操作/幂等移除，Models 侧调用点与失败吞咽。
+  **运行时验证（无重启）**：安装→启用后描述符 **200**（修复前为折叠 404）、浏览器 `l2State=mounted` 且组件在外壳内、navbar/footer 各一、无溢出；disable+uninstall 后注册表回到 `contributionCount:1`、台账无行。
+  **原修法设计（已按此实施）**：legacy 启用路径需收敛到与启动一致的状态（对「已启用且 `len(components)>0`」的 V3 包用 `componentPackageRuntimeInstanceID` 发布组件运行时，禁用时移除）；两处约束使它成为设计任务而非小补丁：
+  **实测约束**：`app/Models/Extensions` 正好卡在 flat-directory 上限（95/95 非测试文件）、`app/Support/Extensions` 同样 148/148，因此**必须先抽取才能新增**；`service_lifecycle.go` 已 994 行（上限 1000），连三行调用点都需同轮小幅抽取；helper 可放有空间的既有文件 `component_registry.go`（`ReplaceRuntime` 已是公开方法，`service.go:63-64` 已持有 `componentRegistry`）。
+  且该修复会让已批准的公开 L2 代码**无需重启即生效**（信任授予仍必需，属收敛而非放宽），值得一条显式决定。待补测试：禁用/启用/重启矩阵，断言启用后的组件注册表快照等于重启后的快照。第二个缺陷：公开 L2 模块契约要求**具名导出**（`isPublicFrontendModule` 校验模块命名空间，`assets.ts:219-224`），
+  fixture 原来用 `export default` 被判定 contract mismatch（`data-l2-state="fallback"`），改为具名导出后挂载成功（`region-demo` fixture 仍是 `export default`，值得单独修/记）。
+  **浏览器证据已取得**：`/page-component-reference/component` → `shell=site/shellSource=theme`、可见 navbar 1 + footer 1、`l2State=mounted`、组件内容与 bridge 注入正确、`insideShell=true`、无溢出、0 裁切控件。
+  **更正（2026-10-16 跟进）**：同包 `view: template` 对照页**渲染正常**——上一轮「未渲染正文」是**测量错误**（探针找的 `[data-layout]` 属性 API 根本不产出）。
+  实测：正文文本 "Site layout reference" / "layout: site — …"、`.sf-theme-template` 两块（主题外壳 + 正文）、无 widget、无空状态。附带发现（按设计）：API 的 `templateHtml` 会**丢弃 `data-*` 属性**
+  （`themeTemplatePolicy()` 只允许 `class/id/title/role/aria-*` 等固定白名单，`app/Support/Pages/template.go:100-108`），插件页模板应改用 `class`/`id` 钩子。
+  另：两个违规模块已改为具名导出（`region-demo/frontend/region-card.mjs`、`commerce-workflow/frontend/order-card.mjs`，后者原来是 Vue 风格 `{name, props}` 根本没有 mount），region-demo 已刷新摘要并通过 validate/test。实测页面仍为外壳 `site`/`theme`、可见 navbar 1 + footer 1、无溢出、`componentMounted=false`，**不声称浏览器证据完成**。
+- 相邻任务书 M6 阶段 1-2 已实现（2026-10-16）：公开页新增 `view: template|component` 与 `component.id`；校验落在**唯一读取点**
+  `LoadThemePackage`，CLI 与运行时激活共用同一裁决（未知 view / component+template / component 缺 id / 模板页带 component 全部拒绝）；
+  `PageContribution`→`ResolvedPage`→解析响应全程透传 `view`/`component`，且组件页**豁免**「无模板即运行时不可用」的回退判定；
+  web 侧正文出口新增组件分支，经既有 `SFExtensionWidget`（描述符端点 → `loadPublicFrontendRelease` → `mountPublicFrontendModule`，带隔离与租约）
+  在受审查出口内部挂载，页面仍只有一个 chrome 拥有者。测试：Go 7 用例契约测试 + 贡献透传测试；web 分支顺序/无 chrome/三处透传测试。
+  **架构棘轮**：两条基线**下调**而非抬高（`Support/Pages/registry.go` 1017→1008，快照助手移入 `registry_snapshot.go`；
+  `Http/Controllers/Pages/controller.go` 1027→1023，回退 provider/action 归一化移入 `externalProvider`）。
+  **阶段 3 待做**：尚无包 fixture 声明 `view: component` 公开页（demo fixture 只有模板、无 components/assets），
+  因此**还没有端到端证据**（真实解析响应 + 浏览器落地 + 目录身份）。
+- 相邻任务书 M6 解锁 + 取证清单（2026-10-16）：M5（公开 `layout: site|bare` 外壳）已由主计划交付，M6（公开插件 UI 入口 + 公开 `view: component` 页）
+  因此**解锁但尚未开工**。已在任务书里写入**基于代码核对的现状清单**（已存在：`runtime/public-extensions` 挂载机制、受审查正文出口 `SFRegistryPageBody.vue`、
+  shell/island 管道、`resolvePath` 契约；缺口：清单只有 `admin` 段没有公开前端入口、公开页 `ThemePageDecl` 无 `view` 字段、`resolvePath` 不返回组件描述符）
+  与**分阶段实施计划**（阶段 1 契约+校验、阶段 2 解析+渲染、阶段 3 证据）。**同轮更正**（读运行时后推翻我自己的初稿）：公开 L2 组件机制其实**已存在**——
+  组件在 `manifest.components[]` 声明（`l2Component`）、由 `publicManifestComponent` 准入、经
+  `GET /extensions/runtime/{id}/components/{componentId}` 以摘要寻址描述符提供（含发布物快照、资产计划、可执行信任校验、准入），
+  web 侧由 `SFExtensionWidget.vue` 经 `loadPublicFrontendRelease` + `mountPublicFrontendModule` 挂载并带隔离与租约；
+  fixture `sforum-region-demo` 已在用。真正缺的只有**页面级绑定**：`ThemePageDecl` 无 `view`、`ResolvedPage` 无组件字段、
+  `SFRegistryPageBody.vue` 无组件分支。并明确沿用冻结契约的两条约束：
+  ①**阶段 1 不得单独上线**（「声明了却永不渲染」比没有更糟，见 M4 被取消的先例）；②L2 仍是精确制品批准后的完全可信代码，不做沙箱、不在运行时跑包构建脚本。
+- **相邻任务书 M6 阶段 3 大部分已取证（2026-10-16）**：夹具装好并启用（真实管理端流程，含精确制品信任挑战）；`resolve-path` → `view=component`、`component=…body`、`fallback=false`；**此前卡住整个阶段 3 的描述符端点从 404 变为 200**（`trustNotice=fully_trusted_browser_code`）——计划里那条「无运行时实例的纯组件包无法准入」的开放问题**已修复**。**真实浏览器会话（桌面 1238px）里组件确实在受审查正文出口内挂载**，渲染自己的内容 + 宿主信任提示，且恰好 1 header / 1 footer。**未完成的一项（如实标注、不冒充）**：在 390x844 的 headless CDP 上下文里组件内容不出现——**完全没有发起描述符请求**（网络日志只有主题/扩展 CSS 200，无 FAILED，`consoleErrors=0`），在 390/500/900 三种宽度、25s settle、带或不带会话 cookie 下都可复现；同一页面在常规浏览器会话里能挂载。因此该上下文要么是 headless 客户端挂载的假象、要么是真实客户端缺口，**未证明**，故不声称 390x844 的组件挂载证据。
+- **缺口 ② 深层修复已落地（2026-10-16）**：CLI 现在也构建路由 schema 目录——`loadValidatedExtensionPackage`（`validate`/`test` 共用）新增 `preflightRouteSchemaCatalog`，对声明了 `openapi[]` 或 `routes[]` 的包跑 `BuildRouteSchemaCatalog`。**双向验证**：路由的 `responseSchema` 无法解析时 `extension validate` 报出与 API 启动失败**同一条**错误（`route schema catalog: … route schema is missing`）；同一包补上可解析片段后通过。由 `TestExtensionValidateBuildsRouteSchemaCatalog`（拒绝+允许）钉住。顺带发现并修掉一个潜在雷：`sforum-contract-events` 夹具声明了路由 schema 却**完全没有 OpenAPI 片段**（一旦被启用就会让启动失败），现已补上完整片段。
+- **M9 出口门禁已跑通（2026-10-16）**：新增 `scripts/ci/reference-packages-gate.sh`，把 `extensions/fixtures/plugins/` 下**10 个参考包**在临时暂存副本上跑 `digest --write` + `validate` + `test`（带后端的现场构建，并如实注明「这是仓内暂存副本、不是 clean-room；真正 clean-room 需要已发布 SDK 制品」）——**10/10 全过**。门禁立刻抓到并修掉**第三个 CLI 与作者预期不一致**：没有 `packageFiles` 的包（只声明 routes/events 契约）跑 `digest --write` 会被一句 `Manifest V3 packageFiles must be inline for digest refresh` 拦下，而同一包 `validate`/`test` 是绿的；现改为显式 no-op（校验后打印 `no package files declared; … validated`），「存在但非内联」仍报错，并由 `TestExtensionDigestCommandAcceptsPackageWithoutPackageFiles` 钉住。
+- **M2 已收口（2026-10-16）**：A1（typed loader data 插件页）、A2（运行时缺失/插件禁用，按引用既有测试关闭）、A3（**真正的 390x844**：真实 Chrome 154 over CDP，`tests/browser-public-390x844.mjs`——shell 页恰好 1 header + 1 footer、`bare` 页 0、无溢出、无裁切控件、无 console 错误，截图在 `storage/qa/2026-10-16-public-390x844-*.png`）、A4（外层制品身份：`/site/active-theme/skin` 与插件页 shell 身份都指向 `sforum.default-theme` / `85ddda6a…`，插件正文制品单独归因；DOM 标记按页面种类如实说明，未伪造 `data-template`）全部完成。遗留两项后续：启用期 runtime instance 绑定（已修）与 CLI 不构建路由 schema 目录（已用构建期测试钉住参考包，深层修复待做）。
+- **启用期 runtime instance 绑定缺口已修（2026-10-16）**：此前只有启动恢复路径把 `RuntimeInstanceID` 写进插件页面贡献，启用路径不写 → 「刚启用、未重启 API」时插件页数据恒为 `pages: exact plugin runtime unavailable`。现在 `PageRegistryAdapter` 增加 `PageRuntimeInstanceSource` 缝（`WithRuntimeInstances`），在编译快照与注册**之前**绑定精确实例；bootstrap 注入的解析器只在版本+摘要**精确匹配**时返回 id（否则保持为空、不伪造身份）。`TestPageRegistryAdapterBindsPluginRuntimeInstanceAtEnable` 钉住三侧（精确匹配绑定 / 制品不匹配不绑 / 未接来源不绑）。**运行时验证**：dev 实例上 disable → enable（带信任 token 的真实管理端流程）后**不重启**直接解析页面，`fallback=false`、`loaderError=null`、`loaderData={"state":"published","title":"Loaded from the plugin runtime: hello"}`、`selectedRuntimeInstanceId=1141cb0d…`（重启用产生的新实例）。
+- **A2 已按「引用既有测试」关闭（2026-10-16）**：M2 任务 6 剩余项（运行时缺失 / 插件禁用）已被既有测试覆盖，故**不造同义测试**，改为复跑取证：`TestEnableDisableSyncsPageRegistry`（禁用后页面立即消失、重启用立即恢复）、`TestLifecyclePagePublicationUsesExactRevisionAndRuntimeAdmission`（运行时未准入时页面不可见）、`TestResolvePathReportsLayoutRegardlessOfBodyRender`（正文渲染失败不影响 layout/chrome 归属）——三条本轮均 PASS。
+- **R2 已完成（2026-10-16）**：侦察结论——宿主→插件的 Protocol V2 **路由调用传输已存在**（`RuntimeInvoker.InvokeRouteInstance`，按精确进程分发，`route_dispatcher_v2.go:62` 已在用），所以 R2 **不需要动冻结的线协议**，而是「让 Page Loader Gateway 用它，而不是要求 loopback BaseURL」。已全部落地：`validateLoaderDocument` 抽出共享响应后校验（两条传输同一安全边界）、`PageDataLoader.FetchV2` + `LoaderDocumentFunc`（`Pages` 仍不依赖 `Support/Extensions`）、gateway 在有 `Invoke` 时优先 V2（HTTP 路径保留，两者皆无则 503）、bootstrap 适配器在无 loopback 时产出 `Invoke` 目标（绑定精确实例 + admission）、`pageDataRouteAdapter` 从扩展记录读声明路由（**只接受 `core.guard.public` 的 GET 路由**，重复声明拒绝）、拒绝与传输失败分离（`pages.ErrLoaderRouteRefused` → 503，真实调用失败 504）、生产装配切到 `NewPageRouteTargetSourceWithRoutes`。被钉住的 `page_loader_transport_integration_test.go` **已重写**：允许侧用真实 V2 子进程取回插件类型化文档（断言 title/slug/locale/actorHint，重复调用证明 lease 释放），拒绝侧四条（未声明路由/非公开守卫/制品摘要漂移/未接路由来源）全部 fail closed 503 且无数据；子进程侧断言 loader 调用必须是 GET + handler 阶段 + 过滤授权 + 无 actor。顺带修掉 `ValidateDataRoute` 的真实缺口（`/api/` 尾斜杠导致 `/api/anything` 漏过）。`go test ./...`（apps/api）**零失败**。**A1 因此解锁**：Web 侧 `loaderData` 链路（resolve → SFPageOutletRender → SFRegistryPageBody/SFThemeTemplate）本就完整，只差一个真插件夹具 + dev 安装 + 浏览器证据。
+- **A1 进行中（2026-10-16）**：参考包 `extensions/fixtures/plugins/sforum-page-loader-reference/` 已建成——真实 Protocol V2 后端（一条公开 GET 数据路由）+ 页面贡献 + 模板 + schema；源码包过作者命令（`digest --write`、`validate` OK、`test` 0 errors / 6 checks 含 `template.runtime_exact`）。`TestReferencePageLoaderFixtureServesTypedDataThroughProductionChain` 跑完整链路：临时目录暂存→现场构建后端→对齐摘要→`LoadPackage`→真实 V2 子进程→真实注册表登记页面并解析路径→生产 Loader Gateway 取数，断言插件类型化文档到达渲染层。三个实测发现：①**`theme.json` 的数据声明是嵌套 `data:{source,route,schema}`**，旧的 `sforum-plugin-page-business-e2e` 用扁平键（被静默忽略，所以它其实从来没有数据接线）；②**`TypedDocument.SchemaId` 不带 `@version`**（版本单独在 `SchemaVersion`），写错会报 `protocol v2 route response is invalid`；③**loader 自身的 schema 校验是轻量的**（只覆盖 `type`+`required`），`enum`/`format` 由编译后的 `ThemeRuntimeSnapshot` 在模板执行前校验。`.gitignore` 补了 `extensions/fixtures/plugins/*/backend/plugin`。**A1 已闭环（2026-10-16）**：参考包经真实管理端流程装入 dev（install 201 → 精确制品信任挑战 → enable 200），
+  运行时证据：`/pages/resolve-path` 返回 `fallback=false`、`loaderData={"state":"published","title":"Loaded from the plugin runtime: hello"}`、
+  `selectedRuntimeInstanceId` 存在；SSR HTML 里就有渲染后的数据；浏览器实测 `shell=site / shellSource=theme`、可见 header 1 / footer 1、无横向溢出（1238==1238）。
+  两个**新发现的生产缺口**（待修）：①**启用路径不把 runtime instance id 写进页面贡献**（只有启动恢复路径写），所以启用后不重启 API 时页面数据取不到（`pages: exact plugin runtime unavailable`）；
+  ②**CLI 与运行时对路由 schema 的判断不一致**——路由声明 `responseSchema` 但 OpenAPI 片段不完整时，`validate`/`test` 仍报 0 errors，而 API **启动失败**（已用 `TestReferencePageLoaderRouteSchemasResolve` 在构建期钉住该契约）。
+  dev 实例备注：规范 id 的行因早先卸载留下悬挂版本行，处于 `disabled` 且无法经管理端清理（`extension.artifact_missing` / `missing_artifact_cleanup_invalid`），需运维在「缺失制品清理」里处理；上述证据用临时改名副本 `sforum.page-loader-reference-live` 取得。
+- **R1 已实施（2026-10-16）**：`core.guard.raw_request` 在**清单校验阶段被拒绝**（错误消息给出替代方案），四处运行时映射全部 fail closed（`Routes/request_authority.go`、`Routes/prepare.go`、`Routes/core_guard_authorizer.go`、`Extensions/protocol_v2_request_authority.go`；`route_dispatcher.go` 本就拒绝）；刻意保留（不授权、仅披露）：常量本身、`guard_risk.go` 的 raw 风险标签、`trust_service.go` 的 `requestsRawRequest`——旧制品带着该 id 时仍会被**披露**为高风险。注释与 5 份文档已更正（含破坏性变更说明：raw 权限必须由包内显式声明的守卫提供；已安装的旧包会在下次启用/恢复时 fail closed）。fixture `sforum-commerce-workflow` 已声明自己的 `kind: raw_request` 守卫（允许侧）。**CLI 双向证据**：允许侧 `/tmp/cwprobe` → `OK` + `test` 0 errors；把该路由改回 `core.guard.raw_request` 的 `/tmp/cwdeny` → 报错并 1 error。测试波及**七个包**（ExtensionManifest / Routes / Extensions / Extensions/IntegrationTests / Http / ExtensionOpenAPI / Models/Extensions），断言已按新契约翻转或改用声明守卫，允许侧仍被覆盖。
+  两个额外发现：①**一条测试原本在空转**——`TestRouteInvocationAuthorityRejectsExactBindingDrift` 把已退役守卫放在响应阶段步骤上，拒绝被 `committedAfterFailure` 吸收，13 项漂移矩阵从未执行；现改用声明守卫并断言调用器确实被触达。
+  ②**R1 暴露一个真实发布缺陷**：`buildLifecycleRegistryMaterial` 没有把 `Manifest.Guards` 带进路由集（启动路径有），R1 之后这会让所有使用声明守卫的路由在启用期 fail closed；两条路径现已一致。该修复使 `lifecycle_registry_publication.go` 超过 1036 行上限，故把共用的材料摘要助手抽到 `lifecycle_registry_publication_components.go` 并把基线**下调到 1018**（该包 flat-directory 上限不允许新增文件）。
+  全量 `go test ./...` 只剩两个**负载敏感的 flake**（`TestRevisionStreamReconcilesMissedWakeAndHeartbeats`、`TestAIPluginCommandReferenceEntersHostGatesAndAccounting`），单跑各 2-3 次全绿，与本轮改动无关。
+- **六项待决事项已拍板**（2026-10-16，记录为契约记录 Revision 1）：R1 空绑定 `core.guard.raw_request` 转发凭证**判定为漏洞**，收紧为「显式声明才放行」，并同轮更正相反注释与文档；R2 插件页数据走 **Protocol V2 新增取数方法**（不开 loopback HTTP、也不砍能力），解锁 M2 任务 5/A1、M10 行 2 与 `view: schema` 表单提交；R3 单次守卫拒绝**保持不写审计**（判断落定）；R4 M10 行 4 的 `challenge` 子句**删除**；R5 M10 行 1 验收改为**现有**内置主题；R6 `view: schema` 保留 `schema.descriptor` + `schema.contract` 命名。实施顺序：R1（安全收紧 + 双向测试 + 更正注释文档）→ R2（协议方法 + 重写被钉住的传输测试）。
+- 主任务书 **M8 已闭环**（2026-10-16）：出口门禁四项逐条落实——①一条命令完成 源码编辑→构建/摘要/校验/契约测试→暂存，激活步骤在 ADR 内由 `tests/admin-extension-activation.sh` 自动化（循环本身不得绕过信任）；②失败保留最后健康制品（`TestExtensionDevLoopKeepsLastHealthyDigestOnFailure` + 场景脚本）；③**生产态冒烟补齐两侧**：命令拒绝非开发环境（`TestExtensionDevRefusesNonDevelopmentEnvironments`）+ **生产配置在 Load 期拒绝扫描开发脚手架树**（新增 `config.DevelopmentScaffoldRoot` 与 `TestProductionRejectsDevelopmentScaffoldExternalRoots`，落实 ADR 6.2.6 / M8 任务 7「在解析/bootstrap 期拒绝，而不是只藏起命令」；此前 `EXTERNAL_EXTENSION_ROOTS` 指向 `extensions/dev/...` 在生产只是约定、没有强制）；按 ADR 6.2.2 不存在可被激活的 dev 信任授予；④退出后无 watcher/构建子进程残留（进程组回收 + SIGINT）。
+- M8 收口（2026-10-16）：① **管理端激活自动化**在 ADR 内交付——新增 `tests/admin-extension-activation.sh` 走真实 HTTP 流程
+  （安装惰性 201 → 精确制品信任挑战 → 带 token 启用 200；可执行包无 token 必须失败；非可执行包接受服务端 `trust_not_required` 判定），
+  并支持 `SFORUM_UNINSTALL=1` 收尾；对 dev API 实测全绿且台账无残留。② **重命名**场景补进 `tests/dev-loop-failure-scenarios.sh`
+  （delete+create 合并为一次成功事务）。③ **运行时崩溃**按边界如实记录：**构建子进程**崩溃保留最后健康制品（场景脚本），
+  **插件运行时**崩溃属 API 职责，由 typed `crash` 失败族 fail-closed 到 `ErrCoreGuardEvaluatorUnavailable` 且不泄漏 secret
+  （`app/Http/plugin_guard_runtime_test.go`）。
+- M10 行 4 / 行 8 收口（2026-10-16）：行 4 的 uninstall 与 restart 子项由既有测试覆盖（本轮实跑全绿，逐个点名记录，不造同义测试），
+  行 4 仅剩 **challenge** 未满足（契约里不存在该结果）；行 8 最后的 **JS 禁用渲染**已实测：
+  `SFORUM_DISABLE_JS=1 node tests/browser-registry-page-shell-390x844.mjs` 通过 CDP `Emulation.setScriptExecutionDisabled`
+  关闭脚本执行，仍测得 site/default 各一个 navbar 与 footer、bare 为 0、外壳标记正确、无溢出、SSR 正文存在 → chrome 与正文来自服务端渲染。
+  **环境变更**：`:3000` 的 Nuxt dev server 此前已停（前两轮请求过重启未果），本轮用仓库文档命令 `cd apps/web && bun run dev` 启动它
+  并重跑了运行时证据与两组 390x844（含 JS 禁用），日志在 `/tmp/web-dev-relaunch.log`；用户可随时停止。
+- M10 行 3 关闭（2026-10-16）：新增 `TestExecutionPlanOrdersModifierPhasesForSafeAndUnsafeMethods`
+  （`app/Support/Routes/execution_plan_method_phases_test.go`）补齐「不安全方法」一半：POST 计划被标记 unsafe 且与 GET 计划同序
+  （global → before → filter → wrap → handler → after，恰好一个 handler）；`global_middleware` 因不参与方法匹配而**两个计划都出现**；
+  方法专用修饰器只出现在自己的计划里。写这条测试时发现一条真实规则：修饰器的 target 必须与自身方法一致，否则注册表直接拒绝输入。
+  行 4 的 CSRF 子项由既有测试覆盖（安全请求铸 token、不安全请求无 token 被拒、有 token 通过、P6 合并矩阵、任意管理路径不得绕过
+  CSRF/权限），因此不造同义测试。
+- 证据脚本自检修复（2026-10-16）：web 服务下线时 `browser-registry-page-shell-390x844.mjs` 同时打印 `SKIP` 与
+  `all 390x844 acceptance assertions passed`（exit 0）——**假阳性**，因为 `finish()` 只在失败列表为空时就宣布成功。三个 harness
+  （公开页 390x844、管理端 390x844、运行时证据）现引入 `asserted` 标记：只有真正测量过才宣布通过，否则打印
+  `skipped: no assertion ran`；`SFORUM_EVIDENCE_REQUIRE_LIVE=1` 时离线仍 exit 1。已实测验证。
+- M10 行 6 关闭（2026-10-16）：新增可复现场景脚本 `tests/dev-loop-failure-scenarios.sh`（真机 `bun`、真 digest/validate/test、
+  真文件事件、真重启时序），7 条断言全绿：启动对账、包失败（清单声明文件缺失）报 `failed stage=build` 且保留 `lastHealthyDigest`、
+  恢复后重建、前端**编译失败**（`bun run build` → exit status 7）同样保留健康摘要、循环两次都存活、循环中途 **API 重启**
+  （文档化注释探针，`catalog.go` 事后逐字节一致）后下一次编辑仍能重建、`SIGINT` 干净退出并报 `stopped`。脚本自带 trap 清理
+  （探针包/二进制/临时文件）且无残留进程。「崩溃」按**构建**崩溃覆盖；插件**运行时**崩溃不在循环职责内（循环只监视源码、不监督运行时），
+  这一区分已记录而非含糊带过。
+- M5 任务 8 关闭（2026-10-16）：管理端 390 宽验收已用真实浏览器完成——`tests/browser-admin-390x844.mjs` 走 CDP，
+  `Emulation.setDeviceMetricsOverride(390x844, dpr 3)` + 通过 `Network.setCookie` 注入操作员会话（httpOnly cookie 用
+  `document.cookie` 读不到，CDP 可以；值从环境变量传入，不写进仓库）。实测：route-inspector 页面与 incidents 面板均存在、
+  无横向溢出、无裁切控件、无控制台错误；截图 `storage/qa/2026-10-16-admin-390x844-control-panel-extensions-route-inspector.png`。
+  因此「载体阻塞」从来不是仓库属性，只是 ego 侧栏载体的属性——公开页与管理端两组 390x844 现在都能按需跑。
+- A2 判定关闭（2026-10-16）：按清单要求先判定是否已覆盖——四项行为均已被既有测试固定：①layout 与正文渲染无关
+  `TestResolvePathReportsLayoutRegardlessOfBodyRender`；②运行时缺失 `TestLoaderUnavailableWhenPluginRuntimeMissing`
+  （页面仍解析、layout 保留、响应带 `loaderError`；且对 Protocol V2 插件这是**永远**的路径，由 loader 传输集成测试与
+  `bootstrap/app_test.go` 固定）；③插件禁用/贡献被移除 `TestLifecyclePagePublicationRetainsExactEmptySet` 与
+  `…UsesExactRevisionAndRuntimeAdmission`（精确空发布清空页面、移除按精确制品+运行时实例栅栏、被排空的运行时页面在准入前不可见）；
+  ④属主不再贡献的页面按 `TestResolvePath404` 解析为 not-found。**未单独断言**：属主在两次 resolve 调用之间被禁用的单次 HTTP 往返
+  （转换本身已由 ③ 在注册表层覆盖，转换后的 HTTP 结果与 ④ 同路径）。因此不造同义测试。
+- 主题激活预检真相（2026-10-16）：**更正**——C1/C2/C3 由同日更早的一段会话关闭
+  （`apps/api/cmd/sforum/theme_scaffold_activation_test.go`）：覆盖率假设被推翻
+  （`TestActiveThemeDoesNotRequireFullPageCoverage`），真实原因是脚手架曾声明 `components[]`、其 `propsSchema` 指向宿主核心页契约，
+  CLI 接受而运行时组件注册表拒绝；脚手架修复已落地，CLI↔运行时一致性由 `TestThemeComponentSchemaDeclarationIsEnforcedByCliAndRuntime` 固定。
+  本段新增：**冲突控制** `TestThemePreflightRejectsSamePathAddOwnedByAnotherExtension`（同路径 add 被他扩展拥有会被拒、换空闲路径则通过），
+  以及两层**状态相关**预检的分析（切换栅栏外的主题运行时 → `ErrComponentRegistryConflict`；资源发布既不匹配旧主题也不匹配新主题 →
+  `errAssetPublicationConflict`），并把 `extension.build_failed` 双语文案改为同时点名两族原因、说明错误文本会指明失败的预检层。
+  **两条状态相关路径已升级为「观测到」**：`TestComponentRegistryThemeTransitionRejectsThirdThemeOutsideTheFence`
+  （栅栏外第三个主题运行时被拒，清理后同一切换通过）与新增子测试
+  `TestThemeAssetTransitionRejectsStaleDriftAndMultipleThemes/stale_third_theme_publication_blocks_every_switch`
+  （陈旧第三方主题发布挡住一切切换，清理后同一预检通过）。诊断流程落成 runbook
+  `runbooks/2026-10-16-theme-activation-rejection-diagnosis.md`（按失败层分族、给补救方式与持久性说明：组件注册表是进程内视图、
+  资源发布是持久状态，后者单靠重启不会清除）。改进后的文案已补断言测试 `TestThemeActivationFailureMessageNamesBothCauses`
+  （双语都必须点名声明族、残留状态族、事件日志与失败预检层）。**未完成**：未在 dev 实例上种下实时陈旧状态做端到端复现。
+  决策记录：`decisions/2026-10-16-theme-activation-preflight-truth.md`。
+- Route A 第 6 层收口（2026-10-16，第十段）：B2 已由既有 fail-open 测试覆盖（不造同义测试）；B1 落成**运行时**常驻检查
+  `tests/registry-page-shell-runtime-evidence.mjs`（断言 site 页 shell=theme 且恰好一个 navbar 拥有者 + 一个 footer、
+  bare 页 shell=none 零 chrome、`data-registry-shell` 承载 layout 而 `-source` 承载来源、shellProvider/shellPackageDigest
+  与 `/site/active-theme/skin` 一致；服务未起时 SKIP，`SFORUM_EVIDENCE_REQUIRE_LIVE=1` 时失败）；
+  B3 落成可复现 runbook `knowledge/runbooks/2026-10-16-theme-switch-shell-verification.md`。组件级渲染测试**已放弃**：
+  `bun test` 无 SFC 编译步骤（既有组件测试都读源码字符串），渲染层证据只能走运行时。
+- M10 联合发布门（2026-10-16，第九段）：**无法诚实关闭，改为产出诚实的验收矩阵**
+  `knowledge/sessions/2026-10-16-m10-joined-release-gate-matrix.md`——逐行给出本轮采集的运行时证据、缺失证据与阻塞原因。
+  已取证：兼容农场 `./scripts/test-api-isolated.sh --compat` → `ok: true`（两个 required cell 通过）；APILTS 契约状态
+  （host.v2 / manifest.v3 / protocol.v2 current，已弃用的 L1 契约带 shim 与替代契约）；`site`/`bare`/默认布局的 SSR chrome 计数；
+  载体 500 宽下的**可见** chrome 计数与无横向溢出；`/pages/resolve-path` 的 selectedProvider/digest 与 shellProvider/digest
+  与 `/site/active-theme/skin` 一致。未闭合：行 1/3/4/6/7/8 需更多证据或决策；行 2（插件正文数据）被 loader 传输决策阻塞；
+  行 5（会话状态）因契约不存在而阻塞；行 9（发布镜像）**已取证**：api 与 migrate 两个候选镜像构建成功（620MB / 29.9MB），在**隔离库** `sforum_smoke`（事后已删除，未触碰 dev 库）
+上迁移（145 表 + 7 条 River 迁移），`APP_ENV=production` 启动后 `GET /api/v1/health` → 200 `{"status":"ok","environment":"production"}`；
+smoke 还依次展示了三道生产 fail-closed 门（占位密钥 panic、`EXTENSION_ROOT` 缺失、`MARKETPLACE_ED25519_PUBLIC_KEY_HEX` 缺失），
+其中 `EXTENSION_ROOT` 缺失原本只报 `mkdir /storage: permission denied`（看不出缺哪个变量），已修为 `config: EXTENSION_ROOT must be an absolute path in production`。
+**环境提示（本段末尾实测）**：web :3000 无响应（用户自启的 Nuxt dev，本会话未停也未重启）；:8080 无响应但 air 进程仍在
+  （air 7h09m + sforum-api 子进程 2h57m，env 正确，air 日志满是 `exit status 1`，8080 无监听）；用手工 env 直接跑已构建二进制**可以正常绑定 8080
+  并注册 564 个 handler** → 代码与配置健康，异常在 air 循环/进程。因此依赖服务器的门禁本轮不声称通过（运行时证据脚本报 SKIP）。
+  **三镜像端到端 smoke 已完成**：web 镜像（261MB）与 api/migrate 一起在隔离库上运行——
+`GET /` 经 web 容器返回 200、81,120 字节 SSR HTML、标题 SForum、恰好一个桌面 navbar + 一个移动 navbar（同一 navbar 拥有者的响应式一对）、
+含 API 派生的论坛内容标记；**对照实验**：停掉 api 容器后同一请求返回 **000**（无响应），证明 web 镜像是真实 SSR 而非静态壳。
+**并已升级为「已播种数据库」的 smoke**：用宿主 migrate/seed CLI 准备隔离库（50 用户，user#1 为 super_admin；2 组、6 分类、12 标签、8 主题、17 评论），
+三个候选镜像经 web SSR 提供**真实内容**——`/` 200（127,220 字节，桌面+移动 navbar 各一，8 条种子主题链接、4 条种子分类链接）、
+`/c/general` 200、`/t/1/topic-ngkxas` 200（含种子主题内容）。容器/库/镜像均已清理。
+**发布镜像的扩展面也已取证**：镜像启动后把受保护内置同步进库（8 插件 + 1 主题；shortcodes/content-policy/search-site/smtp/web-push 与默认主题 enabled，
+auth-github/storage-fs/storage-s3 installed），容器内以**不可变摘要路径**跑起 5 个插件后端子进程，且已启用的 search 插件对种子主题做了真实索引
+（`indexed topic topicId=1..4`）。**上传包的安装+启用也已在发布镜像里端到端验证**：非交互重置管理员密码 → 登录（csrf_ + X-CSRF-Token + Origin）→
+multipart 安装（201 / `installed` / `source: uploaded`）→ enable（200 / `enabled`）→ 宿主 CLI 台账确认 → 该包公开页经 web 镜像渲染，
+layout 契约成立（`bare` 0/0 且 `shellSource=none`；`site`/`default` 1/1 且 `shellSource=theme`）。
+**更正**：启用路径只在包**真的携带可执行制品**时才要求精确制品信任确认；本次两个 fixture 都声明 `backend:{entry:"",rpc:""}` 且不含后端文件，
+因此 `extension.trust_not_required` 是正确判定（且 smoke 里 `APP_ENV=production` → `SFORUM_V3_TRUST_CHALLENGES` 默认为开，门禁并未被关闭）。
+**可执行信任门禁也已在发布镜像里两侧验证**：把 `sforum-shortcodes` 后端以新 id `acme.trustprobe` 复制、重写全部含 id 字段、把模块 replace 指向仓库、
+`CGO_ENABLED=0 GOOS=linux` 编译出 `backend/plugin`（16.1MB，26 文件包）；安装 201（`backend.entry=backend/plugin`、protocol 2）→
+challenge 200（64 字符 token、5 分钟 TTL、`sforum.trust-impact@2` 影响面）→ 无 token 启用 **409** `extension.trust_challenge_required` →
+带 token 启用 200 → 容器内 6 个插件后端进程（含 `/var/lib/sforum/extensions/acme.trustprobe/1.3.4/9b1e202816de…/backend/plugin`）。
+另测得：disable 后不带新 token 再启用返回 200（精确制品信任已持久化，属设计行为，不是重放）；`DELETE …/trust` 后 `trustRequired=true/trusted=false`，
+再用已消费 token 启用 → **409** `extension.trust_challenge_replayed`（一次性语义成立）。
+**release compose 栈也已跑过**（用本地候选镜像代替 registry tag）：不设 `SFORUM_VERSION` 时逐服务报错并拒绝启动（fail-closed）；
+设好后 postgres/redis healthy、api 自跑迁移、`/api/v1/health` 200（`environment: production`）、web `/` 200（navbar 1 + footer）、`/c/general` 200，
+播种 + 重启 API 后首页含 3 条种子主题链接；宿主 CLI 读到镜像内置台账 5 enabled / 3 installed / 1 theme。
+三条实测运维结论已写进 runbook（`knowledge/runbooks/2026-10-16-release-image-stack-verification.md`）：**别把开发 `.env` 带进发布栈**
+（相对 `EXTENSION_ROOT` 现在会 fail-closed、`NUXT_API_INTERNAL_BASE_URL=127.0.0.1` 会让容器内 SSR 502）、`down` 也必须带同一组 `-f` 与 `SFORUM_VERSION`、
+播种在启动之后时需要重启一次 API 让搜索索引对账。
+残留：真正从 registry 拉取已发布 tag、`compose.prod.yaml` 的反代/TLS 层。**两处任务书与仓库冲突**（只有一个受保护内置主题；
+  guard 没有 challenge 结果）如实记录。**更正**：任务书基线摘要 `4691a60541836c57` 已过期，运行时活动主题制品是
+  `85ddda6a…`（两个身份端点一致）。
+- M9 参考包（2026-10-16，第八段）：新增聚焦参考包 `extensions/fixtures/plugins/sforum-page-layout-reference`
+  ——一个包里用三种方式声明同一公开页（显式 bare / 显式 site / 不声明），通过 `digest --write`、`validate`、
+  `test`（0 error / 0 warning / 4 checks，含 `template.runtime_exact`）。两条夹具级测试固定作者面行为：
+  真实激活预检保留声明原样、`prepareContributions` 把未声明归一为平台默认 `site`；以及 AGENTS.md 硬规则 4
+  的三方身份（每个 theme.json 模板路径恰好一条 templates[] 声明 + 一条 kind=template 的 packageFiles[]，
+  摘要与文件一致）。顺带更正一处过时注释：`ThemePageDecl.Layout` 原写「空值等价 bare」，与 `NormalizeLayout`
+  （空值 → site）及 M2 运行时证据冲突，已改为真实规则。仍缺：会话状态工作流参考包（无会话契约，不可构建）。
+- M9 文档半程（2026-10-16，第七段）：新增权威英文迁移页 `docs/extensions/migrating-from-sforum-v2.md`
+  （SForum-old → V3 对照表：Controller→`routes[]`、中间件→`action: before|after` + `core.guard.inherit` +
+  显式可变字段、Blade→Page Registry 三方身份模板、Itf 钩子→`hooks[]`/events/queries/providers、
+  插件辅助库→Protocol V2 SDK；Session 明确写为**不可用**）、有意关闭操作清单（原始 Fiber、核心会话改写、
+  任意 Nuxt Layer、插件前置中间件、铸造身份、客户端 IP 判定），以及**在仓库外干净临时目录实测通过**的快速开始；
+  配套 zh-CN / en-US 手册与索引链接。CLI 文档门禁现在也覆盖 `extension dev` / `extension builtins`（双语）。
+  两个契约冲突如实记录：**不存在会话契约**（M6 仍被其 ADR 阻塞）与 **guard 没有 challenge 结果**
+  （只有 allow/deny + denied/crash/timeout/protocol/canceled/unavailable）。参考包盘点：多数能力已有聚焦夹具，
+  缺「bare 公开页」与「会话状态工作流」；并记录仓库夹具是 CI 夹具而非干净目录作者包（后端 go.mod 用相对
+  replace、且不携带 `backend/plugin` 二进制，所以直接复制到别处跑 `digest --write` 会失败）。
+- M8 `extension dev` 循环（2026-10-16，第六段）：`sforum extension dev <package-root>` 按 M0 ADR 6.2 全部冻结决定实现——
+  与 DevHygiene reaper 同一门禁（仅 development，入口拒绝，测试覆盖 production/staging/test/空值）、
+  **不做信任绕过**（每轮打印新摘要 + `reload_required` 指向管理端精确制品确认）、`fsnotify` 成为**直接**模块依赖、
+  不建第二条构建管线（直接调用 `runExtensionBuild` 后读 `DigestTree`）、只监视包内源输入、去抖合并 + 单事务、
+  `--json` 供编辑器集成、`--once` 供 CI、SIGINT 干净退出、失败保留最后健康制品。**真机 e2e 暴露并修掉两个真实缺陷**：
+  ①循环自触发（每轮摘要刷新重写清单 → 13k 行输出；改为每次事务后重取内容戳快照）；②预检拒绝了「摘要过期」这个
+  它本该修复的状态（改为只要求清单存在，并在启动时对账一次）。**未完成**：管理端激活自动化（ADR 禁止信任绕过）、
+  运行时崩溃/API 重启反应。前端构建路径与子进程回收已实测：`extension dev --once --skip-install` 走完
+  `bun run build` → dist 产物 → 摘要刷新 → 校验 → 契约测试；并发现真实缺陷——SIGINT 只杀掉直接子进程，
+  构建脚本派生的孙进程会存活，现改为子进程独占进程组 + 取消时杀整组（平台分文件 + 两个测试）。
+  **ADR 6.2.5 已收口**：新增 `sforum extension builtins`（从清单树发现 id/相对路径/后端入口/
+  是否含 Go 后端，含主题）并让 `scripts/build-builtin-plugins.sh` 消费它——脚本里不再出现任何内置 id 或目录名；
+  发现走清单元数据而非 `LoadPackage`（受保护源树没有后端二进制，完整校验必然因摘要不匹配失败）。真机运行证据：
+  探针 staging 根下 built=8 skipped=1、8 个契约测试 PASS、源树未被修改、staged 清单摘要与二进制一致。
+- M7 窄化类型化请求便利接口（2026-10-16，第五段）：结论是**不新增字段**——候选清单里有真实消费方的能力
+  （过滤后的请求头投影、locale/trace/deadline/idempotency、宿主校验的响应头、无损 query 值）**已经实现**；
+  其余六个候选全部带证据否决：客户端 IP/代理分类（无消费方，且代理信任归 `config.TrustProxy`）、
+  UA/设备摘要（现有契约明确排除，测试是反向断言）、插件自有响应 Cookie（凭据面保持关闭）、
+  重定向提示（身份提供方返回 typed redirect 文档、由宿主执行跳转）、缓存提示（CacheRegistry 拥有）、
+  限速提示（已审核的路由执行策略拥有）。因此**不改 proto**（M7 任务 4 允许在 ADR 更新后如此）。
+  新增安全测试：CRLF/空格/冒号头名与 CRLF/NUL 头值在投影处拒绝且**不触达插件**；代理/客户端身份头
+  的伪造边界被固定（`x-forwarded-for`/`x-real-ip`/`forwarded`/`user-agent` 按客户端自身声明透传，
+  宿主不为其中任何一个背书）。决策记录：
+  `decisions/2026-10-16-m7-narrow-typed-request-conveniences-contract.md`。超过传输上限的请求文档也已补测：
+  在进程内装配与生产相同的消息上限（服务端 `MaxRecvMsgSize` + 客户端 call options），断言超限文档在 RPC
+  边界失败且不触达插件。
+- M5 隔离可见性（2026-10-16，第三段）：崩溃循环隔离此前**没有任何管理端读取路径**（事故表只写不读），
+  现在有 `GET /api/v1/admin/extensions/route-incidents`（有界 200 行、已脱敏、含聚合摘要）与 Route Inspector
+  的「崩溃循环隔离」面板，六个状态齐备：loading / error / stale（刷新失败保留上一次成功账本并告警）/
+  empty / quarantined（红警 + 逐行结果徽章）/ recovery（安全模式与 CLI 恢复指引）。真实浏览器 1313x930
+  渲染证据（`storage/qa/2026-10-16-route-incidents-quarantined-1313x930.png`）；stale/error 由 web 契约测试
+  覆盖而非截图。新增读取路由必须同时进入四个已审核矩阵（身份台账 / `requireExtensionsReadAuthority`
+  可证策略清单 / 读守卫分区测试 / 目录路由计数），门禁全部命中——其中第二个是真实运行时接线要求。
+  事故表为 append-only（`resolve_once`/`no_truncate` 触发器），删除夹具行须在单事务内临时禁用触发器并复原。
+- M5 授权归属披露（2026-10-16，`sessions/2026-10-16-m5-guard-authorization-disclosure-handoff.md`）：
+  `ExecutableTrustStatus.guardAuthorization` 与 `InspectorStep.guardRisk/guardRequiresTrust` 让操作员
+  在一处看到「哪条路由的授权由宿主、插件代码还是原始请求权威拥有」，含守卫类型、可执行摘要、
+  失败策略与已声明可变字段；确认识别对话框新增「授权归属」区与原始请求红警。该信息是**派生视图**，
+  不进入影响摘要（摘要即授权本身，改动它会吊销全部已发授信——见
+  `decisions/2026-10-16-trust-impact-digest-is-authority-view-is-derivation.md`）。已取得 HTTP 与真实
+  浏览器证据（1313x930 桌面 + 载体的真实 500 窄屏，**不是** 390）。二轮按证据复核：任务 2（actor 绑定
+  + 5 分钟 TTL + 仅 super_admin）、任务 4（审计词汇已覆盖全部要求动作，隔离经
+  `routes.committed_after_failure` + 事件行留痕）、任务 5（守卫调用持 `RuntimeCallGuard` 租约，
+  排空/隔离/等待已接线并有集成测试）均**核实通过**；任务 6 的真实缺口（路由策略测试从不覆盖守卫）
+  已由 `lifecycle_route_guard_policy_test.go` 补上——升级无残留、回滚逐字段恢复先前守卫绑定、
+  权威空集与安全模式零守卫授权。剩余：任务 7（六种 UI 状态）与「是否审计单次守卫拒绝」待人工决定；
+  任务 8 的 390 宽管理端 QA 仍受载体限制。
+- 扩展作者计划收口一轮 + 390x844 实机 QA（2026-10-16，Route A 第 6 层 + Loader 传输缺口 + 主题脚手架对齐）。
+  用真实 Chrome（CDP）取得**真正的 390x844**（侧栏载体 500 下限不再是障碍）：插件页恰好 1 个可见
+  navbar + 1 个可见 footer、无横向溢出、无裁切控件；并修掉这一轮暴露出的页脚归属缺陷
+  （宿主 `sforum-theme.css` 对默认主题 fullwidth-3col 外壳隐藏页面级页脚，而 Page Registry add 页没有
+  内容列 → 补 `:not(:has(.sforum-content-footer))` 规则；活动主题制品 4691a605… → 85ddda6a…，
+  已重建 + 管理员重激活 + 双端点核验）。
+  Route A 第 6 层补上自动化断言（组合外壳计数、几何 class、bare 隔离、解析期
+  fail-open）；`make:theme` 脚手架与运行时激活校验器的不一致已定位并收口（根因是脚手架
+  在核心页 schema 上声明 `components[]`，manifest 校验现在与组件注册表用同一条精确规则，
+  误导文案与文档同步改正）；M4 的自定义 guard 生产绑定已核实并把四处「后续 wave / 已关闭」
+  的过时披露改正。**发现一处生产缺口**：Protocol V2 运行时不暴露 loopback 传输，Loader
+  Gateway 因此拿不到数据，`dataSource: plugin` 的页面贡献必然回退（真实子进程测试固定）。
+  同时**修正两条我自己的旧结论**：主题不需要页面覆盖率；外壳的 `data-theme-region` 等
+  data 标记会被旧 L1 净化路径剥掉（class 几何保留）。除上述阻塞项外全绿。详见
+  `sessions/2026-10-16-route-a-layer6-and-loader-transport-handoff.md`。
+- M3 页面/中间件脚手架交付（2026-10-16，第四轮）。`make:plugin` / `make:theme` 增加
+  `--public-page`、`--public-page-layout site|bare`、`--route-middleware` 三个可组合 flag，
+  不新增第二条生成分支（admin 页复用 `--vue-admin-page`）。全新脚手架**无需手工编辑**即可通过
+  `extension validate` / `extension test`（0 error）/ `extension build --allow-scaffold` 与精确模板
+  运行时预检；主题变体额外通过运行时激活用的 `PreflightThemePackage`（全新安装与替换活动主题两种
+  状态）。生成的中间件只继承目标路由 guard、只声明自己列出的可变字段、不声明
+  access/permission；插件页数据源**不生成**（仍被 Loader 传输缺口阻塞）。双语 CLI 文档与
+  authoring guide 已更新，退出码/拒绝语义有 go 测试固定。**运行时渲染证据**：把生成的主题脚手架
+  打包→安装→走真实管理员流程激活，用真实 Chrome（CDP）在 390x844 实测：生成的 `layout: bare`
+  页零 chrome，主题自带首页恰好 1 个可见 navbar + 1 个可见 footer；该实测同时暴露并修掉两个
+  脚手架缺陷（主题首页模板原先不含任何 chrome；模板 HTML 注释里写岛标签会让精确模板预检失败，
+  因为岛扫描器会读注释）。实验后已恢复：活动主题回到 `sforum.default-theme` `85ddda6a…`，
+  两个临时主题已卸载。
+- 站内 AI 身份注入移除（2026-10-16）。出站 system 只由调用方决定：`Gateway.Execute`
+  删除 2026-10-15 引入的身份声明注入（供应商标识 / 模型名 / 协议随成员一句
+  「你是哪个模型」进入会话），配置面、控制台开关、OpenAPI、双语文案与组件身份整体
+  撤下，提示词版本递增为 `forum-reply@6` / `forum-reply-triage@3` / `diagnose@3`。
+  Go/Web 守卫测试反转，V3 目录账本零漂移（`generate.mjs --check` current）。
+  已知既有红状态：`tests/validate-v3-p0-catalogs.mjs` 在这条含 130+ 文件未提交改动的
+  工作区（以及干脆净的 HEAD）本来就不通过，非本次引入。详见
+  `sessions/2026-10-16-remove-ai-identity-injection-handoff.md` 与
+  `decisions/2026-10-16-remove-ai-identity-injection.md`。
 - 扩展作者契约冻结（M0）+ 公开页外壳（M1 首个增量）（2026-10-16）。M0 把外壳/guard/
   版本回滚/会话/dev 五组契约从生产代码里冻结下来，过程中**推翻了两处前提**：
   (1) 自定义 guard 运行时**是活的**——文档说「later wave / closed」，
@@ -334,12 +623,21 @@ load archived sessions or completed plans as current context.
   思维链发成评论、控制台把它当测试回复并报「连接正常」、结果缓存存 10 分钟），
   而模型身份从未进入请求（只在 `Gateway.Execute` 解析 profile 后存在，提示词作者
   写不出它）。现 `Reasoning` 与 `Text` 严格分离（内联思考标签在协议层剥离、
-  `resultCacheVersion` 1 → 2），身份声明由网关注入且公开性可配（缺省公开），回复
-  输出预算改为跟随 profile 的 `Defaults.MaxTokens`（此前写死 512 且该配置从未生效），
-  确定性空回复以 `river.JobCancel` 收尾。提示词版本 `forum-reply@5` /
-  `forum-reply-triage@2` / `diagnose@2`。详见
-  `sessions/2026-10-15-ai-reasoning-leak-and-identity-handoff.md` 与
-  `decisions/2026-10-15-ai-reasoning-separation-and-model-identity.md`。
+  `resultCacheVersion` 1 → 2），回复输出预算改为跟随 profile 的 `Defaults.MaxTokens`
+  （此前写死 512 且该配置从未生效），确定性空回复以 `river.JobCancel` 收尾。详见
+  `sessions/archive/2026-10/2026-10-15-ai-reasoning-leak-and-identity-handoff.md` 与
+  `decisions/2026-10-15-ai-reasoning-separation-and-model-identity.md`（第 2、3 条已被
+  下一条取代）。
+- 站内 AI 身份注入移除（2026-10-16）：`Gateway.Execute` 不再向 system 追加任何宿主
+  文本——2026-10-15 引入的身份声明（`identity@1`，含 `settings.identity.discloseModel`
+  开关）把 profile 的供应商标识、模型名与协议送进了会话，成员问「你是哪个模型」时
+  助手会按后台配置回答。现 `Settings.Identity`、REST DTO、OpenAPI `AIIdentitySettings`、
+  控制台 `SFAdminAIIdentityBlock` 与双语键整体删除，组件身份转入退役账本；配置文档残留
+  的 `identity` 字段被普通 `json.Unmarshal` 忽略，无需迁移。出站 system 只由调用方
+  决定，模型对自身身份的回答只能来自模型自身。提示词版本 `forum-reply@6` /
+  `forum-reply-triage@3` / `diagnose@3`。详见
+  `sessions/2026-10-16-remove-ai-identity-injection-handoff.md` 与
+  `decisions/2026-10-16-remove-ai-identity-injection.md`。
 - Manifest V3 放行插件声明个人设置入口（2026-10-15）：
   `navigation[].kind` 新增 `account-settings`，并补上可选 `visibility` /
   `ownerResource`，三处白名单（JSON Schema、Go 平台校验器、OpenAPI 镜像）已对齐。

@@ -153,18 +153,6 @@ AIMultimodalSettings:
     enabled:
       type: boolean
 
-AIIdentitySettings:
-  type: object
-  description: |
-    自我身份声明的公开性。网关在每次出站请求里注入一段身份声明，因为模型身份
-    只在运行期解析（成本等级 → profile 绑定），提示词作者写不出它。
-    `discloseModel` 缺省为 true：声明里带上实际的供应商与模型标识，模型因此对
-    「你是哪个模型」有确定答案；设为 false 时声明改为「本站的 AI 助手，本站不
-    公开所用模型」，模型仍然有确定答案，只是不公开。两种状态下都不允许编造。
-  properties:
-    discloseModel:
-      type: boolean
-
 AISettings:
   type: object
   properties:
@@ -208,8 +196,6 @@ AISettings:
       "$ref": "#/AIRedactionSettings"
     multimodal:
       "$ref": "#/AIMultimodalSettings"
-    identity:
-      "$ref": "#/AIIdentitySettings"
     reply:
       "$ref": "#/AIReplySettings"
     revision:
@@ -260,8 +246,6 @@ AISettingsUpdateRequest:
       "$ref": "#/AIRedactionSettings"
     multimodal:
       "$ref": "#/AIMultimodalSettings"
-    identity:
-      "$ref": "#/AIIdentitySettings"
     reply:
       "$ref": "#/AIReplySettings"
 

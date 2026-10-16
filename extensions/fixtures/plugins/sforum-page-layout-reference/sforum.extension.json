@@ -1,0 +1,71 @@
+{
+  "author": {
+    "name": "SForum"
+  },
+  "description": "Focused reference package: layout: bare, explicit layout: site, and the default (site) for a public Page Registry page.",
+  "id": "sforum.page-layout-reference",
+  "manifestVersion": 3,
+  "name": "Page Layout Reference",
+  "packageFiles": [
+    {
+      "digest": "8f0e3f7fea46aab766c831e9adb0170abbd094398c60af481da6bfb1fb736d5d",
+      "id": "sforum.page-layout-reference.file.theme",
+      "kind": "asset",
+      "path": "theme.json"
+    },
+    {
+      "digest": "9a7e5b749762a299cd45b1f6dd5e8347e38cf0b41acf60a0b97795120c1fe6fa",
+      "id": "sforum.page-layout-reference.file.template.bare",
+      "kind": "template",
+      "path": "templates/page-bare.html"
+    },
+    {
+      "digest": "68fcc77214f8edbc4547352357c17775bce52d68a2cdde6ab181e7830b64adb1",
+      "id": "sforum.page-layout-reference.file.template.site",
+      "kind": "template",
+      "path": "templates/page-site.html"
+    },
+    {
+      "digest": "a220351265907c9758f4a8a1da1a5d70a467275c5fa33d7370fae5e67452d096",
+      "id": "sforum.page-layout-reference.file.template.default",
+      "kind": "template",
+      "path": "templates/page-default.html"
+    }
+  ],
+  "permissions": [
+    "sforum.page-layout-reference.view"
+  ],
+  "sforumVersion": "^1.0.0",
+  "templates": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.page-layout-reference.template.bare@1",
+      "digest": "9a7e5b749762a299cd45b1f6dd5e8347e38cf0b41acf60a0b97795120c1fe6fa",
+      "id": "sforum.page-layout-reference.template.bare",
+      "path": "templates/page-bare.html",
+      "themeOverrideKey": "sforum.page-layout-reference.bare",
+      "viewModelSchema": "sforum.page-layout-reference.bare.data@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.page-layout-reference.template.site@1",
+      "digest": "68fcc77214f8edbc4547352357c17775bce52d68a2cdde6ab181e7830b64adb1",
+      "id": "sforum.page-layout-reference.template.site",
+      "path": "templates/page-site.html",
+      "themeOverrideKey": "sforum.page-layout-reference.site",
+      "viewModelSchema": "sforum.page-layout-reference.site.data@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.page-layout-reference.template.default@1",
+      "digest": "a220351265907c9758f4a8a1da1a5d70a467275c5fa33d7370fae5e67452d096",
+      "id": "sforum.page-layout-reference.template.default",
+      "path": "templates/page-default.html",
+      "themeOverrideKey": "sforum.page-layout-reference.default",
+      "viewModelSchema": "sforum.page-layout-reference.default.data@1"
+    }
+  ],
+  "type": "plugin",
+  "url": "https://example.com/page-layout-reference",
+  "version": "0.1.0"
+}

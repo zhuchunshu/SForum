@@ -4,6 +4,8 @@ import { useAdminPage } from '~/composables/admin/useAdminPage'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import {
   formatDurationMicros,
+  routeIncidentResultColor,
+  type RouteIncidentLedger,
   ROUTE_INSPECTOR_METHODS,
   routeInspectorErrorKind,
   routeInspectorMatchedStep,
@@ -30,7 +32,7 @@ const { format: formatSiteDateTime } = useSiteDateTime()
 const route = useRoute()
 const router = useRouter()
 const adminPage = useAdminPage('/extensions/route-inspector')
-const { inspect } = useAdminRouteInspector()
+const { inspect, loadIncidents } = useAdminRouteInspector()
 
 const method = ref<RouteInspectorMethod>('GET')
 const path = ref('')
@@ -39,6 +41,39 @@ const hasInspected = ref(false)
 const validationError = ref('')
 const error = ref('')
 const snapshot = ref<RouteInspectorSnapshot | null>(null)
+
+// M5 任务 7：崩溃循环隔离的持久状态。六个状态各自可辨：
+// loading（首次读取）/ error（读取失败且从未成功过）/ stale（有旧账本但刷新失败）
+// / empty（没有事故）/ quarantined（精确运行时表面已被关闭）/ recovery（恢复指引）。
+const incidents = ref<RouteIncidentLedger | null>(null)
+const incidentsPending = ref(false)
+const incidentsError = ref('')
+const incidentsStale = ref(false)
+
+const quarantinedIncidents = computed(() =>
+  (incidents.value?.incidents ?? []).filter(record => record.quarantined)
+)
+const incidentsTruncated = computed(() =>
+  Boolean(incidents.value && incidents.value.incidents.length >= incidents.value.limit)
+)
+
+async function loadIncidentLedger() {
+  incidentsPending.value = true
+  incidentsError.value = ''
+  incidentsStale.value = false
+  try {
+    incidents.value = await loadIncidents()
+  } catch (cause) {
+    if (incidents.value) {
+      // 已有旧账本时降级为 stale，而不是把操作员已看到的隔离状态换成错误页。
+      incidentsStale.value = true
+    } else {
+      incidentsError.value = apiErrorMessage(cause) || t('admin.extensions.routeInspector.incidentsLoadFailed')
+    }
+  } finally {
+    incidentsPending.value = false
+  }
+}
 
 const methodItems = computed(() =>
   ROUTE_INSPECTOR_METHODS.map(value => ({ label: value, value }))
@@ -203,6 +238,7 @@ watch(
 
 useSeoMeta({ title: t('admin.extensions.routeInspector.metaTitle') })
 hydrateFromQuery()
+void loadIncidentLedger()
 </script>
 
 <template>
@@ -216,6 +252,145 @@ hydrateFromQuery()
         {{ t('admin.extensions.routeInspector.intro') }}
       </p>
     </div>
+
+    <!-- M5 任务 7：崩溃循环隔离账本（持久状态；重启后与 API 一致） -->
+    <section
+      class="mb-4 rounded-lg border border-slate-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
+      data-testid="route-incidents"
+    >
+      <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <h3 class="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-900 dark:text-zinc-100">
+          <UIcon name="i-lucide-shield-alert" class="size-4 shrink-0 text-slate-500 dark:text-zinc-400" />
+          <span class="min-w-0 truncate">{{ t('admin.extensions.routeInspector.incidentsTitle') }}</span>
+        </h3>
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
+          <UBadge v-if="incidents" color="neutral" variant="subtle" size="xs" data-testid="route-incidents-summary">
+            {{ t('admin.extensions.routeInspector.incidentsSummary', {
+              quarantined: incidents.summary.quarantined,
+              pending: incidents.summary.pending,
+              recovered: incidents.summary.recovered
+            }) }}
+          </UBadge>
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-refresh-cw"
+            :loading="incidentsPending"
+            data-testid="route-incidents-refresh"
+            @click="loadIncidentLedger()"
+          >
+            {{ t('admin.extensions.routeInspector.incidentsRefresh') }}
+          </UButton>
+        </div>
+      </div>
+
+      <p class="mt-1 max-w-4xl text-xs text-slate-500 dark:text-zinc-400">
+        {{ t('admin.extensions.routeInspector.incidentsIntro') }}
+      </p>
+
+      <div v-if="incidentsPending && !incidents" class="mt-3 space-y-2" aria-busy="true" data-testid="route-incidents-loading">
+        <USkeleton class="h-10 w-full" />
+        <USkeleton class="h-10 w-full" />
+      </div>
+
+      <UAlert
+        v-else-if="incidentsError"
+        class="mt-3"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="t('admin.extensions.routeInspector.incidentsErrorTitle')"
+        :description="incidentsError"
+        data-testid="route-incidents-error"
+      />
+
+      <UAlert
+        v-else-if="incidentsStale"
+        class="mt-3"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-history"
+        :title="t('admin.extensions.routeInspector.incidentsStaleTitle')"
+        :description="t('admin.extensions.routeInspector.incidentsStaleDescription')"
+        data-testid="route-incidents-stale"
+      />
+
+      <p
+        v-else-if="incidents && !incidents.incidents.length"
+        class="mt-3 rounded-md border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-500 dark:border-zinc-700 dark:text-zinc-400"
+        data-testid="route-incidents-empty"
+      >
+        {{ t('admin.extensions.routeInspector.incidentsEmpty') }}
+      </p>
+
+      <template v-else-if="incidents">
+        <UAlert
+          v-if="quarantinedIncidents.length"
+          class="mt-3"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-shield-off"
+          :title="t('admin.extensions.routeInspector.incidentsQuarantinedTitle')"
+          :description="t('admin.extensions.routeInspector.incidentsQuarantinedDescription', {
+            count: quarantinedIncidents.length
+          })"
+          data-testid="route-incidents-quarantined"
+        />
+        <UAlert
+          class="mt-3"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-life-buoy"
+          :title="t('admin.extensions.routeInspector.incidentsRecoveryTitle')"
+          :description="t('admin.extensions.routeInspector.incidentsRecoveryDescription')"
+          data-testid="route-incidents-recovery"
+        />
+        <p
+          v-if="incidentsTruncated"
+          class="mt-2 text-xs text-slate-500 dark:text-zinc-400"
+          data-testid="route-incidents-truncated"
+        >
+          {{ t('admin.extensions.routeInspector.incidentsTruncated', { limit: incidents.limit }) }}
+        </p>
+        <ul class="mt-3 space-y-2">
+          <li
+            v-for="record in incidents.incidents"
+            :key="record.incidentKey"
+            class="min-w-0 rounded-md border border-slate-200 px-3 py-2.5 dark:border-zinc-700"
+            data-testid="route-incidents-row"
+          >
+            <div class="flex min-w-0 flex-wrap items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="truncate font-mono text-xs text-slate-900 dark:text-zinc-100">
+                  {{ record.method }} {{ record.pathSignature }}
+                </p>
+                <p class="mt-0.5 truncate text-[11px] text-slate-500 dark:text-zinc-400">
+                  {{ record.extensionId }}@{{ record.extensionVersion }} · {{ record.runtimeInstanceId }}
+                </p>
+              </div>
+              <UBadge :color="routeIncidentResultColor(record.localResult)" variant="subtle" size="xs">
+                {{ t(`admin.extensions.routeInspector.incidentResults.${record.localResult}`) }}
+              </UBadge>
+            </div>
+            <dl class="mt-2 grid gap-2 text-[11px] sm:grid-cols-3">
+              <div class="min-w-0">
+                <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.routeInspector.incidentFailure') }}</dt>
+                <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">{{ record.failureCode }}</dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.routeInspector.incidentCause') }}</dt>
+                <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">{{ record.causeClass }}</dd>
+              </div>
+              <div class="min-w-0">
+                <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.routeInspector.incidentRecordedAt') }}</dt>
+                <dd class="mt-0.5 break-all font-mono text-slate-700 dark:text-zinc-300">{{ formatSiteDateTime(record.createdAt) }}</dd>
+              </div>
+            </dl>
+          </li>
+        </ul>
+      </template>
+    </section>
 
     <!-- 查找表单：显式检查，不在输入时自动请求 -->
     <form

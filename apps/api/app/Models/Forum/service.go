@@ -210,12 +210,12 @@ func (staticSettingsResolver) ForumSettings(context.Context) (ForumSettings, err
 	return defaultForumSettings(), nil
 }
 
-func (s *Service) ListCategories(ctx context.Context) ([]Category, error) {
-	return s.store.ListCategories(ctx)
+func (s *Service) ListCategories(ctx context.Context, includeHidden bool) ([]Category, error) {
+	return s.store.ListCategories(ctx, includeHidden)
 }
 
-func (s *Service) ListCategoryGroups(ctx context.Context) ([]CategoryGroup, error) {
-	return s.store.ListCategoryGroups(ctx)
+func (s *Service) ListCategoryGroups(ctx context.Context, includeHidden bool) ([]CategoryGroup, error) {
+	return s.store.ListCategoryGroups(ctx, includeHidden)
 }
 
 func (s *Service) ListTags(ctx context.Context, includePending bool) ([]Tag, error) {

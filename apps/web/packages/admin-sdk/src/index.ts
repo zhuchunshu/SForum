@@ -26,12 +26,23 @@ export type AdminMicroFrontendAppearance = Readonly<{
   accentContrast: string
 }>
 
+/**
+ * 宿主图标解析器：插件只提供图标名，SVG 标记始终由宿主生成。
+ * 名称语法为 `i-(lucide|tabler)-<name>`，与宿主贡献点校验共用同一条规则。
+ * 无法解析的图标名会从结果中缺失，调用方必须容忍缺项。
+ */
+export type AdminIconResolver = Readonly<{
+  resolve: (names: readonly string[]) => Promise<Readonly<Record<string, string>>>
+}>
+
 export type AdminMicroFrontendBridgeV1 = Readonly<{
   apiVersion: typeof ADMIN_MICRO_FRONTEND_API_VERSION
   extensionId: string
   extensionVersion: string
   locale: string
   appearance: AdminMicroFrontendAppearance
+  /** 可选：宿主未提供时为 `undefined`，插件必须优雅降级。 */
+  icons?: AdminIconResolver
   settings: Readonly<{
     items: readonly AdminExtensionSettingItem[]
     values: () => Readonly<Record<string, string>>
@@ -58,6 +69,8 @@ export type AdminPageBridgeV1 = Readonly<{
   extensionVersion: string
   locale: string
   appearance: AdminMicroFrontendAppearance
+  /** 可选：宿主未提供时为 `undefined`，插件必须优雅降级。 */
+  icons?: AdminIconResolver
   page: AdminPageDescriptor
   request: <T>(path: string, options?: Record<string, unknown>) => Promise<T>
   toast: (input: SForumAdminToastInput) => void

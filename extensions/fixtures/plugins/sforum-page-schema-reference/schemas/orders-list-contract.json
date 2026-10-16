@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sforum.page-schema-reference.schema.page.list@1",
+  "type": "object",
+  "required": [
+    "kind"
+  ],
+  "properties": {
+    "kind": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "tone": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array"
+    },
+    "cells": {
+      "type": "object"
+    }
+  }
+}

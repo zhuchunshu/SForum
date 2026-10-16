@@ -193,22 +193,32 @@ func TestRuntimePluginRouteGuardEvaluatorMapsRawRequestGuardFailure(t *testing.T
 	}
 }
 
-func TestRuntimePluginRouteGuardEvaluatorConfirmsRawAuthorityWithoutCredentials(t *testing.T) {
-	plan, step := productionDirectGuardPlan(t, "core.guard.raw_request", "")
+// R1（2026-10-16）翻转断言。旧版 TestRuntimePluginRouteGuardEvaluatorConfirmsRawAuthorityWithoutCredentials
+// 确认的是：路由引用 Host 拥有的 core.guard.raw_request 且没有任何插件守卫绑定时，
+// 不需要一行插件代码就能拿到 raw 权限——运维方判定这是漏洞。现在断言反向：
+// 生产守卫链路必须在触碰运行实例（inspect / acquire / invoke）之前就拒绝该执行步骤。
+func TestProductionRouteGuardChainRejectsRetiredCoreRawRequestWithoutPluginGuard(t *testing.T) {
+	plan, step := productionDirectGuardPlan(t, extensionmanifest.GuardCoreRaw, "")
+	if step.Guard != extensionmanifest.GuardCoreRaw || step.PluginGuard.ID != "" || step.PluginGuard.Kind != "" {
+		t.Fatalf("retired core raw step = %#v", step)
+	}
 	policy := &testExtensionGuardPolicy{lookup: exactPluginGuardLookup(step), ok: true}
 	runtime := newTestPluginGuardRuntime(t, step)
-	err := NewRuntimePluginRouteGuardEvaluator(runtime, policy).EvaluatePluginGuard(context.Background(), routes.PluginGuardEvaluation{
-		PlanRevision: plan.Revision(), RequestMethod: plan.Method(), RequestPath: plan.Path(), Step: step,
-		Authority: resolvedPluginGuardTestAuthority(step),
-		Request:   routes.DispatchRequest{Method: plan.Method(), Path: plan.Path(), Params: plan.Params()},
+	err := NewProductionRouteGuardAuthorizerWithPolicies(ProductionRouteGuardPolicies{
+		PluginGuards: NewRuntimePluginRouteGuardEvaluator(runtime, policy),
+	}).Authorize(context.Background(), plan, step, routes.DispatchRequest{
+		Method: plan.Method(), Path: plan.Path(), Params: plan.Params(),
 	})
-	if err != nil || runtime.inspectCalls != 0 || runtime.invokeCalls != 0 {
-		t.Fatalf("raw authority error = %v, runtime = %#v", err, runtime)
+	if !errors.Is(err, ErrRouteGuardUnavailable) || runtime.inspectCalls != 0 ||
+		runtime.acquireCalls != 0 || runtime.invokeCalls != 0 {
+		t.Fatalf("retired core raw guard error = %v, runtime = %#v", err, runtime)
 	}
 }
 
+// resolvedPluginGuardTestAuthority 只从包内声明的 kind=raw_request 守卫推导 raw 权限。
+// R1 之后已退役的 core.guard.raw_request 不能再在测试夹具里伪造 raw 权限。
 func resolvedPluginGuardTestAuthority(step routes.RouteExecutionStep) routes.ResolvedRequestAuthority {
-	if step.Guard == "core.guard.raw_request" || step.PluginGuard.Kind == "raw_request" {
+	if step.PluginGuard.Kind == "raw_request" {
 		return routes.ResolvedRequestAuthority{Mode: routes.RequestAuthorityRaw, GuardKind: routes.RequestGuardRawRequest}
 	}
 	return routes.ResolvedRequestAuthority{Mode: routes.RequestAuthorityFiltered, GuardKind: routes.RequestGuardCustom}

@@ -33,6 +33,16 @@ that a later runtime phase is implemented.
 event, contribution point, provider slot, core schedule, job kind, cache,
 content/data surface, and WordPress-equivalent admin surface marker.
 
+`catalogs/public-page-surfaces.{json,md}` is the runtime surface of the public
+page layer: every Page Registry page an extension can target, with its path,
+access, contract, replaceable flag, required features, the body `views` a
+`theme.json` page may declare (`template` / `component` / `schema`), the `layout`
+values (`site` / `bare`), the regions it exposes, and the Host islands themes may
+mount. It is generated from the same single handwritten sources the runtime uses
+(`Pages.coreCatalog`, `RegionCatalog.pageRegionMatrix`, the `PageView` vocabulary
+and `allowedHostIslands`), so a new page, view, layout, region or island cannot
+drift away from what authors can actually target.
+
 `catalog-identities.json` is the reviewed stable identity map. It is not an
 ordinary generated output: source moves must update its route/source locator
 while retaining the published ID and contract unless a reviewed versioned

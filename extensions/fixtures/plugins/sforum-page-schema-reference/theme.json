@@ -1,0 +1,20 @@
+{
+  "pages": [
+    {
+      "id": "sforum.page-schema-reference.page.list",
+      "action": "add",
+      "path": "/page-schema-reference/list",
+      "layout": "site",
+      "view": "schema",
+      "schema": {
+        "descriptor": "sforum.page-schema-reference.file.page.list",
+        "contract": "sforum.page-schema-reference.schema.page.list@1"
+      }
+    }
+  ],
+  "skin": {
+    "css": [
+      "assets/theme.css"
+    ]
+  }
+}

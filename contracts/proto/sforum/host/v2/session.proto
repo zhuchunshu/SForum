@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package sforum.host.v2;
+
+import "sforum/protocol/v2/common.proto";
+
+option go_package = "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2;hostv2";
+
+// PluginSessionService holds small bounded workflow state for the current Host
+// session on behalf of one plugin. It is Host-owned: this state is never part of
+// the Core session payload, never keyed by the raw session id, and never carries
+// session authority. Plugins must tolerate a miss — it is ephemeral.
+service PluginSessionService {
+  rpc Get(PluginSessionGetRequest) returns (PluginSessionGetResponse);
+  rpc Set(PluginSessionSetRequest) returns (PluginSessionSetResponse);
+  rpc Delete(PluginSessionDeleteRequest) returns (PluginSessionDeleteResponse);
+}
+
+// S7 — authority derivation. This is the security property of this surface.
+//
+// These request messages deliberately carry NO field for an extension id, a user
+// id, or a session id. The Host derives the extension identity, the runtime
+// instance, and the session from the runtime-attested `context` before it
+// touches storage, exactly as CacheRegistry and the guard evaluator already do.
+// A caller-supplied identity is therefore not merely ignored — it does not exist
+// in the request shape, so it cannot be smuggled in, and cross-plugin and
+// cross-session access are denied by construction.
+//
+// Do not add such fields "for completeness": their absence IS the security
+// property.
+message PluginSessionGetRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace_key = 2;
+}
+
+message PluginSessionGetResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool found = 2;
+  bytes value = 3;
+  sforum.protocol.v2.ErrorDetail error = 4;
+}
+
+// Same S7 authority derivation as PluginSessionGetRequest: no extension id, no
+// user id, and no session id field exists here.
+message PluginSessionSetRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace_key = 2;
+  bytes value = 3;
+  // Requested lifetime in milliseconds; 0 means session-scoped. The Host answers
+  // with the effective TTL it actually applied: min(requested, the Host 24h cap,
+  // remaining idle lifetime, remaining absolute lifetime). Plugin state can
+  // therefore never outlive — let alone extend — the Core session.
+  uint32 ttl_ms = 4;
+}
+
+message PluginSessionSetResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  uint32 effective_ttl_ms = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}
+
+// Same S7 authority derivation as PluginSessionGetRequest: no extension id, no
+// user id, and no session id field exists here.
+message PluginSessionDeleteRequest {
+  sforum.protocol.v2.RequestContext context = 1;
+  string namespace_key = 2;
+}
+
+message PluginSessionDeleteResponse {
+  sforum.protocol.v2.ResponseContext context = 1;
+  bool deleted = 2;
+  sforum.protocol.v2.ErrorDetail error = 3;
+}

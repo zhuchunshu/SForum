@@ -77,6 +77,17 @@ func GenerateExtensionScaffold(opts makeOptions) (string, error) {
 	} else if err := writeThemeFiles(target, opts); err != nil {
 		return "", err
 	}
+	// 公开页会创建/合并 theme.json，因此必须在 writeThemeFiles 之后写入。
+	if err := writePublicPageFiles(target, opts); err != nil {
+		return "", err
+	}
+	// view=schema 页同样合并 theme.json，且与公开页共用「重复即拒绝」规则。
+	if err := writeSchemaPageFiles(target, opts); err != nil {
+		return "", err
+	}
+	if err := writeRouteMiddlewareFiles(target, opts); err != nil {
+		return "", err
+	}
 	if err := finalizeGeneratedManifest(target, opts); err != nil {
 		return "", err
 	}
@@ -94,6 +105,7 @@ func normalizeMakeOptions(opts makeOptions) makeOptions {
 	opts.AuthorEmail = strings.TrimSpace(opts.AuthorEmail)
 	opts.Out = strings.TrimSpace(opts.Out)
 	opts.ProviderSlot = strings.TrimSpace(opts.ProviderSlot)
+	opts = normalizeWorkflowOptions(opts)
 	return opts
 }
 
@@ -110,7 +122,7 @@ func validateMakeOptions(opts makeOptions) error {
 	if opts.VueAdminPage && opts.Kind != extensionmanifest.TypePlugin {
 		return errors.New("vue-admin-page requires a plugin scaffold")
 	}
-	return nil
+	return validateWorkflowOptions(opts)
 }
 
 func buildManifest(opts makeOptions) scaffoldManifest {
@@ -398,9 +410,19 @@ func writeThemeFiles(target string, opts makeOptions) error {
 		"assets/tokens.css": `/* Design tokens */
 :root {}
 `,
-		"templates/home.html": `<!-- ` + opts.ID + ` home template (L1) -->
+		"templates/home.html": `<!-- ` + opts.ID + ` home template (L1)
+
+主题页面自己拥有站点 chrome：恰好一个 navbar + 一个 footer，正文放在两者之间。
+不要在正文区重复 navbar/footer（每个渲染路径只有一个 chrome 拥有者），也不要在这里
+引用插件正文岛——那是主题外壳模板（theme.json 的 shell）的职责。
+注意：模板里的 HTML 注释同样会被岛扫描器读取，所以注释里不要写岛标签本身。
+-->
 <div class="sf-page sf-page--home" data-page="forum.home">
-  <sf-home-page></sf-home-page>
+  <sf-navbar></sf-navbar>
+  <main class="sf-page__body">
+    <sf-home-page></sf-home-page>
+  </main>
+  <sf-footer></sf-footer>
 </div>
 `,
 		"README.md": "# " + opts.Name + "\n\nRuntime theme package (L0 skin + L1 templates).\n\nActivate without rebuilding Nuxt. See `docs/extensions/page-catalog.md`.\n",
@@ -425,15 +447,23 @@ func finalizeGeneratedManifest(target string, opts makeOptions) error {
 	}
 	root["manifestVersion"] = extensionmanifest.ManifestVersionV3
 	packageFiles := make([]map[string]any, 0)
-	addPackageFile := func(id string, kind string, relative string) (string, error) {
+	// version 为空时不写 version 字段：模板/资源沿用既有形状，只有精确 schema 引用需要版本。
+	addVersionedPackageFile := func(id string, kind string, relative string, version string) (string, error) {
 		digest, err := digestScaffoldFile(filepath.Join(target, filepath.FromSlash(relative)))
 		if err != nil {
 			return "", err
 		}
-		packageFiles = append(packageFiles, map[string]any{
+		entry := map[string]any{
 			"id": opts.ID + ".file." + id, "kind": kind, "path": relative, "digest": digest,
-		})
+		}
+		if version != "" {
+			entry["version"] = version
+		}
+		packageFiles = append(packageFiles, entry)
 		return digest, nil
+	}
+	addPackageFile := func(id string, kind string, relative string) (string, error) {
+		return addVersionedPackageFile(id, kind, relative, "")
 	}
 
 	if backend, ok := root["backend"].(map[string]any); ok {
@@ -511,11 +541,10 @@ func finalizeGeneratedManifest(target string, opts makeOptions) error {
 			{"handle": opts.ID + ".asset.theme", "contractVersion": opts.ID + ".asset.theme@1", "type": "style", "path": "assets/theme.css", "digest": themeDigest},
 			{"handle": opts.ID + ".asset.tokens", "contractVersion": opts.ID + ".asset.tokens@1", "type": "style", "path": "assets/tokens.css", "digest": tokensDigest},
 		}
-		componentID := opts.ID + ".component.home"
-		root["components"] = []map[string]any{{
-			"id": componentID, "contractVersion": componentID + "@1", "action": "add",
-			"ssrTemplate": templateID, "propsSchema": "sforum.page.home@1", "themeOverrideKey": opts.ID + ".home",
-		}}
+	}
+	// M3 作者工作流声明（公开页模板 + before/after 中间件路由）。
+	if err := applyWorkflowManifest(root, opts, addPackageFile, addVersionedPackageFile); err != nil {
+		return err
 	}
 	root["packageFiles"] = packageFiles
 	if err := writeJSON(manifestPath, root); err != nil {
@@ -580,7 +609,7 @@ func readmeBody(opts makeOptions) string {
 		body += "}\n"
 		body += "```\n"
 	}
-	return body
+	return body + workflowReadme(opts)
 }
 
 func pluginBackendReadme(opts makeOptions) string {

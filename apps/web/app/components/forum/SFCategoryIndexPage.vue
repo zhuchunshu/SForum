@@ -323,6 +323,8 @@ async function retryLoad() {
           </button>
         </div>
 
+        <SFRegionOutlet page="forum.category.index" region="list_before" />
+
         <div v-if="error" class="sforum-category-directory__state" role="alert">
           <SFEmptyState
             :title="t('taxonomy.categories.loadFailedTitle')"
@@ -410,6 +412,8 @@ async function retryLoad() {
             :description="t('taxonomy.categories.emptyDescription')"
           />
         </div>
+
+        <SFRegionOutlet page="forum.category.index" region="list_after" />
 
         <SFRegionOutlet page="forum.category.index" region="content_after" />
 

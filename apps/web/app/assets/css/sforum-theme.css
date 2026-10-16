@@ -375,6 +375,18 @@ html:not(.dark)[data-sforum-light-background="morning_apricot"] {
   display: none;
 }
 
+/* 插件公开页（Page Registry add 页）没有内容列 footer：默认主题的 fullwidth-3col
+   外壳必须自己提供一个可见页脚，否则插件页会变成「有 navbar 无 footer」，与本仓库
+   「每个渲染路径恰好一个可见 navbar 与 footer」的契约冲突。上面的独占规则在存在
+   .sforum-content-footer 时继续抑制外壳页脚，两条规则互补，几何契约仍只有一个拥有者。 */
+.sf-theme-template[data-extension-id="sforum.default-theme"]
+  .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col:not(
+    :has(.sforum-content-footer)
+  )
+  > .sf-footer {
+  display: block;
+}
+
 .sf-theme-template[data-extension-id]
   .sf-page:has(.sforum-content-footer)
   .sforum-content-footer

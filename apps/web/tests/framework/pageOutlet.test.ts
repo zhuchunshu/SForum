@@ -115,7 +115,8 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(serverPlugin).toContain("name: 'sforum-system-error-theme'")
     expect(serverPlugin).toContain('await useSystemErrorPagePresentation(pageId).prepare()')
     expect(read('app/components/SFPageOutletResolver.vue')).toContain('await notFoundPresentation.prepare()')
-    expect(read('app/pages/[...sfRegistryPage].vue')).toContain('await notFoundPresentation.prepare()')
+    // 两个动态公开页 catch-all 现已共用同一解析入口，404 呈现准备也随之下沉到那里。
+    expect(read('app/composables/pages/useRegistryPageResolve.ts')).toContain('await notFoundPresentation.prepare()')
 
     const activeThemeSkin = read('app/composables/themes/useActiveThemeSkin.ts')
     expect(activeThemeSkin.indexOf('const { request } = useApiClient()'))
@@ -249,18 +250,161 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(src).not.toContain('integrity?: string')
   })
 
-  it('dynamic registry catch-all resolves path via API', () => {
-    const src = read('app/pages/[...sfRegistryPage].vue')
-    expect(src).toContain('/pages/resolve-path')
-    expect(src).toContain('createError')
+  it('both dynamic registry catch-alls share one resolution implementation', () => {
+    // 解析与 401/403/404 映射收敛到单一 composable；两个 catch-all 只负责路径来源。
+    const resolve = read('app/composables/pages/useRegistryPageResolve.ts')
+    expect(resolve).toContain('/pages/resolve-path')
+    expect(resolve).toContain('createError')
+
+    for (const file of ['app/pages/[...sfRegistryPage].vue', 'app/pages/x/[...path].vue']) {
+      const src = read(file)
+      expect(src).toContain('useRegistryPageResolve')
+      expect(src).toContain('<SFRegistryPageShell')
+      // 解析逻辑不得再被复制回路由壳。
+      expect(src).not.toContain('/pages/resolve-path')
+      expect(src).not.toContain('createError')
+    }
   })
 
   it('renders Host emergency output for dynamic extension pages', () => {
-    for (const file of ['app/pages/[...sfRegistryPage].vue', 'app/pages/x/[...path].vue']) {
-      const src = read(file)
-      expect(src).toContain('Boolean(data.value?.renderOutput || templateHtml.value)')
-      expect(src).not.toContain('&& !data.value?.fallback')
+    // 两个 catch-all 共用受审查的正文出口组件；条件语义不变。
+    const body = read('app/components/extensions/public/SFRegistryPageBody.vue')
+    expect(body).toContain('v-else-if="renderOutput || templateHtml"')
+    // 绝不因 fallback 抑制渲染：宿主的 emergency 输出必须仍然可见。
+    expect(body).not.toContain('&& !fallback')
+    expect(body).not.toContain('fallback &&')
+  })
+
+  it('renders a page-provided bounded schema descriptor through the reviewed body exit', () => {
+    // view=schema 的公开页：正文是包内声明的有界描述符，由宿主渲染，仍只经这一处出口。
+    const body = read('app/components/extensions/public/SFRegistryPageBody.vue')
+    expect(body).toContain('v-else-if="schemaView"')
+    expect(body).toContain('<SFPublicSchemaView')
+    expect(body).toContain(':descriptor="schemaView"')
+    // 显式导入：同目录兄弟组件不依赖自动导入名，改名时不会静默失效。
+    expect(body).toContain("import SFPublicSchemaView from './SFPublicSchemaView.vue'")
+    // schema 分支排在模板分支之前：view=schema 时 templateHtml 为空，顺序决定语义。
+    expect(body.indexOf('v-else-if="schemaView"')).toBeLessThan(body.indexOf('v-else-if="renderOutput || templateHtml"'))
+    for (const forbidden of ['SFNavbar', 'SFFooter', 'sf-navbar', 'sf-footer']) {
+      expect(body).not.toContain(forbidden)
     }
+
+    // 渲染器只渲染数据本身：不得继承 admin outlet 的 invokable/命令/资源可见性语义。
+    const renderer = read('app/components/extensions/public/SFPublicSchemaView.vue')
+    for (const forbidden of ['commandSurfaceId', 'invokable', 'visibleResourceIds', 'SFAdminSurfaceOutlet']) {
+      expect(renderer).not.toContain(forbidden)
+    }
+    // 四种有界种类都必须有分支，且 form 不伪造提交（提交依赖仍被阻塞的 dataRoute 绑定）。
+    for (const kind of ["'list'", "'detail'", "'notice'", "'form'"]) {
+      expect(renderer).toContain(kind)
+    }
+    expect(renderer).toContain('data-schema-form-pending')
+
+    // 正文契约、两个路由壳与解析载荷都必须透传 schemaView。
+    expect(read('app/composables/pages/useRegistryPageBody.ts')).toContain('schemaView?: Record<string, unknown>')
+    expect(read('app/utils/pageResolve.ts')).toContain('schemaView?: Record<string, unknown>')
+    for (const shell of ['app/pages/[...sfRegistryPage].vue', 'app/pages/x/[...path].vue']) {
+      expect(read(shell)).toContain('schemaView: data?.schemaView')
+    }
+  })
+
+  it('mounts a page-provided public component through the reviewed body exit', () => {
+    // view=component 的公开页：正文由包内公开 L2 组件提供，仍只经 SFRegistryPageBody 这一处出口。
+    const body = read('app/components/extensions/public/SFRegistryPageBody.vue')
+    expect(body).toContain('v-else-if="component"')
+    expect(body).toContain('<SFExtensionWidget')
+    expect(body).toContain(':component-id="component"')
+    // 组件分支排在模板分支之前：view=component 时 templateHtml 为空，顺序决定语义。
+    expect(body.indexOf('v-else-if="component"')).toBeLessThan(body.indexOf('v-else-if="renderOutput || templateHtml"'))
+    // 组件分支同样不得自带 chrome。
+    for (const forbidden of ['SFNavbar', 'SFFooter', 'sf-navbar', 'sf-footer']) {
+      expect(body).not.toContain(forbidden)
+    }
+    // 正文契约与两个路由壳都必须透传 view/component，否则组件页会被当成空模板页。
+    const contract = read('app/composables/pages/useRegistryPageBody.ts')
+    expect(contract).toContain('component?: string')
+    for (const shell of ['app/pages/[...sfRegistryPage].vue', 'app/pages/x/[...path].vue']) {
+      const src = read(shell)
+      expect(src).toContain('component: data?.component')
+      expect(src).toContain('view: data?.view')
+    }
+    // 解析载荷必须携带这两个字段，否则组件 id 到不了正文出口。
+    const payload = read('app/utils/pageResolve.ts')
+    expect(payload).toContain('component?: string')
+    expect(payload).toContain('view?: string')
+  })
+
+  it('gives layout: site exactly one host chrome shell and leaves bare unchanged', () => {
+    const shell = read('app/components/extensions/public/SFRegistryPageShell.vue')
+    // 两个互斥外壳分支之一挂宿主 chrome；「恰好一个 navbar/footer」由「只有一个外壳」保证。
+    expect(shell.match(/<SFHostPublicChrome/g)).toHaveLength(1)
+    expect(shell).toContain('data-registry-shell="site"')
+    expect(shell).toContain('data-registry-shell="bare"')
+    // 默认 site：只有显式 bare 才退出外壳。
+    expect(shell).toContain("props.layout !== 'bare'")
+    // bare 分支保持既有几何，避免改变已批准精确制品的行为。
+    expect(shell).toContain('class="sf-public-page sf-registry-add mx-auto w-full max-w-4xl px-4 py-8"')
+    // chrome 只能来自外壳：正文不得自带 navbar/footer，否则会双层导航。
+    const body = read('app/components/extensions/public/SFRegistryPageBody.vue')
+    for (const forbidden of ['SFNavbar', 'SFFooter', 'sf-navbar', 'sf-footer']) {
+      expect(body).not.toContain(forbidden)
+    }
+  })
+
+  it('uses the theme shell when one is declared, with the body in the reviewed island', () => {
+    const shell = read('app/components/extensions/public/SFRegistryPageShell.vue')
+    // 三个互斥分支：主题外壳 / 宿主回退 / 显式 bare。主题分支优先。
+    expect(shell.match(/<SFThemeTemplate/g)).toHaveLength(1)
+    expect(shell.match(/<SFHostPublicChrome/g)).toHaveLength(1)
+    expect(shell).toContain('v-if="themeShellHtml"')
+    expect(shell).toContain('v-else-if="siteShell"')
+    expect(shell).toContain('data-registry-shell-source="theme"')
+    // 正文以数据形式 provide 给岛：主题外壳里的岛是独立组件，拿不到 slot。
+    expect(shell).toContain('provideRegistryPageBody')
+    expect(shell).not.toContain('<slot')
+
+    const island = read('app/components/extensions/public/SFPluginPageBodyIsland.vue')
+    expect(island).toContain('useRegistryPageBody')
+    expect(island).toContain('SFRegistryPageBody')
+
+    // 两张映射表必须同时登记正文岛，否则主题模板要么校验不过、要么渲染为空。
+    const themeTemplate = read('app/components/SFThemeTemplate.vue')
+    expect(themeTemplate).toContain("'plugin.component.page_body'")
+    expect(themeTemplate).toContain("'sf-plugin-page-body'")
+  })
+
+  it('registers the account-settings sidebar island on both resolution paths', () => {
+    // 插件公开页（如 /settings/oauth-apps）靠这个岛取得与 /settings/profile 同构的左栏。
+    // 插件页无 renderOutput，走的是 legacy HTML 解析路径，因此两张映射表都必须登记，
+    // 只登记一张会让左栏渲染成 sforum-island-unavailable 注释。
+    const themeTemplate = read('app/components/SFThemeTemplate.vue')
+    expect(themeTemplate).toContain("'settings.component.account_sidebar'")
+    expect(themeTemplate).toContain("'sf-account-settings-sidebar'")
+    // 岛组件与 SFSettingsShell 共用同一份左栏实现，不得各自复制。
+    const sidebar = read('app/components/settings/SFSettingsAccountSidebar.vue')
+    expect(sidebar).toContain('<SFSettingsAccountNav')
+    expect(sidebar).toContain('<SFResponsivePublicSidebar')
+    expect(sidebar).toContain('owner-id="forum.settings"')
+    const shell = read('app/components/settings/SFSettingsShell.vue')
+    expect(shell).toContain('<SFSettingsAccountSidebar')
+    expect(shell).not.toContain('<SFSettingsAccountNav')
+  })
+
+  it('chooses the shell from the contribution layout alone, not from theme state', () => {    const shell = read('app/components/extensions/public/SFRegistryPageShell.vue')
+    // 切主题不得改变 chrome 的有无与数量，因此外壳选择不得读取主题状态。
+    // （`SFHostPublicChrome` 自身可读主题设置来决定页脚/公告可见性，那是外壳内部的呈现，
+    //  不是外壳的选择。）
+    for (const forbidden of ['useActiveThemeSettings', 'useActiveThemeSkin']) {
+      expect(shell).not.toContain(forbidden)
+    }
+  })
+
+  it('treats bare as the only chrome opt-out', () => {
+    const shell = read('app/components/extensions/public/SFRegistryPageShell.vue')
+    // 默认 site（与其它公开页共享几何契约），作者用显式 bare 退出。
+    // 未知值由安装/启用预检 fail closed，不依赖渲染层兜底判断。
+    expect(shell).toContain("props.layout !== 'bare'")
+    expect(shell).not.toContain("props.layout === 'site'")
   })
 
   it('keeps non-themeable failures outside the replaceable system-error surface', () => {

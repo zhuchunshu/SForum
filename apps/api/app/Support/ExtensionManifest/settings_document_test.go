@@ -74,6 +74,98 @@ func TestSettingsDocumentRejectsExecutableManifestContribution(t *testing.T) {
 	}
 }
 
+func TestSettingsDocumentAIToolProbeActionRequiresDeclaredTool(t *testing.T) {
+	const toolID = "demo.plugin.ai.order_lookup"
+	cases := []struct {
+		name   string
+		action string
+		accept bool
+	}{
+		{
+			name:   "declared tool without provider slot",
+			action: `{"id":"probe","kind":"ai_tool_probe","label":"Probe","placement":"footer","useDraftValues":true,"tool":"` + toolID + `","fields":["endpoint"]}`,
+			accept: true,
+		},
+		{
+			name:   "tool empty",
+			action: `{"id":"probe","kind":"ai_tool_probe","label":"Probe","placement":"footer","fields":["endpoint"]}`,
+		},
+		{
+			name:   "tool not namespaced under extension",
+			action: `{"id":"probe","kind":"ai_tool_probe","label":"Probe","placement":"footer","tool":"other.plugin.ai.order_lookup","fields":["endpoint"]}`,
+		},
+		{
+			name:   "tool not declared in aiTools",
+			action: `{"id":"probe","kind":"ai_tool_probe","label":"Probe","placement":"footer","tool":"demo.plugin.ai.missing","fields":["endpoint"]}`,
+		},
+		{
+			name:   "fields empty",
+			action: `{"id":"probe","kind":"ai_tool_probe","label":"Probe","placement":"footer","tool":"` + toolID + `"}`,
+		},
+		{
+			name:   "unknown kind",
+			action: `{"id":"probe","kind":"remote_url","label":"Probe","placement":"footer"}`,
+		},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			manifest, err := LoadRootBytes(aiToolProbeSettingsBody(t, testCase.action), settingsTestPackageFS())
+			if testCase.accept {
+				if err != nil {
+					t.Fatalf("ai_tool_probe with a declared tool must validate: %v", err)
+				}
+				if len(manifest.SettingsDocument.Actions) != 1 || manifest.SettingsDocument.Actions[0].Tool != toolID {
+					t.Fatalf("declared tool must survive normalization: %#v", manifest.SettingsDocument.Actions)
+				}
+				return
+			}
+			if !errors.Is(err, ErrInvalidManifest) {
+				t.Fatalf("expected invalid settings document, got %v", err)
+			}
+		})
+	}
+}
+
+// aiToolProbeSettingsBody 构造一个「只有 AI 工具、没有 provider slot」的插件清单。
+func aiToolProbeSettingsBody(t *testing.T, action string) []byte {
+	t.Helper()
+	const emptyDigest = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	base := validBaseManifest()
+	base.Backend = ManifestBackend{
+		Entry: "backend/plugin", RPC: "hashicorp-go-plugin", ProtocolVersion: 2,
+		Digest: emptyDigest, HostAPIVersion: "sforum.host@2",
+	}
+	base.PackageFiles = []ManifestPackageFile{{
+		ID: "demo.plugin.file.backend", Kind: "executable", Path: "backend/plugin", Digest: emptyDigest,
+	}}
+	base.AITools = []ManifestAITool{{
+		ID: "demo.plugin.ai.order_lookup", ContractVersion: "demo.plugin.ai.order_lookup@1",
+		Name: "demo-order-lookup", Description: "Look up an order.",
+		Parameters: json.RawMessage(`{"type":"object"}`), Handler: "demo.plugin.ai.order_lookup", TimeoutMS: 1000,
+	}}
+	body, err := json.Marshal(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var object map[string]json.RawMessage
+	_ = json.Unmarshal(body, &object)
+	object["settings"] = json.RawMessage(`{"schemaVersion":1,"ui":{"mode":"schema","layout":"form"},` +
+		`"fields":[{"key":"endpoint","label":"Endpoint","type":"text"}],"actions":[` + action + `]}`)
+	body, err = json.Marshal(object)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
+}
+
+// provider_probe 仍然要求一个 provider slot：放宽 ai_tool_probe 不等于放宽它。
+func TestSettingsDocumentProviderProbeStillRequiresProviderSlot(t *testing.T) {
+	action := `{"id":"probe","kind":"provider_probe","label":"Probe","placement":"footer","fields":["endpoint"]}`
+	if _, err := LoadRootBytes(aiToolProbeSettingsBody(t, action), settingsTestPackageFS()); !errors.Is(err, ErrInvalidManifest) {
+		t.Fatalf("provider_probe without a provider slot must be rejected, got %v", err)
+	}
+}
+
 func manifestWithSettings(t *testing.T, settings []byte) []byte {
 	t.Helper()
 	base := validBaseManifest()

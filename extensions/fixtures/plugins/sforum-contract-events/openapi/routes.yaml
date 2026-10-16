@@ -1,0 +1,45 @@
+openapi: 3.1.0
+info:
+  title: SForum Contract Events Fixture
+  version: 1.0.0
+paths:
+  /contract/ping:
+    post:
+      operationId: sforum.contract.events.ping
+      x-sforum-route-id: sforum.contract.events.route.ping
+      x-sforum-contract-version: sforum.contract.events.route.ping@1
+      x-sforum-guard: core.guard.login
+      x-sforum-request-schema: sforum.contract.events.route.ping.request@1
+      x-sforum-response-schema: sforum.contract.events.route.ping.response@1
+      summary: Contract ping used by the events fixture
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/sforum.contract.events.route.ping.request@1"
+      responses:
+        "200":
+          description: Pong
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sforum.contract.events.route.ping.response@1"
+components:
+  schemas:
+    "sforum.contract.events.route.ping.request@1":
+      type: object
+      required:
+        - message
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+    "sforum.contract.events.route.ping.response@1":
+      type: object
+      required:
+        - ok
+      additionalProperties: false
+      properties:
+        ok:
+          type: boolean

@@ -348,13 +348,26 @@ func assertCommerceManifestSurfaces(t *testing.T, extension extensions.Extension
 			t.Fatalf("missing route action %s in %#v", want, actions)
 		}
 	}
-	if len(extension.Manifest.Guards) != 1 ||
-		extension.Manifest.Guards[0].ID != "sforum.commerce-workflow.guard.owner" ||
-		extension.Manifest.Guards[0].Kind != "custom" {
-		t.Fatalf("custom guard = %#v", extension.Manifest.Guards)
+	// 决定 R1（2026-10-16）：raw 请求权限必须由包内显式声明。参考包因此声明两个守卫：
+	// owner（custom，管理路由）与 raw（raw_request，替换 core.route.forum.create_topic）。
+	declaredGuards := map[string]string{}
+	for _, guard := range extension.Manifest.Guards {
+		declaredGuards[guard.ID] = guard.Kind
+	}
+	if len(extension.Manifest.Guards) != 2 ||
+		declaredGuards["sforum.commerce-workflow.guard.owner"] != "custom" ||
+		declaredGuards["sforum.commerce-workflow.guard.raw"] != "raw_request" {
+		t.Fatalf("declared guards = %#v", extension.Manifest.Guards)
 	}
 	if !guards["sforum.commerce-workflow.guard.owner"] {
 		t.Fatalf("managed route must use custom guard, guards=%#v", guards)
+	}
+	if !guards["sforum.commerce-workflow.guard.raw"] {
+		t.Fatalf("the replacing route must use the declared raw_request guard, guards=%#v", guards)
+	}
+	// 已退役的 Host 守卫不得再出现在参考包里。
+	if guards["core.guard.raw_request"] {
+		t.Fatal("the reference package must not use the retired core.guard.raw_request")
 	}
 	if extension.Manifest.Lifecycle == nil ||
 		extension.Manifest.Lifecycle.Install == nil ||
@@ -895,6 +908,9 @@ func buildReferenceCommerceExtension(t *testing.T) extensions.Extension {
 		"__OPENAPI_DIGEST__":        "openapi/routes.yaml",
 		"__COMMAND_INPUT_DIGEST__":  "schemas/command-settle-input.json",
 		"__COMMAND_RESULT_DIGEST__": "schemas/command-settle-result.json",
+		// 组件 props/result schema 必须有同包精确声明（与 provider 同一规则）。
+		"__ORDER_CARD_PROPS_DIGEST__":  "schemas/order-card-props.json",
+		"__ORDER_CARD_RESULT_DIGEST__": "schemas/order-card-result.json",
 	})
 }
 

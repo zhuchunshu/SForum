@@ -164,3 +164,61 @@ ApiResponseRouteInspectorSnapshot:
     code: { type: integer }
     message: { type: string }
     data: { "$ref": "#/RouteInspectorSnapshot" }
+
+ApiResponseRouteIncidentLedger:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: { type: integer }
+    message: { type: string }
+    data:
+      "$ref": "#/RouteIncidentLedger"
+
+RouteIncidentLedger:
+  type: object
+  required: [limit, summary, incidents]
+  properties:
+    limit:
+      type: integer
+      description: Maximum rows returned in one read.
+    summary:
+      "$ref": "#/RouteIncidentSummary"
+    incidents:
+      type: array
+      items:
+        "$ref": "#/RouteRuntimeIncident"
+
+RouteIncidentSummary:
+  type: object
+  required: [pending, quarantined, recovered, failed]
+  properties:
+    pending: { type: integer, description: Incidents whose quarantine has not resolved yet. }
+    quarantined: { type: integer, description: Incidents that closed the exact runtime surface. }
+    recovered: { type: integer, description: Incidents that did not need quarantine or were cleared. }
+    failed: { type: integer, description: Incidents whose local quarantine attempt failed. }
+
+RouteRuntimeIncident:
+  type: object
+  required: [id, incidentKey, routeId, method, pathSignature, phase, action, failureCode, causeClass, commitState, extensionId, extensionVersion, packageDigest, runtimeInstanceId, localResult, quarantined, resolved, auditEventId, createdAt]
+  properties:
+    id: { type: integer }
+    incidentKey: { type: string }
+    routeId: { type: string }
+    contractVersion: { type: string }
+    method: { type: string }
+    pathSignature: { type: string }
+    phase: { type: string }
+    action: { type: string }
+    failureCode: { type: string }
+    causeClass: { type: string }
+    commitState: { type: string }
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    packageDigest: { type: string }
+    runtimeInstanceId: { type: string }
+    localResult: { type: string, enum: [pending, quarantined, stale_missing, stale_artifact, failed] }
+    quarantined: { type: boolean }
+    resolved: { type: boolean }
+    auditEventId: { type: integer }
+    createdAt: { type: string, format: date-time }
+    resolvedAt: { type: string, format: date-time }

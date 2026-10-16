@@ -224,6 +224,12 @@
       "id": "sforum.default-theme.file.template.moderation-review",
       "kind": "template",
       "path": "templates/moderation-review.html"
+    },
+    {
+      "digest": "5035c4c286dc6e08f2147a7f44f8655803f3b52a519e62c46e8fe0d3d69a4f32",
+      "id": "sforum.default-theme.file.plugin-page-shell-template",
+      "kind": "template",
+      "path": "templates/plugin-page-shell.html"
     }
   ],
   "sforumVersion": "^1.0.0",
@@ -533,6 +539,14 @@
       "path": "templates/moderation-review.html",
       "themeOverrideKey": "sforum.default-theme.moderation_review",
       "viewModelSchema": "sforum.page.moderation_review@1"
+    },
+    {
+      "action": "add",
+      "contractVersion": "sforum.default-theme.template.plugin-page-shell@1",
+      "digest": "5035c4c286dc6e08f2147a7f44f8655803f3b52a519e62c46e8fe0d3d69a4f32",
+      "id": "sforum.default-theme.template.plugin-page-shell",
+      "path": "templates/plugin-page-shell.html",
+      "viewModelSchema": "sforum.page.plugin_shell@1"
     }
   ],
   "type": "theme",
