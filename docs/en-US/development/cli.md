@@ -36,6 +36,7 @@ go run ./cmd/sforum --version
 | `extension list` | Out-of-band extension recovery state (no plugin code) |
 | `extension disable` / `disable-all` | Out-of-band disable of third-party extensions |
 | `extension quarantine` | Out-of-band quarantine of an exact built-in/system artifact |
+| `extension recovery lifecycle-close` | Out-of-band close of one open lifecycle operation to the cancelled terminal state (audited) |
 | `extension command list/run` | List / run trusted plugin commands |
 | `extension api-lts` | Print Host/Frontend API LTS and shim telemetry |
 | `extension system-tier list/upsert/disable` | Out-of-band system tier management (no package code) |
@@ -343,6 +344,18 @@ go run ./cmd/sforum extension quarantine <extension-id> \
 `quarantine` only isolates an **exact** built-in/system artifact:
 `--expect-version` and `--expect-digest` must match the active version to avoid
 mis-quarantines.
+
+`extension recovery lifecycle-close --operation-id <id> --reason "<why>"`
+moves one open lifecycle operation (`completed_at IS NULL`) to the `cancelled`
+terminal state in a single transaction (open steps become `failed`, with an
+`extension.cli_recovery` audit row). It is fail-closed: an operation whose
+steps still hold an unexpired lease is refused unless `--force` is passed
+(operator takes responsibility). Use it when the executing process died
+mid-operation and the durable row can never reach a terminal state; restart
+the API afterwards to resume convergence. The startup path also reclaims
+automatically: orphan operations whose every step lease has expired are
+advanced to `cancelled` by the host during genesis retries and coordinator
+polls (`extension.lifecycle_orphan_reclaim` audit), no manual step required.
 
 ### Development edit loop — `dev`
 

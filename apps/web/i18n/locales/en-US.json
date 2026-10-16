@@ -6396,7 +6396,8 @@
         "title": "This extension runs with full browser trust",
         "body": "The public component from {name} v{version} can use the current browser session and page authority for its namespaced API. This is not a sandbox: enable public L2 only for extensions you trust.",
         "dismiss": "Dismiss"
-      }
+      },
+      "l2Retry": "Retry"
     }
   },
   "outbound": {

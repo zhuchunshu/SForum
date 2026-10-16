@@ -90,8 +90,21 @@ async function acquireStyle(
   if (!lease) {
     lease = { refs: 0, ready: Promise.resolve() }
     const owned = lease
+    // 已注入的锚点：SSR/换页路径可能已用同一 digest 绑定的 link 预载样式，
+    // 采纳它而不是再插一份相同字段的 link。query 文档可能是测试最小桩。
+    const adoptedSelector = `link[data-sforum-extension="${reference.extensionId}"]`
+      + `[data-sforum-asset="${reference.handle}"][data-sforum-digest="${reference.digest}"]`
+    const adopted = typeof environment.document.querySelector === 'function'
+      ? environment.document.querySelector(adoptedSelector)
+      : null
     owned.ready = (async () => {
+      // 采纳同样走字节校验，保留 lease 的完整契约（fetch 仅力缓存，成本可忽略）。
       await fetchVerifiedAsset(reference, apiBaseUrl, exactHeaders, environment)
+      // 不用 instanceof HTMLLinkElement：运行时测试环境没有 DOM 全局。
+      if (adopted && (adopted as { tagName?: string }).tagName === 'LINK') {
+        owned.element = adopted as unknown as HTMLLinkElement
+        return
+      }
       const url = sameOriginAssetURL(apiBaseUrl, reference.assetPath, environment.origin)
       const element = await environment.loadStyle(reference, url)
       element.dataset.sforumExtension = reference.extensionId

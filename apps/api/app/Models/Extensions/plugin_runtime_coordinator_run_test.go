@@ -590,3 +590,126 @@ func TestPluginRuntimeCoordinatorReportsPendingReasonWithoutApplying(t *testing.
 		t.Fatalf("pending reconcile wrote runtime evidence: %#v", snapshot)
 	}
 }
+
+// pluginRuntimeCoordinatorReclaimingRepository 在既有测试 double 外包一层
+// ReclaimOrphanedLifecycleOperations：不实现该方法的 double 保持既有 pending
+// 行为，只有显式需要回收语义的用例才使用此包装。
+type pluginRuntimeCoordinatorReclaimingRepository struct {
+	*pluginRuntimeCoordinatorTestRepository
+
+	reclaimCalls atomic.Int32
+	reclaim      func(ctx context.Context, limit int) ([]int64, error)
+}
+
+func (r *pluginRuntimeCoordinatorReclaimingRepository) ReclaimOrphanedLifecycleOperations(
+	ctx context.Context,
+	limit int,
+) ([]int64, error) {
+	r.reclaimCalls.Add(1)
+	return r.reclaim(ctx, limit)
+}
+
+// 用例 6：fence 检测到开放 op 后先回收；回收清掉了它 → 当轮即收敛，
+// OnReady 在首轮就触发。
+func TestPluginRuntimeCoordinatorReclaimsOrphanOperationAndConverges(t *testing.T) {
+	identity := uniquePluginRuntimeCoordinatorTestIdentity("orphan-reclaim", PluginRuntimeProcessAPI)
+	repository := newPluginRuntimeCoordinatorTestRepository()
+	repository.addPublication(pluginRuntimeCoordinatorPublicationFixture(1, []PluginRuntimeMember{
+		pluginRuntimeCoordinatorMemberFixture("orphan-reclaim.plugin", 1, "a"),
+	}))
+	repository.seedNode(identity, 0, time.Minute)
+	repository.setOpenLifecycleOperations(LifecycleOperation{
+		ID: 115, ExtensionID: "orphan-reclaim.plugin", Operation: LifecycleOperationDisable,
+	})
+	reclaiming := &pluginRuntimeCoordinatorReclaimingRepository{
+		pluginRuntimeCoordinatorTestRepository: repository,
+		reclaim: func(ctx context.Context, limit int) ([]int64, error) {
+			if limit != lifecycleOrphanReclaimDefaultLimit {
+				t.Fatalf("reclaim limit=%d", limit)
+			}
+			repository.setOpenLifecycleOperations()
+			return []int64{115}, nil
+		},
+	}
+	applier := &pluginRuntimeCoordinatorTestApplier{}
+	ready := make(chan struct{})
+	var readyCount atomic.Int32
+	config := pluginRuntimeCoordinatorConfigFixture(identity)
+	config.OnReady = func() {
+		if readyCount.Add(1) == 1 {
+			close(ready)
+		}
+	}
+	coordinator, err := NewPluginRuntimeCoordinator(reclaiming, applier, nil, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCtx, stop := context.WithCancel(t.Context())
+	result := make(chan error, 1)
+	go func() { result <- coordinator.Run(runCtx) }()
+	waitCtx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	if err := waitPluginRuntimeCoordinatorRevision(waitCtx, repository.appliedSignal, 1); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-ready:
+	case <-waitCtx.Done():
+		t.Fatal(waitCtx.Err())
+	}
+	stop()
+	if err := assertPluginRuntimeCoordinatorRunStopped(waitCtx, result); err != nil {
+		t.Fatalf("Run returned %v", err)
+	}
+	if reclaiming.reclaimCalls.Load() != 1 {
+		t.Fatalf("reclaim calls=%d, want 1", reclaiming.reclaimCalls.Load())
+	}
+	snapshot := repository.snapshot()
+	if snapshot.beginCalls != 1 || snapshot.completeCalls != 1 ||
+		snapshot.node.LastAppliedRevision != 1 {
+		t.Fatalf("coordinator did not converge after reclaim: %#v", snapshot)
+	}
+}
+
+// 用例 7：回收后仍存在开放操作 → 必须继续保持 pending（fail-closed 方向
+// 正确的那一侧：回收不是绕过栅栏的旁路）。
+func TestPluginRuntimeCoordinatorKeepsPendingWhenReclaimLeavesOpenOperations(t *testing.T) {
+	identity := uniquePluginRuntimeCoordinatorTestIdentity("orphan-still-pending", PluginRuntimeProcessAPI)
+	repository := newPluginRuntimeCoordinatorTestRepository()
+	repository.addPublication(pluginRuntimeCoordinatorPublicationFixture(1, []PluginRuntimeMember{
+		pluginRuntimeCoordinatorMemberFixture("orphan-still-pending.plugin", 1, "a"),
+	}))
+	repository.seedNode(identity, 0, time.Minute)
+	repository.setOpenLifecycleOperations(LifecycleOperation{
+		ID: 115, ExtensionID: "orphan-still-pending.plugin", Operation: LifecycleOperationDisable,
+	})
+	reclaiming := &pluginRuntimeCoordinatorReclaimingRepository{
+		pluginRuntimeCoordinatorTestRepository: repository,
+		reclaim: func(ctx context.Context, limit int) ([]int64, error) {
+			// 回收只关掉一个不相关的操作；栅栏目标仍然开放。
+			return []int64{999}, nil
+		},
+	}
+	applier := &pluginRuntimeCoordinatorTestApplier{}
+	coordinator, err := NewPluginRuntimeCoordinator(reclaiming, applier, nil,
+		pluginRuntimeCoordinatorConfigFixture(identity))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	converged, err := coordinator.reconcileAndReport(t.Context())
+	if err != nil || converged {
+		t.Fatalf("converged=%v err=%v, want false/nil", converged, err)
+	}
+	if reclaiming.reclaimCalls.Load() != 1 {
+		t.Fatalf("reclaim calls=%d, want 1", reclaiming.reclaimCalls.Load())
+	}
+	snapshot := repository.snapshot()
+	if snapshot.beginCalls != 0 || snapshot.completeCalls != 0 || snapshot.failCalls != 0 ||
+		snapshot.node.LastAppliedRevision != 0 {
+		t.Fatalf("pending reconcile wrote runtime evidence: %#v", snapshot)
+	}
+	if calls, _ := applier.snapshot(); len(calls) != 0 {
+		t.Fatalf("pending reconcile applied full set: %v", calls)
+	}
+}

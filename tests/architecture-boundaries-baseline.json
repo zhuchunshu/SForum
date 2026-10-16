@@ -141,7 +141,7 @@
       "path": "apps/api/app/Models/Extensions",
       "extensions": [".go"],
       "excludeSuffixes": ["_test.go"],
-      "maxFiles": 95
+      "maxFiles": 94
     }
   ],
   "receiverMethodCaps": [

@@ -140,7 +140,19 @@ describe('public extension exact descriptor lease', () => {
     expect(source).toContain('onUnavailable: () => enqueue(async () => {')
     expect(source).toContain('await dispose()')
     expect(source).toContain("state.value = 'fallback'")
-    expect(source).toContain('v-show="state !== \'mounted\'"')
+    // fallback 槽只在挂载后隐藏；loading 期间也要隐藏（提示只在真正失败/隔离时出现），
+    // 但 SSR 渲染的 idle 态必须保持可见，保证无 JS 时页面仍有兜底内容。
+    expect(source).toContain('v-show="state !== \'mounted\' && state !== \'loading\'"')
+    // 瞬时失败自动重试：fallback（非隔离）时安排有界退避重试，卸载时取消。
+    expect(source).toContain('scheduleRetryAfterFailure()')
+    expect(source).toContain('cancelScheduledRetry()')
+    expect(source).toMatch(/L2_RETRY_LIMIT = \d+/)
+    expect(source).toMatch(/retryAttempt = 0/)
+    // 自动重试耗尽/被隔离后，fallback 槽内提供手动重试按钮（免刷新恢复出口）。
+    expect(source).toContain('data-testid="public-l2-retry"')
+    expect(source).toMatch(/v-if="state === 'fallback' \|\| state === 'quarantined'"/)
+    expect(source).toContain('@click="loadFresh"')
+    expect(source).toContain("t('public.extensions.l2Retry')")
     expect(source).toContain('publicFrontendRequestOptions(current, options)')
     expect(source).toContain('timeout: PUBLIC_FRONTEND_DESCRIPTOR_TIMEOUT_MS')
     expect(source).toMatch(/publicContributionFailureState\(storage, key\)\.quarantined[\s\S]*state\.value = 'quarantined'[\s\S]*leaseMonitor\.start\(current\)[\s\S]*return/)

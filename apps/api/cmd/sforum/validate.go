@@ -33,6 +33,7 @@ func newExtensionCommand() *cobra.Command {
 	cmd.AddCommand(newExtensionRecoveryDisableCommand())
 	cmd.AddCommand(newExtensionRecoveryDisableAllCommand())
 	cmd.AddCommand(newExtensionRecoveryQuarantineCommand())
+	cmd.AddCommand(newExtensionRecoveryCommand())
 	cmd.AddCommand(newPluginCommandCommand())
 	cmd.AddCommand(newExtensionAPILTSCommand())
 	cmd.AddCommand(newExtensionSystemTierCommand())

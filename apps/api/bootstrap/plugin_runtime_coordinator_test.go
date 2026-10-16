@@ -791,3 +791,130 @@ func TestPluginRuntimeCoordinatorBootstrapStartupWaitAllowsLateReadiness(t *test
 		t.Fatalf("stop: %v", err)
 	}
 }
+
+// pluginRuntimeCoordinatorBootstrapReclaimingEnsurer 是实现了孤儿回收窄接口
+// 的 genesis double：首次 Ensure 永远 in-progress，回收成功后开放态被清除，
+// 后续 Ensure 才成功。未实现该接口的既有 double 行为保持不变。
+type pluginRuntimeCoordinatorBootstrapReclaimingEnsurer struct {
+	publication extensions.PluginRuntimePublication
+	errs        []error
+
+	ensureCalls  atomic.Int32
+	reclaimCalls atomic.Int32
+	reclaimErr   error
+	// reclaimed 由回收函数翻转：false=开放态仍在（Ensure 继续报
+	// in-progress），true=孤儿已回收（Ensure 下一次返回成功）。
+	reclaimed atomic.Bool
+}
+
+func (ensurer *pluginRuntimeCoordinatorBootstrapReclaimingEnsurer) EnsureInitialPluginRuntimePublication(
+	ctx context.Context,
+) (extensions.PluginRuntimePublication, error) {
+	if err := ctx.Err(); err != nil {
+		return extensions.PluginRuntimePublication{}, err
+	}
+	call := ensurer.ensureCalls.Add(1)
+	if int(call) <= len(ensurer.errs) {
+		if err := ensurer.errs[call-1]; err != nil {
+			return extensions.PluginRuntimePublication{}, err
+		}
+		return ensurer.publication, nil
+	}
+	if !ensurer.reclaimed.Load() {
+		return extensions.PluginRuntimePublication{}, fmt.Errorf(
+			"%w: initial plugin runtime publication waits for lifecycle completion",
+			extensions.ErrLifecycleOperationInProgress,
+		)
+	}
+	return ensurer.publication, nil
+}
+
+func (ensurer *pluginRuntimeCoordinatorBootstrapReclaimingEnsurer) ReclaimOrphanedLifecycleOperations(
+	ctx context.Context,
+	limit int,
+) ([]int64, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	ensurer.reclaimCalls.Add(1)
+	if ensurer.reclaimErr != nil {
+		return nil, ensurer.reclaimErr
+	}
+	ensurer.reclaimed.Store(true)
+	return []int64{115}, nil
+}
+
+// 用例 8：genesis 遇到 in-progress 后先回收，注入的 reclaimer 清掉开放态 →
+// ensure 在有界预算内成功，builder 只跑一次。
+func TestPluginRuntimeCoordinatorBootstrapReclaimsOrphanBeforeGenesisRetry(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("genesis-orphan-reclaim", extensions.PluginRuntimeProcessAPI)
+	ensurer := &pluginRuntimeCoordinatorBootstrapReclaimingEnsurer{
+		publication: pluginRuntimeCoordinatorBootstrapTestPublication(),
+	}
+	var buildCalls atomic.Int32
+	var reclaimNotices atomic.Int32
+	runtime, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+		Identity: identity,
+		Ensurer:  ensurer,
+		Build: func(_ extensions.PluginRuntimeNodeIdentity, onReady func(), _ func(error)) (pluginRuntimeCoordinatorRunner, error) {
+			buildCalls.Add(1)
+			return pluginRuntimeCoordinatorBootstrapTestRunner(func(ctx context.Context) error {
+				onReady()
+				<-ctx.Done()
+				return nil
+			}), nil
+		},
+		// 1s 预算：成功路径由"回收清掉开放态"驱动，未耗尽即证明不靠超时兜底。
+		GenesisWaitTimeout:   time.Second,
+		GenesisRetryInterval: time.Millisecond,
+		StopTimeout:          time.Second,
+		OnOrphanReclaim: func(reclaimed []int64, err error) {
+			if err != nil || len(reclaimed) != 1 || reclaimed[0] != 115 {
+				t.Errorf("onOrphanReclaim reclaimed=%v err=%v", reclaimed, err)
+			}
+			reclaimNotices.Add(1)
+		},
+	})
+	if err != nil || runtime == nil || !runtime.Active() {
+		t.Fatalf("runtime=%#v err=%v ensure=%d reclaim=%d", runtime, err, ensurer.ensureCalls.Load(), ensurer.reclaimCalls.Load())
+	}
+	if ensurer.ensureCalls.Load() != 2 || ensurer.reclaimCalls.Load() != 1 ||
+		buildCalls.Load() != 1 || reclaimNotices.Load() < 1 {
+		t.Fatalf("ensure=%d reclaim=%d build=%d notices=%d",
+			ensurer.ensureCalls.Load(), ensurer.reclaimCalls.Load(), buildCalls.Load(), reclaimNotices.Load())
+	}
+	if stopErr := runtime.Stop(t.Context()); stopErr != nil {
+		t.Fatalf("stop: %v", stopErr)
+	}
+}
+
+// 回收失败只影响日志，绝不改变重试行为：ensure 依旧按既有节奏重试并按预算
+// 触顶（recovery-only 降级语义不变）。
+func TestPluginRuntimeCoordinatorBootstrapReclaimFailureDoesNotChangeRetry(t *testing.T) {
+	identity := pluginRuntimeCoordinatorBootstrapTestIdentity("genesis-orphan-fail", extensions.PluginRuntimeProcessAPI)
+	ensurer := &pluginRuntimeCoordinatorBootstrapReclaimingEnsurer{
+		publication: pluginRuntimeCoordinatorBootstrapTestPublication(),
+		reclaimErr:  errPluginRuntimeCoordinatorBootstrapTest,
+	}
+	var buildCalls atomic.Int32
+	_, err := launchPluginRuntimeCoordinator(t.Context(), pluginRuntimeCoordinatorLaunchConfig{
+		Identity: identity,
+		Ensurer:  ensurer,
+		Build: func(extensions.PluginRuntimeNodeIdentity, func(), func(error)) (pluginRuntimeCoordinatorRunner, error) {
+			buildCalls.Add(1)
+			t.Fatal("builder must not run while genesis keeps failing")
+			return nil, nil
+		},
+		GenesisWaitTimeout:   50 * time.Millisecond,
+		GenesisRetryInterval: time.Millisecond,
+	})
+	if !errors.Is(err, extensions.ErrLifecycleOperationInProgress) {
+		t.Fatalf("error=%v want ErrLifecycleOperationInProgress root", err)
+	}
+	if buildCalls.Load() != 0 {
+		t.Fatalf("build calls=%d", buildCalls.Load())
+	}
+	if ensurer.reclaimCalls.Load() < 2 {
+		t.Fatalf("reclaim calls=%d, want repeated attempts across retries", ensurer.reclaimCalls.Load())
+	}
+}

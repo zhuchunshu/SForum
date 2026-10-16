@@ -257,6 +257,17 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **孤儿 lifecycle operation 自动回收 + 带外关闭 CLI（2026-10-17）**。op 115 卡死
+  API 全接口 503 的事故闭环：仓库层 `ReclaimOrphanedLifecycleOperations`
+  （fail-closed：只回收所有 step lease 均已过期的开放操作，CAS 关闭到
+  `cancelled` + 审计）、bootstrap genesis 重试钩子、coordinator fence pending
+  先回收再判 pending、带外 `sforum extension recovery lifecycle-close`。
+  实测端到端：种入模拟孤儿 op 238 后，live coordinator 一个 poll 窗口内自动
+  回收、ready 恒 true；事故 op 115 已由手工 SQL 关闭并重启恢复。架构腾位：
+  `Support/StableFile` 包抽出、`Models/Extensions` flat 基线 95→94。任务书
+  completed 并归档 `plans/archive/2026-10/`。详见
+  `sessions/2026-10-17-lifecycle-orphan-reclaim.md`。
+
 - **main CI 门禁修复：fixture 二进制摘要 + catch-all 静态契约（2026-10-17）**。`6ab053f42` 推送后 CI 双红：① catch-all 断言仍绑在单文件，适配到 `useRegistryPageResolve` + `SFRegistryPageBody/Shell` 拼接校验；② 参考插件 fixture 的 `backend/plugin` 摘要不可复现，新增 `app/Support/ExtensionPackage/referencefixture.StageBackendFixture`（暂存副本现场构建+摘要对齐）；③ `privacy:erase-user` 用法契约测试固定 `DATABASE_URL`；④ 重生成 `public-page-surfaces` 目录并把 validator 计数 tripwire bump 到 routes 363 / UI 321；⑤ 清掉意外入库的 55MB `apps/api/sforum` 二进制并 ignore。详见 `sessions/2026-10-17-ci-gate-repair-fixture-serif.md`。
 
 - **公开列表壳窄屏画布修复：移动端首页背景与 PC 不一致（2026-10-17）**。窄屏（≤980px）首页/分类/标签/搜索列表落在 `--sf-public-bg` 画布色上，而 PC（≥981px）是 `--sf-public-surface`——原因是 `assets/css/sforum-home.css` 的 `.sforum-home__layout` 表面色被 `@media (min-width: 981px)` 独占，透明话题行（G1 白底扁平列表）失去承托。已把该声明上提到基规则（所有宽度生效，深色/各 appearance 预设随 token 自动对齐），桌面逐像素不变，主题不可变制品无需重打包。详见 `sessions/2026-10-17-public-shell-narrow-canvas-handoff.md`。

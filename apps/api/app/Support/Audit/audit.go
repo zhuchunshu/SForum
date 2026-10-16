@@ -43,18 +43,21 @@ const (
 	ActionExtensionRollback              = "extension.rollback"
 	ActionExtensionUninstalled           = "extension.uninstall"
 	ActionExtensionLifecycleRecovery     = "extension.lifecycle_recovery"
-	ActionExtensionFrontendGrant         = "extension.frontend_trust_grant"
-	ActionExtensionFrontendRevoke        = "extension.frontend_trust_revoke"
-	ActionExtensionTrustChallenge        = "extension.trust_challenge"
-	ActionExtensionTrustGrant            = "extension.trust_grant"
-	ActionExtensionTrustRevoke           = "extension.trust_revoke"
-	ActionExtensionTrustDenied           = "extension.trust_denied"
-	ActionExtensionSafeModeBoot          = "extension.safe_mode_boot"
-	ActionExtensionCLIRecovery           = "extension.cli_recovery"
-	ActionExtensionPluginCommand         = "extension.plugin_command"
-	ActionExtensionAdminSurface          = "extension.admin_surface"
-	ActionExtensionActivationFailed      = "extension.activation_failed"
-	ActionExtensionActivationSkipped     = "extension.activation_skipped"
+	// ActionExtensionLifecycleOrphanReclaim 宿主回收孤儿 lifecycle operation
+	// （所有 step lease 均已过期、无活进程推进）时写入。
+	ActionExtensionLifecycleOrphanReclaim = "extension.lifecycle_orphan_reclaim"
+	ActionExtensionFrontendGrant          = "extension.frontend_trust_grant"
+	ActionExtensionFrontendRevoke         = "extension.frontend_trust_revoke"
+	ActionExtensionTrustChallenge         = "extension.trust_challenge"
+	ActionExtensionTrustGrant             = "extension.trust_grant"
+	ActionExtensionTrustRevoke            = "extension.trust_revoke"
+	ActionExtensionTrustDenied            = "extension.trust_denied"
+	ActionExtensionSafeModeBoot           = "extension.safe_mode_boot"
+	ActionExtensionCLIRecovery            = "extension.cli_recovery"
+	ActionExtensionPluginCommand          = "extension.plugin_command"
+	ActionExtensionAdminSurface           = "extension.admin_surface"
+	ActionExtensionActivationFailed       = "extension.activation_failed"
+	ActionExtensionActivationSkipped      = "extension.activation_skipped"
 	// ActionExtensionDatabaseGrant 记录一次由操作者发起的扩展数据库精确授权
 	// 供给（own_schema 等直接运行时权力的授权行）。它是 extension_database_grants
 	// 行的审计锚点：没有这条事件，运行时租约就不会自建授权。

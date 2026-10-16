@@ -17,6 +17,7 @@ import (
 
 	assetregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/AssetRegistry"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	stablefile "github.com/zhuchunshu/sforum/apps/api/app/Support/StableFile"
 )
 
 var ErrPublicFrontendUnavailable = errors.New("extensions: public frontend is unavailable")
@@ -609,7 +610,7 @@ func readStableRegularFile(target string, limit int64, requireNonEmpty bool) ([]
 	if err != nil || !regularPath(pathBefore) {
 		return nil, ErrPublicFrontendUnavailable
 	}
-	file, err := openStableReadFile(target)
+	file, err := stablefile.OpenReadFile(target)
 	if err != nil {
 		return nil, ErrPublicFrontendUnavailable
 	}
@@ -674,7 +675,7 @@ func openStableExtensionRegularFile(extension Extension, manifestPath string) (*
 		_ = root.Close()
 		return nil, ErrPublicFrontendUnavailable
 	}
-	file, err := openStableRootReadFile(root, name)
+	file, err := stablefile.OpenRootReadFile(root, name)
 	if err != nil {
 		_ = root.Close()
 		return nil, ErrPublicFrontendUnavailable

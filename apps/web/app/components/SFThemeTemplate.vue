@@ -6,7 +6,8 @@ import {
   renderThemeRenderNodes,
   type ThemeRenderOutput
 } from '~/composables/themes/useThemeRenderOutput'
-import { applyPublicPageDocumentPolicy } from '~/composables/errors/usePublicPageDocumentPolicy'
+import { applyPublicPageDocumentPolicy, fetchPublicPagePolicy } from '~/composables/errors/usePublicPageDocumentPolicy'
+import type { PublicFrontendPolicy } from '~/runtime/public-extensions/pagePolicy'
 import SFFooter from './SFFooter.vue'
 import SFNavbar from './SFNavbar.vue'
 import SFContentColumnFooter from './forum/SFContentColumnFooter.vue'
@@ -171,6 +172,26 @@ const publicL2Refs = computed(() => {
 const publicPagePolicy = import.meta.server && publicL2Refs.value.length > 0
   ? await applyPublicPageDocumentPolicy(publicL2Refs.value)
   : null
+
+// 客户端换页：策略读取只差一次同源 GET，让 <link> 预注入紧跟首帧（替代原先
+// 描述符→资产→lease 的完整瀑布，样式闪变窗口从 ~250ms 压到一次 RTT）。
+const clientPolicy = ref<PublicFrontendPolicy | null>(null)
+if (import.meta.client && publicL2Refs.value.length > 0) {
+  void fetchPublicPagePolicy(publicL2Refs.value).then((policy) => {
+    if (policy) clientPolicy.value = policy
+  })
+}
+const l2StyleLinks = computed(() => {
+  const styles = publicPagePolicy?.styles ?? clientPolicy.value?.styles ?? []
+  return styles.map(style => ({
+    rel: 'stylesheet',
+    href: style.assetPath,
+    'data-sforum-extension': style.extensionId,
+    'data-sforum-asset': style.handle,
+    'data-sforum-digest': style.digest
+  }))
+})
+useHead(() => ({ link: l2StyleLinks.value }))
 
 const ThemeRenderTree = defineComponent({
   name: 'SFThemeRenderTree',

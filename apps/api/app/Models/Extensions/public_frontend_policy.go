@@ -119,7 +119,11 @@ type PublicFrontendPolicy struct {
 	Directives            []PublicFrontendPolicyDirective `json:"directives"`
 	AdmittedComponents    []PublicFrontendPolicyComponent `json:"admittedComponents"`
 	DocumentPolicy        PublicFrontendDocumentPolicy    `json:"documentPolicy"`
-	contributors          []PublicFrontendPolicyContributor
+	// Styles carries the exact digest-bound stylesheets owned by the page's
+	// admitted L2 assets. SSR preloads them into <head> so the first paint is
+	// already styled; the client lease later adopts the same elements.
+	Styles       []PublicFrontendAssetReference `json:"styles"`
+	contributors []PublicFrontendPolicyContributor
 }
 
 // Contributors returns detached Host-only provenance. It is intentionally not
@@ -210,6 +214,11 @@ func (s *FrontendService) PublicPagePolicy(
 	policy := PublicFrontendPolicy{
 		SchemaVersion: PublicFrontendPolicySchemaV1, GraphDigest: snapshot.Digest,
 		Directives: directives, AdmittedComponents: admitted, contributors: contributors,
+	}
+	for _, asset := range plan {
+		if asset.Type == "style" {
+			policy.Styles = append(policy.Styles, publicAssetReference(asset))
+		}
 	}
 	policy.ExtensionPolicyDigest = publicPageExtensionPolicyDigest(policy)
 	policy.DocumentPolicy, err = publicPageDocumentPolicy(policy)

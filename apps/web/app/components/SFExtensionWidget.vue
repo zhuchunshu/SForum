@@ -54,6 +54,30 @@ let cleanup: PublicFrontendCleanup | undefined
 let releaseAssets: (() => Promise<void>) | undefined
 let loadQueue: Promise<void> = Promise.resolve()
 let destroyed = false
+// 瞬时失败（dev 下 air 重启、网络抖动）会让页面停在 L1 骨架直到手动刷新；
+// 这里做有界退避重试。每次失败仍记入隔离计数，持续失败的组件照常到达
+// 3 次隔离上限并停止重试；挂载成功清零。
+const L2_RETRY_LIMIT = 2
+const L2_RETRY_BACKOFF_MS: number[] = [1_500, 4_000]
+let retryTimer: ReturnType<typeof setTimeout> | undefined
+let retryAttempt = 0
+
+function cancelScheduledRetry() {
+  if (retryTimer !== undefined) {
+    clearTimeout(retryTimer)
+    retryTimer = undefined
+  }
+}
+
+function scheduleRetryAfterFailure() {
+  if (destroyed || retryAttempt >= L2_RETRY_LIMIT) return
+  const delay = L2_RETRY_BACKOFF_MS[Math.min(retryAttempt, L2_RETRY_BACKOFF_MS.length - 1)]
+  retryAttempt += 1
+  retryTimer = setTimeout(() => {
+    retryTimer = undefined
+    if (!destroyed) void load()
+  }, delay)
+}
 
 const resolvedComponentId = computed(() => props.componentId || props.widgetId || props.name)
 const showHonesty = computed(() =>
@@ -188,6 +212,7 @@ async function performLoad() {
     const currentBridge = bridge(current)
     cleanup = await mountPublicFrontendModule(loaded.module, currentTarget, currentBridge)
     state.value = 'mounted'
+    retryAttempt = 0
     leaseMonitor.start(current)
     if (storage) clearPublicContributionFailures(storage, key)
   } catch {
@@ -196,8 +221,10 @@ async function performLoad() {
     if (storage && failureKey.value) {
       const failure = recordPublicContributionFailure(storage, failureKey.value)
       state.value = failure.quarantined ? 'quarantined' : 'fallback'
+      if (!failure.quarantined) scheduleRetryAfterFailure()
     } else {
       state.value = 'fallback'
+      scheduleRetryAfterFailure()
     }
   }
 }
@@ -207,6 +234,14 @@ function load() {
   return enqueue(performLoad)
 }
 
+// 显式来源的加载（路由/语言/主题变化、重新挂载）重置重试计数；重试自身触发的
+// load 不经过这里，保证计数跨重试累计。
+function loadFresh() {
+  retryAttempt = 0
+  cancelScheduledRetry()
+  void load()
+}
+
 watch([
   () => props.extensionId,
   resolvedComponentId,
@@ -214,7 +249,7 @@ watch([
   () => locale.value,
   resolvedMode,
   () => route.fullPath
-], () => void load(), { deep: true })
+], () => void loadFresh(), { deep: true })
 
 function revalidateVisibleLease() {
   if (document.visibilityState === 'visible') void leaseMonitor.trigger()
@@ -228,6 +263,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   destroyed = true
   leaseMonitor.stop()
+  cancelScheduledRetry()
   window.removeEventListener('focus', revalidateVisibleLease)
   document.removeEventListener('visibilitychange', revalidateVisibleLease)
   void loadQueue.then(dispose, dispose)
@@ -274,12 +310,26 @@ defineExpose({ reload: load })
       </div>
     </div>
     <div
-      v-show="state !== 'mounted'"
+      v-show="state !== 'mounted' && state !== 'loading'"
       ref="ssrRoot"
       class="sf-extension-widget__fallback"
       data-l2-fallback=""
     >
       <slot />
+      <!-- 自动重试耗尽或被隔离后，给用户一个免刷新的恢复出口。
+           loadFresh 会重置退避计数，失败继续计入隔离，语义不变。 -->
+      <UButton
+        v-if="state === 'fallback' || state === 'quarantined'"
+        icon="i-tabler-refresh"
+        color="neutral"
+        variant="subtle"
+        size="xs"
+        class="mt-2"
+        data-testid="public-l2-retry"
+        @click="loadFresh"
+      >
+        {{ t('public.extensions.l2Retry') }}
+      </UButton>
     </div>
     <div
       ref="target"

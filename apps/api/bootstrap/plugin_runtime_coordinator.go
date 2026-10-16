@@ -27,7 +27,16 @@ const (
 	// 拒绝 apply，若这里无限等待，调用方就再也拿不到错误、也不会进入
 	// recovery-only 模式，进程只会静默挂起（无监听、无日志、无插件进程）。
 	defaultPluginRuntimeCoordinatorStartupWaitTimeout = 30 * time.Second
+	// 每轮 genesis 重试前回收孤儿 lifecycle operation 的批量上限；与仓库层
+	// 默认一致（16，仓库层自身还有 64 的硬上限）。
+	defaultPluginRuntimeOrphanReclaimLimit = 16
 )
+
+// pluginRuntimeLifecycleOrphanReclaimer 是可选的孤儿回收窄接口：只有生产
+// PostgresStore 实现它，测试 double 不实现时行为与既有重试循环完全一致。
+type pluginRuntimeLifecycleOrphanReclaimer interface {
+	ReclaimOrphanedLifecycleOperations(context.Context, int) ([]int64, error)
+}
 
 var (
 	errPluginRuntimeCoordinatorBootstrapInvalid   = errors.New("bootstrap: plugin runtime coordinator is invalid")
@@ -83,6 +92,10 @@ type pluginRuntimeCoordinatorLaunchConfig struct {
 	// PendingReason 返回最近一次未就绪的原因（通常为开放中的 lifecycle
 	// operation），仅用于把根因带进启动超时错误。
 	PendingReason func() error
+	// OnOrphanReclaim 上报每轮 genesis 重试前的孤儿回收结果：
+	// reclaimed 为回收成功的 operation id；err 非空表示回收本身失败
+	// （失败只告警，绝不改变重试节奏）。nil 时回收仍执行、只是不留日志。
+	OnOrphanReclaim func(reclaimed []int64, err error)
 }
 
 // pluginRuntimeCoordinatorRuntime owns the coordinator goroutine. Failures is
@@ -168,6 +181,18 @@ func startPluginRuntimeCoordinator(
 		StopTimeout:        config.StopTimeout,
 		StartupWaitTimeout: config.StartupWaitTimeout,
 		PendingReason:      pendingReason,
+		OnOrphanReclaim: func(reclaimed []int64, err error) {
+			if config.Logger == nil {
+				return
+			}
+			if err != nil {
+				config.Logger.Warn("plugin runtime orphan lifecycle reclaim failed; continuing genesis retry", "error", err)
+				return
+			}
+			if len(reclaimed) > 0 {
+				config.Logger.Info("reclaimed orphaned lifecycle operations before genesis retry", "operationIds", reclaimed)
+			}
+		},
 		Build: func(
 			identity extensions.PluginRuntimeNodeIdentity,
 			onReady func(),
@@ -511,6 +536,18 @@ func ensurePluginRuntimeCoordinatorGenesis(
 			)
 		}
 		lastInProgress = err
+
+		// 每轮重试前先尝试回收孤儿操作：执行进程中途崩溃会让 durable 行永远
+		// 停在开放态，正常重试永远等不到它结束。回收本身 fail-closed——只关闭
+		// 所有 lease 均已过期的操作，失败仅告警，不改变重试节奏与 30s 预算。
+		if reclaimer, ok := config.Ensurer.(pluginRuntimeLifecycleOrphanReclaimer); ok {
+			reclaimed, reclaimErr := reclaimer.ReclaimOrphanedLifecycleOperations(
+				ctx, defaultPluginRuntimeOrphanReclaimLimit,
+			)
+			if config.OnOrphanReclaim != nil {
+				config.OnOrphanReclaim(reclaimed, reclaimErr)
+			}
+		}
 
 		remaining := time.Until(deadline)
 		if remaining <= 0 {

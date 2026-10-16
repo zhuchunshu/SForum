@@ -746,6 +746,23 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   readiness and guard paths do not re-read the failed extension catalog, so a
   malformed or incompatible artifact cannot block the fallback HTTP surface a
   second time.
+- Orphan lifecycle operations (an executing process died mid-operation, so the
+  durable row can never reach a terminal state) are reclaimed by the Host. The
+  repository-level `ReclaimOrphanedLifecycleOperations` closes an open
+  operation to `terminal_result=cancelled` only when no step holds an
+  unexpired lease (fail-closed; live leases always keep blocking the runtime
+  fence). It is attempted from the bootstrap genesis retry loop on
+  `ErrLifecycleOperationInProgress` (log-only on failure) and from the
+  plugin-runtime coordinator's reconcile fence before reporting pending, so
+  recovery happens automatically in both boot and steady-state paths. The
+  out-of-band CLI `extension recovery lifecycle-close --operation-id <id>
+  --reason "<why>" [--force]` performs the same single-transaction close with
+  an explicit operator reason; both paths append audit evidence
+  (`extension.lifecycle_orphan_reclaim` / `extension.cli_recovery`) and land
+  on a terminal state that `RecoverLifecycleOperation` accepts, so retries
+  reuse the existing recovery flow. Verified 2026-10-17 on the dev instance:
+  a planted orphan was auto-reclaimed within one poll interval
+  (`extension_lifecycle_operations` id 238) and readiness stayed `ready=true`.
 - Ordinary uploaded packages remain recoverable through `extension disable`.
   A protected built-in/system executable requires `extension quarantine` with
   the exact active version and 64-character digest; the command atomically
@@ -1136,6 +1153,8 @@ Relevant plans:
 | Path | Responsibility |
 | --- | --- |
 | `apps/api/app/Models/Extensions` | Package, trust, lifecycle, registries, settings |
+| `apps/api/app/Models/Extensions/lifecycle_repository_orphan.go` | Orphan lifecycle operation reclaim (repository + store wrapper) |
+| `apps/api/app/Support/StableFile` | Cross-platform stable file-open primitive (extracted from Extensions, 2026-10-17) |
 | `apps/api/app/Support/ExtensionRuntime` | Plugin process/runtime coordination |
 | `apps/api/app/Support/Extensions/LifecycleRecovery` | Exact-evidence durable publication startup recovery |
 | `apps/api/app/Support/PluginBootstrap` | Shared Host/SDK process bootstrap ABI and startup diagnostics |

@@ -50,6 +50,12 @@ type pluginRuntimeLifecycleFenceRepository interface {
 	ListOpenLifecycleOperations(context.Context, int) ([]LifecycleOperation, error)
 }
 
+// pluginRuntimeLifecycleOrphanReclaimer 是可选的孤儿回收窄接口，与 fence
+// 同属可选断言：生产 PostgresStore 实现，单测 double 不实现时行为不变。
+type pluginRuntimeLifecycleOrphanReclaimer interface {
+	ReclaimOrphanedLifecycleOperations(context.Context, int) ([]int64, error)
+}
+
 type PluginRuntimeCoordinatorConfig struct {
 	Identity          PluginRuntimeNodeIdentity
 	LeaseDuration     time.Duration
@@ -268,7 +274,23 @@ func (c *PluginRuntimeCoordinator) reconcileOnce(ctx context.Context) error {
 				return fmt.Errorf("inspect open lifecycle operations before runtime apply: %w", fenceErr)
 			}
 			if len(open) != 0 {
-				return errPluginRuntimeLifecyclePending
+				// 开放操作先尝试孤儿回收：执行进程崩溃会让 durable 行永远停在
+				// 开放态，运行时只能靠宿主把它推进终态。回收频率由 poll 间隔
+				// 自然限流；仓库层自身保证绝不触碰仍有未过期 lease 的操作。
+				// 回收失败保持 pending 语义——绝不能让一次回收故障升级成
+				// OnError（那会把"还在等 lifecycle"误判成协调器终止）。
+				if reclaimer, reclaimOK := c.repository.(pluginRuntimeLifecycleOrphanReclaimer); reclaimOK {
+					_, _ = reclaimer.ReclaimOrphanedLifecycleOperations(
+						ctx, lifecycleOrphanReclaimDefaultLimit,
+					)
+					open, fenceErr = fence.ListOpenLifecycleOperations(ctx, 1)
+					if fenceErr != nil {
+						return fmt.Errorf("inspect open lifecycle operations after orphan reclaim: %w", fenceErr)
+					}
+				}
+				if len(open) != 0 {
+					return errPluginRuntimeLifecyclePending
+				}
 			}
 		}
 

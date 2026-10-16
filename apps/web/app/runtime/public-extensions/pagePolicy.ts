@@ -5,6 +5,8 @@ export const PUBLIC_PAGE_POLICY_TIMEOUT_MS = 10_000
 export const PUBLIC_PAGE_CSP_HEADER = 'Content-Security-Policy'
 export const PUBLIC_L2_WIDGET_COMPONENT_ID = 'core.component.shared.sfextension_widget'
 
+import { parsePublicFrontendAssetReference, type PublicFrontendAssetReference } from './types'
+
 const ID_PATTERN = /^[a-z0-9][a-z0-9._-]{1,120}$/
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/
 const MAX_COMPONENTS = 256
@@ -43,6 +45,8 @@ export type PublicFrontendPolicy = {
   directives: PublicFrontendPolicyDirective[]
   admittedComponents: PublicFrontendPolicyComponent[]
   documentPolicy: PublicFrontendDocumentPolicy
+  /** 页面 L2 资产图内 digest 绑定的样式表；SSR 预注入 <head>，lease 随后采纳。 */
+  styles: PublicFrontendAssetReference[]
 }
 
 export class PublicPagePolicyError extends Error {
@@ -102,13 +106,26 @@ export function parsePublicFrontendPolicy(raw: unknown): PublicFrontendPolicy {
     throw new PublicPagePolicyError('invalid public page policy')
   }
   const documentPolicy = parsePublicFrontendDocumentPolicy(raw.documentPolicy)
+  // styles 是增量字段（旧版 Host 无该字段）；无法校验的条目直接丢弃，
+  // 只影响首帧预加载，绝不阻塞 L1 渲染路径。
+  const styles: PublicFrontendAssetReference[] = []
+  if (Array.isArray(raw.styles)) {
+    for (const item of raw.styles) {
+      try {
+        styles.push(parsePublicFrontendAssetReference(item))
+      } catch {
+        // 丢弃非法条目
+      }
+    }
+  }
   return {
     schemaVersion: PUBLIC_FRONTEND_POLICY_SCHEMA_VERSION,
     graphDigest: String(raw.graphDigest),
     extensionPolicyDigest: String(raw.extensionPolicyDigest),
     directives: raw.directives.map(parseDirective),
     admittedComponents: raw.admittedComponents.map(parseAdmittedComponent),
-    documentPolicy
+    documentPolicy,
+    styles
   }
 }
 
