@@ -1,0 +1,91 @@
+openapi: 3.1.0
+info:
+  title: SForum Query Surface Reference
+  version: 1.0.0
+paths:
+  /query-surface/stats:
+    get:
+      operationId: sforum.query-surface-reference.stats
+      x-sforum-route-id: sforum.query-surface-reference.route.stats
+      x-sforum-contract-version: sforum.query-surface-reference.route.stats@1
+      x-sforum-guard: core.guard.public
+      x-sforum-response-schema: sforum.query-surface-reference.stats@1
+      summary: Public site totals, recent topics, and author profiles from stable HostQuery contracts
+      responses:
+        "200":
+          description: Aggregated public read surface document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sforum.query-surface-reference.stats@1"
+components:
+  schemas:
+    "sforum.query-surface-reference.stats@1":
+      type: object
+      required:
+        - siteStats
+        - recentTopics
+        - authors
+        - hostQueryOk
+      additionalProperties: false
+      properties:
+        siteStats:
+          type: object
+          required:
+            - topicCount
+            - commentCount
+            - userCount
+            - publicAttachmentCount
+          additionalProperties: false
+          properties:
+            topicCount:
+              type: string
+            commentCount:
+              type: string
+            userCount:
+              type: string
+            publicAttachmentCount:
+              type: string
+        recentTopics:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required:
+              - id
+              - title
+              - slug
+              - authorUserId
+            additionalProperties: false
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              slug:
+                type: string
+              authorUserId:
+                type: string
+        authors:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required:
+              - userId
+              - username
+              - displayName
+            additionalProperties: false
+            properties:
+              userId:
+                type: string
+              username:
+                type: string
+              displayName:
+                type: string
+              avatarPublicId:
+                type:
+                  - string
+                  - "null"
+        hostQueryOk:
+          type: boolean

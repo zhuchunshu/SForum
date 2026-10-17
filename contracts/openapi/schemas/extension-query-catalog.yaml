@@ -1,0 +1,78 @@
+QueryCatalogEntry:
+  type: object
+  required:
+    - queryId
+    - hostQueryId
+    - hostPlanVersion
+    - entity
+    - fields
+    - filters
+    - sort
+    - pagination
+    - permissionPolicy
+    - resultSchema
+    - resultSchemaDigest
+  additionalProperties: false
+  properties:
+    queryId:
+      type: string
+      description: Query Registry id (core.query.*).
+    hostQueryId:
+      type: string
+      description: Stable Host Query id plugins send on the wire (sforum.core.*).
+    hostPlanVersion:
+      type: string
+      description: Host plan version the plugin request must carry.
+    entity:
+      type: string
+    fields:
+      type: array
+      items: { type: string }
+    filters:
+      type: array
+      items: { type: string }
+    sort:
+      type: array
+      items: { type: string }
+    pagination:
+      type: string
+      enum: [none, offset]
+    permissionPolicy:
+      type: string
+    resultSchema:
+      type: string
+    resultSchemaDigest:
+      type: string
+
+ApiResponseQueryCatalog:
+  type: object
+  required: [code, data]
+  properties:
+    code:
+      type: integer
+      example: 0
+    data:
+      type: object
+      required:
+        - extensionId
+        - extensionVersion
+        - artifactDigest
+        - costMaximum
+        - total
+        - queries
+      additionalProperties: false
+      properties:
+        extensionId:
+          type: string
+        extensionVersion:
+          type: string
+        artifactDigest:
+          type: string
+        costMaximum:
+          type: integer
+        total:
+          type: integer
+        queries:
+          type: array
+          items:
+            "$ref": "#/QueryCatalogEntry"

@@ -87,6 +87,84 @@ func TestPostgresProtocolV2QueryRuntimeStableRowsPaginationAndPIIAbsence(t *test
 	}
 }
 
+func TestPostgresProtocolV2QueryRuntimeE10Surface(t *testing.T) {
+	h := newPostgresQueryHarness(t)
+	ctx := ContextWithProtocolV2RuntimeIdentity(h.ctx, h.identity)
+
+	stats := &hostv2.QueryRequest{
+		Context: testProtocolV2RequestContext(), QueryId: QuerySiteStats, PlanVersion: QueryStableCorePlanVersion,
+	}
+	statsResponse := h.engine.execute(ctx, stats)
+	if statsResponse.GetError() != nil || len(statsResponse.GetRows()) != 1 {
+		t.Fatalf("site stats response = %#v", statsResponse)
+	}
+	statsRow := statsResponse.GetRows()[0].GetValue().AsMap()
+	if statsRow["topic_count"] != "3" || statsRow["comment_count"] != "2" ||
+		statsRow["user_count"] != "1" || statsRow["public_attachment_count"] != "1" {
+		t.Fatalf("site stats row = %#v", statsRow)
+	}
+
+	comments := &hostv2.QueryRequest{
+		Context: testProtocolV2RequestContext(), QueryId: QueryPublicCommentsList, PlanVersion: QueryStableCorePlanVersion,
+		Fields:  []string{"id", "depth", "reply_count", "author_user_id", "parent_comment_id"},
+		Filters: []*hostv2.QueryFilter{{Field: "topic_id", Operator: "eq", Value: queryParameter(t, QueryInt64ParameterSchemaID, "1")}},
+		Page:    &protocolv2.PageRequest{Limit: 1},
+	}
+	firstComments := h.engine.execute(ctx, comments)
+	if firstComments.GetError() != nil || len(firstComments.GetRows()) != 1 || !firstComments.GetPage().GetHasMore() {
+		t.Fatalf("comments first page = %#v", firstComments)
+	}
+	commentRow := firstComments.GetRows()[0].GetValue().AsMap()
+	// 默认时间序（created_at ASC, id ASC）；INTEGER→number、BIGINT→string、可空 BIGINT→null。
+	if commentRow["id"] != "1" || commentRow["depth"] != float64(0) ||
+		commentRow["reply_count"] != "0" || commentRow["parent_comment_id"] != nil {
+		t.Fatalf("comment row = %#v", commentRow)
+	}
+	secondComments := proto.Clone(comments).(*hostv2.QueryRequest)
+	secondComments.Page = &protocolv2.PageRequest{Limit: 1, Cursor: firstComments.GetPage().GetNextCursor()}
+	secondCommentsResponse := h.engine.execute(ctx, secondComments)
+	if secondCommentsResponse.GetError() != nil || len(secondCommentsResponse.GetRows()) != 1 || secondCommentsResponse.GetPage().GetHasMore() {
+		t.Fatalf("comments second page = %#v", secondCommentsResponse)
+	}
+	if secondCommentsResponse.GetRows()[0].GetValue().AsMap()["id"] != "2" {
+		t.Fatalf("comments second page row = %#v", secondCommentsResponse)
+	}
+
+	byUsername := &hostv2.QueryRequest{
+		Context: testProtocolV2RequestContext(), QueryId: QuerySafeUserByUsername, PlanVersion: QueryStableCorePlanVersion,
+		Filters: []*hostv2.QueryFilter{{Field: "username", Operator: "eq", Value: queryParameter(t, QueryTextParameterSchemaID, "alice")}},
+	}
+	usernameResponse := h.engine.execute(ctx, byUsername)
+	if usernameResponse.GetError() != nil || len(usernameResponse.GetRows()) != 1 ||
+		usernameResponse.GetRows()[0].GetValue().AsMap()["id"] != "1" {
+		t.Fatalf("safe user by username = %#v", usernameResponse)
+	}
+
+	batch := &hostv2.QueryRequest{
+		Context: testProtocolV2RequestContext(), QueryId: QuerySafeUsersBatch, PlanVersion: QueryStableCorePlanVersion,
+		Fields:  []string{"user_id", "username", "avatar_public_id"},
+		Filters: []*hostv2.QueryFilter{{Field: "user_id", Operator: "eq", Value: queryParameter(t, QueryTextParameterSchemaID, "[1,2]")}},
+	}
+	batchResponse := h.engine.execute(ctx, batch)
+	if batchResponse.GetError() != nil || len(batchResponse.GetRows()) != 2 {
+		t.Fatalf("safe users batch = %#v", batchResponse)
+	}
+	secondBatchRow := batchResponse.GetRows()[1].GetValue().AsMap()
+	if secondBatchRow["user_id"] != "2" || secondBatchRow["avatar_public_id"] != nil {
+		t.Fatalf("safe users batch second row = %#v", secondBatchRow)
+	}
+
+	categories := &hostv2.QueryRequest{
+		Context: testProtocolV2RequestContext(), QueryId: QueryPublicCategoriesList, PlanVersion: QueryStableCorePlanVersion,
+		Filters: []*hostv2.QueryFilter{{Field: "slug", Operator: "eq", Value: queryParameter(t, QueryTextParameterSchemaID, "general")}},
+	}
+	categoriesResponse := h.engine.execute(ctx, categories)
+	if categoriesResponse.GetError() != nil || len(categoriesResponse.GetRows()) != 1 ||
+		categoriesResponse.GetRows()[0].GetValue().AsMap()["slug"] != "general" {
+		t.Fatalf("public categories = %#v", categoriesResponse)
+	}
+}
+
 func TestPostgresProtocolV2QueryRuntimeRejectsDeniedStaleAndRevokedAuthority(t *testing.T) {
 	h := newPostgresQueryHarness(t)
 	request := &hostv2.QueryRequest{Context: testProtocolV2RequestContext(), QueryId: QueryPublicTopicsList, PlanVersion: QueryStableCorePlanVersion}
@@ -272,9 +350,18 @@ func installPostgresQueryFixture(t *testing.T, ctx context.Context, pool *pgxpoo
 		`CREATE TABLE forum_topics (id BIGINT, category_id BIGINT, category_slug TEXT, author_user_id BIGINT, title TEXT, slug TEXT, status TEXT, is_pinned BOOLEAN, comment_count BIGINT, view_count BIGINT, last_activity_at TIMESTAMPTZ, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ, html_content TEXT, plain_text TEXT, source_format TEXT, render_version TEXT, content_hash TEXT)`,
 		`CREATE TABLE raw_attachments (id BIGINT, public_id TEXT, owner_user_id BIGINT, original_name TEXT, content_type TEXT, extension TEXT, size_bytes BIGINT, sha256 TEXT, image_width INTEGER, image_height INTEGER, reference_count BIGINT, provider TEXT, object_key TEXT, storage_key TEXT, quarantine_reason TEXT, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ)`,
 		`CREATE VIEW public_attachment_metadata AS SELECT id, public_id, owner_user_id, original_name, content_type, extension, size_bytes, sha256, image_width, image_height, reference_count, created_at, updated_at FROM raw_attachments`,
-		`INSERT INTO raw_users VALUES (1, 'alice', 'Alice', 'private@example.test', 'secret-hash', 'zh-CN', true, 'secret-token', now(), now())`,
+		`INSERT INTO raw_users VALUES (1, 'alice', 'Alice', 'private@example.test', 'secret-hash', 'zh-CN', true, 'secret-token', now(), now()), (2, 'bob', 'Bob', 'bob@example.test', 'bob-hash', 'en-US', false, 'bob-token', now(), now())`,
 		`INSERT INTO forum_topics VALUES (1, 1, 'general', 1, 'topic one', 'one', 'published', false, 0, 1, now() - interval '2 hours', now(), now(), '<p>one</p>', 'one', 'html', '1', 'h1'), (2, 1, 'general', 1, 'topic two', 'two', 'published', false, 0, 2, now() - interval '1 hour', now(), now(), '<p>two</p>', 'two', 'html', '1', 'h2'), (3, 1, 'general', 1, 'topic three', 'three', 'published', false, 0, 3, now(), now(), now(), '<p>three</p>', 'three', 'html', '1', 'h3')`,
 		`INSERT INTO raw_attachments VALUES (1, 'public-1', 1, 'image.png', 'image/png', 'png', 42, 'abc', 10, 20, 1, 's3', 'private/object', 'storage-key', 'private-note', now(), now())`,
+		`CREATE VIEW forum_comments AS SELECT * FROM (VALUES
+			(1::bigint, 1::bigint, 1::bigint, NULL::bigint, NULL::bigint, '/1'::text, 0::int, 0::bigint, now(), now(), '<p>c1</p>'::text, 'c1', 'html', '1', 'h1'),
+			(2::bigint, 1::bigint, 2::bigint, 1::bigint, 1::bigint, '/1/2'::text, 1::int, 0::bigint, now(), now(), '<p>c2</p>'::text, 'c2', 'html', '1', 'h2')
+		) AS t(id, topic_id, author_user_id, parent_comment_id, root_comment_id, path_key, depth, reply_count, created_at, updated_at, html_content, plain_text, source_format, render_version, content_hash)`,
+		`CREATE VIEW site_stats AS SELECT 3::bigint AS topic_count, 2::bigint AS comment_count, 1::bigint AS user_count, 1::bigint AS public_attachment_count OFFSET 0`,
+		`CREATE TABLE user_profiles (user_id BIGINT PRIMARY KEY, avatar_attachment_id BIGINT)`,
+		`INSERT INTO user_profiles VALUES (1, 1)`,
+		`CREATE VIEW safe_user_avatars AS SELECT u.id AS user_id, u.username, u.display_name, a.public_id AS avatar_public_id, a.content_type AS avatar_content_type, a.image_width AS avatar_image_width, a.image_height AS avatar_image_height FROM raw_users u LEFT JOIN user_profiles p ON p.user_id = u.id LEFT JOIN raw_attachments a ON a.id = p.avatar_attachment_id`,
+		`CREATE VIEW public_categories AS SELECT * FROM (VALUES (1::bigint, 'general'::text, 'General'::text, 'General discussion'::text, 'chat'::text, 'emerald'::text)) AS t(id, slug, name, description, icon, icon_color)`,
 	}
 	for _, statement := range statements {
 		if _, err := pool.Exec(ctx, statement); err != nil {

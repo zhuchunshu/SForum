@@ -177,7 +177,9 @@ func newNotificationReferenceDatabase(t *testing.T, ctx context.Context) *pgxpoo
 	}
 	names := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") && entry.Name() != "202607140016_stable_core_views.sql" {
+		// sforum_core_v1 是全局 schema：稳定核心视图迁移（*_stable_core_views）
+		// 在 schema 隔离 harness 下必然互相冲突，按命名约定排除。
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") && !strings.Contains(entry.Name(), "_stable_core_views") {
 			names = append(names, entry.Name())
 		}
 	}

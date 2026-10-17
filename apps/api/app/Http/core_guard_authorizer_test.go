@@ -705,6 +705,8 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		"core.route.extensions.inspect_route":           {method: "GET", supported: true, permissions: viewer},
 		// 路由注册表目录：与其它检视器同一条已审核策略（extension.view 或 manage）。
 		"core.route.extensions.route_catalog":           {method: "GET", supported: true, permissions: viewer},
+		// 密封 Core 查询目录：同一条已审核读取策略（extension.view 或 manage）。
+		"core.route.extensions.query_catalog":           {method: "GET", supported: true, permissions: viewer},
 		// M5 隔离账本读取：与其它检视器同一条已审核策略（extension.view 或 manage）。
 		"core.route.extensions.inspect_route_incidents":      {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_templates":            {method: "GET", supported: true, permissions: viewer},

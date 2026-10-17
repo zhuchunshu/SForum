@@ -35,7 +35,6 @@ const (
 	ShortcodeProjectionContractVersion = "1"
 	ShortcodeProjectionSchemaVersion   = "1"
 
-	shortcodeProjectionInt64ListFilterKind = "int64_list"
 	shortcodeProjectionActorSQLToken       = "{{sforum_actor_user_id}}"
 	shortcodeProjectionActorPolicy         = "sforum.shortcode.actor_decision"
 )
@@ -79,7 +78,7 @@ func IsShortcodeProjectionActorPolicy(value string) bool {
 func shortcodeProjectionProtocolV2QueryDefinitions() []protocolV2QueryDefinition {
 	ids := protocolV2QueryFilterDefinition{
 		Field: "ids", Operator: "eq", Expression: "stable.id",
-		SchemaID: QueryTextParameterSchemaID, Kind: shortcodeProjectionInt64ListFilterKind,
+		SchemaID: QueryTextParameterSchemaID, Kind: protocolV2QueryInt64ListFilterKind,
 	}
 	publicTopic := `topics.status IN ('active', 'locked') AND topics.deleted_at IS NULL
 		AND categories.visibility = 'public' AND category_groups.visibility = 'public'`

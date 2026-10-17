@@ -350,6 +350,46 @@ func queryRegistryCoreMappingFor(definition protocolV2QueryDefinition) (queryReg
 			ResultSchema:     QueryPublicAttachmentSchemaID + "@" + QueryStableCoreResultSchemaV1,
 			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationNone,
 		}
+	case QuerySiteStats:
+		mapping = queryRegistryCoreMapping{
+			HostQueryID: QuerySiteStats, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.site_stats.current", ContractVersion: "core.query.site_stats.current@1",
+			Entity: "core.query.site_stats", PlanVersion: "core.query.site_stats.current.plan@1",
+			ResultSchema:     QuerySiteStatsResultSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationNone,
+		}
+	case QueryPublicCommentsList:
+		mapping = queryRegistryCoreMapping{
+			HostQueryID: QueryPublicCommentsList, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.public_comments.list", ContractVersion: "core.query.public_comments.list@1",
+			Entity: "core.query.public_comment", PlanVersion: "core.query.public_comments.list.plan@1",
+			ResultSchema:     QueryPublicCommentResultSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationOffset,
+		}
+	case QuerySafeUserByUsername:
+		mapping = queryRegistryCoreMapping{
+			HostQueryID: QuerySafeUserByUsername, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.safe_user.by_username", ContractVersion: "core.query.safe_user.by_username@1",
+			Entity: "core.query.safe_user", PlanVersion: "core.query.safe_user.by_username.plan@1",
+			ResultSchema:     QuerySafeUserResultSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationNone,
+		}
+	case QuerySafeUsersBatch:
+		mapping = queryRegistryCoreMapping{
+			HostQueryID: QuerySafeUsersBatch, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.safe_users.batch", ContractVersion: "core.query.safe_users.batch@1",
+			Entity: "core.query.safe_user_avatar", PlanVersion: "core.query.safe_users.batch.plan@1",
+			ResultSchema:     QuerySafeUserAvatarSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationOffset,
+		}
+	case QueryPublicCategoriesList:
+		mapping = queryRegistryCoreMapping{
+			HostQueryID: QueryPublicCategoriesList, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.public_categories.list", ContractVersion: "core.query.public_categories.list@1",
+			Entity: "core.query.public_category", PlanVersion: "core.query.public_categories.list.plan@1",
+			ResultSchema:     QueryPublicCategorySchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationOffset,
+		}
 	default:
 		if shortcode, ok := shortcodeProjectionCoreMapping(definition); ok {
 			mapping = shortcode

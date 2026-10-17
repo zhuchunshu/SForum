@@ -337,7 +337,8 @@ func TestProductionLifecycleStackPublishesSealedCoreQueryCatalog(t *testing.T) {
 		t.Fatalf("core artifact = %#v", artifact)
 	}
 	publication, found := stack.QueryRegistry.SnapshotPublication(hostapi.QueryRegistryCoreExtensionID)
-	coreQueryCount := 4 + len(hostapi.ShortcodeProjectionQueryIDs())
+	// 稳定目录条数 tripwire：新增 stable query 必须显式抬这个数（与目录密封摘要互为双保险）。
+	coreQueryCount := 9 + len(hostapi.ShortcodeProjectionQueryIDs())
 	if !found || publication.Artifact != artifact || len(publication.Queries) != coreQueryCount {
 		t.Fatalf("core publication = %#v found=%t", publication, found)
 	}
@@ -353,6 +354,11 @@ func TestProductionLifecycleStackPublishesSealedCoreQueryCatalog(t *testing.T) {
 		"core.query.public_topics.list":             {pagination: queryregistry.PaginationOffset},
 		"core.query.public_topic.by_id":             {pagination: queryregistry.PaginationNone},
 		"core.query.public_attachment.by_public_id": {pagination: queryregistry.PaginationNone},
+		"core.query.site_stats.current":             {pagination: queryregistry.PaginationNone},
+		"core.query.public_comments.list":           {pagination: queryregistry.PaginationOffset},
+		"core.query.safe_user.by_username":          {pagination: queryregistry.PaginationNone},
+		"core.query.safe_users.batch":               {pagination: queryregistry.PaginationOffset},
+		"core.query.public_categories.list":         {pagination: queryregistry.PaginationOffset},
 	}
 	for _, queryID := range hostapi.ShortcodeProjectionQueryIDs() {
 		want[queryID] = struct{ pagination string }{pagination: queryregistry.PaginationOffset}
@@ -433,7 +439,7 @@ func assertProductionLifecycleCoreQueryPreserved(
 ) {
 	t.Helper()
 	publication, found := stack.QueryRegistry.SnapshotPublication(hostapi.QueryRegistryCoreExtensionID)
-	if !found || publication.Artifact != wantArtifact || len(publication.Queries) != 4+len(hostapi.ShortcodeProjectionQueryIDs()) {
+	if !found || publication.Artifact != wantArtifact || len(publication.Queries) != 9+len(hostapi.ShortcodeProjectionQueryIDs()) {
 		t.Fatalf("core query publication after restore = %#v found=%t want=%#v", publication, found, wantArtifact)
 	}
 	if stack.QueryCoreCatalog.Artifact() != wantArtifact {
@@ -459,7 +465,7 @@ func TestProductionLifecycleStackSafeModeKeepsHostRoutesAndSkipsThirdParty(t *te
 		t.Fatalf("initial Safe Mode Cache snapshot = %#v", cacheSnapshot)
 	}
 	coreArtifact := stack.QueryCoreCatalog.Artifact()
-	// Safe Mode 进程首个 Query snapshot 必须已保留四条 Core queries。
+	// Safe Mode 进程首个 Query snapshot 必须已保留全部稳定 Core queries。
 	assertProductionLifecycleCoreQueryPreserved(t, stack, coreArtifact, true)
 	component := bootstrapLifecycleComponentExtension(t, "bootstrap.component.safe-mode")
 	if err := stack.ComponentRegistry.ReplaceRuntime(component, "pre-safe-mode-component"); err != nil {

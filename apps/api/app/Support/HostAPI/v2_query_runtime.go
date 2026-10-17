@@ -16,10 +16,19 @@ const (
 	QueryPublicTopicsList            = "sforum.core.public_topics.list"
 	QueryPublicTopicByID             = "sforum.core.public_topic.by_id"
 	QueryPublicAttachmentByPublicID  = "sforum.core.public_attachment.by_public_id"
+	QuerySiteStats                   = "sforum.core.site_stats.current"
+	QueryPublicCommentsList          = "sforum.core.public_comments.list"
+	QuerySafeUserByUsername          = "sforum.core.safe_user.by_username"
+	QuerySafeUsersBatch              = "sforum.core.safe_users.batch"
+	QueryPublicCategoriesList        = "sforum.core.public_categories.list"
 	QueryStableCorePlanVersion       = "1"
 	QuerySafeUserResultSchemaID      = "sforum.core.safe_user"
 	QueryPublicTopicResultSchemaID   = "sforum.core.public_topic"
 	QueryPublicAttachmentSchemaID    = "sforum.core.public_attachment_metadata"
+	QuerySiteStatsResultSchemaID     = "sforum.core.site_stats"
+	QueryPublicCommentResultSchemaID = "sforum.core.public_comment"
+	QuerySafeUserAvatarSchemaID      = "sforum.core.safe_user_avatar"
+	QueryPublicCategorySchemaID      = "sforum.core.public_category"
 	QueryStableCoreResultSchemaV1    = "1"
 	QueryInt64ParameterSchemaID      = "sforum.core.query.int64"
 	QueryTextParameterSchemaID       = "sforum.core.query.text"
@@ -27,6 +36,7 @@ const (
 	protocolV2QueryDefaultLimit      = 20
 	protocolV2QueryMaximumLimit      = 100
 	protocolV2QueryMaximumOffset     = 1_000_000
+	protocolV2QueryMaxBatchIDs       = 100
 	protocolV2QueryExecutionTimeout  = 5 * time.Second
 )
 
@@ -112,7 +122,8 @@ func newProtocolV2QueryEngine(
 
 func isStableProtocolV2QueryID(queryID string) bool {
 	switch strings.TrimSpace(queryID) {
-	case QuerySafeUserByID, QueryPublicTopicsList, QueryPublicTopicByID, QueryPublicAttachmentByPublicID:
+	case QuerySafeUserByID, QueryPublicTopicsList, QueryPublicTopicByID, QueryPublicAttachmentByPublicID,
+		QuerySiteStats, QueryPublicCommentsList, QuerySafeUserByUsername, QuerySafeUsersBatch, QueryPublicCategoriesList:
 		return true
 	default:
 		return false

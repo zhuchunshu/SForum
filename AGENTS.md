@@ -286,6 +286,15 @@ contracts first.
   hooks, queries, admin/public components, identity/permissions, media,
   navigation/regions, cache invalidation, jobs, and lifecycle. A deliberately
   closed surface needs a documented security, integrity, or ownership reason.
+- A migration that adds a new core data domain must deliver, in the same
+  change, the stable read-only view under `sforum_core_v1` and at least one
+  stable HostQuery definition for its public data (with allowed and denied
+  tests); a deliberately absent read surface needs a documented reason in the
+  module note. Plugin data needs grow only through the four sanctioned
+  surfaces (view / query / command / event) per
+  `knowledge/decisions/2026-10-18-extension-data-surface-policy.md` — never
+  through per-plugin RPC special cases, and `raw_core` is a signed escape
+  hatch, not a data-distribution channel.
 - Prefer dedicated Admin Surface, Query, Identity/Permission, Media Pipeline,
   and Navigation/Region contracts over forcing plugins to replace whole routes
   or use raw database access for ordinary integrations.

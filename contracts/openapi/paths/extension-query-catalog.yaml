@@ -1,0 +1,21 @@
+adminExtensionQueryCatalog:
+  get:
+    summary: List the sealed Core query catalog
+    operationId: listAdminExtensionQueryCatalog
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. Read-only
+      observation surface: returns every query in the sealed Core Query Registry
+      catalog with its Host RPC id, plan version, entity, allowlisted
+      fields/filters/sorts, pagination shape, permission policy, and the bound
+      result schema digest. The page offers no mutation; catalog growth goes
+      through the data-surface policy surface-request process.
+    responses:
+      '200':
+        description: Detached sealed Core query catalog snapshot.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-query-catalog.yaml#/ApiResponseQueryCatalog"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }

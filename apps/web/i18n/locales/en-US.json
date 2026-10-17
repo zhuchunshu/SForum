@@ -887,7 +887,8 @@
       "extensionComponentInspector": "Component inspector",
       "extensionNavigationInspector": "Navigation inspector",
       "extensionRegistryCatalogs": "Registry catalogs",
-      "extensionRouteCatalog": "Route catalog"
+      "extensionRouteCatalog": "Route catalog",
+      "extensionQueryCatalog": "Query Catalog"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -1779,6 +1780,32 @@
           "action": "Action",
           "guard": "Guard",
           "admission": "Admission"
+        }
+      },
+      "queryCatalog": {
+        "metaTitle": "Query Catalog",
+        "title": "Stable Query Catalog",
+        "intro": "Read-only view of the sealed Core query catalog: every stable query a plugin can call through the Host Query RPC (including host-internal shortcode projections), with fields, filters, sorts, and permission shape. New queries go through the surface-request process — never per-plugin special cases.",
+        "sealed": "Sealed {digest}",
+        "totalQueries": "{count} queries",
+        "stableQueries": "{count} plugin-callable",
+        "costMaximum": "Cost budget {cost}",
+        "refreshed": "Query catalog refreshed",
+        "loadFailed": "Failed to load the query catalog",
+        "emptyTitle": "Catalog is empty",
+        "emptyDescription": "The sealed Core query catalog has no entries — this is an anomaly; inspect the Host assembly.",
+        "hint": "Calling a stable query requires the core_views grant plus an exact artifact match; id-list filters take a canonical ascending JSON array (≤100 ids). See “Stable Host Queries” in the authoring guide.",
+        "hostInternal": "Host internal",
+        "fields": "Fields",
+        "filters": "Filters",
+        "sorts": "Sorts",
+        "columns": {
+          "query": "Query (Query Registry)",
+          "host": "Host RPC id",
+          "shape": "Shape",
+          "pagination": "Pagination",
+          "policy": "Permission shape",
+          "schema": "Result schema"
         }
       },
       "routeProviders": {

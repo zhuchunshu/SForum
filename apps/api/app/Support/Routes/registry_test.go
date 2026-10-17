@@ -490,7 +490,8 @@ func TestCoreRouteCatalogHasExactReviewedGuardParity(t *testing.T) {
 	// 367 = 363 + 4 条开发期信任会话路由（list/create/revoke/dev-trust-refresh）。
 	// 370 = 367 + 3 条版本 GC 管理端路由（candidates/confirmations/execute，阶段 5）。
 	// 371 = 370 + core.route.extensions.route_catalog（路由注册表只读目录）。
-	if len(catalog) != 371 {
+	// 372 = 371 + core.route.extensions.query_catalog（密封 Core 查询目录）。
+	if len(catalog) != 372 {
 		t.Fatalf("generated core route count = %d", len(catalog))
 	}
 	kinds := make(map[CoreGuardKind]int)

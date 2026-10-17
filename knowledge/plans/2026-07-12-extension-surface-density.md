@@ -4,7 +4,7 @@ Status: **active (partial)** — E1–E6 largely landed (hooks, contributions,
 content-policy, storage plugin path); remaining north-star service slots
 continue via V3 provider/registry model. Do not restart E1–E5 from scratch.  
 Date: 2026-07-12  
-Last status pass: 2026-07-27 notification-channel promotion
+Last status pass: 2026-10-18 plugin data-surface policy + HostQuery inventory (E10)
 Audience: humans and AI sessions extending provider slots / contribution density
 
 **Goal (two layers):**
@@ -648,6 +648,76 @@ reference plugin → docs. **Do not** only add a catalog string.
 
 ---
 
+## Wave E10 — Plugin data surface density (stable views / HostQuery catalog)
+
+**Goal:** plugin data needs stop forcing raw_core or per-plugin core edits;
+cross-domain reads land as versioned catalog entries. Policy:
+`decisions/2026-10-18-extension-data-surface-policy.md` (four surfaces:
+view / query / command / event — no fifth). Inventory:
+`reports/2026-10-18-host-query-inventory.md`.
+
+### E10.1 Policy + same-change rule
+
+- [x] Decision record: four sanctioned surfaces, surface-request triage,
+  view/query versioning + deprecation windows, sensitive-field boundary,
+  freeze compatibility
+  (`decisions/2026-10-18-extension-data-surface-policy.md`)
+- [x] AGENTS.md Surface Matrix amendment: a new core data domain ships its
+  stable view + at least one stable query in the same change (explicit
+  acceptance item, not a convention) — landed in the same edit
+
+### E10.2 Stable query expansion (slice 1 — zero engine change)
+
+- [x] G1 site public stats: single-row `sforum_core_v1.site_stats` view +
+  `sforum.core.site_stats.current` Single query, no filters
+- [x] G3 `sforum.core.public_comments.list`: consumes the previously unused
+  `sforum_core_v1.forum_comments` view; required `topic_id` filter, optional
+  `author_user_id`, default order `created_at ASC, id ASC`
+- [x] G4 `sforum.core.safe_user.by_username`: required `username` filter on
+  the existing `safe_users` view
+- [x] Mechanical checklist per inventory report §5 for each addition
+  (constants + `isStableProtocolV2QueryID`, definition, explicit mapping,
+  schemas, allowed/denied tests, catalog seal tests; dev database migration
+  applied and views sanity-checked against seeded data)
+
+### E10.3 Discovery + batch read engine addition
+
+- [x] Admin query-catalog page `/control-panel/extensions/query-catalog`
+  (route-catalog precedent): backend `GET /api/v1/admin/extensions/query-catalog`
+  reading the sealed Core catalog through a narrow `QueryCatalogSource`
+  boundary + `extensionscontroller.WithQueryCatalog` provider wiring; Nuxt
+  page + `useAdminQueryCatalog` composable + `SFAdminQueryCatalogTable`
+  (bilingual, `admin.nav.extensionQueryCatalog`); authoring-guide
+  stable-query list; four review matrices (identities ledger + generated
+  catalogs via `scripts/v3-catalog/generate.mjs`, provable-policy list
+  `requireExtensionsReadAuthority`, guard partition test map, route-count
+  tripwire 371→372 + admin surfaces 49→50); OpenAPI path/schema added.
+- [x] G2 batch author read: the `int64_list` filter kind already existed in
+  the executor (shortcode projections); the RPC parameter validation now
+  accepts it (`protocolV2QueryInt64ListFilterKind`, canonical JSON array,
+  ≤100 ids), `sforum_core_v1.safe_user_avatars` view + batch query with
+  avatar `public_id` landed, and the authority resolver was fixed to accept
+  Manifest V3 `database.grants` (it previously read only the legacy
+  `database.authority` string, which Normalize clears — no grants-based
+  plugin could ever pass)
+- [x] G5 `sforum_core_v1.public_categories` view + `public_categories.list`
+  query with optional `slug` filter
+
+### E10.4 Reference fixture
+
+- [x] `extensions/fixtures/plugins/sforum-query-surface-reference/` — one
+  public GET route aggregating site stats + recent topics + batch authors
+  (ids derived from topic rows) through `host.Queries.Execute`; manifest
+  declares `database.grants: ["core_views"]`; typed failure policy (no
+  silent degradation). Evidence: fixture build + `digest --write` +
+  `extension validate` + `extension test` (0 errors / 5 checks) + full
+  reference-packages gate 12/12 including the new package.
+- [ ] Browser/dev-chain evidence (install → zero-command auto-activation →
+  rendered stats card at desktop + 390x844) remains operator-side work; the
+  fixture is staged and ready for it.
+
+---
+
 ## Suggested implementation order (sessions)
 
 | Session | Slice | Approx. scope |
@@ -718,12 +788,17 @@ edit comment/topic controllers.
 | 2026-07-13 | E6.2 | Chunked Storage* RPC + PluginStorageAdapter + Manager gate; **E6.2 done** |
 | 2026-07-13 | E6.3 | Plugin admin panel + Probe reason; **E6.3 done** |
 | 2026-07-13 | E6.4 | `sforum.storage-fs` reference + authoring guide; **E6.4 done** |
+| 2026-10-18 | E10 | Wave opened from the plugin data-surface review: policy ADR + stable read surface inventory recorded; **E10.1 done** |
+| 2026-10-18 | E10 | **E10.2 + E10.3 backend done**: migration `202610180001` adds `site_stats` / `public_categories` / `safe_user_avatars` stable views (applied to the dev database, sanity-checked); five stable queries added (site stats, public comments list, safe user by username, safe users batch with avatar metadata, public categories list) with explicit Query Registry mappings, result schemas, unit + real-PostgreSQL integration tests; `int64_list` filter kind accepted on the RPC path (canonical JSON array ≤100 ids); authority resolver fixed to accept Manifest V3 `database.grants`; AGENTS.md same-change rule + authoring-guide stable-query list delivered |
+| 2026-10-18 | E10 | **E10.3 + E10.4 done**: admin query-catalog page (backend + Nuxt + four review matrices + identities/generated catalogs + OpenAPI + tripwires 372/50) and reference fixture `sforum-query-surface-reference` (`core_views`, three-query aggregate route; digest/validate/test green; reference-packages gate 12/12). Browser dev-chain evidence for the fixture is the only open item (operator-side) |
 
 ---
 
 ## Next session one-liner
 
 ```text
-Next: E6.5 core-driver policy doc (optional) or E7 search plugin slot.
-Storage slot L4–L6 proven via sforum.storage-fs; optional S3 plugin later.
+Next: E10 closeout — fixture browser/dev-chain evidence (operator-side:
+install sforum.query-surface-reference → zero-command auto-activation →
+rendered stats card at desktop + 390x844). E10 is otherwise complete;
+see sessions/2026-10-18-plugin-data-surface-e10-handoff.md.
 ```

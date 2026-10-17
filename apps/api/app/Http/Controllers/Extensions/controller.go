@@ -50,6 +50,8 @@ type Controller struct {
 	routeProviders *routes.ProviderSelectionAPI
 	routeInspector *routes.Inspector
 	routeCatalogAPI *routes.Catalog
+	// queryCatalogAPI 为 nil 时 query-catalog 路由 fail closed（503）。
+	queryCatalogAPI QueryCatalogSource
 	// routeIncidents 是崩溃循环隔离持久状态的只读边界（M5 管理员诊断）。
 	routeIncidents apphttp.RouteRuntimeIncidentReader
 	cacheRegistry  *cacheregistry.Registry
@@ -145,6 +147,12 @@ func (h *Controller) WithRouteProviderSelection(
 	h.routeInspector = routes.NewProviderSelectionInspector(api, nil)
 	h.routeCatalogAPI = routes.NewProviderSelectionCatalog(api)
 	h.routeAuditor = auditor
+	return h
+}
+
+// WithQueryCatalog 注入密封 Core 查询目录的只读边界；nil 保持 fail closed。
+func (h *Controller) WithQueryCatalog(source QueryCatalogSource) *Controller {
+	h.queryCatalogAPI = source
 	return h
 }
 

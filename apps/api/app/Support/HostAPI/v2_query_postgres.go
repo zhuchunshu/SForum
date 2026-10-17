@@ -2,14 +2,17 @@ package hostapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 )
 
@@ -58,17 +61,18 @@ func (r *postgresProtocolV2QueryAuthorityResolver) ResolveProtocolV2QueryAuthori
 	if r == nil || r.pool == nil || !validProtocolV2QueryIdentity(identity) {
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 	}
-	var source, authority string
+	var source string
 	var system bool
+	var manifestDatabase []byte
 	err := r.pool.QueryRow(ctx, `
 		SELECT extensions.source, extensions.is_system,
-		       COALESCE(extension_versions.manifest #>> '{database,authority}', '')
+		       COALESCE(extension_versions.manifest -> 'database', 'null'::jsonb)
 		FROM extensions
 		JOIN extension_versions ON extension_versions.id = extensions.active_version_id
 		WHERE extensions.id = $1 AND extensions.type = 'plugin' AND extensions.status = 'enabled'
 		  AND extension_versions.version = $2 AND extension_versions.package_digest = $3
 	`, identity.GetExtensionId(), identity.GetExtensionVersion(), identity.GetArtifactDigest()).Scan(
-		&source, &system, &authority,
+		&source, &system, &manifestDatabase,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
@@ -76,11 +80,15 @@ func (r *postgresProtocolV2QueryAuthorityResolver) ResolveProtocolV2QueryAuthori
 	if err != nil {
 		return ProtocolV2QueryAuthority{}, fmt.Errorf("resolve stable query artifact: %w", err)
 	}
+	manifestGrants, grantsErr := protocolV2QueryDatabaseGrants(manifestDatabase)
+	if grantsErr != nil {
+		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
+	}
 	if identity.GetTrustGrantId() == "builtin" {
 		if source != "builtin" || !system {
 			return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 		}
-		return ProtocolV2QueryAuthority{ExactArtifact: true, CoreViews: authority == "core_views"}, nil
+		return ProtocolV2QueryAuthority{ExactArtifact: true, CoreViews: hasQueryCoreViewsGrant(manifestGrants)}, nil
 	}
 	if source != "uploaded" || system {
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
@@ -89,24 +97,71 @@ func (r *postgresProtocolV2QueryAuthorityResolver) ResolveProtocolV2QueryAuthori
 	if err != nil || grantID <= 0 || strconv.FormatInt(grantID, 10) != identity.GetTrustGrantId() {
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 	}
-	var trusted bool
+	var impactDatabase []byte
 	err = r.pool.QueryRow(ctx, `
-		SELECT EXISTS (
-		  SELECT 1
-		  FROM extension_trust_grants
-		  WHERE id = $1 AND extension_id = $2 AND extension_version = $3
-		    AND package_digest = $4 AND action = 'enable' AND revoked_at IS NULL
-		    AND COALESCE(impact_document #>> '{database,authority}', '') = $5
-		)
+		SELECT COALESCE(impact_document -> 'database', 'null'::jsonb)
+		FROM extension_trust_grants
+		WHERE id = $1 AND extension_id = $2 AND extension_version = $3
+		  AND package_digest = $4 AND action = 'enable' AND revoked_at IS NULL
 	`, grantID, identity.GetExtensionId(), identity.GetExtensionVersion(),
-		identity.GetArtifactDigest(), authority).Scan(&trusted)
+		identity.GetArtifactDigest()).Scan(&impactDatabase)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
+	}
 	if err != nil {
 		return ProtocolV2QueryAuthority{}, fmt.Errorf("resolve stable query trust grant: %w", err)
 	}
-	if !trusted {
+	impactGrants, grantsErr := protocolV2QueryDatabaseGrants(impactDatabase)
+	if grantsErr != nil || !reflect.DeepEqual(impactGrants, manifestGrants) {
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 	}
-	return ProtocolV2QueryAuthority{ExactArtifact: true, CoreViews: authority == "core_views"}, nil
+	return ProtocolV2QueryAuthority{ExactArtifact: true, CoreViews: hasQueryCoreViewsGrant(manifestGrants)}, nil
+}
+
+// protocolV2QueryDatabaseGrants expands a stored manifest/impact database
+// block into the canonical cumulative grant set. Both shapes are accepted:
+// the Manifest V3 `grants` array and the legacy `authority` string, matching
+// extensionmanifest.DatabaseGrants expansion. A missing block yields no
+// grants (the authority check then denies); a malformed or unknown grant
+// yields an error (fail closed as stale).
+func protocolV2QueryDatabaseGrants(document []byte) ([]string, error) {
+	var database *extensionmanifest.ManifestDatabase
+	if len(document) == 0 {
+		return nil, nil
+	}
+	if err := json.Unmarshal(document, &database); err != nil {
+		return nil, err
+	}
+	if database == nil {
+		return nil, nil
+	}
+	grants := extensionmanifest.DatabaseGrants(database)
+	seen := make(map[string]bool, len(grants))
+	for _, grant := range grants {
+		switch grant {
+		case extensionmanifest.DatabaseGrantOwnSchema,
+			extensionmanifest.DatabaseGrantCoreViews,
+			extensionmanifest.DatabaseGrantHostCommands,
+			extensionmanifest.DatabaseGrantRawCore,
+			extensionmanifest.DatabaseGrantKernel:
+		default:
+			return nil, fmt.Errorf("unknown database grant %q", grant)
+		}
+		if seen[grant] {
+			return nil, fmt.Errorf("duplicate database grant %q", grant)
+		}
+		seen[grant] = true
+	}
+	return grants, nil
+}
+
+func hasQueryCoreViewsGrant(grants []string) bool {
+	for _, grant := range grants {
+		if grant == extensionmanifest.DatabaseGrantCoreViews {
+			return true
+		}
+	}
+	return false
 }
 
 func validProtocolV2QueryIdentity(identity *protocolv2.ExtensionIdentity) bool {
@@ -197,13 +252,13 @@ func postgresProtocolV2Query(plan protocolV2QueryPlan, actorUserID int64) (strin
 			}
 			args = append(args, filter.Value)
 			builder.WriteString(filter.Definition.Expression)
-			if filter.Definition.Kind == shortcodeProjectionInt64ListFilterKind {
+			if filter.Definition.Kind == protocolV2QueryInt64ListFilterKind {
 				builder.WriteString(" = ANY($")
 			} else {
 				builder.WriteString(" = $")
 			}
 			builder.WriteString(strconv.Itoa(len(args)))
-			if filter.Definition.Kind == shortcodeProjectionInt64ListFilterKind {
+			if filter.Definition.Kind == protocolV2QueryInt64ListFilterKind {
 				builder.WriteByte(')')
 			}
 		}
@@ -303,6 +358,44 @@ func stableCoreProtocolV2QueryDefinitions() []protocolV2QueryDefinition {
 		{Field: "updated_at", Expression: "stable.updated_at"},
 		{Field: "last_activity_at", Expression: "stable.last_activity_at"},
 	}
+	commentFields := []protocolV2QueryField{
+		{Name: "id", Expression: "stable.id"},
+		{Name: "topic_id", Expression: "stable.topic_id"},
+		{Name: "author_user_id", Expression: "stable.author_user_id"},
+		{Name: "parent_comment_id", Expression: "stable.parent_comment_id"},
+		{Name: "root_comment_id", Expression: "stable.root_comment_id"},
+		{Name: "path_key", Expression: "stable.path_key"},
+		{Name: "depth", Expression: "stable.depth"},
+		{Name: "reply_count", Expression: "stable.reply_count"},
+		{Name: "created_at", Expression: "stable.created_at"},
+		{Name: "updated_at", Expression: "stable.updated_at"},
+		{Name: "html_content", Expression: "stable.html_content"},
+		{Name: "plain_text", Expression: "stable.plain_text"},
+		{Name: "source_format", Expression: "stable.source_format"},
+		{Name: "render_version", Expression: "stable.render_version"},
+		{Name: "content_hash", Expression: "stable.content_hash"},
+	}
+	userIDListFilter := protocolV2QueryFilterDefinition{
+		Field: "user_id", Operator: "eq", Expression: "stable.user_id",
+		SchemaID: QueryTextParameterSchemaID, Kind: protocolV2QueryInt64ListFilterKind,
+	}
+	avatarFields := []protocolV2QueryField{
+		{Name: "user_id", Expression: "stable.user_id"},
+		{Name: "username", Expression: "stable.username"},
+		{Name: "display_name", Expression: "stable.display_name"},
+		{Name: "avatar_public_id", Expression: "stable.avatar_public_id"},
+		{Name: "avatar_content_type", Expression: "stable.avatar_content_type"},
+		{Name: "avatar_image_width", Expression: "stable.avatar_image_width"},
+		{Name: "avatar_image_height", Expression: "stable.avatar_image_height"},
+	}
+	categoryFields := []protocolV2QueryField{
+		{Name: "id", Expression: "stable.id"},
+		{Name: "slug", Expression: "stable.slug"},
+		{Name: "name", Expression: "stable.name"},
+		{Name: "description", Expression: "stable.description"},
+		{Name: "icon", Expression: "stable.icon"},
+		{Name: "icon_color", Expression: "stable.icon_color"},
+	}
 	definitions := []protocolV2QueryDefinition{
 		{
 			ID: QuerySafeUserByID, PlanVersion: QueryStableCorePlanVersion,
@@ -339,6 +432,69 @@ func stableCoreProtocolV2QueryDefinitions() []protocolV2QueryDefinition {
 				SchemaID: QueryTextParameterSchemaID, Kind: "text",
 			}},
 			RequiredFilters: []string{"public_id"}, Single: true,
+		},
+		{
+			ID: QuerySiteStats, PlanVersion: QueryStableCorePlanVersion,
+			ResultSchemaID: QuerySiteStatsResultSchemaID, ResultSchemaVersion: QueryStableCoreResultSchemaV1,
+			From: "sforum_core_v1.site_stats AS stable",
+			Fields: []protocolV2QueryField{
+				{Name: "topic_count", Expression: "stable.topic_count"},
+				{Name: "comment_count", Expression: "stable.comment_count"},
+				{Name: "user_count", Expression: "stable.user_count"},
+				{Name: "public_attachment_count", Expression: "stable.public_attachment_count"},
+			},
+			Single: true,
+		},
+		{
+			ID: QueryPublicCommentsList, PlanVersion: QueryStableCorePlanVersion,
+			ResultSchemaID: QueryPublicCommentResultSchemaID, ResultSchemaVersion: QueryStableCoreResultSchemaV1,
+			From: "sforum_core_v1.forum_comments AS stable", Fields: commentFields,
+			Filters: []protocolV2QueryFilterDefinition{
+				{Field: "topic_id", Operator: "eq", Expression: "stable.topic_id", SchemaID: QueryInt64ParameterSchemaID, Kind: "int64"},
+				{Field: "author_user_id", Operator: "eq", Expression: "stable.author_user_id", SchemaID: QueryInt64ParameterSchemaID, Kind: "int64"},
+			},
+			RequiredFilters: []string{"topic_id"},
+			Sorts: []protocolV2QuerySortDefinition{
+				{Field: "id", Expression: "stable.id"},
+				{Field: "created_at", Expression: "stable.created_at"},
+				{Field: "updated_at", Expression: "stable.updated_at"},
+				{Field: "depth", Expression: "stable.depth"},
+			},
+			// 与公开评论流一致的时间序：created_at ASC, id ASC。
+			DefaultSorts: []protocolV2QuerySort{
+				{Field: "created_at", Expression: "stable.created_at"},
+				{Field: "id", Expression: "stable.id"},
+			},
+		},
+		{
+			ID: QuerySafeUserByUsername, PlanVersion: QueryStableCorePlanVersion,
+			ResultSchemaID: QuerySafeUserResultSchemaID, ResultSchemaVersion: QueryStableCoreResultSchemaV1,
+			From: "sforum_core_v1.safe_users AS stable", Fields: safeUserFields,
+			Filters: []protocolV2QueryFilterDefinition{{
+				Field: "username", Operator: "eq", Expression: "stable.username",
+				SchemaID: QueryTextParameterSchemaID, Kind: "text",
+			}},
+			RequiredFilters: []string{"username"}, Single: true,
+		},
+		{
+			ID: QuerySafeUsersBatch, PlanVersion: QueryStableCorePlanVersion,
+			ResultSchemaID: QuerySafeUserAvatarSchemaID, ResultSchemaVersion: QueryStableCoreResultSchemaV1,
+			From: "sforum_core_v1.safe_user_avatars AS stable", Fields: avatarFields,
+			Filters:         []protocolV2QueryFilterDefinition{userIDListFilter},
+			RequiredFilters: []string{"user_id"},
+			Sorts:           []protocolV2QuerySortDefinition{{Field: "user_id", Expression: "stable.user_id"}},
+			DefaultSorts:    []protocolV2QuerySort{{Field: "user_id", Expression: "stable.user_id"}},
+		},
+		{
+			ID: QueryPublicCategoriesList, PlanVersion: QueryStableCorePlanVersion,
+			ResultSchemaID: QueryPublicCategorySchemaID, ResultSchemaVersion: QueryStableCoreResultSchemaV1,
+			From: "sforum_core_v1.public_categories AS stable", Fields: categoryFields,
+			Filters: []protocolV2QueryFilterDefinition{{
+				Field: "slug", Operator: "eq", Expression: "stable.slug",
+				SchemaID: QueryTextParameterSchemaID, Kind: "text",
+			}},
+			Sorts:        []protocolV2QuerySortDefinition{{Field: "id", Expression: "stable.id"}},
+			DefaultSorts: []protocolV2QuerySort{{Field: "id", Expression: "stable.id"}},
 		},
 	}
 	return append(definitions, shortcodeProjectionProtocolV2QueryDefinitions()...)

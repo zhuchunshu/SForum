@@ -2226,6 +2226,12 @@
       "contractVersion": "sforum.route.extensions.execute_version_gc_sweep@1",
       "method": "POST",
       "path": "/api/v1/admin/extensions/version-gc/execute"
+    },
+    {
+      "id": "core.route.extensions.query_catalog",
+      "contractVersion": "sforum.route.extensions.query_catalog@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/query-catalog"
     }
   ],
   "ui": [
@@ -5633,6 +5639,26 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/settings/SFSettingsSecurityTabNav.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.query.catalog",
+      "contractVersion": "sforum.component.page.admin.extensions.query.catalog@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/extensions/query-catalog.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_query_catalog_table",
+      "contractVersion": "sforum.component.admin.sf_admin_query_catalog_table@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/SFAdminQueryCatalogTable.vue"
     }
   ]
 }

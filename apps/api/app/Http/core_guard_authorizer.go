@@ -267,6 +267,8 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 		"core.route.extensions.inspect_route",
 		// 路由注册表目录：与 route inspector 同一 view/manage 门（只读观测面）。
 		"core.route.extensions.route_catalog",
+		// 密封 Core 查询目录：同一 view/manage 门（只读观测面）。
+		"core.route.extensions.query_catalog",
 		// M5 隔离账本：与 route inspector 同一 view/manage 门（同一管理端读取面）。
 		"core.route.extensions.inspect_route_incidents",
 		"core.route.extensions.inspect_templates",

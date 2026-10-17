@@ -1,0 +1,85 @@
+{
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
+  "backend": {
+    "digest": "72c206069ee917aaec2fa12887f1a4acbb8f922bd459555432d5ad038521b6ae",
+    "entry": "backend/plugin",
+    "hostApiVersion": "sforum.host@2",
+    "protocolVersion": 2,
+    "rpc": "hashicorp-go-plugin"
+  },
+  "capabilities": [
+    "host.api"
+  ],
+  "database": {
+    "backup": {
+      "required": false,
+      "strategy": "pg_dump"
+    },
+    "contractVersion": "sforum.query-surface-reference.database@1",
+    "grants": [
+      "core_views"
+    ],
+    "retention": {
+      "days": 30,
+      "onDisable": "retain",
+      "onUninstall": "export"
+    }
+  },
+  "description": "Reference plugin that consumes stable HostQuery contracts (site stats, public topics, batch author profiles) through the Host Query RPC and never touches core tables.",
+  "id": "sforum.query-surface-reference",
+  "manifestVersion": 3,
+  "name": "SForum Query Surface Reference",
+  "openapi": [
+    {
+      "contractVersion": "sforum.query-surface-reference.openapi.routes@1",
+      "digest": "e86b5db3f32f25c60fa99cf08393fb21049bc734c5b91fb6f18af9269150ffed",
+      "id": "sforum.query-surface-reference.openapi.routes",
+      "namespace": "sforum.query-surface-reference",
+      "path": "openapi/routes.yaml"
+    }
+  ],
+  "packageFiles": [
+    {
+      "digest": "72c206069ee917aaec2fa12887f1a4acbb8f922bd459555432d5ad038521b6ae",
+      "id": "sforum.query-surface-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin"
+    },
+    {
+      "digest": "c1da66a1cc768587f55a4b3e0a43356852997ddab2ebd257f30eee306265681a",
+      "id": "sforum.query-surface-reference.stats",
+      "kind": "schema",
+      "path": "schemas/stats.json",
+      "version": "1"
+    },
+    {
+      "digest": "e86b5db3f32f25c60fa99cf08393fb21049bc734c5b91fb6f18af9269150ffed",
+      "id": "sforum.query-surface-reference.file.openapi",
+      "kind": "openapi",
+      "path": "openapi/routes.yaml"
+    }
+  ],
+  "routes": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.query-surface-reference.route.stats@1",
+      "fallback": "closed",
+      "guard": "core.guard.public",
+      "handler": "sforum.query-surface-reference.route.stats",
+      "id": "sforum.query-surface-reference.route.stats",
+      "methods": [
+        "GET"
+      ],
+      "mode": "http",
+      "path": "/query-surface/stats",
+      "responseSchema": "sforum.query-surface-reference.stats@1"
+    }
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "type": "plugin",
+  "url": "https://sforum.local/plugins/query-surface-reference",
+  "version": "1.0.0"
+}

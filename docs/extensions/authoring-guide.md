@@ -1069,6 +1069,43 @@ Version id: `sforum.host/v1`. Env injected by the host:
 SDK helpers: `pluginsdk.Ping`, `GetSettings`, `CheckPermission`, `EnqueueOwnJob`,
 `AppendAudit`, `GetUserSafe`.
 
+## Stable Host Queries (Protocol V2)
+
+Stable core reads are served by `HostQueryService` over Protocol V2 RPC — no
+raw SQL, no core connection. Calling any stable query requires the exact
+active artifact **and** the `core_views` database grant in the manifest
+(`database.grants: ["core_views"]`); the reviewed impact document must carry
+the same grant set. Rows arrive as schema-validated typed documents: BIGINT
+columns are decimal strings, INTEGER columns are numbers, nullable columns may
+be null.
+
+| Query id | Shape | Filters (eq only) | Sorts | Notes |
+| --- | --- | --- | --- | --- |
+| `sforum.core.safe_user.by_id` | single | `id` (required) | — | id, username, display name, timestamps |
+| `sforum.core.safe_user.by_username` | single | `username` (required) | — | same fields as `by_id` |
+| `sforum.core.safe_users.batch` | list | `user_id` (required, id list) | `user_id` | adds live avatar metadata; users without a live avatar keep null avatar columns |
+| `sforum.core.public_topics.list` | list | `category_id`, `author_user_id` | `id`, `created_at`, `updated_at`, `last_activity_at` | public rendered content plus comment/view counters; default order `last_activity_at DESC, id DESC` |
+| `sforum.core.public_topic.by_id` | single | `id` (required) | — | same fields as the list |
+| `sforum.core.public_comments.list` | list | `topic_id` (required), `author_user_id` | `id`, `created_at`, `updated_at`, `depth` | default order `created_at ASC, id ASC`, matching the public comment stream |
+| `sforum.core.public_categories.list` | list | `slug` | `id` | public categories only (group visibility enforced) |
+| `sforum.core.public_attachment.by_public_id` | single | `public_id` (required) | — | public metadata only, never storage internals |
+| `sforum.core.site_stats.current` | single | — | — | topic / comment / user / public-attachment totals |
+
+Shared execution bounds: eq filters only; default page 20 rows, maximum 100;
+5s deadline; Host-owned cost budget; results are not cached yet (no
+entity-event invalidator). An id-list filter takes a **canonical JSON array**:
+strictly ascending, unique, positive int64 ids, at most 100 — e.g.
+`"[1,5,9]"`. Missing ids simply do not return a row.
+
+A need the catalog cannot express goes through the surface-request process in
+`knowledge/decisions/2026-10-18-extension-data-surface-policy.md` — never
+through raw-core grants or per-plugin RPC methods. The same read models are
+also exposed as stable SQL views under `sforum_core_v1`
+(`safe_users`, `forum_topics`, `forum_comments`, `public_categories`,
+`safe_user_avatars`, `site_stats`, `public_attachment_metadata`,
+`public_entity_meta`) for plugins holding the `core_views` lease that prefer
+writing their own SQL against their own schema connection.
+
 ## Event rules of thumb
 
 - **filter / validate** — default `fail_closed`, short timeout (see catalog). Never send mail, call remote APIs, or reindex inside a filter; enqueue a job.

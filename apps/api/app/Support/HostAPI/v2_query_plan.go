@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -76,6 +77,11 @@ type protocolV2QueryKey struct {
 	id      string
 	version string
 }
+
+// protocolV2QueryInt64ListFilterKind filters on a canonical JSON array of
+// positive int64 ids (strictly ascending, unique, 1..MaxBatchIDs). The
+// executor binds it with `= ANY($n)`; the shortcode projections share the kind.
+const protocolV2QueryInt64ListFilterKind = "int64_list"
 
 func buildProtocolV2QueryPlan(
 	definition protocolV2QueryDefinition,
@@ -215,9 +221,64 @@ func protocolV2QueryParameter(document *protocolv2.TypedDocument, definition pro
 			return nil, fmt.Errorf("filter field %q is not valid text", definition.Field)
 		}
 		return text, nil
+	case protocolV2QueryInt64ListFilterKind:
+		text, ok := value.(string)
+		if !ok {
+			return nil, fmt.Errorf("filter field %q must use a canonical JSON int64 list", definition.Field)
+		}
+		ids, listErr := parseProtocolV2QueryInt64List(text)
+		if listErr != nil {
+			return nil, fmt.Errorf("filter field %q is not a valid id list", definition.Field)
+		}
+		return ids, nil
 	default:
 		return nil, fmt.Errorf("filter field %q has an unsupported kind", definition.Field)
 	}
+}
+
+// parseProtocolV2QueryInt64List accepts only the canonical form: strictly
+// ascending, unique, positive int64 ids as compact JSON, at most
+// protocolV2QueryMaxBatchIDs entries. Canonical input keeps the plan shape
+// digest deterministic for cursor and cache identity.
+func parseProtocolV2QueryInt64List(value string) ([]int64, error) {
+	if value == "" || len(value) > 4096 {
+		return nil, errors.New("id list is missing or too large")
+	}
+	var ids []int64
+	decoder := json.NewDecoder(strings.NewReader(value))
+	if err := decoder.Decode(&ids); err != nil {
+		return nil, err
+	}
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		return nil, errors.New("id list has trailing content")
+	}
+	if len(ids) == 0 || len(ids) > protocolV2QueryMaxBatchIDs {
+		return nil, fmt.Errorf("id list must contain 1..%d ids", protocolV2QueryMaxBatchIDs)
+	}
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			return nil, errors.New("id list entries must be positive")
+		}
+		if _, exists := seen[id]; exists {
+			return nil, errors.New("id list entries must be unique")
+		}
+		seen[id] = struct{}{}
+	}
+	canonical := "["
+	for index, id := range ids {
+		if index > 0 && id <= ids[index-1] {
+			return nil, errors.New("id list must be strictly ascending")
+		}
+		if index > 0 {
+			canonical += ","
+		}
+		canonical += strconv.FormatInt(id, 10)
+	}
+	if canonical+"]" != value {
+		return nil, errors.New("id list is not canonical")
+	}
+	return ids, nil
 }
 
 func selectProtocolV2QuerySorts(definition protocolV2QueryDefinition, requested []*hostv2.QuerySort) ([]protocolV2QuerySort, error) {

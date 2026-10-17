@@ -557,6 +557,8 @@ paths:
     "$ref": "./openapi/paths/extension-route-inspector.yaml#/adminExtensionRouteInspector"
   "/admin/extensions/route-catalog":
     "$ref": "./openapi/paths/extension-route-catalog.yaml#/adminExtensionRouteCatalog"
+  "/admin/extensions/query-catalog":
+    "$ref": "./openapi/paths/extension-query-catalog.yaml#/adminExtensionQueryCatalog"
     "$ref": "./openapi/paths/extension-route-incidents.yaml#/adminExtensionRouteIncidents"
   "/admin/extensions/cache-inspector":
     "$ref": "./openapi/paths/extension-cache-inspector.yaml#/adminExtensionCacheInspector"

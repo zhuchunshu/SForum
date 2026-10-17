@@ -7,6 +7,7 @@ import (
 )
 
 const stableCoreViewsMigration = "202607140016_stable_core_views.sql"
+const stableCoreViewsE10Migration = "202610180001_stable_core_views_e10.sql"
 
 func TestFilesIncludesStableCoreViewsMigration(t *testing.T) {
 	entries, err := fs.ReadDir(Files(), ".")
@@ -64,6 +65,43 @@ func TestStableCoreViewsMigrationOwnsFilteredReadOnlyContracts(t *testing.T) {
 	for _, line := range strings.Split(parts[0], "\n") {
 		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(line)), "GRANT ") {
 			t.Fatalf("stable core views migration must not grant plugin authority: %q", strings.TrimSpace(line))
+		}
+	}
+}
+
+func TestStableCoreViewsE10MigrationOwnsFilteredReadOnlyContracts(t *testing.T) {
+	body, err := fs.ReadFile(Files(), stableCoreViewsE10Migration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := strings.SplitN(string(body), "-- +goose Down", 2)
+	if len(parts) != 2 {
+		t.Fatal("stable core views E10 migration has no Down section")
+	}
+	up := strings.Join(strings.Fields(parts[0]), " ")
+	for _, clause := range []string{
+		"CREATE VIEW sforum_core_v1.site_stats WITH (security_barrier = true, security_invoker = false)",
+		"CREATE VIEW sforum_core_v1.public_categories WITH (security_barrier = true, security_invoker = false)",
+		"CREATE VIEW sforum_core_v1.safe_user_avatars WITH (security_barrier = true, security_invoker = false)",
+		"WHERE users.status = 'active' OFFSET 0",
+		"AND category_groups.visibility = 'public' OFFSET 0",
+		"AND attachments.visibility = 'public'",
+		"AND attachments.deleted_at IS NULL",
+		"REVOKE ALL ON ALL TABLES IN SCHEMA sforum_core_v1 FROM PUBLIC",
+	} {
+		if !strings.Contains(up, clause) {
+			t.Fatalf("stable core views E10 migration missing %q", clause)
+		}
+	}
+	for _, forbidden := range []string{
+		"users.email", "users.email_lower", "users.current_token_version",
+		"posts.raw_content", "topics.ip_address", "topics.last_edit_ip",
+		"comments.ip_address", "comments.last_edit_ip", "moderation_triggers",
+		"attachments.provider", "attachments.object_key", "updated_by_user_id",
+		"GRANT ",
+	} {
+		if strings.Contains(" "+up+" ", forbidden) {
+			t.Fatalf("stable core views E10 migration exposes or grants %q", forbidden)
 		}
 	}
 }

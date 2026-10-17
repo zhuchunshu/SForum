@@ -1,0 +1,50 @@
+{
+  "$id": "sforum.query-surface-reference.stats@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["siteStats", "recentTopics", "authors", "hostQueryOk"],
+  "properties": {
+    "siteStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topicCount", "commentCount", "userCount", "publicAttachmentCount"],
+      "properties": {
+        "topicCount": { "type": "string" },
+        "commentCount": { "type": "string" },
+        "userCount": { "type": "string" },
+        "publicAttachmentCount": { "type": "string" }
+      }
+    },
+    "recentTopics": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "slug", "authorUserId"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "slug": { "type": "string" },
+          "authorUserId": { "type": "string" }
+        }
+      }
+    },
+    "authors": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["userId", "username", "displayName"],
+        "properties": {
+          "userId": { "type": "string" },
+          "username": { "type": "string" },
+          "displayName": { "type": "string" },
+          "avatarPublicId": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "hostQueryOk": { "type": "boolean" }
+  }
+}

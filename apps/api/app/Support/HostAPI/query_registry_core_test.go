@@ -89,6 +89,41 @@ func TestQueryRegistryCoreCatalogSealsPublicationsBindingsAndSchemas(t *testing.
 			ResultSchema:     QueryPublicAttachmentSchemaID + "@" + QueryStableCoreResultSchemaV1,
 			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationNone,
 		},
+		QuerySiteStats: {
+			HostQueryID: QuerySiteStats, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.site_stats.current", ContractVersion: "core.query.site_stats.current@1",
+			Entity: "core.query.site_stats", PlanVersion: "core.query.site_stats.current.plan@1",
+			ResultSchema:     QuerySiteStatsResultSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationNone,
+		},
+		QueryPublicCommentsList: {
+			HostQueryID: QueryPublicCommentsList, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.public_comments.list", ContractVersion: "core.query.public_comments.list@1",
+			Entity: "core.query.public_comment", PlanVersion: "core.query.public_comments.list.plan@1",
+			ResultSchema:     QueryPublicCommentResultSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationOffset,
+		},
+		QuerySafeUserByUsername: {
+			HostQueryID: QuerySafeUserByUsername, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.safe_user.by_username", ContractVersion: "core.query.safe_user.by_username@1",
+			Entity: "core.query.safe_user", PlanVersion: "core.query.safe_user.by_username.plan@1",
+			ResultSchema:     QuerySafeUserResultSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationNone,
+		},
+		QuerySafeUsersBatch: {
+			HostQueryID: QuerySafeUsersBatch, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.safe_users.batch", ContractVersion: "core.query.safe_users.batch@1",
+			Entity: "core.query.safe_user_avatar", PlanVersion: "core.query.safe_users.batch.plan@1",
+			ResultSchema:     QuerySafeUserAvatarSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationOffset,
+		},
+		QueryPublicCategoriesList: {
+			HostQueryID: QueryPublicCategoriesList, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: "core.query.public_categories.list", ContractVersion: "core.query.public_categories.list@1",
+			Entity: "core.query.public_category", PlanVersion: "core.query.public_categories.list.plan@1",
+			ResultSchema:     QueryPublicCategorySchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationOffset,
+		},
 	}
 	for _, definition := range shortcodeProjectionProtocolV2QueryDefinitions() {
 		mapping, ok := shortcodeProjectionCoreMapping(definition)
@@ -499,11 +534,11 @@ func queryRegistryCoreFixtureRow(t *testing.T, definition protocolV2QueryDefinit
 		switch field.Name {
 		case "is_pinned", "owning_topic_public", "authenticated", "is_resource_author", "is_topic_author", "eligible":
 			row[field.Name] = false
-		case "image_width", "image_height":
+		case "image_width", "image_height", "avatar_image_width", "avatar_image_height":
 			row[field.Name] = nil
-		case "reference_count", "position":
+		case "reference_count", "position", "depth":
 			row[field.Name] = float64(1)
-		case "author_user_id", "owner_user_id", "topic_id", "resource_id":
+		case "author_user_id", "owner_user_id", "topic_id", "resource_id", "user_id":
 			row[field.Name] = "1"
 		default:
 			// BIGINT/text/timestamp 在 Host 归一化后均为 string。

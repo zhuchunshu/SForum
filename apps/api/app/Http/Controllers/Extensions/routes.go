@@ -34,6 +34,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions/navigation-inspector", h.inspectNavigation)
 	api.Get("/admin/extensions/route-inspector", h.inspectRoute)
 	api.Get("/admin/extensions/route-catalog", h.routeCatalog)
+	api.Get("/admin/extensions/query-catalog", h.queryCatalog)
 	api.Get("/admin/extensions/route-incidents", h.inspectRouteIncidents)
 	api.Get("/admin/extensions/openapi/aggregate", h.routeOpenAPIAggregate)
 	api.Get("/admin/extensions/openapi/generated-client", h.routeGeneratedClientMetadata)

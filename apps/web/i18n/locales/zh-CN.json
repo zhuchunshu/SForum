@@ -904,6 +904,7 @@
       "extensionContributions": "扩展点",
       "extensionRouteProviders": "路由提供者",
       "extensionRouteCatalog": "路由注册表",
+      "extensionQueryCatalog": "查询目录",
       "extensionRouteInspector": "路由检查器",
       "extensionCacheInspector": "缓存检查器",
       "extensionAssetInspector": "资源检查器",
@@ -1819,6 +1820,32 @@
           "action": "动作",
           "guard": "Guard",
           "admission": "准入"
+        }
+      },
+      "queryCatalog": {
+        "metaTitle": "查询目录",
+        "title": "稳定查询目录",
+        "intro": "密封 Core 查询目录的只读快照：插件可通过 Host Query RPC 调用的全部稳定查询（含宿主内部 shortcode 投影），及其字段、过滤、排序与权限形态。目录新增走 surface request 流程，不做单插件特例。",
+        "sealed": "目录密封 {digest}",
+        "totalQueries": "查询 {count} 条",
+        "stableQueries": "插件可调 {count} 条",
+        "costMaximum": "成本预算 {cost}",
+        "refreshed": "查询目录已刷新",
+        "loadFailed": "查询目录加载失败",
+        "emptyTitle": "目录为空",
+        "emptyDescription": "密封 Core 查询目录没有任何条目——这是异常状态，请检查宿主装配。",
+        "hint": "调用稳定查询需要插件持有 core_views 授权且制品精确匹配；id 列表过滤使用规范升序 JSON 数组（≤100 个 id）。字段口径见 authoring-guide 的 Stable Host Queries 一节。",
+        "hostInternal": "宿主内部",
+        "fields": "字段",
+        "filters": "过滤",
+        "sorts": "排序",
+        "columns": {
+          "query": "查询（Query Registry）",
+          "host": "宿主 RPC id",
+          "shape": "形状",
+          "pagination": "分页",
+          "policy": "权限形态",
+          "schema": "结果 schema"
         }
       },
       "routeProviders": {

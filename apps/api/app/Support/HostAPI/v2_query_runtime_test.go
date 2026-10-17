@@ -3,6 +3,9 @@ package hostapi
 import (
 	"context"
 	"errors"
+	"fmt"
+	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -247,4 +250,69 @@ func queryParameter(t *testing.T, schemaID, value string) *protocolv2.TypedDocum
 		t.Fatal(err)
 	}
 	return &protocolv2.TypedDocument{SchemaId: schemaID, SchemaVersion: QueryStableCoreParameterSchemaV1, Value: document}
+}
+
+func TestParseProtocolV2QueryInt64ListContract(t *testing.T) {
+	for _, value := range []string{"[1]", "[1,5,9]"} {
+		if _, err := parseProtocolV2QueryInt64List(value); err != nil {
+			t.Fatalf("canonical list %q rejected: %v", value, err)
+		}
+	}
+	oversized := make([]string, 0, protocolV2QueryMaxBatchIDs+1)
+	for id := 1; id <= protocolV2QueryMaxBatchIDs+1; id++ {
+		oversized = append(oversized, strconv.Itoa(id))
+	}
+	invalid := map[string]string{
+		"empty":       "[]",
+		"unsorted":    "[9,1]",
+		"duplicate":   "[1,1]",
+		"zero":        "[0]",
+		"negative":    "[-1]",
+		"space":       "[1, 5]",
+		"trailing":    "[1]x",
+		"not-json":    "1,2",
+		"object":      `{"1":1}`,
+		"non-int64":   `["a"]`,
+		"not-canonical": "[01]",
+		"over-max":    "[" + strings.Join(oversized, ",") + "]",
+	}
+	for name, value := range invalid {
+		if _, err := parseProtocolV2QueryInt64List(value); err == nil {
+			t.Fatalf("invalid %s list %q accepted", name, value)
+		}
+	}
+}
+
+func TestProtocolV2QueryPlanBuildsInt64ListFilterForSafeUsersBatch(t *testing.T) {
+	var batch *protocolV2QueryDefinition
+	for index := range stableCoreProtocolV2QueryDefinitions() {
+		if stableCoreProtocolV2QueryDefinitions()[index].ID == QuerySafeUsersBatch {
+			batch = &stableCoreProtocolV2QueryDefinitions()[index]
+			break
+		}
+	}
+	if batch == nil {
+		t.Fatal("stable catalog is missing the safe_users batch definition")
+	}
+	rejected := &hostv2.QueryRequest{
+		QueryId: QuerySafeUsersBatch, PlanVersion: QueryStableCorePlanVersion,
+		Filters: []*hostv2.QueryFilter{{Field: "user_id", Operator: "eq", Value: queryParameter(t, QueryTextParameterSchemaID, "[2,1]")}},
+	}
+	if _, detail := buildProtocolV2QueryPlan(*batch, rejected); detail == nil {
+		t.Fatal("unsorted id list must be rejected at plan build")
+	}
+	accepted := &hostv2.QueryRequest{
+		QueryId: QuerySafeUsersBatch, PlanVersion: QueryStableCorePlanVersion,
+		Filters: []*hostv2.QueryFilter{{Field: "user_id", Operator: "eq", Value: queryParameter(t, QueryTextParameterSchemaID, "[1,2]")}},
+	}
+	plan, detail := buildProtocolV2QueryPlan(*batch, accepted)
+	if detail != nil {
+		t.Fatalf("canonical id list rejected: %v", detail)
+	}
+	if !reflect.DeepEqual(plan.Filters[0].Value, []int64{1, 2}) {
+		t.Fatalf("int64 list filter value = %#v", plan.Filters[0].Value)
+	}
+	if fmt.Sprint(plan.ShapeDigest) == "" {
+		t.Fatal("shape digest must stay non-empty for cursor identity")
+	}
 }

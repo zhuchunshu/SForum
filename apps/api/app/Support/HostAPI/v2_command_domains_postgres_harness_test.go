@@ -129,8 +129,8 @@ func installPostgresDomainCommandSchema(t *testing.T, ctx context.Context, pool 
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		// 该迁移有意创建固定 Host schema 并显式读取 public；六域命令不依赖它。
-		if name == "202607140016_stable_core_views.sql" {
+		// 该族迁移有意创建固定 Host schema（sforum_core_v1 全局）；六域命令不依赖它。
+		if strings.Contains(name, "_stable_core_views") {
 			continue
 		}
 		version, err := postgresDomainCommandMigrationVersion(name)

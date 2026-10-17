@@ -996,6 +996,19 @@ catalog IDs do not rely on string replacement as sanitization.
   migration, or cancellation.
 - Unsafe bounded plugin HTTP routes may use Host-owned idempotency replay;
   streaming modes cannot request replay.
+- Stable plugin read surface (2026-10-18, E10): nine plugin-callable stable
+  HostQuery definitions (safe user by id/username, safe users batch with live
+  avatar metadata, public topics list/by id, public comments list, public
+  categories list, public attachment metadata, site stats) backed by
+  `sforum_core_v1` stable views (`site_stats`, `public_categories`,
+  `safe_user_avatars` added by `202610180001`). `core_views` is the required
+  authority for both the RPC path and direct view SQL; the query authority
+  resolver expands Manifest V3 `database.grants` (legacy `authority` strings
+  still accepted) and requires the trust impact document's canonical grant
+  set to equal the live manifest's. Catalog growth is deliberate: explicit
+  Query Registry mapping, sealed digest, and the
+  `bootstrap/extension_lifecycle_test.go` count tripwire move together.
+  Policy: `decisions/2026-10-18-extension-data-surface-policy.md`.
 
 ## Provider And Product Boundaries
 

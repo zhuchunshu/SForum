@@ -600,6 +600,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sf_admin_query_catalog_table",
+    "contractVersion": "sforum.component.admin.sf_admin_query_catalog_table@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/SFAdminQueryCatalogTable.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_role_approvals_tab",
     "contractVersion": "sforum.component.admin.sfadmin_role_approvals_tab@1",
     "kind": "component",
@@ -1162,6 +1172,17 @@
     "kind": "page",
     "route": "/admin/extensions/provider-slots",
     "source": "apps/web/app/pages/admin/extensions/provider-slots.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
+    "id": "core.component.page.admin.extensions.query.catalog",
+    "contractVersion": "sforum.component.page.admin.extensions.query.catalog@1",
+    "kind": "page",
+    "route": "/admin/extensions/query-catalog",
+    "source": "apps/web/app/pages/admin/extensions/query-catalog.vue",
     "owners": [
       "admin"
     ],

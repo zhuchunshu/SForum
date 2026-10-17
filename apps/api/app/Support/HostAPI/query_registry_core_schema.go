@@ -80,6 +80,51 @@ func queryRegistryCoreResultSchemaProperties(definition protocolV2QueryDefinitio
 			"created_at":      schemaString(),
 			"updated_at":      schemaString(),
 		}
+	case QuerySiteStatsResultSchemaID:
+		// COUNT(*) returns bigint, which normalize maps to a decimal string.
+		properties = map[string]any{
+			"topic_count":            schemaString(),
+			"comment_count":          schemaString(),
+			"user_count":             schemaString(),
+			"public_attachment_count": schemaString(),
+		}
+	case QueryPublicCommentResultSchemaID:
+		properties = map[string]any{
+			"id":                schemaString(),
+			"topic_id":          schemaString(),
+			"author_user_id":    schemaStringOrNull(),
+			"parent_comment_id": schemaStringOrNull(),
+			"root_comment_id":   schemaStringOrNull(),
+			"path_key":          schemaString(),
+			"depth":             schemaNumber(),
+			"reply_count":       schemaString(),
+			"created_at":        schemaString(),
+			"updated_at":        schemaString(),
+			"html_content":      schemaString(),
+			"plain_text":        schemaString(),
+			"source_format":     schemaString(),
+			"render_version":    schemaString(),
+			"content_hash":      schemaString(),
+		}
+	case QuerySafeUserAvatarSchemaID:
+		properties = map[string]any{
+			"user_id":             schemaString(),
+			"username":            schemaString(),
+			"display_name":        schemaString(),
+			"avatar_public_id":    schemaStringOrNull(),
+			"avatar_content_type": schemaStringOrNull(),
+			"avatar_image_width":  schemaNumberOrNull(),
+			"avatar_image_height": schemaNumberOrNull(),
+		}
+	case QueryPublicCategorySchemaID:
+		properties = map[string]any{
+			"id":          schemaString(),
+			"slug":        schemaString(),
+			"name":        schemaString(),
+			"description": schemaStringOrNull(),
+			"icon":        schemaStringOrNull(),
+			"icon_color":  schemaStringOrNull(),
+		}
 	default:
 		if shortcode, ok := shortcodeProjectionSchemaProperties(definition.ResultSchemaID); ok {
 			properties = shortcode

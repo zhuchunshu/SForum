@@ -106,6 +106,14 @@ func (p *ExtensionsProvider) WithRouteInspector(inspector *routes.Inspector) *Ex
 	return p
 }
 
+// WithQueryCatalog 透传密封 Core 查询目录的只读边界。
+func (p *ExtensionsProvider) WithQueryCatalog(source extensionscontroller.QueryCatalogSource) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithQueryCatalog(source)
+	}
+	return p
+}
+
 // WithRouteIncidentReader 透传崩溃循环隔离持久状态的只读边界。
 func (p *ExtensionsProvider) WithRouteIncidentReader(reader apphttp.RouteRuntimeIncidentReader) *ExtensionsProvider {
 	if p != nil && p.controller != nil {

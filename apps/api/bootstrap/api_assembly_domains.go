@@ -421,6 +421,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		// M5：崩溃循环隔离的持久状态必须可读，管理员才能在重启后看到同一份状态。
 		WithRouteIncidentReader(httpserver.NewPostgresRouteRuntimeIncidentStore(pool)).
 		WithCacheInspector(hostCacheRuntime.Registry, hostCacheRuntime.Inspector).
+		WithQueryCatalog(lifecycleStack.QueryCoreCatalog).
 		WithComponentCompositionInspector(lifecycleStack.ComponentInspector).
 		WithAssetInspector(lifecycleStack.AssetRegistry).
 		WithThemeRuntimeInspector(themeRuntime).
