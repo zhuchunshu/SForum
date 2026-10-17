@@ -251,8 +251,10 @@ contracts first.
   protected built-in plugins when SForum needs a bundled default.
 - Plugin development is **zero-command** in development: the host process itself
   watches `EXTERNAL_EXTENSION_ROOTS` (dev assembly only), and on every source
-  change runs build → digest (incl. SRI recompute) → stage → exact per-digest
-  grant → enable/upgrade with the plugin subprocess restarting — no login, no
+  change runs frontend (bun) + backend (go) builds → digest (incl. SRI
+  recompute) → stage → exact per-digest grant → enable/upgrade (L2 component
+  contractVersions are auto-bumped in-memory per digest; the public asset
+  registry is republished) with the plugin subprocess restarting — no login, no
   password, no dev trust session, no manual confirmation, and it works on a
   fresh database with zero admin accounts (a dedicated credential-less
   `dev-auto` system account is the audit attribution; disabling or deleting it

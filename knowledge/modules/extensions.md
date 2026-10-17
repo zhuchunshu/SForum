@@ -641,7 +641,17 @@ does not rebuild Nuxt.
   with zero admins work; production and Safe Mode never assemble the watcher
   (fail closed); install/enable/upgrade HTTP routes keep their super_admin
   gates. The wrapper script and CLI credential layers were removed. Decision:
-  `../decisions/2026-10-17-dev-zero-command.md`.
+  `../decisions/2026-10-17-dev-zero-command.md`. Frontend-artifact parity
+  (same-day round 6): the dev pipeline also builds `frontend/admin` (bun run
+  build when package.json exists); `UpgradeInput.Extension` carries an in-memory
+  staged copy whose `components[].contractVersion` is rewritten to
+  `dev-<digest8>` (accepted only on exact ID/version/staged-digest match), so L2
+  frontend edits no longer need manual contract bumps; after any promotion
+  `FrontendService.RepublishPublicAssetsForDev` rebuilds the public asset
+  registry (Host otherwise rebuilds it only at boot, leaving browsers on the
+  boot-time digest). Dev upgrades use deterministic Idempotency-Keys and
+  auto-recover one-shot from a failed-upgrade fence; promote failures are
+  recorded in `extension_events`.
   transaction built→digest→validate→test green (7 checks). Decision:
   `../decisions/2026-10-17-dev-live-activation-chain.md`. Agent contract:
   the `AGENTS.md` plugin-development rule now mandates this chain (never restart
