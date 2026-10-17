@@ -384,9 +384,9 @@ sandbox.
 
 Public L2 (package-local prebuilt ESM/CSS mounted by `SFExtensionWidget`) is
 **fully trusted browser code**, not a sandbox. When a contribution mounts, the
-Host bridge sets `trust: fully_trusted_browser_code` and the public widget shows
-an operator-facing honesty note: the component can use the current browser
-session and page authority for its namespaced API. Enable `SFORUM_V3_PUBLIC_L2`
+Host bridge sets `trust: fully_trusted_browser_code` and the public widget
+carries the same value as a machine-readable `data-l2-trust` attribute; no
+in-page trust banner is rendered. Enable `SFORUM_V3_PUBLIC_L2`
 only for extensions you trust. SSR/L1 slot content remains the fallback when L2
 fails, is quarantined, or is disabled.
 

@@ -52,13 +52,11 @@ describe('P9 joined desktop/mobile visual matrix', () => {
     expect(home).toContain('SFPageOutlet')
     expect(home).toContain('forum.home')
 
-    // L2 honesty + theme CSP wiring for replaced widgets
+    // L2 trust attestation + theme CSP wiring for replaced widgets
     // 源码引用常量 PUBLIC_FRONTEND_TRUST_NOTICE（值为 fully_trusted_browser_code），
-    // 与 publicL2Honesty.test.ts 对齐，不要求字面量出现在 SFC 中。
-    expect(widget).toContain('public-l2-honesty')
+    // 与 publicL2Honesty.test.ts 对齐：页内披露横幅已移除，只保留机器可读的信任标注。
     expect(widget).toContain('PUBLIC_FRONTEND_TRUST_NOTICE')
-    expect(widget).toContain('data-testid="public-l2-honesty"')
-    expect(widget).toContain('data-testid="public-l2-honesty-dismiss"')
+    expect(widget).not.toContain('public-l2-honesty')
     expect(theme).toContain('applyPublicPageDocumentPolicy')
     expect(theme).toContain('core.component.shared.sfextension_widget')
   })
