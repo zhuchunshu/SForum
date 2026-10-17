@@ -264,6 +264,19 @@ load archived sessions or completed plans as current context.
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
+## Latest Handoff
+
+- **dev 零命令自动激活（2026-10-17）**。操作者拍板 B 方案：watcher 挪进 host dev
+  装配，彻底 0 命令——`./scripts/dev-plugin-loop.sh` 已删除，登录提示/凭据缓存
+  代码全部移除；host 进程内 fsnotify 监听 EXTERNAL_EXTENSION_ROOTS，保存即
+  go build → digest（SRI 重算）→ stage → 逐摘要 grant → 启用/升级，插件子进程
+  自动重启；0 管理员空库可用（合成无凭据 `dev-auto` 系统账号作审计归因，
+  禁用/删除即关闭通道）；生产与 Safe Mode 不装配（fail closed），HTTP 激活路由
+  super_admin 门原样。实机证据：dev 库自动出现 dev-auto 用户（id 157）、
+  oauth2-provider/marketplace 自动 upgraded、touch 源文件 6 秒内自动重建
+  （digest 7cc3d26b…）。详见 `sessions/2026-10-17-dev-live-activation-chain-handoff.md`
+  与 `decisions/2026-10-17-dev-zero-command.md`。
+
 
 - **插件子进程内存上限（2026-10-17）**。Protocol V2 插件子进程固定注入
   `GOGC=50` + `GOMEMLIMIT=48MiB` 软上限，已部署实例零配置生效；
@@ -282,6 +295,17 @@ load archived sessions or completed plans as current context.
   移动并登记新 tab 组件。focused Go 与静态门禁全绿；桌面与 390x844 渲染 QA 均已通过
   （含旧路径 302 与两个 QA 过程缺陷修复）。详见
   `sessions/2026-10-17-account-security-consolidation-handoff.md`。
+
+- **dev 循环「保存即生效」激活链（2026-10-17）**。外部插件仓库
+  （`EXTERNAL_EXTENSION_ROOTS`，如 `sforum-oauth2-provider`）不再需要拷进主程序目录：
+  CLI dev 循环/dev-trust create 接受外部根；`GrantDevArtifact` 授权前先重扫外部源，
+  新摘要无需重启 API 即暂存；`--auto-upgrade`（隐含 --auto-trust）在授权后自动走既有
+  upgrade 路由——保存 → 构建/摘要/校验/测试 → 暂存 → 信任 → 升级全自动，插件子进程
+  按新摘要重启。`digest --write` 顺带重算已声明资产的 SRI。同时修复 OpenAPI
+  `{extensionID}` vs Go 目录 `:id` 的命名漂移（docs 端点校验 HEAD 既有红）
+  与 dev-trust 文档端点口径。详见
+  `sessions/2026-10-17-dev-live-activation-chain-handoff.md`、
+  `decisions/2026-10-17-dev-live-activation-chain.md`。
 
 - **路由注册表 Route Catalog（2026-10-17）**。新只读管理页
   `/control-panel/extensions/route-catalog`：按提供者来源分组展示 Route

@@ -39,7 +39,7 @@ AttachmentID:
     format: int64
   description: Numeric attachment id.
 ExtensionID:
-  name: extensionID
+  name: id
   in: path
   required: true
   schema:

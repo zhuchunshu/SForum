@@ -436,7 +436,10 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 			extensions.NewPostgresDevTrustSessionStore(pool),
 			lifecycleStack.Trust,
 			cfg.AppEnv,
-		).WithSafeMode(cfg.SafeMode).WithDevSourceRoots(cfg.ExternalExtensionRoots)
+		).WithSafeMode(cfg.SafeMode).WithDevSourceRoots(cfg.ExternalExtensionRoots).
+			// GrantDevArtifact 前重扫外部源：dev 循环重建的新摘要无需重启 API
+			// 即可暂存为候选，供同一请求内的授权与随后的 upgrade 消费。
+			WithSourceSyncer(extensionService)
 		if cfg.SafeMode {
 			// Safe Mode 启动即吊销全部会话：Safe Mode 结束后旧会话不复活。
 			if err := devTrust.RevokeAllOnSafeMode(ctx); err != nil {
@@ -444,6 +447,25 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 			}
 		}
 		extensionsProvider.WithDevTrustSessions(devTrust)
+
+		// 「彻底 0 命令」dev 自动激活（操作者 2026-10-17 拍板）：host 进程内
+		// watcher 监听外部根，保存即 构建→摘要→stage→grant→启用/升级，
+		// 无任何登录/授权交互。生产不装配本块（fail closed）。
+		if len(cfg.ExternalExtensionRoots) > 0 && !cfg.SafeMode {
+			devAuto := extensions.NewDevAutoRuntime(
+				extensionService, extensionService, identityStore,
+				lifecycleStack.Trust, cfg.ExternalExtensionRoots, logger,
+			)
+			// 启动即对账一次：上次退出后改过的包无需等下一次文件事件。
+			go devAuto.PromoteAll(ctx)
+			if watcher, watchErr := newDevPluginWatcher(
+				devAuto, devAuto, cfg.ExternalExtensionRoots, logger,
+			); watchErr != nil {
+				logger.Warn("dev plugin watcher unavailable", "error", watchErr)
+			} else {
+				watcher.Start(ctx)
+			}
+		}
 	}
 	// 版本 GC 管理端入口（阶段 5）：生产可用，无条件注入；super_admin 与
 	// actor 绑定由服务边界强制，nil 语义不适用（这是运维要在生产回收的能力）。

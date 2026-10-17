@@ -40,7 +40,7 @@ const (
 
 var errExtensionDevDisabled = errors.New("extensions: extension dev is development-only")
 
-// devPackageRootAllowedRoots 返回允许在开发循环中监视的根目录。
+// devPackageRootAllowedRoots 返回允许在开发循环中监视的仓库内根目录。
 // builtin 源码树被显式排除：受保护内置必须走 build-builtin-plugins.sh + 管理员激活，
 // 在那里原地重建会绕开受保护路径。
 func devPackageRootAllowedRoots(repoRoot string) []string {
@@ -56,7 +56,31 @@ func devForbiddenRoots(repoRoot string) []string {
 	return []string{filepath.Join(repoRoot, "extensions", "builtin")}
 }
 
-// resolveDevPackageRoot 校验包根：必须是 Manifest V3 包，且位于允许的开发根内。
+// devExternalRoots 读取 EXTERNAL_EXTENSION_ROOTS（逗号分隔，与 config.Load 的
+// envStringSlice 同一约定），返回允许监视的外部插件仓库根。CLI 与服务端
+// DevTrustService.devSourceRootAllowed 共用同一集合语义：只接受绝对路径，
+// 空白与相对项忽略，重复项去重。外部仓库正是「插件源码不在主程序目录」的
+// 正规开发形态：dev 信任会话（服务端）早已接受它们，CLI 不得比服务端更严。
+func devExternalRoots() []string {
+	raw := os.Getenv("EXTERNAL_EXTENSION_ROOTS")
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var roots []string
+	for _, item := range strings.Split(raw, ",") {
+		cleaned := filepath.Clean(strings.TrimSpace(item))
+		if cleaned == "." || cleaned == "" || !filepath.IsAbs(cleaned) || seen[cleaned] {
+			continue
+		}
+		seen[cleaned] = true
+		roots = append(roots, cleaned)
+	}
+	return roots
+}
+
+// resolveDevPackageRoot 校验包根：必须是 Manifest V3 包，且位于允许的开发根内
+// （仓库内开发树或 EXTERNAL_EXTENSION_ROOTS 配置的外部根）。
 func resolveDevPackageRoot(root string) (string, error) {
 	abs, err := resolveExtensionPackageRoot(root)
 	if err != nil {
@@ -74,14 +98,16 @@ func resolveDevPackageRoot(root string) (string, error) {
 			)
 		}
 	}
-	for _, allowed := range devPackageRootAllowedRoots(repoRoot) {
-		if devPathWithin(abs, allowed) {
+	allowed := devPackageRootAllowedRoots(repoRoot)
+	allowed = append(allowed, devExternalRoots()...)
+	for _, allowedRoot := range allowed {
+		if devPathWithin(abs, allowedRoot) {
 			return abs, nil
 		}
 	}
 	return "", fmt.Errorf(
-		"%w: %s is outside the development roots (%s)",
-		errExtensionDevDisabled, abs, strings.Join(devPackageRootAllowedRoots(repoRoot), ", "),
+		"%w: %s is outside the development roots (%s; external roots come from EXTERNAL_EXTENSION_ROOTS)",
+		errExtensionDevDisabled, abs, strings.Join(allowed, ", "),
 	)
 }
 
@@ -291,6 +317,14 @@ func devStampFile(path string) (devFileStamp, bool) {
 	return devFileStamp{modTime: info.ModTime().UnixNano(), size: info.Size()}, true
 }
 
+// devTrustActivator 是 dev 循环构建成功后的自动激活边界：
+// Refresh 为精确新摘要写入 dev trust grant；Upgrade 把 staged 候选升级为活动版本。
+// 生产实现走既有 HTTP 路由（dev-trust-refresh / upgrade），不引入第二条信任路径。
+type devTrustActivator interface {
+	Refresh(ctx context.Context, packageDigest string) error
+	Upgrade(ctx context.Context, packageDigest string) error
+}
+
 // devWatchLoop 是去抖 + 合并 + 单事务的编辑循环。
 type devWatchLoop struct {
 	root     string
@@ -298,10 +332,14 @@ type devWatchLoop struct {
 	watcher  devWatcher
 	status   devStatusSink
 	debounce time.Duration
-	// autoTrust 非空时，每个成功 digest 通过 POST dev-trust-refresh 自动续信任。
-	autoTrust *devTrustRefresher
-	lastDigest string
-	stamps     map[string]devFileStamp
+	// activator 非空时，每个成功 digest 通过 POST dev-trust-refresh 自动续信任
+	// （该端点在开发装配下会先重扫外部源，把新摘要暂存为候选）。
+	activator devTrustActivator
+	// autoUpgrade 打开时，信任续期成功后继续调用既有 upgrade 路由，
+	// 把 staged 候选升级为活动版本——插件子进程随之按新摘要重启。
+	autoUpgrade bool
+	lastDigest  string
+	stamps      map[string]devFileStamp
 }
 
 // run 阻塞直到 ctx 取消。返回值是最后一个健康制品摘要（可能为空）。
@@ -388,10 +426,11 @@ func (l *devWatchLoop) buildOnce(ctx context.Context, fields map[string]any) {
 	}
 	l.lastDigest = result.PackageDigest
 	l.status.Phase("built", map[string]any{"packageDigest": result.PackageDigest})
-	// 不绕过信任：摘要变化后仍需操作员确认。autoTrust 打开且存在活跃 dev 会话时，
-	// 由 super_admin 会话通过 dev-trust-refresh 自动写入 exact grant；否则只报告下一步。
-	if l.autoTrust != nil {
-		if err := l.autoTrust.Refresh(ctx, result.PackageDigest); err != nil {
+	// 不绕过信任：摘要变化后仍需操作员确认。activator 打开且存在活跃 dev 会话时，
+	// 由 super_admin 会话通过 dev-trust-refresh 自动写入 exact grant（该端点在开发
+	// 装配下会先重扫外部源完成暂存）；否则只报告下一步。
+	if l.activator != nil {
+		if err := l.activator.Refresh(ctx, result.PackageDigest); err != nil {
 			l.status.Phase("dev_trust_failed", map[string]any{
 				"packageDigest": result.PackageDigest,
 				"error":         err.Error(),
@@ -399,7 +438,22 @@ func (l *devWatchLoop) buildOnce(ctx context.Context, fields map[string]any) {
 			})
 			return
 		}
-		l.status.Phase("dev_trusted", map[string]any{"packageDigest": result.PackageDigest})
+		if !l.autoUpgrade {
+			l.status.Phase("dev_trusted", map[string]any{"packageDigest": result.PackageDigest})
+			return
+		}
+		// 自动升级走既有 lifecycle upgrade 路由：信任授予已就位，staged 候选
+		// 升为活动版本，插件子进程按新摘要重启。失败不中断循环，只报告原因。
+		if err := l.activator.Upgrade(ctx, result.PackageDigest); err != nil {
+			l.status.Phase("auto_upgrade_failed", map[string]any{
+				"packageDigest": result.PackageDigest,
+				"error":         err.Error(),
+				"next": "enable the extension once in the admin flow if it is disabled; " +
+					"recreate the dev trust session with `sforum extension dev-trust create` if it expired",
+			})
+			return
+		}
+		l.status.Phase("activated", map[string]any{"packageDigest": result.PackageDigest})
 		return
 	}
 	l.status.Phase("reload_required", map[string]any{
@@ -488,6 +542,7 @@ func newExtensionDevCommand() *cobra.Command {
 		once        bool
 		skipInstall bool
 		autoTrust   bool
+		autoUpgrade bool
 	)
 	cmd := &cobra.Command{
 		Use:   "dev [path]",
@@ -503,7 +558,8 @@ still confirms the exact artifact in the admin flow before it becomes active.
 The last healthy artifact stays active when a build or preflight fails.
 
 Requires APP_ENV=development and a package under extensions/dev, extensions/optional,
-or extensions/fixtures. Protected built-in trees are refused.`,
+extensions/fixtures, or an EXTERNAL_EXTENSION_ROOTS root. Protected built-in trees
+are refused.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root := "."
@@ -512,7 +568,7 @@ or extensions/fixtures. Protected built-in trees are refused.`,
 			}
 			return runExtensionDev(cmd, root, extensionDevOptions{
 				AsJSON: asJSON, Debounce: debounce, Once: once, SkipInstall: skipInstall,
-				AutoTrust: autoTrust,
+				AutoTrust: autoTrust, AutoUpgrade: autoUpgrade,
 			})
 		},
 	}
@@ -521,6 +577,7 @@ or extensions/fixtures. Protected built-in trees are refused.`,
 	cmd.Flags().BoolVar(&once, "once", false, "Run exactly one build transaction and exit (no watcher)")
 	cmd.Flags().BoolVar(&skipInstall, "skip-install", false, "Skip bun install and use the existing frontend dependencies")
 	cmd.Flags().BoolVar(&autoTrust, "auto-trust", false, "Auto-refresh dev trust sessions after each build (requires a dev trust session and super_admin credentials)")
+	cmd.Flags().BoolVar(&autoUpgrade, "auto-upgrade", false, "After each trusted build, upgrade the staged candidate through the existing lifecycle route so the change goes live without manual admin steps (implies --auto-trust)")
 	return cmd
 }
 
@@ -530,6 +587,7 @@ type extensionDevOptions struct {
 	Once        bool
 	SkipInstall bool
 	AutoTrust   bool
+	AutoUpgrade bool
 }
 
 func runExtensionDev(cmd *cobra.Command, root string, opts extensionDevOptions) error {
@@ -569,18 +627,20 @@ func runExtensionDev(cmd *cobra.Command, root string, opts extensionDevOptions) 
 	ctx, stop := signal.NotifyContext(baseContext, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// autoTrust 是可选的会话级自动信任：仅在能建立 API 客户端时启用；
+	// activator 是可选的会话级自动激活：仅在能建立 API 客户端时启用；
 	// 无凭据/无会话时构建照常，refresh 报错并回落 reload_required。
-	var refresher *devTrustRefresher
+	var activator devTrustActivator
 	if opts.AutoTrust {
-		refresher, err = newDevTrustRefresher(abs)
-		if err != nil {
-			fmt.Fprintf(out, "auto-trust unavailable (%v); falling back to manual confirmation\n", err)
+		refresher, refresherErr := newDevTrustRefresher(abs)
+		if refresherErr != nil {
+			fmt.Fprintf(out, "auto-trust unavailable (%v); falling back to manual confirmation\n", refresherErr)
+		} else {
+			activator = refresher
 		}
 	}
 
 	if opts.Once {
-		loop := &devWatchLoop{root: abs, runner: runner, status: status, autoTrust: refresher}
+		loop := &devWatchLoop{root: abs, runner: runner, status: status, activator: activator, autoUpgrade: opts.AutoUpgrade}
 		loop.buildOnce(ctx, map[string]any{"trigger": "once"})
 		return nil
 	}
@@ -592,7 +652,7 @@ func runExtensionDev(cmd *cobra.Command, root string, opts extensionDevOptions) 
 	defer watcher.Close()
 	loop := &devWatchLoop{
 		root: abs, runner: runner, watcher: watcher, status: status, debounce: opts.Debounce,
-		autoTrust: refresher,
+		activator: activator, autoUpgrade: opts.AutoUpgrade,
 	}
 	digest, err := loop.run(ctx)
 	if err != nil {

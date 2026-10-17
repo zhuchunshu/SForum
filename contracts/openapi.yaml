@@ -582,61 +582,61 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionProviderSlotReset"
   "/admin/extensions/provider-slots/probe":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionProviderSlotProbe"
-  "/admin/extensions/{extensionID}":
+  "/admin/extensions/{id}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionUninstall"
-  "/admin/extensions/{extensionID}/enable":
+  "/admin/extensions/{id}/enable":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEnable"
-  "/admin/extensions/{extensionID}/restart":
+  "/admin/extensions/{id}/restart":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRestart"
-  "/admin/extensions/{extensionID}/trust":
+  "/admin/extensions/{id}/trust":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionTrust"
   "/admin/extensions/dev-trust-sessions":
     "$ref": "./openapi/paths/extensions.yaml#/adminDevTrustSessions"
   "/admin/extensions/dev-trust-sessions/{id}":
     "$ref": "./openapi/paths/extensions.yaml#/adminDevTrustSession"
-  "/admin/extensions/{extensionID}/dev-trust-refresh":
+  "/admin/extensions/{id}/dev-trust-refresh":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionDevTrustRefresh"
-  "/admin/extensions/{extensionID}/trust/challenge":
+  "/admin/extensions/{id}/trust/challenge":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionTrustChallenge"
-  "/admin/extensions/{extensionID}/disable":
+  "/admin/extensions/{id}/disable":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionDisable"
-  "/admin/extensions/{extensionID}/upgrade":
+  "/admin/extensions/{id}/upgrade":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionUpgrade"
-  "/admin/extensions/{extensionID}/rollback":
+  "/admin/extensions/{id}/rollback":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRollback"
-  "/admin/extensions/{extensionID}/verify":
+  "/admin/extensions/{id}/verify":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionVerify"
-  "/admin/extensions/{extensionID}/activate":
+  "/admin/extensions/{id}/activate":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionActivate"
-  "/admin/extensions/{extensionID}/events":
+  "/admin/extensions/{id}/events":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEvents"
-  "/admin/extensions/{extensionID}/lifecycle":
+  "/admin/extensions/{id}/lifecycle":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleOperations"
-  "/admin/extensions/{extensionID}/lifecycle/{operationID}":
+  "/admin/extensions/{id}/lifecycle/{operationID}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleOperation"
-  "/admin/extensions/{extensionID}/lifecycle/{operationID}/recovery":
+  "/admin/extensions/{id}/lifecycle/{operationID}/recovery":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleRecovery"
-  "/admin/extensions/{extensionID}/migrations":
+  "/admin/extensions/{id}/migrations":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionMigrations"
-  "/admin/extensions/{extensionID}/migrations/apply":
+  "/admin/extensions/{id}/migrations/apply":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionMigrationsApply"
-  "/admin/extensions/{extensionID}/page-bootstrap":
+  "/admin/extensions/{id}/page-bootstrap":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionPageBootstrap"
-  "/admin/extensions/{extensionID}/settings":
+  "/admin/extensions/{id}/settings":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettings"
-  "/admin/extensions/{extensionID}/settings/reset":
+  "/admin/extensions/{id}/settings/reset":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettingsReset"
-  "/admin/extensions/{extensionID}/settings/actions/{actionID}":
+  "/admin/extensions/{id}/settings/actions/{actionID}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionSettingsAction"
-  "/admin/extensions/{extensionID}/frontend":
+  "/admin/extensions/{id}/frontend":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontend"
-  "/admin/extensions/{extensionID}/frontend/assets/{digest}/{asset}":
+  "/admin/extensions/{id}/frontend/assets/{digest}/{asset}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendAsset"
-  "/admin/extensions/{extensionID}/frontend/assets/{digest}/{component}/{asset}":
+  "/admin/extensions/{id}/frontend/assets/{digest}/{component}/{asset}":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendComponentAsset"
-  "/admin/extensions/{extensionID}/frontend/confirmation":
+  "/admin/extensions/{id}/frontend/confirmation":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendConfirmation"
-  "/admin/extensions/{extensionID}/frontend/trust":
+  "/admin/extensions/{id}/frontend/trust":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFrontendTrust"
   "/admin/extensions/event-definitions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionEventDefinitions"
@@ -662,7 +662,7 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionAsset"
   "/extensions/runtime/{extensionID}/packages/{packageDigest}/{packagePath}":
     "$ref": "./openapi/paths/extensions.yaml#/publicExtensionPackageAsset"
-  "/extensions/{extensionID}/{pluginPath}":
+  "/extensions/{id}/{pluginPath}":
     "$ref": "./openapi/paths/extensions.yaml#/extensionPluginRoute"
 components:
   securitySchemes:

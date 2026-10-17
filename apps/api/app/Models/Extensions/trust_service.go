@@ -345,6 +345,42 @@ func (s *ExecutableTrustService) ConfirmEnable(ctx context.Context, actor identi
 // EnsureCompatibilityGrant 供 V3 trust challenge 关闭时的 v1 启用路径使用：
 // super_admin 已通过 confirmCapabilities 后，为 protocol v2 子进程写入 exact live grant。
 // 已有 live grant 时幂等返回。builtin / 非可执行扩展直接放行。
+// EnsureLiveGrantForDevAuto 是 dev 自动激活通道（DevAutoRuntime）的 grant 写入：
+// 与人工路径相同的 exact-artifact identity 与审计动作，只是执行者是 dev-auto
+// 系统账号（无人工确认）。仅 dev 装配可达；生产 fail closed（本服务随装配）。
+func (s *ExecutableTrustService) EnsureLiveGrantForDevAuto(ctx context.Context, actor identity.Actor, extension Extension) error {
+	if !RequiresExecutableTrust(extension) {
+		return nil
+	}
+	if s == nil || s.store == nil {
+		return ErrTrustGrantNotFound
+	}
+	if !actor.IsSuperAdmin() {
+		return identity.ErrPermissionDenied
+	}
+	impact, err := buildTrustImpact(extension, TrustActionEnable)
+	if err != nil {
+		return err
+	}
+	identityKey := trustIdentity(impact)
+	granted, err := s.store.HasLiveGrant(ctx, identityKey)
+	if err != nil {
+		return err
+	}
+	if granted {
+		return nil
+	}
+	if _, err := s.store.EnsureLiveGrant(ctx, TrustEnsureGrantInput{
+		ActorUserID: actor.ID, Identity: identityKey,
+		ArtifactDigests: impact.ArtifactDigests, Impact: impact,
+	}); err != nil {
+		s.appendAudit(ctx, actor, audit.ActionExtensionTrustDenied, impact, err)
+		return err
+	}
+	s.appendAudit(ctx, actor, audit.ActionExtensionTrustGrant, impact, nil)
+	return nil
+}
+
 func (s *ExecutableTrustService) EnsureCompatibilityGrant(
 	ctx context.Context,
 	actor identity.Actor,

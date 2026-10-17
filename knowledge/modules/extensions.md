@@ -614,6 +614,42 @@ does not rebuild Nuxt.
   digests only ever enter staged — the grant now matches the artifact the
   subsequent upgrade consumes. Tests cover external-root acceptance, unknown
   root refusal, manifest-ID mismatch, and staged-over-active granting.
+- Dev live-activation chain (2026-10-17): closes the remaining manual gaps in
+  the dev loop so an external plugin repo behaves like a watched scaffold:
+  ① the CLI (`extension dev`, `dev-trust create`) now accepts packages under
+  `EXTERNAL_EXTENSION_ROOTS` (`devExternalRoots`), aligning with the R2 server
+  allowlist instead of being stricter than it; protected built-in trees are
+  still refused. ② `GrantDevArtifact` runs `SyncExternalSources` **before**
+  reading the artifact identity (optional `WithSourceSyncer`, development
+  assembly only) — a freshly rebuilt digest is staged into the running API
+  without an API restart, and sync failures surface their real reason instead
+  of folding into `trust_challenge_required`. ③ `--auto-upgrade` (implies
+  `--auto-trust`) lets the loop call the existing `POST /upgrade` route after
+  the trust refresh, so the full chain is save → build/digest/validate/test →
+  stage → trust → upgrade with the plugin subprocess restarting at the new
+  digest; failure phases (`dev_trust_failed`/`auto_upgrade_failed`) never stop
+  the loop. ④ `extension digest --write` now recomputes `assets[].integrity`
+  (SRI) for assets that already declare it — stale SRI after CSS/JS edits no
+  longer requires hand scripts (prepare-package.sh-style), while undeclared
+  integrity stays untouched so package baselines do not churn. Verified live on
+  the external `sforum-oauth2-provider` repo: external root accepted, one build
+- Dev zero-command activation (2026-10-17, superseding the wrapper flow): the
+  host dev assembly runs its own fsnotify watcher over `EXTERNAL_EXTENSION_ROOTS`
+  and a `DevAutoRuntime` that performs sync → exact per-digest grant → enable /
+  upgrade with a credential-less `dev-auto` system account (real UserID for the
+  V2 authority chain; no password credential, cannot log in). Fresh databases
+  with zero admins work; production and Safe Mode never assemble the watcher
+  (fail closed); install/enable/upgrade HTTP routes keep their super_admin
+  gates. The wrapper script and CLI credential layers were removed. Decision:
+  `../decisions/2026-10-17-dev-zero-command.md`.
+  transaction built→digest→validate→test green (7 checks). Decision:
+  `../decisions/2026-10-17-dev-live-activation-chain.md`. Agent contract:
+  the `AGENTS.md` plugin-development rule now mandates this chain (never restart
+  the dev API to stage, never ask for per-artifact manual trust, never hand-roll
+  SRI scripts; credentials declared once in gitignored `.env`); the bilingual
+  handbook `docs/extensions/build-and-load.md` + `docs/zh-CN` teach only the
+  chain, and `scripts/dev-plugin-loop.sh <package-root>` is the single
+  entrypoint (`--ensure` makes session creation idempotent).
 - Request-context contract (2026-10-16, M7): no new request/response field was
   admitted. The filtered header projection (with `x-sforum-*`, hop-by-hop and
   credential blocking, plus `httpguts` name/value validation),

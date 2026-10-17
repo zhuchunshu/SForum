@@ -438,3 +438,158 @@ func (r *devRunnerWritingManifest) Run(_ context.Context, _ string) (devBuildRes
 	r.watcher.events <- r.manifest
 	return devBuildResult{PackageDigest: r.digests[(r.calls-1)%len(r.digests)]}, nil
 }
+
+// CLI 与服务端共用同一外部开发根集合：EXTERNAL_EXTENSION_ROOTS 下的插件仓库
+// （含子目录）必须可被 dev 循环监视与 dev-trust create 登记，
+// 不得比服务端 DevTrustService.devSourceRootAllowed 更严。
+func TestExtensionDevAcceptsConfiguredExternalRoots(t *testing.T) {
+	external := t.TempDir()
+	packageRoot := filepath.Join(external, "plugins", "sforum.oauth2-provider")
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cases := []string{
+		external,
+		filepath.Join(external, "plugins"),
+		external + ", ,relative/path," + external,
+	}
+	for _, raw := range cases {
+		t.Run("roots="+raw, func(t *testing.T) {
+			t.Setenv("EXTERNAL_EXTENSION_ROOTS", raw)
+			if _, err := resolveDevPackageRoot(packageRoot); err != nil {
+				t.Fatalf("external root package must be accepted: %v", err)
+			}
+		})
+	}
+	t.Run("without configured roots refusal names the env var", func(t *testing.T) {
+		t.Setenv("EXTERNAL_EXTENSION_ROOTS", "")
+		_, err := resolveDevPackageRoot(packageRoot)
+		if !errors.Is(err, errExtensionDevDisabled) {
+			t.Fatalf("err = %v; want errExtensionDevDisabled", err)
+		}
+		if !strings.Contains(err.Error(), "EXTERNAL_EXTENSION_ROOTS") {
+			t.Fatalf("refusal must point at the env var: %v", err)
+		}
+	})
+}
+
+type devTestActivator struct {
+	mu           sync.Mutex
+	calls        []string
+	refreshError error
+	upgradeError error
+}
+
+func (a *devTestActivator) Refresh(_ context.Context, digest string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.calls = append(a.calls, "refresh:"+digest)
+	return a.refreshError
+}
+
+func (a *devTestActivator) Upgrade(_ context.Context, digest string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.calls = append(a.calls, "upgrade:"+digest)
+	return a.upgradeError
+}
+
+func (a *devTestActivator) recorded() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]string(nil), a.calls...)
+}
+
+// --auto-upgrade：信任续期成功后必须继续走既有 upgrade 路由，顺序 refresh→upgrade，
+// 成功后输出 activated 阶段——这就是「保存即生效」链的最后一环。
+func TestExtensionDevLoopAutoUpgradesAfterTrust(t *testing.T) {
+	root := t.TempDir()
+	watcher := newDevTestWatcher()
+	sink := &devRecordingSink{}
+	runner := &devTestRunner{digests: []string{"digest-live"}}
+	activator := &devTestActivator{}
+	loop := &devWatchLoop{
+		root: root, runner: runner, watcher: watcher, status: sink, debounce: 30 * time.Millisecond,
+		activator: activator, autoUpgrade: true,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		_, _ = loop.run(ctx)
+		close(done)
+	}()
+	watcher.events <- filepath.Join(root, "backend", "main.go")
+	waitFor(t, func() bool { return sink.count("activated") == 1 }, 3*time.Second)
+	cancel()
+	<-done
+
+	assertDeepEqual(t, activator.recorded(), []string{"refresh:digest-live", "upgrade:digest-live"})
+	if len(sink.fails) != 0 {
+		t.Fatalf("unexpected failures: %#v", sink.fails)
+	}
+}
+
+// 自动激活失败不得中断循环：报告 auto_upgrade_failed 并保留健康制品。
+func TestExtensionDevLoopReportsAutoUpgradeFailure(t *testing.T) {
+	root := t.TempDir()
+	watcher := newDevTestWatcher()
+	sink := &devRecordingSink{}
+	runner := &devTestRunner{digests: []string{"digest-live"}}
+	activator := &devTestActivator{upgradeError: errors.New("lifecycle coordinator invalid: extension is disabled")}
+	loop := &devWatchLoop{
+		root: root, runner: runner, watcher: watcher, status: sink, debounce: 30 * time.Millisecond,
+		activator: activator, autoUpgrade: true,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		_, _ = loop.run(ctx)
+		close(done)
+	}()
+	watcher.events <- filepath.Join(root, "backend", "main.go")
+	waitFor(t, func() bool { return sink.count("auto_upgrade_failed") == 1 }, 3*time.Second)
+	assertDeepEqual(t, activator.recorded(), []string{"refresh:digest-live", "upgrade:digest-live"})
+	// 下一次编辑仍会重新走完整链：循环保持存活。
+	watcher.events <- filepath.Join(root, "backend", "main.go")
+	waitFor(t, func() bool { return sink.count("auto_upgrade_failed") == 2 }, 3*time.Second)
+	cancel()
+	<-done
+}
+
+// 仅 --auto-trust（不带 --auto-upgrade）保持既有行为：止步于 dev_trusted。
+func TestExtensionDevLoopWithoutAutoUpgradeStopsAtTrust(t *testing.T) {
+	root := t.TempDir()
+	watcher := newDevTestWatcher()
+	sink := &devRecordingSink{}
+	runner := &devTestRunner{digests: []string{"digest-live"}}
+	activator := &devTestActivator{}
+	loop := &devWatchLoop{
+		root: root, runner: runner, watcher: watcher, status: sink, debounce: 30 * time.Millisecond,
+		activator: activator, autoUpgrade: false,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		_, _ = loop.run(ctx)
+		close(done)
+	}()
+	watcher.events <- filepath.Join(root, "backend", "main.go")
+	waitFor(t, func() bool { return sink.count("dev_trusted") == 1 }, 3*time.Second)
+	cancel()
+	<-done
+	if calls := activator.recorded(); len(calls) != 1 || calls[0] != "refresh:digest-live" {
+		t.Fatalf("calls = %#v; want only refresh", calls)
+	}
+}
+
+func assertDeepEqual(t *testing.T, got, want []string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("got %#v; want %#v", got, want)
+	}
+	for index := range want {
+		if got[index] != want[index] {
+			t.Fatalf("got %#v; want %#v", got, want)
+		}
+	}
+}

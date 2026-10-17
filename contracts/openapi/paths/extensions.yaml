@@ -1838,9 +1838,12 @@ adminExtensionDevTrustRefresh:
     summary: Auto-grant exact trust for a freshly built dev digest
     description: >-
       Super-admin only, development-only. Called by `sforum extension dev
-      --auto-trust` after each successful build: writes an idempotent exact
-      live grant when an active dev trust session exists for the caller and
-      package; otherwise fails closed with
+      --auto-trust` after each successful build. When the development
+      assembly injected the external-source syncer, it first re-runs
+      `SyncExternalSources` over `EXTERNAL_EXTENSION_ROOTS` so the freshly
+      rebuilt digest is staged into the running API without a restart; then
+      writes an idempotent exact live grant when an active dev trust session
+      exists for the caller and package. Otherwise fails closed with
       `extension.trust_challenge_required`, identical to the manual path.
     operationId: refreshAdminExtensionDevTrust
     parameters:

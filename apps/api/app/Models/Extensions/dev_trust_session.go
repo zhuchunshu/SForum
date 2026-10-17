@@ -86,6 +86,14 @@ type DevTrustSessionStore interface {
 	RevokeAllActive(ctx context.Context, reason string) error
 }
 
+// DevSourceSyncer 是 dev 信任刷新前的外部源重扫描边界（仅开发装配注入）。
+// Service.SyncExternalSources 把外部根（EXTERNAL_EXTENSION_ROOTS）下重建后的
+// 新摘要快照并暂存为候选——没有这一步，dev 循环构建出的新 digest 只存在于
+// 源码目录，运行中的 API 在下次重启前根本看不到它。
+type DevSourceSyncer interface {
+	SyncExternalSources(ctx context.Context) (ExternalSyncResult, error)
+}
+
 // DevTrustService 组合会话存储与 executable trust 写入路径。
 // 独立小服务而不是塞回 Service/Manager God 对象（架构基线禁止增长）。
 type DevTrustService struct {
@@ -96,6 +104,9 @@ type DevTrustService struct {
 	// devSourceRoots 是允许的开发源码集合根（EXTERNAL_EXTENSION_ROOTS，
 	// 仅 development 注入）；脚手架默认 extensions/dev 树始终允许。
 	devSourceRoots []string
+	// sourceSyncer 在 GrantDevArtifact 前重扫外部源完成暂存；nil 时跳过
+	// （外部根之外的开发包仍依赖启动期扫描）。
+	sourceSyncer DevSourceSyncer
 	// safeMode 打开时 Create/Grant 全部 fail-closed（服务层权威，UI 只是辅助）。
 	safeMode bool
 	now      func() time.Time
@@ -118,6 +129,12 @@ func (s *DevTrustService) WithClock(now func() time.Time) *DevTrustService {
 // WithSafeMode 注入 Host Safe Mode；打开时一切会话操作 fail-closed。
 func (s *DevTrustService) WithSafeMode(enabled bool) *DevTrustService {
 	s.safeMode = enabled
+	return s
+}
+
+// WithSourceSyncer 注入外部源重扫描边界；仅开发装配调用。
+func (s *DevTrustService) WithSourceSyncer(syncer DevSourceSyncer) *DevTrustService {
+	s.sourceSyncer = syncer
 	return s
 }
 
@@ -245,6 +262,14 @@ func (s *DevTrustService) GrantDevArtifact(
 	}
 	if s == nil || s.sessions == nil {
 		return ErrTrustChallengeRequired
+	}
+	// 先重扫外部源：dev 循环刚构建出的新 digest 只有经过 SyncExternalSources
+	// 暂存，运行中的 API 才能在授权与 upgrade 时取到同一制品。同步失败
+	// 直接返回真实原因，不折叠成 trust challenge（否则作者无从排查）。
+	if s.devEnabled && s.sourceSyncer != nil {
+		if _, err := s.sourceSyncer.SyncExternalSources(ctx); err != nil {
+			return fmt.Errorf("dev source resync failed: %w", err)
+		}
 	}
 	extension, err := s.trust.extension(ctx, normalizeID(input.ExtensionID))
 	if err != nil {

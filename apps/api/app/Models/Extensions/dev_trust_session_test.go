@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"context"
 	"errors"
@@ -473,5 +474,67 @@ func TestDevTrustSafeModeFailsClosedAndRevokesSessions(t *testing.T) {
 		ExtensionID: extension.ID, PackageDigest: extension.PackageDigest,
 	}); !errors.Is(err, ErrTrustChallengeRequired) {
 		t.Fatalf("revoked session must not resurrect after safe mode ends: %v", err)
+	}
+}
+
+type recordingDevSourceSyncer struct {
+	calls int
+	err   error
+}
+
+func (s *recordingDevSourceSyncer) SyncExternalSources(_ context.Context) (ExternalSyncResult, error) {
+	s.calls++
+	return ExternalSyncResult{}, s.err
+}
+
+// GrantDevArtifact 必须在读取制品身份**之前**重扫外部源：dev 循环刚构建出的新
+// digest 只有经 SyncExternalSources 暂存，运行中的 API 才取得到同一制品。
+func TestDevTrustGrantResyncsExternalSourcesBeforeGrant(t *testing.T) {
+	extension := devTrustTestExtension(t)
+	superAdmin := extensionManager()
+	service, _, _ := newDevTrustTestService(t, extension, "development")
+	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: extension.PackagePath,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	syncer := &recordingDevSourceSyncer{}
+	service.WithSourceSyncer(syncer)
+	if err := service.GrantDevArtifact(context.Background(), superAdmin, DevTrustGrantInput{
+		ExtensionID: extension.ID, PackageDigest: extension.PackageDigest,
+	}); err != nil {
+		t.Fatalf("grant must succeed when sync is healthy: %v", err)
+	}
+	if syncer.calls != 1 {
+		t.Fatalf("sync calls = %d; want 1", syncer.calls)
+	}
+
+	// 同步失败必须返回真实原因，不折叠成 trust challenge。
+	syncer.err = errors.New("snapshot failed")
+	if err := service.GrantDevArtifact(context.Background(), superAdmin, DevTrustGrantInput{
+		ExtensionID: extension.ID, PackageDigest: extension.PackageDigest,
+	}); err == nil || !strings.Contains(err.Error(), "dev source resync failed") {
+		t.Fatalf("sync failure must surface its reason: %v", err)
+	}
+	if syncer.calls != 2 {
+		t.Fatalf("sync calls = %d; want 2", syncer.calls)
+	}
+}
+
+// 未注入 syncer（或 dev 未启用）时保持既有行为：不重扫、不报错。
+func TestDevTrustGrantWorksWithoutSourceSyncer(t *testing.T) {
+	extension := devTrustTestExtension(t)
+	superAdmin := extensionManager()
+	service, _, _ := newDevTrustTestService(t, extension, "development")
+	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: extension.PackagePath,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.GrantDevArtifact(context.Background(), superAdmin, DevTrustGrantInput{
+		ExtensionID: extension.ID, PackageDigest: extension.PackageDigest,
+	}); err != nil {
+		t.Fatalf("grant without syncer must keep working: %v", err)
 	}
 }

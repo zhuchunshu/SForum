@@ -364,8 +364,9 @@ APP_ENV=development go run ./cmd/sforum extension dev ../../extensions/dev/acme.
 
 只允许在 `APP_ENV=development` 下运行；生产、预发与测试环境在入口即拒绝（与
 `dev:cleanup-orphan-plugins` 的孤儿回收器用同一条判据）。包必须位于
-`extensions/dev`、`extensions/optional` 或 `extensions/fixtures` 之下；受保护的
-`extensions/builtin` 源码树被拒绝，因为内置包必须走
+`extensions/dev`、`extensions/optional`、`extensions/fixtures` 或
+`EXTERNAL_EXTENSION_ROOTS` 配置的外部插件仓库根（含子目录）之下——独立插件仓库
+无需拷进主程序目录；受保护的 `extensions/builtin` 源码树被拒绝，因为内置包必须走
 `scripts/build-builtin-plugins.sh` 与管理员激活流程。
 
 循环只监视**包内源输入**：`dist/`、`node_modules/`、`.git/`、归档、编辑器交换文件与
@@ -379,6 +380,7 @@ APP_ENV=development go run ./cmd/sforum extension dev ../../extensions/dev/acme.
 | `--debounce` | 事件合并窗口（默认 `400ms`） |
 | `--skip-install` | 跳过 `bun install`，复用已有的前端依赖 |
 | `--auto-trust` | 每轮构建成功后自动调用 dev trust 会话续信任（见下节） |
+| `--auto-upgrade` | 信任续期成功后继续调用既有 upgrade 路由，把 staged 候选升为活动版本（隐含 `--auto-trust`）。配合 dev 会话即可做到「保存 → 自动构建 → 自动暂存 → 自动信任 → 自动升级」的保存即生效链；扩展处于 disabled 时该轮报 `auto_upgrade_failed`，在管理端启用一次后恢复 |
 
 **它不绕过信任。** 每轮只打印新的包摘要与下一步提示：精确制品仍要在管理端扩展流程里
 由操作员确认后才会暂存与激活。构建或预检失败时保留最后一个健康制品，并打印失败阶段与原因。
@@ -403,12 +405,32 @@ APP_ENV=development go run ./cmd/sforum extension dev-trust revoke <sessionID>
   一致后才建立会话，因此外部仓库无需（也不能用）symlink。
   会话唯一键是扩展 ID——源码根与落库快照路径解耦，`SyncExternalSources`
   暂存（staged）的新摘要同样会被自动授权。
+- `--ensure`：幂等确认——服务端返回 `409 extension.dev_trust_session_exists`
+  （已有活跃会话）时视为成功。配合一键 wrapper
+  `scripts/dev-plugin-loop.sh <package-root>`（源 .env 凭据 → 查/建会话 → 启动
+  带 `--auto-upgrade` 的 watch 循环），日常开发只剩这一条命令——
+  显式 confirm 审计与逐摘要 grant 语义一行不改。
 - 带 `--auto-trust` 的 `extension dev`：每轮构建成功后调用
-  `POST /admin/extensions/:id/dev-trust-refresh`，输出 `dev_trusted digest=…`；
-  无会话/凭据时回落 `reload_required`，与人工路径一致。
-- 凭据约定与 `tests/admin-extension-activation.sh` 相同：`SFORUM_API_BASE`
-  （默认 `http://127.0.0.1:8080/api/v1`）、`SFORUM_SESSION_COOKIE` 或
-  `SFORUM_ADMIN_EMAIL`+`SFORUM_ADMIN_PASSWORD`。
+  `POST /admin/extensions/{id}/dev-trust-refresh`，输出 `dev_trusted digest=…`；
+  无会话/凭据时回落 `reload_required`，与人工路径一致。开发装配下该端点会**先重扫
+  `EXTERNAL_EXTENSION_ROOTS` 外部源**（`SyncExternalSources`），把刚构建出的新摘要
+  直接暂存进运行中的 API——不再需要为看到新制品而重启 dev API。
+- 带 `--auto-upgrade` 的 `extension dev`：信任续期成功后自动调用既有
+  `POST /admin/extensions/{id}/upgrade`（exact-artifact 信任授予已就位），staged 候选
+  升为活动版本，插件后端子进程按新摘要重启。失败输出 `auto_upgrade_failed` 与原因，
+  循环不中断；保存即生效链因此完整：保存 → 构建/摘要/校验/测试 → 暂存 → 信任 → 升级。
+- 凭据解析优先级：`SFORUM_SESSION_COOKIE` / `SFORUM_DEV_AGENT_PAT` →
+  **agent 凭据缓存**（`$XDG_CACHE_HOME/sforum/dev/agent-credentials.json`，
+  0600，可用 `SFORUM_DEV_AGENT_CACHE` 覆盖；不存密码）→
+  `SFORUM_ADMIN_EMAIL`+`SFORUM_ADMIN_PASSWORD`（与
+  `tests/admin-extension-activation.sh` 同一约定）登录并自动入缓存 →
+  交互终端里一次性提示输入（密码不回显）并自动入缓存。
+- 首次在他处（如 agent 会话）运行前，操作者在终端里跑一次
+  `extension dev-trust create --ensure <包根>` 完成提示登录（或直接跑
+  dev 循环），此后所有 wrapper / agent 会话零凭据、零交互。
+- 两种可撤销形态：PAT（`{"kind":"pat",...}`，管理端 api_token 审计可凭证撤销）
+  或会话对（`{"kind":"session",...}`，管理端会话页可撤销/登出即失效）。
+  缓存文件只属于本机 dev 环境；生产从不读它（dev trust 服务生产不注入）。
 - Safe Mode 启动时全部会话立即吊销；Safe Mode 结束后旧会话不会复活。
 - 管理端可查看活跃会话列表并一键撤销（`/admin/extensions/dev-trust-sessions`）。
 

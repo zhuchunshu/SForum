@@ -249,16 +249,25 @@ contracts first.
   plugins.
 - Real provider or vendor logic should live in an extension package, including
   protected built-in plugins when SForum needs a bundled default.
-- Plugin development must use the dev trust session loop instead of manual admin
-  re-confirmation per digest: create one session per development session via
-  `sforum extension dev-trust create <package-root>` (super_admin, requires
-  `APP_ENV=development` and a package under `extensions/dev`), then run
-  `sforum extension dev --auto-trust` so each build auto-refreshes trust. Do not
-  weaken this mechanism: every digest still gets its own exact-artifact grant
-  with its own audit row; production assembly never injects the dev trust
-  service, Safe Mode startup revokes all sessions, and any unmet condition must
-  fail closed to `ErrTrustChallengeRequired` / the manual trust challenge path.
-  See `knowledge/decisions/2026-10-17-dev-trust-session.md`.
+- Plugin development is **zero-command** in development: the host process itself
+  watches `EXTERNAL_EXTENSION_ROOTS` (dev assembly only), and on every source
+  change runs build → digest (incl. SRI recompute) → stage → exact per-digest
+  grant → enable/upgrade with the plugin subprocess restarting — no login, no
+  password, no dev trust session, no manual confirmation, and it works on a
+  fresh database with zero admin accounts (a dedicated credential-less
+  `dev-auto` system account is the audit attribution; disabling or deleting it
+  in the admin disables the channel). Agents must NOT wrap plugin iteration in
+  any credential/auth step, must NOT restart the dev API to pick up a digest,
+  and must NOT hand-roll SRI/digest scripts. The old
+  `scripts/dev-plugin-loop.sh` and per-digest trust CLI flows are retired;
+  `sforum extension dev-trust *` remains only as a legacy credential-gated
+  helper. Do not weaken production: the dev watcher and dev-auto grants are
+  never injected outside `APP_ENV=development` (Safe Mode also blocks them),
+  install/enable/upgrade HTTP routes keep their super_admin gates, and any
+  unmet condition must fail closed to `ErrTrustChallengeRequired` / the manual
+  trust challenge path. Accepted tradeoff (operator decision, 2026-10-17): on
+  the dev machine, any process able to write a dev source root effectively acts
+  as the operator. See `knowledge/decisions/2026-10-17-dev-zero-command.md`.
 - Upload/static installation only validates, previews, and stores an inert
   package; it must not execute package code. Existing delegated extension
   managers may perform that operation. Executable install hooks are deferred to

@@ -207,7 +207,24 @@ EXTERNAL_EXTENSION_ROOTS=/abs/path/to/sforum-plugins
 - API/worker 启动时扫描每个根，把合法包以**不可变快照**复制进
   `EXTENSION_ROOT`。内容变化只产生**待审核版本**；永远不会自动提升或继承
   信任。
-- 包变更后重启 API，让扫描拾取新快照。
+- 日常迭代用 **dev live-reload 链**（见下）——不需要为了看到新快照而重启 API；
+  `dev-trust-refresh` 会在开发装配下重扫 `EXTERNAL_EXTENSION_ROOTS`，把刚构建的
+  新摘要直接暂存进运行中实例。
+
+### 日常迭代：dev live-reload 链（推荐入口）
+
+```sh
+scripts/dev-plugin-loop.sh /abs/path/to/sforum-plugins/plugins/acme.notes
+```
+
+保存 → watcher 自动执行构建/摘要（含 SRI 重算）/校验/契约测试 →
+`dev-trust-refresh` 重扫外部源暂存新摘要 → dev 会话自动写入精确制品授予
+→ 自动走既有 upgrade 路由 → 插件子进程按新摘要重启。全程无需重启 API、
+无需人工逐制品确认；`extension dev --auto-upgrade`（隐含 `--auto-trust`）
+与此等价。前置：操作者凭据声明一次于 `.env`（`SFORUM_ADMIN_EMAIL`+
+`SFORUM_ADMIN_PASSWORD` 或 `SFORUM_SESSION_COOKIE`，gitignored 仅本机）；
+每个包每个开发会话一次 `dev-trust create --ensure`（脚本自动幂等）。
+详见 `docs/zh-CN/development/cli.md` 的 dev 循环与 dev trust 章节。
 
 ### 启用与信任
 
@@ -221,14 +238,16 @@ EXTERNAL_EXTENSION_ROOTS=/abs/path/to/sforum-plugins
 ### 迭代循环
 
 ```text
-改源码 → 构建后端/前端 → extension digest --write
-→ 重启 API → 后台重新启用（制品变化则需重新信任）
+改源码 → 保存 → watcher 自动：构建/前端 → digest（含 SRI 重算）→ validate → test
+→ dev-trust-refresh 重扫外部源暂存 → 逐摘要自动授予 → 自动 upgrade → 插件子进程重启
 ```
 
-任何相关包变更都会使既有信任授予失效（可执行制品；按 F2.4，摘要变化也会
-吊销前端信任）。每次迭代改了打包字节，都要准备再点一次信任确认。若某个插件
-导致 API 无法启动，带外恢复：
-
+首次安装与**首次启用**仍走后台流程（安装 inert 快照 → 精确制品信任，活跃
+dev trust 会话会自动完成逐摘要授予）。首次启用成功后，后续迭代由 dev 循环接管
+（`upgrade` 前置条件是 enabled）。不要用 `SFORUM_V3_TRUST_CHALLENGES=false`
+之类 v1 兼容开关代替本链：实测它并不省掉 super_admin 凭据，只会把逐摘要审计
+退化成幂等兼容 grant（见 knowledge/decisions/2026-10-17-dev-live-activation-chain.md）。
+若某个插件导致 API 无法启动，带外恢复：
 ```bash
 go run ./cmd/sforum extension disable <extension-id>
 go run ./cmd/sforum extension disable-all
@@ -258,12 +277,12 @@ go run ./cmd/sforum extension list --json
 | 现象 | 原因 / 处理 |
 | --- | --- |
 | `extension test` 后端失败 | `backend.entry` 处缺二进制；构建它，或脚手架阶段用 `--skip-backend-binary` |
-| 启用返回 `extension.build_failed` | 某声明文件摘要或模板身份过期；运行 `extension digest --write` 并重启 |
+| 启用返回 `extension.build_failed` | 某声明文件摘要或模板身份过期；用 dev 循环（`--once`）或 `extension digest --write` 修复后让 dev-trust-refresh 重新暂存 |
 | 路由 404 / 探测报 `miss` | 路径未被任何已启用插件路由认领；查后台路由检查器与冲突页 |
 | 不安全路由 CSRF 403 | 浏览器调用缺 `X-Csrf-Token`（与 `csrf_` cookie double-submit）；用应用的 `useApiClient` 或 Bearer PAT |
 | 路由超时 | 处理器超过路由 `timeoutMs`（默认 3 秒）；把大工作流化或调高声明 |
-| 外部根变更不可见 | 快照是惰性的、启动时扫描；重启 API 并重新启用 |
-| 每次迭代都弹信任确认 | 预期行为——打包字节变化会使授予失效 |
+| 外部根变更不可见 | 走 dev 循环链；`dev-trust-refresh` 会重扫外部源暂存新摘要，无需重启（未接 dev 循环时才需要重启） |
+| 每次迭代都弹信任确认 | 说明 dev trust 会话缺失/过期——跑 `extension dev-trust create --ensure`（或一键 wrapper）恢复自动授予 |
 | 坏插件导致 API 无法启动 | 带外 CLI：`extension disable-all` / `quarantine`，再选择性启用 |
 
 ## 相关

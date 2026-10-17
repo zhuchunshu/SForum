@@ -218,7 +218,28 @@ EXTERNAL_EXTENSION_ROOTS=/abs/path/to/sforum-plugins
 - API/worker boot scans each root and copies valid packages into
   `EXTENSION_ROOT` as immutable snapshots. Changes become **staged
   candidates**; they never auto-promote or inherit trust.
-- Restart the API after package changes so the scan picks up the new snapshot.
+- For everyday iteration use the **dev live-reload chain** (below) — no API
+  restart is needed to see a new snapshot: `dev-trust-refresh` re-scans
+  `EXTERNAL_EXTENSION_ROOTS` in the development assembly and stages the freshly
+  built digest into the running instance.
+
+### Everyday iteration: the dev live-reload chain (recommended entrypoint)
+
+```sh
+scripts/dev-plugin-loop.sh /abs/path/to/sforum-plugins/plugins/acme.notes
+```
+
+Save → the watcher runs build/digest (including SRI recompute)/validate/contract
+tests → `dev-trust-refresh` re-scans external sources and stages the new digest →
+the dev trust session auto-writes the exact per-digest grant → the existing
+`upgrade` route promotes it → the plugin subprocess restarts at the new digest.
+No API restart and no manual per-artifact confirmation. `extension dev
+--auto-upgrade` (implies `--auto-trust`) is equivalent. Prerequisite: the
+operator declares credentials once in `.env`
+(`SFORUM_ADMIN_EMAIL`+`SFORUM_ADMIN_PASSWORD` or `SFORUM_SESSION_COOKIE`,
+gitignored, dev machine only); `dev-trust create --ensure` runs once per package
+per development session (the script does it idempotently). See the dev loop and
+dev trust sections in `docs/zh-CN/development/cli.md` / `docs/en-US/development/cli.md`.
 
 ### Enable and trust
 
@@ -234,14 +255,19 @@ EXTERNAL_EXTENSION_ROOTS=/abs/path/to/sforum-plugins
 ### Iteration loop
 
 ```text
-edit source → build backend/frontend → extension digest --write
-→ restart API → admin re-enable (trust again if artifact changed)
+edit source → save → watcher: build/frontend → digest (incl. SRI recompute) → validate → test
+→ dev-trust-refresh re-scans and stages → per-digest auto-grant → auto upgrade → plugin subprocess restart
 ```
 
-Any relevant package change invalidates the existing trust grant (executable
-artifacts and, per F2.4, frontend trust on digest change). Plan for a trust
-confirmation each iteration that changes packaged bytes. If a plugin keeps the
-API from booting, recover out-of-band:
+Initial install and the **first enable** still go through the admin flow
+(inert snapshot → exact-artifact trust; an active dev trust session completes the
+per-digest grant automatically). After the first enable the dev loop owns
+iteration (`upgrade` presumes enabled). Do not substitute a v1 compatibility
+switch such as `SFORUM_V3_TRUST_CHALLENGES=false` for this chain: measured
+behavior still requires the super_admin session while downgrading per-digest
+auditing to idempotent compatibility grants (see
+`knowledge/decisions/2026-10-17-dev-live-activation-chain.md`). If a plugin keeps
+the API from booting, recover out-of-band:
 
 ```bash
 go run ./cmd/sforum extension disable <extension-id>
@@ -274,11 +300,11 @@ them as generated state.
 | Symptom | Cause / fix |
 | --- | --- |
 | `extension test` fails on backend | Binary missing at `backend.entry`; build it or use `--skip-backend-binary` during scaffolding |
-| Enable returns `extension.build_failed` | A declared file digest or template identity is stale; run `extension digest --write` and restart |
+| Enable returns `extension.build_failed` | A declared file digest or template identity is stale; fix via the dev loop (`--once`) or `extension digest --write`, then let dev-trust-refresh re-stage |
 | Route returns 404 / probe reports `miss` | Path not claimed by any enabled plugin route; check admin route inspector and conflicts |
 | Unsafe route returns CSRF 403 | Browser call missing `X-Csrf-Token` (double-submit against `csrf_` cookie); use the app's `useApiClient` or a Bearer PAT |
 | Route times out | Handler exceeded the route `timeoutMs` (default 3 s); stream large work or raise the declaration |
-| External root changes not visible | Snapshot is inert and scanned at boot; restart the API and re-enable |
+| External root changes not visible | Use the dev loop chain; `dev-trust-refresh` re-scans external sources without a restart (only iterate manually without the loop if needed) |
 | Trust prompt every iteration | Expected — packaged byte changes invalidate the grant |
 | API won't boot after a bad plugin | Out-of-band CLI: `extension disable-all` / `quarantine`, then re-enable selectively |
 

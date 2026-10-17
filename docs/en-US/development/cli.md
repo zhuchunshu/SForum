@@ -399,8 +399,10 @@ APP_ENV=development go run ./cmd/sforum extension dev ../../extensions/dev/acme.
 
 Development-only: production, staging and test are refused at command entry (the same
 predicate the orphan reaper uses). The package must live under `extensions/dev`,
-`extensions/optional` or `extensions/fixtures`; protected `extensions/builtin` source
-trees are refused because built-ins must go through
+`extensions/optional`, `extensions/fixtures`, or an external plugin repository root
+declared in `EXTERNAL_EXTENSION_ROOTS` (subdirectories included) — standalone plugin
+repositories do not need to be copied into the host checkout; protected
+`extensions/builtin` source trees are refused because built-ins must go through
 `scripts/build-builtin-plugins.sh` plus the admin activation flow.
 
 The loop watches **package-contained source inputs only**: `dist/`, `node_modules/`,
@@ -415,6 +417,7 @@ snapshot), so the loop cannot trigger itself.
 | `--debounce` | Event coalescing window (default `400ms`) |
 | `--skip-install` | Skip `bun install` and reuse existing frontend dependencies |
 | `--auto-trust` | After each successful build, auto-refresh dev trust sessions (see below) |
+| `--auto-upgrade` | After the trust refresh succeeds, upgrade the staged candidate through the existing lifecycle route (implies `--auto-trust`). With a dev trust session this completes the save-to-live chain: save → build/digest/validate/test → stage → trust → upgrade. When the extension is disabled the cycle reports `auto_upgrade_failed`; enable it once in the admin flow and the chain resumes |
 
 **It does not bypass trust.** Each cycle prints the new package digest and the next
 step: the exact artifact still has to be confirmed by an operator in the admin
@@ -445,12 +448,42 @@ APP_ENV=development go run ./cmd/sforum extension dev-trust revoke <sessionID>
   a) symlink. The session key is the extension ID — the source root is decoupled
   from the stored snapshot path, and digests staged by `SyncExternalSources`
   are auto-granted as well.
-- `extension dev --auto-trust`: calls `POST /admin/extensions/:id/dev-trust-refresh`
+- `--ensure`: idempotent confirmation — a `409 extension.dev_trust_session_exists`
+  response (an active session already exists) counts as success. Combined with
+  the one-command wrapper `scripts/dev-plugin-loop.sh <package-root>` (sources
+  .env credentials → ensures the session → starts the watcher with
+  `--auto-upgrade`), daily plugin development is a single command while the
+  explicit confirm audit and per-digest grant semantics stay untouched.
+- `extension dev --auto-trust`: calls `POST /admin/extensions/{id}/dev-trust-refresh`
   after each successful build and prints `dev_trusted digest=…`; without a session
   or credentials it falls back to `reload_required`, identical to the manual path.
-- Credentials follow `tests/admin-extension-activation.sh`: `SFORUM_API_BASE`
-  (default `http://127.0.0.1:8080/api/v1`), `SFORUM_SESSION_COOKIE` or
-  `SFORUM_ADMIN_EMAIL` + `SFORUM_ADMIN_PASSWORD`.
+  With the development assembly the endpoint first re-scans the
+  `EXTERNAL_EXTENSION_ROOTS` external sources (`SyncExternalSources`), staging the
+  freshly rebuilt digest into the running API — no dev API restart is needed to see
+  a new artifact anymore.
+- `extension dev --auto-upgrade`: after the trust refresh succeeds it calls the
+  existing `POST /admin/extensions/{id}/upgrade` (the exact-artifact trust grant is
+  already in place), promoting the staged candidate to the active version and
+  restarting the plugin backend subprocess at the new digest. Failures print
+  `auto_upgrade_failed` with the reason and never stop the loop: the full chain is
+  save → build/digest/validate/test → stage → trust → upgrade.
+- Credential resolution order: `SFORUM_SESSION_COOKIE` / `SFORUM_DEV_AGENT_PAT`
+  → the **agent credential cache**
+  (`$XDG_CACHE_HOME/sforum/dev/agent-credentials.json`, mode 0600, override with
+  `SFORUM_DEV_AGENT_CACHE`; never stores passwords) →
+  `SFORUM_ADMIN_EMAIL`+`SFORUM_ADMIN_PASSWORD` (same convention as
+  `tests/admin-extension-activation.sh`), which logs in and caches the session
+  pair automatically → a one-time interactive prompt in a terminal (password not
+  echoed) that caches on success.
+- Before the first non-interactive run (for example an agent session), the
+  operator runs `extension dev-trust create --ensure <package-root>` once in a
+  terminal (or simply starts the dev loop) so the prompt caches the session;
+  afterwards every wrapper / agent run is credential-free and interaction-free.
+- Both cached forms are revocable: PAT (`{"kind":"pat",...}`, audited as
+  `api_token.*`, revocable in the admin) or a session pair
+  (`{"kind":"session",...}`, revoked on logout / admin session teardown). The
+  cache belongs to this dev machine only; production never reads it (the dev
+  trust service is not injected there).
 - Starting Safe Mode revokes all sessions immediately; they do not resurrect after
   Safe Mode ends.
 - The admin surface lists active sessions with one-click revocation

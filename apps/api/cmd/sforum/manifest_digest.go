@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -68,6 +69,13 @@ func runExtensionDigest(cmd *cobra.Command, root string, write bool) error {
 	version, _ := manifest["manifestVersion"].(float64)
 	if int(version) != extensionmanifest.ManifestVersionV3 {
 		return fmt.Errorf("%s is not an explicit Manifest V3 package", manifestPath)
+	}
+	if write {
+		// 资产文件一旦修改，清单里的 SRI 必然过期，包会被判 invalid；此前作者必须
+		// 像 prepare-package.sh 那样手写脚本重算。--write 路径顺带修复它。
+		if err := refreshAssetIntegrity(cmd, abs, manifest); err != nil {
+			return err
+		}
 	}
 	// 没有 packageFiles 是合法形态（例如只声明 routes/events 契约、不携带任何包内文件的包）。
 	// 此时没有可刷新的摘要：仍然执行 --write 的校验，但不再以一句难以理解的错误中断作者循环。
@@ -163,6 +171,41 @@ func digestPackageRelativeFile(root string, relative string) (string, error) {
 	}
 	digest := sha256.Sum256(body)
 	return hex.EncodeToString(digest[:]), nil
+}
+
+// refreshAssetIntegrity 重算清单里已声明 integrity 的资产 SRI。
+// Host 校验要求 integrity == "sha256-" + base64(sha256(文件字节))；只修复已声明
+// 的值：从缺省（空）开始的清单不被悄悄改写，既有包基线不受影响。
+func refreshAssetIntegrity(cmd *cobra.Command, root string, manifest map[string]any) error {
+	assets, _ := manifest["assets"].([]any)
+	for _, raw := range assets {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		current, _ := item["integrity"].(string)
+		if current == "" {
+			continue
+		}
+		relative, _ := item["path"].(string)
+		if relative == "" {
+			continue
+		}
+		digest, err := digestPackageRelativeFile(root, relative)
+		if err != nil {
+			return fmt.Errorf("recompute integrity for %s: %w", relative, err)
+		}
+		rawDigest, err := hex.DecodeString(digest)
+		if err != nil {
+			return fmt.Errorf("recompute integrity for %s: %w", relative, err)
+		}
+		integrity := "sha256-" + base64.StdEncoding.EncodeToString(rawDigest)
+		if item["integrity"] != integrity {
+			item["integrity"] = integrity
+			cmd.Printf("integrity refreshed: %s\n", relative)
+		}
+	}
+	return nil
 }
 
 func syncInlineDeclarationDigests(manifest map[string]any, digests map[string]string) {
