@@ -8,6 +8,8 @@ COMMAND=""
 REQUESTED_VERSION=""
 TARGET_VERSION=""
 CHANNEL="stable"
+CHANNEL_EXPLICIT=false
+LANGUAGE=""
 PASSTHROUGH=()
 LOCK_DIR="$ROOT_DIR/.sforum-bootstrap.lock"
 REPOSITORY="${SFORUM_RELEASE_REPOSITORY:-zhuchunshu/SForum}"
@@ -296,17 +298,20 @@ parse_args() {
       --channel)
         [ "$#" -ge 2 ] || die "--channel requires a value"
         CHANNEL="$2"
+        CHANNEL_EXPLICIT=true
         shift 2
         ;;
-      --channel=*) CHANNEL="${1#*=}"; shift ;;
+      --channel=*) CHANNEL="${1#*=}"; CHANNEL_EXPLICIT=true; shift ;;
       --lang)
         [ "$COMMAND" = install ] || die "--lang is only valid with install"
         [ "$#" -ge 2 ] || die "--lang requires a value"
+        LANGUAGE="$2"
         PASSTHROUGH+=("$1" "$2")
         shift 2
         ;;
       --lang=*)
         [ "$COMMAND" = install ] || die "--lang is only valid with install"
+        LANGUAGE="${1#*=}"
         PASSTHROUGH+=("$1")
         shift
         ;;
@@ -350,6 +355,29 @@ main() {
   fi
 
   REQUESTED_VERSION="${REQUESTED_VERSION:-latest}"
+  # 交互模式下询问更新渠道；显式 --channel 或显式版本号时跳过。
+  if [ "$CHANNEL_EXPLICIT" != true ] && [ "$REQUESTED_VERSION" = latest ]; then
+    local has_defaults=0
+    local passthrough_flag
+    for passthrough_flag in "${PASSTHROUGH[@]}"; do
+      case "$passthrough_flag" in --yes|--defaults) has_defaults=1 ;; esac
+    done
+    if [ "$has_defaults" = 0 ]; then
+      local choice
+      if [ "$LANGUAGE" = en ]; then
+        printf '1) Stable (recommended)\n2) Newest release (includes alpha/beta prereleases)\n'
+        read -r -p "Release channel [1]: " choice || die "could not read a channel"
+      else
+        printf '1) 稳定版（推荐）\n2) 最新发布版（包含 alpha/beta 预发布）\n'
+        read -r -p "请选择发布渠道 [1]: " choice || die "无法读取渠道选择"
+      fi
+      case "${choice:-1}" in
+        1|stable) CHANNEL="stable" ;;
+        2|prerelease) CHANNEL="prerelease" ;;
+        *) die "invalid channel selection: $choice" ;;
+      esac
+    fi
+  fi
   if [ "$REQUESTED_VERSION" = latest ]; then
     TARGET_VERSION="$(resolve_latest_version)"
   else

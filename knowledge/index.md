@@ -264,8 +264,13 @@ load archived sessions or completed plans as current context.
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
-## Latest Handoff
 
+- **部署脚本交互与健壮性（2026-10-17）**：`upgrade.sh`/`sforum-bootstrap.sh`
+  交互模式新增发布渠道询问（stable 推荐 / 含 alpha/beta 预发布，仅本次生效）；
+  GitHub 查询与 docker pull 带重试；`.deploy.lock` 锁自愈；目标迁移无法在线
+  安全执行时交互确认后原地降级为停机升级（`--confirm-maintenance` 可无人值守
+  授权）。详见
+  `knowledge/sessions/2026-10-17-deploy-scripts-ux-robustness-handoff.md`。
 - **dev 零命令自动激活（2026-10-17）**。操作者拍板 B 方案：watcher 挪进 host dev
   装配，彻底 0 命令——`./scripts/dev-plugin-loop.sh` 已删除，登录提示/凭据缓存
   代码全部移除；host 进程内 fsnotify 监听 EXTERNAL_EXTENSION_ROOTS，保存即

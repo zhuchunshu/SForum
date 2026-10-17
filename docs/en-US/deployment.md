@@ -71,6 +71,10 @@ provenance attestations.
 
 - **The default channel is `stable`**: bootstrap install and upgrade resolve
   only the newest **stable** Release.
+- **Interactive mode asks for the channel**: when neither `--channel` nor
+  `--version` is passed, an interactive run first asks "1) Stable
+  (recommended) 2) Newest release (includes alpha/beta prereleases)"; an empty
+  answer selects stable. The choice applies to that run only.
 - **Prereleases are never selected implicitly**: pass `--channel prerelease`,
   or pin an immutable version such as `--version v3.0.0-alpha.N`.
 - Whatever the choice, the scripts resolve to a concrete `vX.Y.Z` tag before
@@ -352,12 +356,15 @@ updating, the script checks both SForum Core and River migrations. Online execut
 a target migrator with the capability label, an audited `-- +sforum OnlineSafe`
 declaration on every pending Core SQL migration, transactional lock and
 statement timeouts, and an exact River migration set. A failed online migration
-leaves the old slot serving and never switches traffic. Undeclared Core, any
-River, and older migrator images are refused; use
-`./deploy.sh --version <release>` and accept its backup, migration, and
-maintenance window instead. That path recognizes an existing blue/green edge,
-backs up first, then stops all old slots before migrating and starting the
-direct target services.
+leaves the old slot serving and never switches traffic. When undeclared Core,
+any River, or older migrator images fail the online-safety gate, interactive
+`upgrade.sh` runs ask whether to accept a short maintenance window and degrade
+in place to a maintenance-window upgrade (backup → stop old slot → full
+migration → start target slot → traffic switch); unattended (`--yes`) runs
+refuse to trigger downtime automatically and print the one-shot authorization
+command `./upgrade.sh --version <release> --confirm-maintenance` instead.
+That path recognizes an existing blue/green edge, backs up first, then stops
+all old slots before migrating and starting the direct target services.
 
 ## Health checks, logs, and failure recovery
 
