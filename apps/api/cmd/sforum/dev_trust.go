@@ -232,7 +232,8 @@ func newExtensionDevTrustCreateCommand() *cobra.Command {
 			}
 			body, _ := json.Marshal(map[string]string{
 				"extensionId": ref.ExtensionID,
-				"packageSlug": ref.PackageSlug,
+				// packageSlug 已废弃：会话键由服务端按扩展 ID 派生，仅为旧版 API 兼容保留。
+				"packageSlug": ref.ExtensionID,
 				"rootPath":    ref.RootPath,
 				"confirm":     "true",
 			})

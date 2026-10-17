@@ -599,6 +599,21 @@ does not rebuild Nuxt.
   `SFORUM_API_BASE`/`SFORUM_SESSION_COOKIE` conventions of
   `tests/admin-extension-activation.sh`. Routes: 4 new reviewed identities
   (363 → 367). Decision: `../decisions/2026-10-17-dev-trust-session.md`.
+- Dev trust sessions R2 — external source roots (2026-10-17, same day): the
+  session key is now the **extension ID** (server-derived; the client-sent slug
+  is ignored and `rootPath` is audit metadata only), and the root allowlist is
+  config-driven: `WithDevSourceRoots(cfg.ExternalExtensionRoots)` (development
+  assembly only) ∪ the scaffold default `extensions/dev` tree, matched
+  lexically via `filepath.Rel` — no symlink resolution (the snapshot pipeline
+  rejects symlinks anyway). `Create` reads the manifest under `rootPath` and
+  refuses unless its ID matches the extension, so the package root must be
+  reachable from the API (same host or mounted). `GrantDevArtifact` now
+  prefers the **staged** artifact (`StagedArtifact`, non-disabled) when
+  building the TrustImpact, fixing the mismatch where `SyncExternalSources`
+  stores content-addressed snapshots under `EXTENSION_ROOT` and dev-loop
+  digests only ever enter staged — the grant now matches the artifact the
+  subsequent upgrade consumes. Tests cover external-root acceptance, unknown
+  root refusal, manifest-ID mismatch, and staged-over-active granting.
 - Request-context contract (2026-10-16, M7): no new request/response field was
   admitted. The filtered header projection (with `x-sforum-*`, hop-by-hop and
   credential blocking, plus `httpguts` name/value validation),

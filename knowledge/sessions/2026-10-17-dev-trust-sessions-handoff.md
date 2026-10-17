@@ -2,7 +2,17 @@
 
 ## Changed
 
-- 开发期信任会话（session-level dev auto-trust）全链路落地：
+- R2（同日修订）——外部源码根支持：
+  - 会话键改为扩展 ID（服务端派生，客户端 slug 忽略；rootPath 降级为审计元数据）。
+  - 根白名单配置驱动：`WithDevSourceRoots(cfg.ExternalExtensionRoots)`（仅
+    development 注入）∪ 脚手架默认 extensions/dev 树；词法 `filepath.Rel` 包含判断，
+    不解析 symlink。外部插件仓库（/srv/company-plugins/…）无需 symlink 即可用。
+  - `Create` 服务端读取 rootPath 下 manifest 并校验扩展 ID 一致；读不到 fail-closed
+    （要求包根与 API 同机或挂载可达）。
+  - `GrantDevArtifact` staged 优先：存在 StagedArtifact（非 disabled）时按 staged
+    摘要授权，修复 sync 暂存后 active/staged 摘要错位导致永远回落人工确认的问题。
+  - 新增测试：外部根接受/未知根拒绝、manifest ID 不匹配拒绝、staged 优先授权。
+- R1（初版）——开发期信任会话全链路：
   - 迁移 `202610170001_extension_dev_trust_sessions.sql`（唯一部分索引只锚定
     `revoked_at IS NULL`；部分索引谓词必须 IMMUTABLE，过期由查询判定 + Create 前置回收）。
   - `app/Models/Extensions/dev_trust_session.go` + `dev_trust_session_postgres.go`：

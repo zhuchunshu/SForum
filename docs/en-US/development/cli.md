@@ -435,9 +435,16 @@ APP_ENV=development go run ./cmd/sforum extension dev-trust list
 APP_ENV=development go run ./cmd/sforum extension dev-trust revoke <sessionID>
 ```
 
-- `create`: creates a session for an `extensions/dev` package (default TTL 8 hours,
-  one active session per package); the call itself is the human confirmation and
-  must carry `confirm: true`.
+- `create`: creates a session for a package under an allowed development source
+  root (default TTL 8 hours, one active session per package); the call itself is
+  the human confirmation and must carry `confirm: true`.
+  Allowed roots = the `EXTERNAL_EXTENSION_ROOTS` external plugin repositories
+  (including subdirectories) ∪ the scaffold default `extensions/dev` tree; the
+  server reads the manifest under that directory and verifies the extension ID
+  before creating the session, so external repositories need no (and cannot use
+  a) symlink. The session key is the extension ID — the source root is decoupled
+  from the stored snapshot path, and digests staged by `SyncExternalSources`
+  are auto-granted as well.
 - `extension dev --auto-trust`: calls `POST /admin/extensions/:id/dev-trust-refresh`
   after each successful build and prints `dev_trusted digest=…`; without a session
   or credentials it falls back to `reload_required`, identical to the manual path.

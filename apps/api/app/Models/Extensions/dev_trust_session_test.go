@@ -1,6 +1,7 @@
 package extensions
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 // memoryDevTrustSessionStore 是 DevTrustSessionStore 的测试替身。
@@ -171,7 +173,7 @@ func TestDevTrustSessionCreateRequiresDevEnvSuperAdminAndDevRoot(t *testing.T) {
 	// 生产环境拒绝。
 	service, _, _ := newDevTrustTestService(t, extension, "production")
 	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
-		ExtensionID: extension.ID, PackageSlug: "demo", RootPath: extension.PackagePath,
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: extension.PackagePath,
 	}); !errors.Is(err, ErrDevTrustDisabled) {
 		t.Fatalf("production env must refuse: %v", err)
 	}
@@ -179,21 +181,21 @@ func TestDevTrustSessionCreateRequiresDevEnvSuperAdminAndDevRoot(t *testing.T) {
 	// 非 super_admin 拒绝。
 	service, _, _ = newDevTrustTestService(t, extension, "development")
 	if _, err := service.Create(context.Background(), techAdminPluginManager(), DevTrustSessionGrantInput{
-		ExtensionID: extension.ID, PackageSlug: "demo", RootPath: extension.PackagePath,
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: extension.PackagePath,
 	}); !errors.Is(err, identity.ErrPermissionDenied) {
 		t.Fatalf("non super_admin must be denied: %v", err)
 	}
 
-	// 非 dev 根拒绝。
+	// 非 dev 根且不在配置的外部根内：拒绝。
 	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
-		ExtensionID: extension.ID, PackageSlug: "demo", RootPath: "/repo/extensions/optional/demo",
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: "/srv/nowhere/demo",
 	}); !errors.Is(err, ErrDevTrustRootForbidden) {
-		t.Fatalf("non-dev root must be refused: %v", err)
+		t.Fatalf("unknown root must be refused: %v", err)
 	}
 
 	// 合法创建。
 	session, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
-		ExtensionID: extension.ID, PackageSlug: "demo", RootPath: extension.PackagePath,
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: extension.PackagePath,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -201,10 +203,139 @@ func TestDevTrustSessionCreateRequiresDevEnvSuperAdminAndDevRoot(t *testing.T) {
 	if session.ID == "" || session.ExpiresAt.Before(session.GrantedAt) {
 		t.Fatalf("invalid session: %#v", session)
 	}
+	if session.PackageSlug != extension.ID {
+		t.Fatalf("session slug must be the server-derived extension id, got %q", session.PackageSlug)
+	}
 	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
-		ExtensionID: extension.ID, PackageSlug: "demo", RootPath: extension.PackagePath,
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: extension.PackagePath,
 	}); !errors.Is(err, ErrDevTrustSessionExists) {
 		t.Fatalf("duplicate active session must conflict: %v", err)
+	}
+}
+
+func TestDevTrustSessionAcceptsConfiguredExternalRoots(t *testing.T) {
+	extension := devTrustTestExtension(t)
+	superAdmin := extensionManager()
+	service, _, _ := newDevTrustTestService(t, extension, "development")
+	// 未配置外部根：外部仓库路径被拒（先于 manifest 校验）。
+	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: "/srv/company-plugins/plugins/acme.demo",
+	}); !errors.Is(err, ErrDevTrustRootForbidden) {
+		t.Fatalf("unconfigured external root must be refused: %v", err)
+	}
+
+	// 配置 EXTERNAL_EXTENSION_ROOTS 后：外部根（含子目录）下真实包被接受。
+	externalRoot := filepath.Join(t.TempDir(), "company-plugins")
+	packageRoot := filepath.Join(externalRoot, "plugins", "acme.demo")
+	copyDevTrustTree(t, extension.PackagePath, packageRoot)
+	service = service.WithDevSourceRoots([]string{"/srv/company-plugins", externalRoot})
+	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: packageRoot,
+	}); err != nil {
+		t.Fatalf("configured external root must be accepted: %v", err)
+	}
+
+	// 配置项里的相对/空白项被忽略；相对路径的 root 仍被拒。
+	service = service.WithDevSourceRoots([]string{"relative/root", "", externalRoot})
+	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: "relative/root/plugins/acme.demo",
+	}); !errors.Is(err, ErrDevTrustRootForbidden) {
+		t.Fatalf("relative root must stay refused: %v", err)
+	}
+}
+
+func TestDevTrustSessionVerifiesManifestIdentity(t *testing.T) {
+	extension := devTrustTestExtension(t)
+	superAdmin := extensionManager()
+	service, _, _ := newDevTrustTestService(t, extension, "development")
+
+	// 根目录不存在 / 无法读取 manifest：fail-closed。
+	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: "/srv/company-plugins/plugins/acme.demo",
+	}); !errors.Is(err, ErrDevTrustRootForbidden) {
+		t.Fatalf("unreadable manifest root must be refused: %v", err)
+	}
+
+	// manifest 存在但声明的 ID 与扩展不一致：拒绝。
+	otherRoot := filepath.Join(t.TempDir(), "plugins", "other.demo")
+	copyDevTrustTree(t, extension.PackagePath, otherRoot)
+	manifestPath := filepath.Join(otherRoot, extensionmanifest.ManifestFileName)
+	body, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body = bytes.Replace(body, []byte(`"id": "demo.dev-loop"`), []byte(`"id": "other.demo"`), 1)
+	if err := os.WriteFile(manifestPath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service = service.WithDevSourceRoots([]string{filepath.Dir(filepath.Dir(otherRoot))})
+	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: otherRoot,
+	}); !errors.Is(err, ErrDevTrustRootForbidden) {
+		t.Fatalf("manifest id mismatch must be refused: %v", err)
+	}
+
+	// manifest ID 一致：接受。
+	matchingRoot := filepath.Join(t.TempDir(), "plugins", "demo.dev-loop")
+	copyDevTrustTree(t, extension.PackagePath, matchingRoot)
+	service = service.WithDevSourceRoots([]string{filepath.Dir(filepath.Dir(matchingRoot))})
+	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: matchingRoot,
+	}); err != nil {
+		t.Fatalf("matching manifest id must be accepted: %v", err)
+	}
+}
+
+func TestDevTrustGrantPrefersStagedArtifactDigest(t *testing.T) {
+	extension := devTrustTestExtension(t)
+	superAdmin := extensionManager()
+
+	// 构造 staged 候选：dev 循环构建后新摘要先进入 staged。
+	staged := devTrustTestExtension(t)
+	staged.Version = "2.0.0"
+	extension.StagedVersion = &ExtensionVersion{
+		ID: 77, Version: staged.Version,
+		PackageDigest: staged.PackageDigest, PackagePath: staged.PackagePath,
+		Manifest: staged.Manifest, AdminFrontendDigest: staged.AdminFrontendDigest,
+		InstalledAt: time.Now(),
+	}
+	// 服务在 StagedVersion 注入之后再构造：fakeExtensionStore 持有扩展快照。
+	service, _, trustStore := newDevTrustTestService(t, extension, "development")
+
+	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: staged.PackagePath,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// staged 摘要（而非 active 旧摘要）应被授权。
+	if err := service.GrantDevArtifact(context.Background(), superAdmin, DevTrustGrantInput{
+		ExtensionID: extension.ID, PackageDigest: staged.PackageDigest,
+	}); err != nil {
+		t.Fatalf("staged digest must be granted: %v", err)
+	}
+	impact, err := buildTrustImpact(staged, TrustActionEnable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	granted, err := trustStore.HasLiveGrant(context.Background(), trustIdentity(impact))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !granted {
+		t.Fatal("dev grant must target the staged artifact identity")
+	}
+	// active 旧摘要不被授权。
+	activeImpact, err := buildTrustImpact(extension, TrustActionEnable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	activeGranted, err := trustStore.HasLiveGrant(context.Background(), trustIdentity(activeImpact))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if activeGranted {
+		t.Fatal("stale active digest must not be granted while staged exists")
 	}
 }
 
@@ -222,7 +353,7 @@ func TestDevTrustGrantDevArtifactWritesExactGrant(t *testing.T) {
 
 	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
 		ExtensionID: extension.ID,
-		PackageSlug: devTrustSessionKey(extension.ID, extension.PackagePath),
+		PackageSlug: extension.ID,
 		RootPath:    extension.PackagePath,
 	}); err != nil {
 		t.Fatal(err)
@@ -267,7 +398,7 @@ func TestDevTrustGrantFailsClosedWhenRevokedOrExpired(t *testing.T) {
 
 	session, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
 		ExtensionID: extension.ID,
-		PackageSlug: devTrustSessionKey(extension.ID, extension.PackagePath),
+		PackageSlug: extension.ID,
 		RootPath:    extension.PackagePath,
 	})
 	if err != nil {
@@ -288,7 +419,7 @@ func TestDevTrustGrantFailsClosedWhenRevokedOrExpired(t *testing.T) {
 	service2, _, _ := newDevTrustTestService(t, extension, "development")
 	if _, err := service2.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
 		ExtensionID: extension.ID,
-		PackageSlug: devTrustSessionKey(extension.ID, extension.PackagePath),
+		PackageSlug: extension.ID,
 		RootPath:    extension.PackagePath,
 	}); err != nil {
 		t.Fatal(err)
@@ -313,7 +444,7 @@ func TestDevTrustSafeModeFailsClosedAndRevokesSessions(t *testing.T) {
 	// Safe Mode 下无法创建会话。
 	service.WithSafeMode(true)
 	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
-		ExtensionID: extension.ID, PackageSlug: "demo", RootPath: extension.PackagePath,
+		ExtensionID: extension.ID, PackageSlug: extension.ID, RootPath: extension.PackagePath,
 	}); !errors.Is(err, ErrSafeModeActive) {
 		t.Fatalf("safe mode must refuse session creation: %v", err)
 	}
@@ -322,7 +453,7 @@ func TestDevTrustSafeModeFailsClosedAndRevokesSessions(t *testing.T) {
 	service, _, _ = newDevTrustTestService(t, extension, "development")
 	if _, err := service.Create(context.Background(), superAdmin, DevTrustSessionGrantInput{
 		ExtensionID: extension.ID,
-		PackageSlug: devTrustSessionKey(extension.ID, extension.PackagePath),
+		PackageSlug: extension.ID,
 		RootPath:    extension.PackagePath,
 	}); err != nil {
 		t.Fatal(err)

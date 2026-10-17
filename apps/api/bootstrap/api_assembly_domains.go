@@ -436,7 +436,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 			extensions.NewPostgresDevTrustSessionStore(pool),
 			lifecycleStack.Trust,
 			cfg.AppEnv,
-		).WithSafeMode(cfg.SafeMode)
+		).WithSafeMode(cfg.SafeMode).WithDevSourceRoots(cfg.ExternalExtensionRoots)
 		if cfg.SafeMode {
 			// Safe Mode 启动即吊销全部会话：Safe Mode 结束后旧会话不复活。
 			if err := devTrust.RevokeAllOnSafeMode(ctx); err != nil {

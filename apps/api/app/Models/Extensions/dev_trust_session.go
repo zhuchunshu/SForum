@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	devhygiene "github.com/zhuchunshu/sforum/apps/api/app/Support/DevHygiene"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 // DevTrustSession 是开发环境下 super_admin 一次性确认后授予的「会话级自动信任」：
@@ -91,6 +93,9 @@ type DevTrustService struct {
 	trust    *ExecutableTrustService
 	// devEnabled 与 watch loop / DevHygiene reaper 同一谓词。
 	devEnabled bool
+	// devSourceRoots 是允许的开发源码集合根（EXTERNAL_EXTENSION_ROOTS，
+	// 仅 development 注入）；脚手架默认 extensions/dev 树始终允许。
+	devSourceRoots []string
 	// safeMode 打开时 Create/Grant 全部 fail-closed（服务层权威，UI 只是辅助）。
 	safeMode bool
 	now      func() time.Time
@@ -116,6 +121,22 @@ func (s *DevTrustService) WithSafeMode(enabled bool) *DevTrustService {
 	return s
 }
 
+// WithDevSourceRoots 注入允许的开发源码集合根（EXTERNAL_EXTENSION_ROOTS）。
+// 仅 development 装配调用；空白与相对路径项被忽略（与 Service 的外部根同语义）。
+func (s *DevTrustService) WithDevSourceRoots(roots []string) *DevTrustService {
+	seen := make(map[string]bool)
+	s.devSourceRoots = nil
+	for _, root := range roots {
+		cleaned := filepath.Clean(strings.TrimSpace(root))
+		if cleaned == "." || cleaned == "" || !filepath.IsAbs(cleaned) || seen[cleaned] {
+			continue
+		}
+		seen[cleaned] = true
+		s.devSourceRoots = append(s.devSourceRoots, cleaned)
+	}
+	return s
+}
+
 // RevokeAllOnSafeMode 在 Safe Mode 启动时一次性吊销全部会话，
 // 确保 Safe Mode 结束后旧会话不会复活（逐包审计由调用方记录）。
 func (s *DevTrustService) RevokeAllOnSafeMode(ctx context.Context) error {
@@ -133,8 +154,9 @@ func newDevTrustSessionID() (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-// Create 在 super_admin 通过 dev trust challenge 后建立会话。
-// root 必须位于允许的开发根内（extensions/dev），否则拒绝。
+// Create 在 super_admin 确认后建立会话。rootPath 必须位于允许的开发源码根
+// （配置的 EXTERNAL_EXTENSION_ROOTS 或脚手架默认 extensions/dev）之内，
+// 且该根下 manifest 的 ID 必须与 extensionID 一致，否则拒绝。
 func (s *DevTrustService) Create(
 	ctx context.Context,
 	actor identity.Actor,
@@ -143,8 +165,20 @@ func (s *DevTrustService) Create(
 	if err := s.requireDevTrustEligible(actor, input.RootPath); err != nil {
 		return DevTrustSession{}, err
 	}
-	if _, err := s.trust.extension(ctx, input.ExtensionID); err != nil {
+	extension, err := s.trust.extension(ctx, input.ExtensionID)
+	if err != nil {
 		return DevTrustSession{}, err
+	}
+	// 服务端读取源根下的 manifest 验证身份：客户端声称的扩展 ID 必须与
+	// 该目录真实声明的 ID 一致。读不到（不同机/未挂载）一律 fail-closed。
+	manifest, err := extensionmanifest.LoadPackage(strings.TrimSpace(input.RootPath))
+	if err != nil {
+		return DevTrustSession{}, fmt.Errorf("%w: read package manifest at %s: %v",
+			ErrDevTrustRootForbidden, strings.TrimSpace(input.RootPath), err)
+	}
+	if manifest.ID != extension.ID {
+		return DevTrustSession{}, fmt.Errorf("%w: manifest id %q does not match extension %q",
+			ErrDevTrustRootForbidden, manifest.ID, extension.ID)
 	}
 	ttl := input.TTL
 	if ttl <= 0 {
@@ -159,8 +193,9 @@ func (s *DevTrustService) Create(
 		return DevTrustSession{}, err
 	}
 	session := DevTrustSession{
-		ID: id, ExtensionID: normalizeID(input.ExtensionID),
-		PackageSlug: strings.TrimSpace(input.PackageSlug),
+		ID: id, ExtensionID: extension.ID,
+		// 会话唯一键是扩展 ID；rootPath 仅为审计元数据（来源描述）。
+		PackageSlug: extension.ID,
 		RootPath:    strings.TrimSpace(input.RootPath),
 		ActorUserID: actor.ID, GrantedAt: now, ExpiresAt: now.Add(ttl),
 	}
@@ -222,8 +257,8 @@ func (s *DevTrustService) GrantDevArtifact(
 	if !RequiresExecutableTrust(extension) {
 		return nil
 	}
-	slug := devTrustSessionKey(extension.ID, extension.PackagePath)
-	session, err := s.sessions.Active(ctx, slug)
+	// 会话唯一键是扩展 ID（服务端派生，忽略客户端声称值）。
+	session, err := s.sessions.Active(ctx, extension.ID)
 	if err != nil {
 		if errors.Is(err, ErrDevTrustSessionNotFound) {
 			return ErrTrustChallengeRequired
@@ -233,11 +268,17 @@ func (s *DevTrustService) GrantDevArtifact(
 	if session.ActorUserID != actor.ID || !s.now().Before(session.ExpiresAt) {
 		return ErrTrustChallengeRequired
 	}
-	if extension.PackageDigest != strings.TrimSpace(input.PackageDigest) {
-		// 摘要与当前落库制品不一致：staging 未完成或竞态，回到人工确认。
+	// staged 优先：dev 循环构建后新摘要只进入 staged（sync/upload 暂存），
+	// active 仍是旧摘要。授权目标与后续 upgrade 消费的制品保持一致。
+	target := extension
+	if staged, ok := extension.StagedArtifact(); ok && extension.Status != StatusDisabled {
+		target = staged
+	}
+	if target.PackageDigest != strings.TrimSpace(input.PackageDigest) {
+		// 摘要与落库制品（staged 或 active）不一致：staging 未完成或竞态，回到人工确认。
 		return ErrTrustChallengeRequired
 	}
-	impact, err := buildTrustImpact(extension, TrustActionEnable)
+	impact, err := buildTrustImpact(target, TrustActionEnable)
 	if err != nil {
 		return err
 	}
@@ -255,7 +296,7 @@ func (s *DevTrustService) GrantDevArtifact(
 		}
 		s.trust.appendAudit(ctx, actor, audit.ActionExtensionTrustGrant, impact, nil)
 	}
-	if err := s.sessions.TouchDigest(ctx, session.ID, extension.PackageDigest); err != nil {
+	if err := s.sessions.TouchDigest(ctx, session.ID, target.PackageDigest); err != nil {
 		return err
 	}
 	return nil
@@ -272,23 +313,34 @@ func (s *DevTrustService) requireDevTrustEligible(actor identity.Actor, rootPath
 		return ErrDevTrustDisabled
 	}
 	root := strings.TrimSpace(rootPath)
-	if root == "" || !devTrustRootAllowed(root) {
+	if root == "" || !s.devSourceRootAllowed(root) {
 		return ErrDevTrustRootForbidden
 	}
 	return nil
 }
 
-// devTrustSessionKey 会话唯一键：扩展 ID + 包根路径，避免同名包跨目录混淆。
-func devTrustSessionKey(extensionID, packagePath string) string {
-	return normalizeID(extensionID) + "@" + strings.TrimSpace(packagePath)
-}
-
-// devTrustRootAllowed 只接受位于仓库 extensions/dev 树下的绝对路径。
-// 开发机（/home/…/SForum/extensions/dev/…）与容器（/app/extensions/dev/…）都合法。
-func devTrustRootAllowed(root string) bool {
-	normalized := strings.ReplaceAll(root, "\\", "/")
-	if !strings.HasPrefix(normalized, "/") {
+// devSourceRootAllowed 判断源码根是否位于允许的开发源码集合内：
+// 配置注入的 EXTERNAL_EXTENSION_ROOTS（外部插件仓库等）或脚手架默认
+// extensions/dev 树。只做词法路径判断（filepath.Rel），不解析符号链接；
+// 快照管线本就拒绝 symlink，因此 symlink 不是可用的绕过面。
+func (s *DevTrustService) devSourceRootAllowed(root string) bool {
+	normalized := filepath.Clean(strings.ReplaceAll(root, "\\", "/"))
+	if !filepath.IsAbs(normalized) {
 		return false
 	}
+	for _, allowed := range s.devSourceRoots {
+		allowed = filepath.Clean(strings.ReplaceAll(allowed, "\\", "/"))
+		if allowed == "" || !filepath.IsAbs(allowed) {
+			continue
+		}
+		if normalized == allowed {
+			return true
+		}
+		if relative, err := filepath.Rel(allowed, normalized); err == nil &&
+			relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return true
+		}
+	}
+	// 脚手架默认根（仓库内 extensions/dev 树）始终允许。
 	return strings.Contains(normalized+"/", "/extensions/dev/")
 }

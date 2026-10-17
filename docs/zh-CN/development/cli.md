@@ -396,8 +396,13 @@ APP_ENV=development go run ./cmd/sforum extension dev-trust list
 APP_ENV=development go run ./cmd/sforum extension dev-trust revoke <sessionID>
 ```
 
-- `create`：为 `extensions/dev` 包建立会话（默认 TTL 8 小时，一个包同时最多一个活跃会话）；
+- `create`：为开发源码根下的包建立会话（默认 TTL 8 小时，一个包同时最多一个活跃会话）；
   本身就是那次人工确认，请求必须显式携带 `confirm: true`。
+  允许的源码根 = `EXTERNAL_EXTENSION_ROOTS` 配置的外部插件仓库（含子目录）∪
+  脚手架默认 `extensions/dev` 树；服务端会读取该目录下的 manifest 验证扩展 ID
+  一致后才建立会话，因此外部仓库无需（也不能用）symlink。
+  会话唯一键是扩展 ID——源码根与落库快照路径解耦，`SyncExternalSources`
+  暂存（staged）的新摘要同样会被自动授权。
 - 带 `--auto-trust` 的 `extension dev`：每轮构建成功后调用
   `POST /admin/extensions/:id/dev-trust-refresh`，输出 `dev_trusted digest=…`；
   无会话/凭据时回落 `reload_required`，与人工路径一致。

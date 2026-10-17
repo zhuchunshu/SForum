@@ -32,6 +32,28 @@
   `revoked_at IS NULL`（部分索引谓词必须 IMMUTABLE，`now()` 不合法）；
   过期回收在 `Create` 前置 UPDATE 完成。
 
+## Revision 2（2026-10-17 同日）：外部源码根支持
+
+原实现把会话键绑定 `extensionID@PackagePath` 且白名单硬编码 `/extensions/dev/`，
+对外部插件仓库（`EXTERNAL_EXTENSION_ROOTS`，如 `/srv/company-plugins/plugins/acme`）
+不适用——也不允许用 symlink 绕过（快照管线本就拒绝 symlink）。同时暴露两个身份
+错位：外部根包经 `SyncExternalSources` 安装后落库 `PackagePath` 是
+`EXTENSION_ROOT` 下的内容寻址快照而非源码根；dev 循环构建后新摘要只进入 staged，
+active 摘要比对必然失败。修订：
+
+- **会话键改为扩展 ID**（服务端派生，忽略客户端声称值）；`rootPath` 降级为
+  审计元数据。安全锚 = super_admin 会话 + 扩展 ID + 逐摘要 exact grant。
+- **白名单配置驱动**：`DevTrustService.WithDevSourceRoots(cfg.ExternalExtensionRoots)`
+  仅 development 注入；允许根 = 配置外部根（词法包含，`filepath.Rel`，不解析
+  symlink）∪ 脚手架默认 `extensions/dev` 树。生产 config 校验本就 panic 拒绝把
+  dev 脚手架树配进外部根。
+- **创建时服务端验证清单身份**：`Create` 读取 rootPath 下
+  `sforum.extension.json`，manifest ID 必须与 extensionID 一致；读不到（不同机/
+  未挂载）fail-closed。因此外部仓库包根必须与 API 同机或挂载可达。
+- **授权目标 staged 优先**：`GrantDevArtifact` 存在 StagedArtifact（且非 disabled）
+  时按 staged 摘要构建 TrustImpact 并写 grant，与后续 upgrade 消费的制品一致；
+  否则回落 active。
+
 ## Consequences
 
 - dev 迭代从「改一行 → 三次后台点击」变为「确认一次 → 自动续信任」。
