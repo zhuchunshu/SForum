@@ -1,11 +1,13 @@
 package extensionpackage
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,14 +46,73 @@ func BuildBackend(packageRoot string) error {
 		return nil
 	}
 	binary := filepath.Join(backendDir, "plugin")
-	cmd := exec.Command("go", "build", "-trimpath", "-o", binary, "./")
+	// 先构建到 .tmp 产物:dev watcher 忽略 .tmp 事件,且产物与现役二进制字节
+	// 一致时不替换 backend/plugin——否则每次重建都会自触发 watch 事件,
+	// 形成「构建 → 写产物 → 事件 → 重建」的稳态循环。
+	staging := binary + ".tmp"
+	cmd := exec.Command("go", "build", "-trimpath", "-o", staging, "./")
 	cmd.Dir = backendDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		_ = os.Remove(staging)
 		return fmt.Errorf("go build backend: %v: %s", err, strings.TrimSpace(string(output)))
 	}
-	return nil
+	identical, err := filesHaveEqualBytes(staging, binary)
+	if err != nil {
+		_ = os.Remove(staging)
+		return err
+	}
+	if identical {
+		_ = os.Remove(staging)
+		return nil
+	}
+	return os.Rename(staging, binary)
+}
+
+// filesHaveEqualBytes 判断两个文件内容是否逐字节一致;任一不存在视为不一致。
+func filesHaveEqualBytes(a, b string) (bool, error) {
+	infoA, err := os.Stat(a)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	infoB, err := os.Stat(b)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if infoA.Size() != infoB.Size() {
+		return false, nil
+	}
+	sumA, err := fileSHA256(a)
+	if err != nil {
+		return false, err
+	}
+	sumB, err := fileSHA256(b)
+	if err != nil {
+		return false, err
+	}
+	return sumA == sumB, nil
+}
+
+func fileSHA256(path string) ([sha256.Size]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return [sha256.Size]byte{}, err
+	}
+	defer file.Close()
+	digest := sha256.New()
+	if _, err := io.Copy(digest, file); err != nil {
+		return [sha256.Size]byte{}, err
+	}
+	var sum [sha256.Size]byte
+	copy(sum[:], digest.Sum(nil))
+	return sum, nil
 }
 
 // WriteDigest 刷新包清单的 exact 摘要（等价 `extension digest --write`），
@@ -97,11 +158,23 @@ func WriteDigest(packageRoot string) (string, error) {
 		file["digest"] = digest
 	}
 	syncInlineDeclarationDigests(manifest, digests)
-	if err := writeJSONFile(manifestPath, manifest); err != nil {
+	refreshed, err := marshalManifestJSON(manifest)
+	if err != nil {
 		return "", err
 	}
+	// 内容不变时不重写:manifest 在 dev watch 树内,无意义重写会让 watcher
+	// 自触发重建循环(构建 → 写 manifest → 事件 → 再构建)。
+	wrote := false
+	if !bytes.Equal(body, refreshed) {
+		if err := os.WriteFile(manifestPath, refreshed, 0o644); err != nil {
+			return "", err
+		}
+		wrote = true
+	}
 	if _, err := extensionmanifest.LoadPackage(packageRoot); err != nil {
-		_ = os.WriteFile(manifestPath, body, 0o644)
+		if wrote {
+			_ = os.WriteFile(manifestPath, body, 0o644)
+		}
 		return "", fmt.Errorf("refreshed manifest is invalid: %w", err)
 	}
 	return extensionpackageRootDigest(packageRoot)
@@ -206,13 +279,12 @@ func syncInlineDeclarationDigests(manifest map[string]any, digests map[string]st
 	}
 }
 
-func writeJSONFile(path string, value any) error {
+func marshalManifestJSON(value any) ([]byte, error) {
 	body, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	body = append(body, '\n')
-	return os.WriteFile(path, body, 0o644)
+	return append(body, '\n'), nil
 }
 
 // BuildAndDigestDevPackage 是 dev watcher 的单包构建入口：

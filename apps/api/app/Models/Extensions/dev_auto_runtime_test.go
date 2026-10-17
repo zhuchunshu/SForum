@@ -77,9 +77,17 @@ func (a devAutoTxStoreAdapter) AssignRole(_ context.Context, userID int64, _ int
 type devAutoFakePromoter struct {
 	enabledIDs  []string
 	upgradedIDs []string
-	// upgradedComponents 捕获最近一次 Upgrade 调用收到的组件契约版本
-	//（dev 通道应在内存副本上自动晋升）。
-	upgradedComponents map[string]string
+	// upgradedKeys 捕获每次 Upgrade 收到的 IdempotencyKey（dev 通道必须是
+	// dev-auto/ 前缀的确定性键；契约版本晋升在真实 Service.Upgrade 内完成）。
+	upgradedKeys []string
+	upgradeCalls int
+	// firstUpgradeErr 非空时首次 Upgrade 返回该错误（模拟 coordinator 撞上
+	// 需要显式 retry 的终态 operation），第二次起正常成功。
+	firstUpgradeErr error
+	// operations 是 LifecycleOperations 返回的持久操作摘要；
+	// recoveredIDs 捕获 RecoverLifecycleOperation 收到的 operation ID。
+	operations   []LifecycleOperationSummary
+	recoveredIDs []int64
 }
 
 func (p *devAutoFakePromoter) Enable(_ context.Context, _ identity.Actor, id string, _ EnableInput) (Extension, error) {
@@ -88,15 +96,15 @@ func (p *devAutoFakePromoter) Enable(_ context.Context, _ identity.Actor, id str
 }
 
 func (p *devAutoFakePromoter) Upgrade(_ context.Context, _ identity.Actor, id string, input UpgradeInput) (Extension, error) {
+	p.upgradeCalls++
+	if p.upgradeCalls == 1 && p.firstUpgradeErr != nil {
+		return Extension{}, p.firstUpgradeErr
+	}
 	p.upgradedIDs = append(p.upgradedIDs, id)
-	if p.upgradedComponents == nil {
-		p.upgradedComponents = map[string]string{}
+	if p.upgradedKeys == nil {
+		p.upgradedKeys = []string{}
 	}
-	if input.Extension != nil {
-		for _, component := range input.Extension.Manifest.Components {
-			p.upgradedComponents[component.ID] = component.ContractVersion
-		}
-	}
+	p.upgradedKeys = append(p.upgradedKeys, input.IdempotencyKey)
 	return Extension{ID: id, Status: StatusEnabled}, nil
 }
 
@@ -238,19 +246,97 @@ func TestDevAutoRuntimeRewritesComponentContractVersions(t *testing.T) {
 	if len(promoter.upgradedIDs) != 1 {
 		t.Fatalf("upgrade not called: %#v", promoter)
 	}
-	// 制品上的真实 manifest 不被改写。
+	// 制品上的真实 manifest 不被改写（晋升发生在 Service.Upgrade 的 target 视图）。
 	if extension.Manifest.Components[0].ContractVersion != "3" {
 		t.Fatalf("artifact contractVersion mutated: %q", extension.Manifest.Components[0].ContractVersion)
+	}
+	// dev 通道必须使用确定性 dev-auto/ 键（Service.Upgrade 由此识别并晋升契约版本）。
+	want := DevIdempotencyKey(extension.ID, stagedDigest)
+	if len(promoter.upgradedKeys) != 1 || promoter.upgradedKeys[0] != want {
+		t.Fatalf("keys = %#v; want [%s]", promoter.upgradedKeys, want)
+	}
+}
+
+// coordinator 对 cancelled 与 failed 终态同等地要求显式 retry;恢复扫描必须
+// 同时覆盖两者,否则 cancelled 的升级会让 dev auto 永远撞 RetryRequired。
+func TestDevAutoRuntimeRecoversCancelledUpgrade(t *testing.T) {
+	extension := devTrustTestExtension(t)
+	extension.Status = StatusEnabled
+	extension.Type = TypePlugin
+	extension.Manifest.Backend.ProtocolVersion = 2
+	extension.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "sforum.lifecycle@1"}
+	stagedDigest := strings.Repeat("ef", 32)
+	extension.StagedVersion = &ExtensionVersion{ID: 77, Version: "2.0.0", PackageDigest: stagedDigest}
+	promoter := &devAutoFakePromoter{
+		firstUpgradeErr: ErrLifecycleCoordinatorRetryRequired,
+		operations: []LifecycleOperationSummary{{
+			ID: 361, ExtensionID: extension.ID,
+			Operation: string(LifecycleMachineUpgrade), TerminalResult: LifecycleTerminalCancelled,
+		}},
+	}
+	runtime := &DevAutoRuntime{
+		service:    NewService(&fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}, t.TempDir()),
+		promoter:   promoter,
+		identities: newDevAutoFakeIdentity(),
+		grants:     &devAutoFakeGrants{},
+		logger:     discardLogger(),
+	}
+
+	runtime.promoteOneForTest(t, extension.ID)
+
+	if len(promoter.recoveredIDs) != 1 || promoter.recoveredIDs[0] != 361 {
+		t.Fatalf("recovered = %#v; want [361]", promoter.recoveredIDs)
+	}
+	if promoter.upgradeCalls != 2 {
+		t.Fatalf("upgrade calls = %d; want retry after recovery", promoter.upgradeCalls)
+	}
+	if len(promoter.upgradedIDs) != 1 || promoter.upgradedIDs[0] != extension.ID {
+		t.Fatalf("upgraded = %#v", promoter.upgradedIDs)
+	}
+}
+
+// 恢复扫描只认 upgrade 操作的失败/取消终态;其他操作或其他终态不得被误恢复。
+func TestDevAutoRuntimeSkipsNonRetryableOperations(t *testing.T) {
+	extension := devTrustTestExtension(t)
+	extension.Status = StatusEnabled
+	extension.Type = TypePlugin
+	extension.Manifest.Backend.ProtocolVersion = 2
+	extension.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "sforum.lifecycle@1"}
+	extension.StagedVersion = &ExtensionVersion{ID: 77, Version: "2.0.0", PackageDigest: strings.Repeat("ab", 32)}
+	promoter := &devAutoFakePromoter{
+		operations: []LifecycleOperationSummary{
+			{ID: 1, ExtensionID: extension.ID, Operation: string(LifecycleMachineEnable), TerminalResult: LifecycleTerminalFailed},
+			{ID: 2, ExtensionID: extension.ID, Operation: string(LifecycleMachineUpgrade), TerminalResult: LifecycleTerminalSucceeded},
+		},
+	}
+	runtime := &DevAutoRuntime{
+		service:    NewService(&fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}, t.TempDir()),
+		promoter:   promoter,
+		identities: newDevAutoFakeIdentity(),
+		grants:     &devAutoFakeGrants{},
+		logger:     discardLogger(),
+	}
+
+	// 正常 Upgrade 成功路径不进入 recovery 分支;若实现误扫,也无法断言
+	// recoveredIDs 非空——用一次 promote 验证零恢复。
+	runtime.promoteOneForTest(t, extension.ID)
+
+	if len(promoter.recoveredIDs) != 0 {
+		t.Fatalf("unexpected recovery: %#v", promoter.recoveredIDs)
+	}
+	if len(promoter.upgradedIDs) != 1 {
+		t.Fatalf("upgraded = %#v", promoter.upgradedIDs)
 	}
 }
 
 func (p *devAutoFakePromoter) LifecycleOperations(_ context.Context, _ identity.Actor, _ string, _ int) ([]LifecycleOperationSummary, error) {
-	return nil, nil
+	return p.operations, nil
 }
 
 func (p *devAutoFakePromoter) RecoverLifecycleOperation(
-	_ context.Context, _ identity.Actor, _ string, _ int64, _ LifecycleRecoveryInput,
+	_ context.Context, _ identity.Actor, _ string, operationID int64, _ LifecycleRecoveryInput,
 ) (LifecycleOperationDetail, error) {
+	p.recoveredIDs = append(p.recoveredIDs, operationID)
 	return LifecycleOperationDetail{}, nil
 }
 

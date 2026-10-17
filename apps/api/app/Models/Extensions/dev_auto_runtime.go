@@ -144,10 +144,30 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 		return nil
 	}
 	// 精确制品 grant：dev 直通的信任语义仍然是「逐摘要」，只是执行者是 dev 自动机。
+	// grant 的 impact 必须与 Service.Upgrade 的 authority 视图同源——Upgrade 会按
+	// dev-auto/ 键前缀把 target 的组件契约版本晋升为 dev-<digest8>（改变 impact），
+	// 因此这里对同一视图提前写 grant，否则 ConfirmLifecycleAuthority 校验 miss
+	// （trust challenge required）。
 	if RequiresExecutableTrust(extension) && r.grants != nil {
 		target := extension
 		if staged, ok := extension.StagedArtifact(); ok && extension.Status != StatusDisabled {
 			target = staged
+		}
+		if len(target.Manifest.Components) > 0 {
+			stagedDigest := target.PackageDigest
+			if stagedDigest == "" {
+				stagedDigest = extension.PackageDigest
+			}
+			suffix := "dev-" + stagedDigest
+			if len(suffix) > 11 {
+				suffix = suffix[:11]
+			}
+			rewritten := make([]ManifestComponent, len(target.Manifest.Components))
+			copy(rewritten, target.Manifest.Components)
+			for index := range rewritten {
+				rewritten[index].ContractVersion = suffix
+			}
+			target.Manifest.Components = rewritten
 		}
 		if err := r.grants.EnsureLiveGrantForDevAuto(ctx, actor, target); err != nil {
 			return fmt.Errorf("ensure dev grant: %w", err)
@@ -166,41 +186,22 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 			return fmt.Errorf("staged digest %s requires a manual admin restart bridge (extension does not declare lifecycle V2)",
 				extension.StagedVersion.PackageDigest)
 		}
-		// dev 通道的组件契约版本自动晋升：组件注册表拒绝「同 contractVersion
-		// 下声明/内容变化」的 upgrade（component_registry_schema.go），要求作者
-		// 每次改 L2 前端都手动 bump——对 dev 迭代是纯摩擦。这里在传给
-		// lifecycle 的内存副本上把每个组件的 contractVersion 改写为
-		// "dev-<stagedDigest 前 8 位>"：制品文件与真实版本号不变，只是让
-		// registry 把每次摘要变化视为一次新的契约发布。生产路径不受影响
-		// （仅本通道改写）。
-		if len(extension.Manifest.Components) > 0 {
-			stagedDigest := extension.StagedVersion.PackageDigest
-			if stagedDigest == "" {
-				stagedDigest = extension.PackageDigest
-			}
-			devSuffix := "dev-" + stagedDigest
-			if len(devSuffix) > 11 {
-				devSuffix = devSuffix[:11]
-			}
-			rewritten := make([]ManifestComponent, len(extension.Manifest.Components))
-			copy(rewritten, extension.Manifest.Components)
-			for index := range rewritten {
-				rewritten[index].ContractVersion = devSuffix
-			}
-			extension.Manifest.Components = rewritten
-		}
-		// V2 upgrade 要求 stable Idempotency-Key（HTTP 从请求头取）；dev 通道用
+		// 组件契约版本的晋升在 Service.Upgrade 内完成（按 dev-auto/ 键前缀识别，
+		// 对 target 视图统一改写——grant/authority/registry 三处同源）。此处只需
+		// 提供确定性键。V2 upgrade 要求 stable Idempotency-Key（HTTP 从请求头取）。
+
 		// extensionID+stagedDigest 派生确定性键：同摘要重放安全，新摘要即新键。
-		idempotencyKey := "dev-auto/" + extension.ID + "/" + extension.StagedVersion.PackageDigest
+		// Upgrade 依据键前缀在 target 视图上晋升组件契约版本（见该函数）。
+		idempotencyKey := DevIdempotencyKey(extension.ID, extension.StagedVersion.PackageDigest)
 		_, err = r.promoter.Upgrade(ctx, actor, extension.ID, UpgradeInput{
-			Extension: &extension, IdempotencyKey: idempotencyKey,
+			IdempotencyKey: idempotencyKey,
 		})
 		if errors.Is(err, ErrLifecycleCoordinatorRetryRequired) {
 			if recoverErr := r.recoverLatestFailedUpgrade(ctx, actor, extension.ID); recoverErr != nil {
 				return fmt.Errorf("auto recovery of last failed upgrade: %w", recoverErr)
 			}
 			_, err = r.promoter.Upgrade(ctx, actor, extension.ID, UpgradeInput{
-				Extension: &extension, IdempotencyKey: idempotencyKey,
+				IdempotencyKey: idempotencyKey,
 			})
 		}
 	default:
@@ -230,20 +231,27 @@ func (r *DevAutoRuntime) republishAssets(ctx context.Context, items []Extension)
 	}
 }
 
-// recoverLatestFailedUpgrade 对最近一次 terminal-failed 的 upgrade 执行一轮
-// decision=retry recovery，清除 fence 使下一次升级可以继续。
+// recoverLatestFailedUpgrade 对最近一次 terminal-failed 或 terminal-cancelled
+// 的 upgrade 执行一轮 decision=retry recovery，清除 fence 使下一次升级可以继续。
+// coordinator 对这两种终态都要求显式 retry（见 LifecycleCoordinator.Run），
+// Recovery 服务也接受两者——这里若只认 failed，cancelled 的升级会让 dev auto
+// 永远撞 ErrLifecycleCoordinatorRetryRequired 且找不到可恢复对象。
 func (r *DevAutoRuntime) recoverLatestFailedUpgrade(ctx context.Context, actor identity.Actor, extensionID string) error {
 	operations, err := r.promoter.LifecycleOperations(ctx, actor, extensionID, 5)
 	if err != nil {
 		return err
 	}
 	for _, operation := range operations {
-		if operation.Operation == string(LifecycleMachineUpgrade) && operation.TerminalResult == LifecycleTerminalFailed {
-			_, err := r.promoter.RecoverLifecycleOperation(ctx, actor, extensionID, operation.ID, LifecycleRecoveryInput{
-				Decision: "retry", Reason: "dev auto activation retry after failed upgrade",
-			})
-			return err
+		if operation.Operation != string(LifecycleMachineUpgrade) {
+			continue
 		}
+		if operation.TerminalResult != LifecycleTerminalFailed && operation.TerminalResult != LifecycleTerminalCancelled {
+			continue
+		}
+		_, err := r.promoter.RecoverLifecycleOperation(ctx, actor, extensionID, operation.ID, LifecycleRecoveryInput{
+			Decision: "retry", Reason: "dev auto activation retry after failed or cancelled upgrade",
+		})
+		return err
 	}
 	return fmt.Errorf("no failed upgrade operation found to recover")
 }
@@ -300,4 +308,13 @@ func (s *Service) withStoreForTests(store Store) *Service {
 	clone := *s
 	clone.store = store
 	return &clone
+}
+
+// DevAutoIdempotencyKeyPrefix 是 dev 自动升级 Idempotency-Key 的保留前缀；
+// LifecycleService.Upgrade 据此识别 dev 通道并晋升组件契约版本。
+const DevAutoIdempotencyKeyPrefix = "dev-auto/"
+
+// DevIdempotencyKey 派生一次 dev 升级的确定性幂等键。
+func DevIdempotencyKey(extensionID, stagedDigest string) string {
+	return DevAutoIdempotencyKeyPrefix + extensionID + "/" + stagedDigest
 }

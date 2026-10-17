@@ -146,15 +146,13 @@ func (s *LifecycleService) Upgrade(ctx context.Context, actor identity.Actor, id
 	if !ok || !usesLifecycleV2(target) {
 		return Extension{}, ErrStagedVersionNotFound
 	}
-	// dev 自动激活通道（input.Extension 非 nil，仅进程内调用；HTTP 升级恒 nil）
-	// 携带组件契约版本已晋升的内存副本：仅当其扩展 ID / 版本 / staged 摘要与
-	// store 中的 staged 精确一致时才采信，registry 因此把每次摘要变化视为一次
-	// 新契约发布，作者改 L2 前端无需手动 bump contractVersion。制品文件与
-	// 台账不变；HTTP 路径与生产语义零变化。
-	if input.Extension != nil && input.Extension.ID == target.ID &&
-		input.Extension.Version == target.Version &&
-		strings.EqualFold(input.Extension.PackageDigest, target.PackageDigest) {
-		target = *input.Extension
+	// dev 自动激活通道（IdempotencyKey 以 dev-auto/ 为前缀；HTTP 升级不会带上）
+	// 把 target 内存副本的组件契约版本晋升为 dev-<stagedDigest8>：组件注册表
+	// 把每次摘要变化视为新契约发布，作者改 L2 前端无需手动 bump。改写发生在
+	// target 上（registry 校验与后续发布共用同一份视图），制品文件与台账不变；
+	// HTTP 路径与生产语义零变化（不带 dev-auto/ 键则完全走原逻辑）。
+	if strings.HasPrefix(input.IdempotencyKey, DevAutoIdempotencyKeyPrefix) {
+		target = promoteDevComponentContractVersions(target)
 	}
 	return s.runLifecycleV2(ctx, actor, lifecycleServiceRequest{
 		operation: LifecycleMachineUpgrade, source: exactLifecycleCopy(extension), target: target,
@@ -694,6 +692,26 @@ func extensionFromExactVersion(base Extension, version ExtensionVersion) Extensi
 	base.InstalledAt = version.InstalledAt
 	base.StagedVersion = nil
 	return base
+}
+
+// promoteDevComponentContractVersions 返回 target 的浅副本，其中每个 L2 组件的
+// contractVersion 被改写为 dev-<stagedDigest 前 8 位>。仅 dev 自动激活通道调用
+// （Upgrade 内识别 dev-auto/ 键前缀）；制品文件与台账不变。
+func promoteDevComponentContractVersions(target Extension) Extension {
+	if len(target.Manifest.Components) == 0 {
+		return target
+	}
+	suffix := "dev-" + target.PackageDigest
+	if len(suffix) > 11 {
+		suffix = suffix[:11]
+	}
+	rewritten := make([]ManifestComponent, len(target.Manifest.Components))
+	copy(rewritten, target.Manifest.Components)
+	for index := range rewritten {
+		rewritten[index].ContractVersion = suffix
+	}
+	target.Manifest.Components = rewritten
+	return target
 }
 
 func validLifecycleServiceIdempotencyKey(value string) bool {
