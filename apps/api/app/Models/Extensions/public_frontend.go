@@ -875,3 +875,18 @@ func hasAssetRegistryDeclarations(manifest Manifest) bool {
 	}
 	return false
 }
+
+// RepublishPublicAssetsForDev 是 dev 自动激活通道的公开资产重发布：
+// 与启动恢复同一确定性构建（trust 身份逐包校验），完整图替换注册表。
+// 仅 dev 装配可达；生产路径不会调用（watcher 不存在）。
+func (s *FrontendService) RepublishPublicAssetsForDev(ctx context.Context, items []Extension) error {
+	if s == nil || s.publicAssets == nil {
+		return ErrPublicFrontendUnavailable
+	}
+	publications, err := s.buildPublicAssetPublications(ctx, items, false)
+	if err != nil {
+		return err
+	}
+	_, err = s.publicAssets.ReplaceAll(publications)
+	return err
+}

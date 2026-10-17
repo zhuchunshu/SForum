@@ -218,8 +218,31 @@ func writeJSONFile(path string, value any) error {
 // BuildAndDigestDevPackage 是 dev watcher 的单包构建入口：
 // backend 构建（无后端源码时 no-op）→ digest 写回（含 SRI 重算）→ 返回根摘要。
 func BuildAndDigestDevPackage(packageRoot string) (string, error) {
+	if err := BuildFrontend(packageRoot); err != nil {
+		return "", err
+	}
 	if err := BuildBackend(packageRoot); err != nil {
 		return "", err
 	}
 	return WriteDigest(packageRoot)
+}
+
+// BuildFrontend 在 frontend/admin 声明了构建脚本时执行 bun run build
+// （跳过依赖安装：dev 依赖由作者首次安装；无 package.json 时 no-op）。
+// 与 CLI buildExtensionAdminFrontend 同语义，但面向 host 内 dev watcher：
+// 失败返回错误，由调用方保留上一个健康制品。
+func BuildFrontend(packageRoot string) error {
+	frontendRoot := filepath.Join(packageRoot, "frontend", "admin")
+	packageJSON := filepath.Join(frontendRoot, "package.json")
+	if info, err := os.Stat(packageJSON); err != nil || info.IsDir() {
+		return nil
+	}
+	cmd := exec.Command("bun", "run", "build")
+	cmd.Dir = frontendRoot
+	cmd.Env = append(os.Environ(), "CI=1")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("bun run build (frontend/admin): %v: %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }

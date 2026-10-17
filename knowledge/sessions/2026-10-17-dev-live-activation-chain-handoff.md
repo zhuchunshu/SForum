@@ -3,6 +3,20 @@
 ## Changed
 ## Changed
 
+- 追加（同日第六轮，前端制品补齐）：回答「前端为什么还要走生命周期切换制品」
+  发现三处缺口并全部修复：① dev 构建管线不含前端构建——`BuildFrontend`
+  （frontend/admin 有 package.json 时 bun run build）接入 BuildAndDigestDevPackage；
+  ② L2 组件 contractVersion 手动 bump 摩擦——UpgradeInput 新增非序列化
+  `Extension` 内存载体，dev 通道在副本上把 components[].contractVersion 改写为
+  dev-<digest8>（制品/真实版本不变；Upgrade 仅在 ID/version/stagedDigest 精确
+  匹配时采信）；③ 公开资产注册表只在 Host 启动重建——DevAutoRuntime 升级成功后
+  调 FrontendService.RepublishPublicAssetsForDev 完整图重发布。另修升级健壮性：
+  dev upgrade 带确定性 Idempotency-Key（dev-auto/<id>/<digest>）、
+  requires-explicit-retry 时自动 decision=retry recovery 一轮后重试、promote
+  失败写 extension_events 台账、非 V2 包如实报错。实机四轮迭代验证：touch CSS →
+  ~6s 自动 staged + upgraded，asset-inspector 显示新 packageDigest 46756d89…，
+  运行时资产端点返回含 dev-live-round4 的最新内容。测试 +3。
+
 - 追加（同日第五轮，终态 B 方案）：操作者两度明确「去掉登录/授权全过程，0 命令」。
   落地：① watcher 入 host——`bootstrap/dev_plugin_watch.go`（fsnotify、600ms 去抖、
   排除产物目录）+ `Models/Extensions/dev_auto_runtime.go`（sync→grant→enable/upgrade，

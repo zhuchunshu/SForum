@@ -39,6 +39,17 @@ type DevIdentityStore interface {
 type DevAutoPromoter interface {
 	Enable(ctx context.Context, actor identity.Actor, id string, input EnableInput) (Extension, error)
 	Upgrade(ctx context.Context, actor identity.Actor, id string, input UpgradeInput) (Extension, error)
+	// 上一次失败的 upgrade 会留下 terminal-failed operation，fence 使下一次
+	// 升级报 requires-explicit-retry；dev 通道自动走一轮 recovery(retry)。
+	LifecycleOperations(ctx context.Context, actor identity.Actor, extensionID string, limit int) ([]LifecycleOperationSummary, error)
+	RecoverLifecycleOperation(ctx context.Context, actor identity.Actor, extensionID string, operationID int64, input LifecycleRecoveryInput) (LifecycleOperationDetail, error)
+}
+
+// DevAssetRepublisher 是 dev 升级后的公开资产注册表重发布边界（FrontendService）。
+// Host 启动才 RestoreRoutePublications；自动 upgrade 后必须显式重发布，
+// 否则浏览器拿到的仍是启动时快照的旧 digest。
+type DevAssetRepublisher interface {
+	RepublishPublicAssetsForDev(ctx context.Context, items []Extension) error
 }
 
 // DevTrustGrantWriter 是 exact live grant 的写入边界（*ExecutableTrustService）。
@@ -51,6 +62,7 @@ type DevAutoRuntime struct {
 	promoter   DevAutoPromoter
 	identities DevIdentityStore
 	grants     DevTrustGrantWriter
+	assets     DevAssetRepublisher
 	// sourceRoots 与 CatalogService.externalRoots 同源；用于日志与防御性过滤。
 	sourceRoots []string
 	logger      *slog.Logger
@@ -63,6 +75,7 @@ func NewDevAutoRuntime(
 	promoter DevAutoPromoter,
 	identities DevIdentityStore,
 	grants DevTrustGrantWriter,
+	assets DevAssetRepublisher,
 	sourceRoots []string,
 	logger *slog.Logger,
 ) *DevAutoRuntime {
@@ -71,7 +84,7 @@ func NewDevAutoRuntime(
 	}
 	return &DevAutoRuntime{
 		service: service, promoter: promoter, identities: identities,
-		grants: grants, sourceRoots: sourceRoots, logger: logger,
+		grants: grants, assets: assets, sourceRoots: sourceRoots, logger: logger,
 	}
 }
 
@@ -93,11 +106,24 @@ func (r *DevAutoRuntime) PromoteAll(ctx context.Context) {
 	}
 	items := append([]Extension(nil), result.Items...)
 	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
+	promotedAny := false
 	for _, item := range items {
 		if err := r.promoteOne(ctx, item.ID); err != nil {
 			r.logger.WarnContext(ctx, "dev auto: promote failed",
 				"extensionId", item.ID, "error", err)
+			// 失败落台账：air 场景下 watcher 日志可能进了交互终端，
+			// 台账是作者唯一确定可见的地方。
+			_, _ = r.service.store.CreateEvent(ctx, EventInput{
+				ExtensionID: item.ID,
+				Action:      EventEnabled,
+				Message:     "dev auto promote failed: " + err.Error(),
+			})
+			continue
 		}
+		promotedAny = true
+	}
+	if promotedAny {
+		r.republishAssets(ctx, items)
 	}
 }
 
@@ -134,7 +160,49 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 		if extension.StagedVersion == nil {
 			return nil
 		}
-		_, err = r.promoter.Upgrade(ctx, actor, extension.ID, UpgradeInput{})
+		if !usesLifecycleV2(extension) {
+			// 非 V2 包（未声明 lifecycle）没有可编程的 staged 升级路径；硬调
+			// Upgrade 只会得到误导性错误。如实告知作者需走管理端 restart bridge。
+			return fmt.Errorf("staged digest %s requires a manual admin restart bridge (extension does not declare lifecycle V2)",
+				extension.StagedVersion.PackageDigest)
+		}
+		// dev 通道的组件契约版本自动晋升：组件注册表拒绝「同 contractVersion
+		// 下声明/内容变化」的 upgrade（component_registry_schema.go），要求作者
+		// 每次改 L2 前端都手动 bump——对 dev 迭代是纯摩擦。这里在传给
+		// lifecycle 的内存副本上把每个组件的 contractVersion 改写为
+		// "dev-<stagedDigest 前 8 位>"：制品文件与真实版本号不变，只是让
+		// registry 把每次摘要变化视为一次新的契约发布。生产路径不受影响
+		// （仅本通道改写）。
+		if len(extension.Manifest.Components) > 0 {
+			stagedDigest := extension.StagedVersion.PackageDigest
+			if stagedDigest == "" {
+				stagedDigest = extension.PackageDigest
+			}
+			devSuffix := "dev-" + stagedDigest
+			if len(devSuffix) > 11 {
+				devSuffix = devSuffix[:11]
+			}
+			rewritten := make([]ManifestComponent, len(extension.Manifest.Components))
+			copy(rewritten, extension.Manifest.Components)
+			for index := range rewritten {
+				rewritten[index].ContractVersion = devSuffix
+			}
+			extension.Manifest.Components = rewritten
+		}
+		// V2 upgrade 要求 stable Idempotency-Key（HTTP 从请求头取）；dev 通道用
+		// extensionID+stagedDigest 派生确定性键：同摘要重放安全，新摘要即新键。
+		idempotencyKey := "dev-auto/" + extension.ID + "/" + extension.StagedVersion.PackageDigest
+		_, err = r.promoter.Upgrade(ctx, actor, extension.ID, UpgradeInput{
+			Extension: &extension, IdempotencyKey: idempotencyKey,
+		})
+		if errors.Is(err, ErrLifecycleCoordinatorRetryRequired) {
+			if recoverErr := r.recoverLatestFailedUpgrade(ctx, actor, extension.ID); recoverErr != nil {
+				return fmt.Errorf("auto recovery of last failed upgrade: %w", recoverErr)
+			}
+			_, err = r.promoter.Upgrade(ctx, actor, extension.ID, UpgradeInput{
+				Extension: &extension, IdempotencyKey: idempotencyKey,
+			})
+		}
 	default:
 		return nil
 	}
@@ -149,6 +217,35 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 			return extension.PackageDigest
 		}())
 	return nil
+}
+
+// republishAssets 在任一包升级/启用后重发布公开资产注册表：Host 只在启动时
+// 重建它，不重发布则浏览器仍按启动快照的旧 digest 请求资产（404/旧内容）。
+func (r *DevAutoRuntime) republishAssets(ctx context.Context, items []Extension) {
+	if r.assets == nil {
+		return
+	}
+	if err := r.assets.RepublishPublicAssetsForDev(ctx, items); err != nil {
+		r.logger.WarnContext(ctx, "dev auto: public asset republish failed", "error", err)
+	}
+}
+
+// recoverLatestFailedUpgrade 对最近一次 terminal-failed 的 upgrade 执行一轮
+// decision=retry recovery，清除 fence 使下一次升级可以继续。
+func (r *DevAutoRuntime) recoverLatestFailedUpgrade(ctx context.Context, actor identity.Actor, extensionID string) error {
+	operations, err := r.promoter.LifecycleOperations(ctx, actor, extensionID, 5)
+	if err != nil {
+		return err
+	}
+	for _, operation := range operations {
+		if operation.Operation == string(LifecycleMachineUpgrade) && operation.TerminalResult == LifecycleTerminalFailed {
+			_, err := r.promoter.RecoverLifecycleOperation(ctx, actor, extensionID, operation.ID, LifecycleRecoveryInput{
+				Decision: "retry", Reason: "dev auto activation retry after failed upgrade",
+			})
+			return err
+		}
+	}
+	return fmt.Errorf("no failed upgrade operation found to recover")
 }
 
 // ensureDevAutoActor 返回（必要时创建）dev-auto 系统账号的 actor。

@@ -77,6 +77,9 @@ func (a devAutoTxStoreAdapter) AssignRole(_ context.Context, userID int64, _ int
 type devAutoFakePromoter struct {
 	enabledIDs  []string
 	upgradedIDs []string
+	// upgradedComponents 捕获最近一次 Upgrade 调用收到的组件契约版本
+	//（dev 通道应在内存副本上自动晋升）。
+	upgradedComponents map[string]string
 }
 
 func (p *devAutoFakePromoter) Enable(_ context.Context, _ identity.Actor, id string, _ EnableInput) (Extension, error) {
@@ -84,8 +87,16 @@ func (p *devAutoFakePromoter) Enable(_ context.Context, _ identity.Actor, id str
 	return Extension{ID: id, Status: StatusEnabled}, nil
 }
 
-func (p *devAutoFakePromoter) Upgrade(_ context.Context, _ identity.Actor, id string, _ UpgradeInput) (Extension, error) {
+func (p *devAutoFakePromoter) Upgrade(_ context.Context, _ identity.Actor, id string, input UpgradeInput) (Extension, error) {
 	p.upgradedIDs = append(p.upgradedIDs, id)
+	if p.upgradedComponents == nil {
+		p.upgradedComponents = map[string]string{}
+	}
+	if input.Extension != nil {
+		for _, component := range input.Extension.Manifest.Components {
+			p.upgradedComponents[component.ID] = component.ContractVersion
+		}
+	}
 	return Extension{ID: id, Status: StatusEnabled}, nil
 }
 
@@ -131,6 +142,9 @@ func TestDevAutoRuntimeEnablesFreshlyInstalledExtension(t *testing.T) {
 func TestDevAutoRuntimeUpgradesEnabledExtensionWithStagedDigest(t *testing.T) {
 	extension := devTrustTestExtension(t)
 	extension.Status = StatusEnabled
+	extension.Type = TypePlugin
+	extension.Manifest.Backend.ProtocolVersion = 2
+	extension.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "sforum.lifecycle@1"}
 	staged := devTrustTestExtension(t)
 	extension.StagedVersion = &ExtensionVersion{
 		ID: 77, Version: "2.0.0", PackageDigest: staged.PackageDigest,
@@ -199,4 +213,88 @@ func (a devAutoTxStoreAdapter) GetDefaultRole(context.Context) (identity.Role, e
 }
 func (a devAutoTxStoreAdapter) LoadCurrentUserAccess(context.Context, *identity.CurrentUser) error {
 	return nil
+}
+
+// dev 通道的组件契约版本自动晋升：staged 组件的 contractVersion 在传给 upgrade
+// 的内存副本上被改写为 "dev-<digest8>"，制品与真实版本号不变——registry 因此
+// 把每次摘要变化视为新契约发布，作者改 L2 前端不再需要手动 bump。
+func TestDevAutoRuntimeRewritesComponentContractVersions(t *testing.T) {
+	extension := devTrustTestExtension(t)
+	extension.Status = StatusEnabled
+	extension.Type = TypePlugin
+	extension.Manifest.Backend.ProtocolVersion = 2
+	extension.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "sforum.lifecycle@1"}
+	extension.Manifest.Components = []ManifestComponent{{
+		ID: "sforum.oauth2-provider.component.apps", ContractVersion: "3",
+	}}
+	stagedDigest := strings.Repeat("ab", 32)
+	extension.StagedVersion = &ExtensionVersion{
+		ID: 77, Version: "2.0.0", PackageDigest: stagedDigest,
+	}
+	runtime, promoter, _, _ := newDevAutoTestRuntime(t, map[string]Extension{extension.ID: extension})
+
+	runtime.promoteOneForTest(t, extension.ID)
+
+	if len(promoter.upgradedIDs) != 1 {
+		t.Fatalf("upgrade not called: %#v", promoter)
+	}
+	// 制品上的真实 manifest 不被改写。
+	if extension.Manifest.Components[0].ContractVersion != "3" {
+		t.Fatalf("artifact contractVersion mutated: %q", extension.Manifest.Components[0].ContractVersion)
+	}
+}
+
+func (p *devAutoFakePromoter) LifecycleOperations(_ context.Context, _ identity.Actor, _ string, _ int) ([]LifecycleOperationSummary, error) {
+	return nil, nil
+}
+
+func (p *devAutoFakePromoter) RecoverLifecycleOperation(
+	_ context.Context, _ identity.Actor, _ string, _ int64, _ LifecycleRecoveryInput,
+) (LifecycleOperationDetail, error) {
+	return LifecycleOperationDetail{}, nil
+}
+
+type devAutoFakeAssets struct{ calls int }
+
+func (a *devAutoFakeAssets) RepublishPublicAssetsForDev(_ context.Context, items []Extension) error {
+	a.calls++
+	return nil
+}
+
+// 升级成功后必须重发布公开资产注册表（Host 只在启动时重建它）；
+// 没有任何包被升级时跳过。
+func TestDevAutoRuntimeRepublishesAssetsAfterUpgrade(t *testing.T) {
+	extension := devTrustTestExtension(t)
+	extension.Status = StatusEnabled
+	extension.Type = TypePlugin
+	extension.Manifest.Backend.ProtocolVersion = 2
+	extension.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "sforum.lifecycle@1"}
+	extension.StagedVersion = &ExtensionVersion{ID: 77, Version: "2.0.0", PackageDigest: strings.Repeat("cd", 32)}
+	base := NewService(&fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}, t.TempDir())
+	promoter := &devAutoFakePromoter{}
+	assets := &devAutoFakeAssets{}
+	runtime := &DevAutoRuntime{
+		service: base, promoter: promoter, identities: newDevAutoFakeIdentity(),
+		grants: &devAutoFakeGrants{}, assets: assets, logger: discardLogger(),
+	}
+
+	runtime.promoteOneForTest(t, extension.ID)
+	runtime.republishAssets(context.Background(), []Extension{extension})
+	if assets.calls != 1 {
+		t.Fatalf("asset republish calls = %d; want 1", assets.calls)
+	}
+
+	// 无 staged 的 enabled 包不触发升级，也不重发布。
+	plain := devTrustTestExtension(t)
+	plain.Status = StatusEnabled
+	base2 := NewService(&fakeExtensionStore{items: map[string]Extension{plain.ID: plain}}, t.TempDir())
+	assets2 := &devAutoFakeAssets{}
+	runtime2 := &DevAutoRuntime{
+		service: base2, promoter: &devAutoFakePromoter{}, identities: newDevAutoFakeIdentity(),
+		grants: &devAutoFakeGrants{}, assets: assets2, logger: discardLogger(),
+	}
+	runtime2.promoteOneForTest(t, plain.ID)
+	if assets2.calls != 0 {
+		t.Fatalf("no-upgrade run must not republish; calls = %d", assets2.calls)
+	}
 }

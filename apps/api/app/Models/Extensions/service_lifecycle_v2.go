@@ -146,6 +146,16 @@ func (s *LifecycleService) Upgrade(ctx context.Context, actor identity.Actor, id
 	if !ok || !usesLifecycleV2(target) {
 		return Extension{}, ErrStagedVersionNotFound
 	}
+	// dev 自动激活通道（input.Extension 非 nil，仅进程内调用；HTTP 升级恒 nil）
+	// 携带组件契约版本已晋升的内存副本：仅当其扩展 ID / 版本 / staged 摘要与
+	// store 中的 staged 精确一致时才采信，registry 因此把每次摘要变化视为一次
+	// 新契约发布，作者改 L2 前端无需手动 bump contractVersion。制品文件与
+	// 台账不变；HTTP 路径与生产语义零变化。
+	if input.Extension != nil && input.Extension.ID == target.ID &&
+		input.Extension.Version == target.Version &&
+		strings.EqualFold(input.Extension.PackageDigest, target.PackageDigest) {
+		target = *input.Extension
+	}
 	return s.runLifecycleV2(ctx, actor, lifecycleServiceRequest{
 		operation: LifecycleMachineUpgrade, source: exactLifecycleCopy(extension), target: target,
 		idempotencyKey: input.IdempotencyKey, confirmationToken: input.ConfirmationToken,

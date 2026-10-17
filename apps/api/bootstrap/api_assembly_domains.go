@@ -455,7 +455,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		if len(cfg.ExternalExtensionRoots) > 0 && !cfg.SafeMode {
 			devAuto := extensions.NewDevAutoRuntime(
 				extensionService, extensionService, identityStore,
-				lifecycleStack.Trust, cfg.ExternalExtensionRoots, logger,
+				lifecycleStack.Trust, frontendService, cfg.ExternalExtensionRoots, logger,
 			)
 			// 启动即对账一次：上次退出后改过的包无需等下一次文件事件。
 			go devAuto.PromoteAll(ctx)
