@@ -265,6 +265,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **插件子进程内存上限（2026-10-17）**。Protocol V2 插件子进程固定注入
+  `GOGC=50` + `GOMEMLIMIT=48MiB` 软上限，已部署实例零配置生效；
+  可选覆盖键 `SFORUM_PLUGIN_GOMEMLIMIT`。env 构建段自 `protocol.go` 抽至
+  `plugin_command_transport.go`，基线下调 1011→941。实测 19 个 dev 插件
+  PSS 平均 ~15.2MiB（较 08-20 基线再降约 20%），Extensions 全套测试绿。
+  详见 `sessions/2026-10-17-plugin-process-memory-limits-handoff.md`、
+  `decisions/2026-10-17-plugin-process-memory-limits.md`。
+
 - **账号设置侧栏整合：账号安全三页合并（2026-10-17）**。登录方式 / 登录密码 /
   账号安全收进单一「账号安全」侧栏入口与 `/settings/security` 子路由
   （index = 设备与会话默认 tab / login-methods / password），共享

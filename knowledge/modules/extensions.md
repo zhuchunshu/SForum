@@ -1210,6 +1210,15 @@ Relevant plans:
   `AnonHugePages`, so production acceptance no longer depends on instantaneous
   RSS screenshots. See
   `../decisions/2026-08-20-plugin-runtime-memory.md`.
+- Plugin child processes also receive fixed GC defaults `GOGC=50` and
+  `GOMEMLIMIT=48MiB` (soft limit) injected in `buildPluginProcessEnv`
+  (`Support/Extensions/plugin_command_transport.go`); deployed instances get
+  them with zero configuration. The host may override the limit per instance
+  via `SFORUM_PLUGIN_GOMEMLIMIT` in its own environment (empty = default).
+  Measured PSS averaged ~15.2 MiB/plugin across 19 dev plugin processes
+  (~20% below the 08-20 baseline). See
+  `../decisions/2026-10-17-plugin-process-memory-limits.md` and
+  `../reports/2026-10-17-plugin-memory-limits-recheck.md`.
 - Extension trust digest verification streams SHA-256 through a fixed-size
   buffer. It preserves exact-root, stable-file, size, and regular-file checks
   while avoiding an `io.ReadAll` allocation proportional to a 20-30 MiB plugin

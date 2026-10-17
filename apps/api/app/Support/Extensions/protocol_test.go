@@ -62,7 +62,7 @@ func TestBuildPluginProcessEnvOmitsHostSecrets(t *testing.T) {
 		"RANDOM_JUNK=1",
 	})
 	joined := strings.Join(env, "\n")
-	for _, want := range []string{"PATH=/usr/bin", "HOME=/home/sforum", "GODEBUG=disablethp=1", "SFORUM_SETTING_HOST=smtp.example.com", "LANG=C.UTF-8"} {
+	for _, want := range []string{"PATH=/usr/bin", "HOME=/home/sforum", "GODEBUG=disablethp=1", "GOGC=50", "GOMEMLIMIT=48MiB", "SFORUM_SETTING_HOST=smtp.example.com", "LANG=C.UTF-8"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("expected env to contain %q, got %v", want, env)
 		}
@@ -71,6 +71,42 @@ func TestBuildPluginProcessEnvOmitsHostSecrets(t *testing.T) {
 		if strings.Contains(joined, deny) {
 			t.Fatalf("env must not contain host secret/junk %q, got %v", deny, env)
 		}
+	}
+}
+
+// 零配置生效：宿主不设 SFORUM_PLUGIN_GOMEMLIMIT 时注入固定默认值。
+func TestBuildPluginProcessEnvDefaultsMemoryLimitWithoutOverride(t *testing.T) {
+	env := buildPluginProcessEnv([]string{"PATH=/usr/bin", "GOMEMLIMIT=999MiB"})
+	joined := strings.Join(env, "\n")
+	// 宿主自身的 GOMEMLIMIT 不透传——只有覆盖键 SFORUM_PLUGIN_GOMEMLIMIT 生效。
+	if strings.Contains(joined, "GOMEMLIMIT=999MiB") {
+		t.Fatalf("host GOMEMLIMIT must not pass through, got %v", env)
+	}
+	if !strings.Contains(joined, "GOMEMLIMIT=48MiB") {
+		t.Fatalf("expected default GOMEMLIMIT=48MiB, got %v", env)
+	}
+	if !strings.Contains(joined, "GOGC=50") {
+		t.Fatalf("expected GOGC=50, got %v", env)
+	}
+}
+
+// 可选覆盖：宿主环境带 SFORUM_PLUGIN_GOMEMLIMIT 时覆盖默认值；该键本身不得原样透传。
+func TestBuildPluginProcessEnvHonorsGOMEMLIMITOverride(t *testing.T) {
+	env := buildPluginProcessEnv([]string{
+		"PATH=/usr/bin",
+		"SFORUM_PLUGIN_GOMEMLIMIT=96MiB",
+	})
+	joined := strings.Join(env, "\n")
+	if strings.Count(joined, "GOMEMLIMIT=") != 1 {
+		t.Fatalf("expected exactly one GOMEMLIMIT entry, got %v", env)
+	}
+	if !strings.Contains(joined, "GOMEMLIMIT=96MiB") {
+		t.Fatalf("expected override GOMEMLIMIT=96MiB, got %v", env)
+	}
+	// 空值覆盖视为未设置，回落默认。
+	empty := buildPluginProcessEnv([]string{"PATH=/usr/bin", "SFORUM_PLUGIN_GOMEMLIMIT="})
+	if !strings.Contains(strings.Join(empty, "\n"), "GOMEMLIMIT=48MiB") {
+		t.Fatalf("empty override must fall back to default, got %v", empty)
 	}
 }
 
