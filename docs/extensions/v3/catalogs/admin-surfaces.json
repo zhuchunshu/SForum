@@ -210,7 +210,7 @@
     "dashboard": false,
     "list": true,
     "columns": false,
-    "filters": false,
+    "filters": true,
     "rowActions": true,
     "bulkActions": false,
     "forms": true,
@@ -304,6 +304,23 @@
     "detailRegions": false,
     "importer": true,
     "exporter": true
+  },
+  {
+    "id": "core.admin.page.extensions_route_catalog",
+    "source": "apps/web/app/pages/admin/extensions/route-catalog.vue",
+    "navigation": true,
+    "dashboard": false,
+    "list": true,
+    "columns": false,
+    "filters": false,
+    "rowActions": false,
+    "bulkActions": false,
+    "forms": false,
+    "notices": true,
+    "editorPanels": false,
+    "detailRegions": false,
+    "importer": true,
+    "exporter": false
   },
   {
     "id": "core.admin.page.extensions_route_inspector",

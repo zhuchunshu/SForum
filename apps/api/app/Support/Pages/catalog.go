@@ -109,6 +109,8 @@ type ResolvedPage struct {
 	// L2 组件 id，正文由 Web 端经既有公开前端描述符端点挂载（TemplateHTML 为空）。
 	View      string `json:"view,omitempty"`
 	Component string `json:"component,omitempty"`
+	// Label 页面展示标题（可选）：来自贡献声明，前端在模板无 h1 时用它做 document.title 兜底。
+	Label string `json:"label,omitempty"`
 	// SchemaDescriptorFile / SchemaContractRef：view=schema 的正文来源（包内描述符文件与其契约引用）。
 	SchemaDescriptorFile string `json:"schemaDescriptorFile,omitempty"`
 	SchemaContractRef    string `json:"schemaContractRef,omitempty"`

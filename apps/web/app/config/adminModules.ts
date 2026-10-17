@@ -313,6 +313,14 @@ export const adminPageDefinitions = [
     professionalMode: true
   },
   {
+    id: '/extensions/route-catalog',
+    labelKey: 'admin.nav.extensionRouteCatalog',
+    icon: 'i-lucide-table-2',
+    componentName: 'AdminExtensionRouteCatalog',
+    requiredPermissions: ['extension.view'],
+    professionalMode: true
+  },
+  {
     id: '/extensions/route-providers',
     labelKey: 'admin.nav.extensionRouteProviders',
     icon: 'i-lucide-route',
@@ -469,6 +477,7 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/extensions/plugins' },
         { type: 'page', pageId: '/extensions/themes' },
         { type: 'page', pageId: '/extensions/pages' },
+        { type: 'page', pageId: '/extensions/route-catalog' },
         { type: 'page', pageId: '/extensions/route-providers' },
         { type: 'page', pageId: '/extensions/route-inspector' },
         { type: 'page', pageId: '/extensions/cache-inspector' },

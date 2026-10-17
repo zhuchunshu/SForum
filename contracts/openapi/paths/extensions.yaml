@@ -791,6 +791,141 @@ adminMissingArtifactUninstall:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
         "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminVersionGCCandidates:
+  get:
+    summary: List extension version garbage-collection candidates
+    operationId: listVersionGCCandidates
+    description: >-
+      Super-admin-only read of every historical extension version row with its
+      retain/block verdict under the active policy. Reclaimable rows are
+      neither active nor staged, are not targeted by an open lifecycle
+      operation, are not referenced by the append-only runtime publication
+      ledger, sit beyond the retention window, and still exist on disk. This
+      endpoint is a pure preview with zero side effects and never mints a
+      confirmation token; the service layer enforces super_admin on top of the
+      extensions read guard.
+    parameters:
+    - name: retain
+      in: query
+      required: false
+      description: Historical versions retained per extension besides the active one; defaults to 1.
+      schema:
+        type: integer
+        minimum: 0
+    - name: retainDays
+      in: query
+      required: false
+      description: Also retain versions installed within the last N days; 0 disables the time window.
+      schema:
+        type: integer
+        minimum: 0
+    - name: extensionId
+      in: query
+      required: false
+      description: Limit the plan to one exact extension id.
+      schema:
+        type: string
+        maxLength: 128
+    responses:
+      '200':
+        description: Candidate inventory with per-row verdicts.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseVersionGCCandidates"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        description: Malformed query parameters.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminVersionGCCreateConfirmation:
+  post:
+    summary: Mint a one-time version GC execution confirmation
+    operationId: createVersionGCConfirmation
+    description: >-
+      Super-admin-only dry-run equivalent of the CLI. Mints a one-time
+      confirmation token bound to the SHA-256 digest of the exact plan (options
+      plus the current reclaimable candidate set). The Host stores only the
+      token hash; the plaintext token is returned once and expires after
+      fifteen minutes. Any criteria, candidate, or option drift between this
+      call and the execute call invalidates the token.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extensions.yaml#/VersionGCConfirmationInput"
+    responses:
+      '200':
+        description: Confirmation token and plan summary.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseVersionGCConfirmation"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        description: Malformed request body.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
+adminVersionGCExecute:
+  post:
+    summary: Execute an extension version garbage-collection sweep
+    operationId: executeVersionGCSweep
+    description: >-
+      Super-admin-only execution of the plan-bound confirmation token. Each
+      candidate is removed disk-first (atomic staging rename), then the ledger
+      row is deleted inside one transaction that re-checks every criterion
+      under the row lock and appends an extension.version_gc audit event plus a
+      durable removal anchor. A failed candidate keeps both its ledger row and
+      its directory and is reported in the result; the response is 200 with the
+      full per-item outcome even when some items failed. Versions referenced by
+      the append-only runtime publication ledger are permanently pinned and can
+      never be reclaimed.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extensions.yaml#/VersionGCExecuteInput"
+    responses:
+      '200':
+        description: Full sweep outcome (removed, skipped, failed, warnings, bytes freed).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseVersionGCSweepResult"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        description: The confirmation token is missing, expired, replayed, or does not match the current plan (extension.version_gc_confirmation_invalid).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: Malformed request body.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        "$ref": "../components/responses.yaml#/ServiceUnavailable"
 adminExtensionUninstall:
   delete:
     summary: Uninstall a deletable extension

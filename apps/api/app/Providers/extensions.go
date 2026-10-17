@@ -122,6 +122,14 @@ func (p *ExtensionsProvider) WithDevTrustSessions(service extensionscontroller.D
 	return p
 }
 
+// WithVersionGC 透传版本 GC 管理端边界（阶段 5）；生产可用，无条件注入。
+func (p *ExtensionsProvider) WithVersionGC(service extensionscontroller.VersionGCManagementService) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithVersionGC(service)
+	}
+	return p
+}
+
 func (p *ExtensionsProvider) WithCacheInspector(
 	registry *cacheregistry.Registry,
 	inspector *hostapi.HostCacheInspector,

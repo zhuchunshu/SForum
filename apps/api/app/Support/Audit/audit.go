@@ -46,6 +46,8 @@ const (
 	// ActionExtensionLifecycleOrphanReclaim 宿主回收孤儿 lifecycle operation
 	// （所有 step lease 均已过期、无活进程推进）时写入。
 	ActionExtensionLifecycleOrphanReclaim = "extension.lifecycle_orphan_reclaim"
+	// ActionExtensionVersionGC 扩展版本 GC：一条审计对应一个被回收的版本行。
+	ActionExtensionVersionGC = "extension.version_gc"
 	ActionExtensionFrontendGrant          = "extension.frontend_trust_grant"
 	ActionExtensionFrontendRevoke         = "extension.frontend_trust_revoke"
 	ActionExtensionTrustChallenge         = "extension.trust_challenge"

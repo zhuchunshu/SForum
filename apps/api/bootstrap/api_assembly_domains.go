@@ -445,6 +445,9 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		}
 		extensionsProvider.WithDevTrustSessions(devTrust)
 	}
+	// 版本 GC 管理端入口（阶段 5）：生产可用，无条件注入；super_admin 与
+	// actor 绑定由服务边界强制，nil 语义不适用（这是运维要在生产回收的能力）。
+	extensionsProvider.WithVersionGC(extensions.NewVersionGCAdminService(extensionStore))
 	webhooksProvider := providers.NewWebhooksProvider(webhookService, identityStore, authSessions)
 	// PageDataLoader 网关：优先用 Protocol V2 精确实例调用取数（插件无需回报
 	// loopback BaseURL）；插件若声明了 loopback 目标则回落到严格 loopback HTTP。

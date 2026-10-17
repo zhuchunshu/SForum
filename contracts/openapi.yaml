@@ -533,6 +533,12 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensions"
   "/admin/extensions/missing-artifacts/uninstall":
     "$ref": "./openapi/paths/extensions.yaml#/adminMissingArtifactUninstall"
+  "/admin/extensions/version-gc/candidates":
+    "$ref": "./openapi/paths/extensions.yaml#/adminVersionGCCandidates"
+  "/admin/extensions/version-gc/confirmations":
+    "$ref": "./openapi/paths/extensions.yaml#/adminVersionGCCreateConfirmation"
+  "/admin/extensions/version-gc/execute":
+    "$ref": "./openapi/paths/extensions.yaml#/adminVersionGCExecute"
   "/admin/extensions/navigation":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionNavigation"
   "/admin/extensions/contribution-points":
@@ -549,6 +555,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionRouteProviderReset"
   "/admin/extensions/route-inspector":
     "$ref": "./openapi/paths/extension-route-inspector.yaml#/adminExtensionRouteInspector"
+  "/admin/extensions/route-catalog":
+    "$ref": "./openapi/paths/extension-route-catalog.yaml#/adminExtensionRouteCatalog"
     "$ref": "./openapi/paths/extension-route-incidents.yaml#/adminExtensionRouteIncidents"
   "/admin/extensions/cache-inspector":
     "$ref": "./openapi/paths/extension-cache-inspector.yaml#/adminExtensionCacheInspector"

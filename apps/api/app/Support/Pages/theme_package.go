@@ -36,6 +36,9 @@ type ThemePageDecl struct {
 	Target     string `json:"target,omitempty"`
 	Path       string `json:"path,omitempty"`
 	Template   string `json:"template,omitempty"`
+	// Label 是页面的展示标题（可选）：resolve-path 透传给前端，用于
+	// document.title 兜底，避免模板刻意不输出 h1 时标题退回路径。
+	Label string `json:"label,omitempty"`
 	Contract   string `json:"contract,omitempty"`
 	Access     string `json:"access,omitempty"`
 	Permission string `json:"permission,omitempty"` // access=permission 时的权限键
@@ -232,6 +235,7 @@ func ContributionsFromTheme(extensionID, version, digest string, pkg ThemePackag
 			Target:        p.Target,
 			Path:          p.Path,
 			Template:      p.Template,
+			Label:         strings.TrimSpace(p.Label),
 			View:          NormalizePageView(p.View),
 			Contract:      p.Contract,
 			Access:        Access(p.Access),

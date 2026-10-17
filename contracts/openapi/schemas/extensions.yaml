@@ -352,6 +352,202 @@ MissingArtifactCleanupItem:
     businessDataKept:
       type: boolean
       const: true
+VersionGCOptions:
+  type: object
+  additionalProperties: false
+  properties:
+    retain:
+      type: integer
+      minimum: 0
+      default: 1
+      description: Historical versions retained per extension besides the active one; values below 1 normalize to 1.
+    retainDays:
+      type: integer
+      minimum: 0
+      default: 0
+      description: Also retain versions installed within the last N days; 0 disables the time window.
+    extensionId:
+      type: string
+      maxLength: 128
+      description: Limit the plan to one exact extension id.
+VersionGCCandidate:
+  type: object
+  required:
+  - extensionId
+  - extensionType
+  - extensionName
+  - versionId
+  - version
+  - packageDigest
+  - packagePath
+  - installedAt
+  - historyRank
+  - reclaimable
+  additionalProperties: false
+  properties:
+    extensionId:
+      type: string
+    extensionType:
+      type: string
+      enum: [plugin, theme]
+    extensionName:
+      type: string
+    versionId:
+      type: integer
+      format: int64
+    version:
+      type: string
+    packageDigest:
+      type: string
+    packagePath:
+      type: string
+    installedAt:
+      type: string
+      format: date-time
+    historyRank:
+      type: integer
+      description: Recency rank among the extension's historical (non-active, non-staged) versions; 1 is the newest.
+    reclaimable:
+      type: boolean
+    blockedReason:
+      type: string
+      enum: [publication_history, open_operation, within_retention, disk_missing]
+      description: Present only when reclaimable is false. disk_missing rows belong to missing-artifact cleanup, not version GC.
+VersionGCConfirmation:
+  type: object
+  required: [token, planDigest, candidateCount, expiresAt]
+  additionalProperties: false
+  properties:
+    token:
+      type: string
+      minLength: 64
+      maxLength: 64
+      description: One-time confirmation token bound to the exact plan digest; the Host stores only its SHA-256 hash.
+    planDigest:
+      type: string
+      minLength: 64
+      maxLength: 64
+    candidateCount:
+      type: integer
+      minimum: 0
+    expiresAt:
+      type: string
+      format: date-time
+VersionGCSkip:
+  type: object
+  required: [candidate, reason]
+  additionalProperties: false
+  properties:
+    candidate:
+      "$ref": "#/VersionGCCandidate"
+    reason:
+      type: string
+VersionGCItemError:
+  type: object
+  required: [candidate, error]
+  additionalProperties: false
+  properties:
+    candidate:
+      "$ref": "#/VersionGCCandidate"
+    error:
+      type: string
+VersionGCSweepResult:
+  type: object
+  required: [removed, skipped, failed, bytesFreed, candidateCount]
+  additionalProperties: false
+  properties:
+    removed:
+      type: array
+      items:
+        "$ref": "#/VersionGCCandidate"
+    skipped:
+      type: array
+      items:
+        "$ref": "#/VersionGCSkip"
+    failed:
+      type: array
+      items:
+        "$ref": "#/VersionGCItemError"
+    warnings:
+      type: array
+      description: Non-fatal residue notices (for example staging bytes that could not be removed after a committed ledger deletion).
+      items:
+        type: string
+    bytesFreed:
+      type: integer
+      format: int64
+      minimum: 0
+    candidateCount:
+      type: integer
+      minimum: 0
+VersionGCConfirmationInput:
+  type: object
+  additionalProperties: false
+  properties:
+    retain:
+      type: integer
+      minimum: 0
+    retainDays:
+      type: integer
+      minimum: 0
+    extensionId:
+      type: string
+      maxLength: 128
+VersionGCExecuteInput:
+  type: object
+  required: [token]
+  additionalProperties: false
+  properties:
+    retain:
+      type: integer
+      minimum: 0
+    retainDays:
+      type: integer
+      minimum: 0
+    extensionId:
+      type: string
+      maxLength: 128
+    token:
+      type: string
+      minLength: 64
+      maxLength: 64
+ApiResponseVersionGCCandidates:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: object
+      required: [candidates]
+      additionalProperties: false
+      properties:
+        candidates:
+          type: array
+          items:
+            "$ref": "#/VersionGCCandidate"
+ApiResponseVersionGCConfirmation:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/VersionGCConfirmation"
+ApiResponseVersionGCSweepResult:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/VersionGCSweepResult"
 LifecycleRecoveryInput:
   type: object
   required: [decision]

@@ -30,25 +30,46 @@ useSForumSeo({
 </script>
 
 <template>
-  <!-- 客户端换页的解析窗口：骨架 + 宿主公开 chrome，替代原来的整页空白。 -->
+  <!-- 客户端换页的解析窗口：与最终「site 布局 + 主题壳」同构的三栏骨架，
+       消除 pending→最终渲染的 chrome 重排。 -->
   <div v-if="pending && !data" class="sf-registry-page-pending" aria-busy="true">
-    <SFHostPublicChrome>
-      <div class="sf-registry-add sf-registry-add--site mx-auto w-full max-w-4xl px-4 py-8">
-        <div class="sf-skeleton">
-          <div class="sf-skeleton__content">
-            <span class="sf-skeleton__line" />
-            <span class="sf-skeleton__line" style="width: 62%" />
-            <span class="sf-skeleton__line" style="width: 40%" />
+    <main class="sforum-settings" data-layout="fullwidth-3col">
+      <div class="sforum-settings__layout">
+        <div class="sforum-settings__sidebar sforum-home__sidebar" aria-hidden="true">
+          <div class="sf-skeleton sf-registry-page-pending__nav">
+            <div class="sf-skeleton__content">
+              <span class="sf-skeleton__line" style="width: 58%" />
+              <span class="sf-skeleton__line" style="width: 82%" />
+              <span class="sf-skeleton__line" style="width: 70%" />
+              <span class="sf-skeleton__line" style="width: 76%" />
+            </div>
           </div>
         </div>
-        <div class="sf-skeleton mt-6">
-          <div class="sf-skeleton__content">
-            <span class="sf-skeleton__line" />
-            <span class="sf-skeleton__line" style="width: 55%" />
+        <section class="sforum-settings__main sforum-content-column">
+          <div class="sf-skeleton">
+            <div class="sf-skeleton__content">
+              <span class="sf-skeleton__line" style="width: 40%" />
+              <span class="sf-skeleton__line" style="width: 62%" />
+            </div>
           </div>
-        </div>
+          <div class="sf-skeleton mt-6">
+            <div class="sf-skeleton__content">
+              <span class="sf-skeleton__line" style="width: 30%" />
+              <span class="sf-skeleton__line" style="width: 55%" />
+              <span class="sf-skeleton__line" style="width: 88%" />
+            </div>
+          </div>
+        </section>
+        <aside class="sforum-settings__right" aria-hidden="true">
+          <div class="sf-skeleton">
+            <div class="sf-skeleton__content">
+              <span class="sf-skeleton__line" style="width: 45%" />
+              <span class="sf-skeleton__line" style="width: 90%" />
+            </div>
+          </div>
+        </aside>
       </div>
-    </SFHostPublicChrome>
+    </main>
   </div>
   <SFRegistryPageShell
     v-else

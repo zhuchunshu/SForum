@@ -40,6 +40,8 @@ type resolveResponse struct {
 	NodeRevision              uint64 `json:"nodeRevision,omitempty"`
 	TemplatePath              string `json:"templatePath,omitempty"`
 	TemplateHTML              string `json:"templateHtml,omitempty"`
+	// Label 页面展示标题（可选）：来自贡献声明，前端在模板无 h1 时用它做 document.title 兜底。
+	Label string `json:"label,omitempty"`
 	// View: template | component。component 时 Component 为包内公开 L2 组件 id，
 	// 正文由 Web 端经既有公开前端描述符端点挂载（TemplateHTML 为空是正常状态）。
 	View      string `json:"view,omitempty"`
@@ -168,6 +170,7 @@ func (h *Controller) addedPageResponse(contrib pages.PageContribution, params ma
 		SelectedPackageDigest:     contrib.PackageDigest,
 		SelectedRuntimeInstanceID: contrib.RuntimeInstanceID,
 		TemplatePath:              contrib.Template,
+		Label:                     contrib.Label,
 		View:                      string(pages.NormalizePageView(string(contrib.View))),
 		Component:                 contrib.ComponentID,
 		DataSource:                contrib.DataSource,
@@ -208,6 +211,7 @@ func (h *Controller) resolvePageResponse(
 		SelectedRuntimeInstanceID: resolved.RuntimeInstanceID,
 		TemplatePath:              resolved.TemplatePath,
 		TemplateHTML:              resolved.TemplateHTML,
+		Label:                     resolved.Label,
 		DataSource:                resolved.DataSource,
 		DataRoute:                 resolved.DataRoute,
 		RouteParams:               routeParams,

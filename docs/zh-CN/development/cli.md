@@ -36,6 +36,7 @@ go run ./cmd/sforum --version
 | `extension disable` / `disable-all` | 带外禁用第三方扩展 |
 | `extension quarantine` | 带外隔离精确的内置/系统制品 |
 | `extension recovery lifecycle-close` | 带外把一条开放 lifecycle operation 推进到 cancelled 终态（审计落库） |
+| `extension gc` | 版本垃圾回收：默认 dry-run 清单 + 一次性 token 执行（先盘后账、审计落库） |
 | `extension command list/run` | 列出 / 运行已信任插件命令 |
 | `extension api-lts` | 打印 Host/Frontend API LTS 与 shim 遥测 |
 | `extension system-tier list/upsert/disable` | 带外管理系统扩展层（不加载包代码） |
@@ -327,6 +328,32 @@ go run ./cmd/sforum extension quarantine <extension-id> \
 ：所有 step lease 均已过期的孤儿操作会在 genesis 重试与 coordinator 轮询
 时被宿主推进到 cancelled（`extension.lifecycle_orphan_reclaim` 审计），
 无需人工干预。
+
+### 版本垃圾回收 — `gc`
+
+```bash
+# 默认 dry-run：打印候选与保留/阻塞原因，并签发一次性确认 token（15 分钟有效）
+go run ./cmd/sforum extension gc --json
+# 执行（token 与 dry-run 的精确计划绑定；必须重复相同的策略选项）
+go run ./cmd/sforum extension gc --confirm-token <dry-run 输出的 token>
+# 策略旋钮：每扩展保留的历史版本数 / 按安装时间保留 / 限定扩展
+go run ./cmd/sforum extension gc --retain 3 --retain-days 30 --extension-id <id> --json
+```
+
+`extension gc` 回收扩展的**历史版本行与对应磁盘目录**（默认策略：每扩展保留
+active + 1 个最近历史版本；`--retain` / `--retain-days` 可调）。fail-closed
+三道防线：候选必须同时满足"非 active/staged、无开放 lifecycle operation、
+无发布历史引用、超出保留窗口、磁盘存在"；执行先删盘（原子改名暂存）后删
+台账，任一步失败该条回滚并恢复现场；被 append-only 发布账本
+（`plugin_runtime_publication_members`）引用的版本行在 SQL 层永久不可删
+（`blocked=publication_history`），因此**曾被启用的插件版本永久保留**——
+GC 的实际回收面是主题历史版本与从未进入发布的插件版本。
+`blocked=disk_missing` 的行不在 GC 语义内，请走管理端"缺失制品清理"。
+token 一次性且与计划摘要绑定：dry-run 与执行之间判据/清单/选项漂移即失效。
+一切删除写 `extension.version_gc` 审计并留 `extension_version_gc_removals`
+锚点。判据与边界详见
+[版本 GC 运维参考](../../zh-CN/extensions/version-gc.md) 与决策记录
+`knowledge/decisions/2026-10-17-version-gc-publication-restrict-cooperation.md`。
 
 ### 开发编辑循环 — `dev`
 

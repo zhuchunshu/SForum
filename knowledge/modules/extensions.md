@@ -784,6 +784,37 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   reuse the existing recovery flow. Verified 2026-10-17 on the dev instance:
   a planted orphan was auto-reclaimed within one poll interval
   (`extension_lifecycle_operations` id 238) and readiness stayed `ready=true`.
+- **Version GC (2026-10-17) reclaims historical version rows and their disk
+  directories explicitly, audited, and fail-closed.** `sforum extension gc`
+  dry-runs by default (candidate list + retain/block reasons + a one-time
+  confirmation token bound to the exact plan digest, 15-minute TTL) and
+  executes with `--confirm-token`. A version is reclaimable only when it is
+  neither active nor staged, no open lifecycle operation targets its tuple,
+  no `plugin_runtime_publication_members` row references it, it is beyond the
+  retention window (default active + 1 most recent historical version;
+  `--retain N` / `--retain-days D`), and its directory exists. Execution is
+  disk-first per candidate (atomic staging rename → in-lock recheck of every
+  criterion → delete row + `extension_version_gc_removals` anchor +
+  `extension.version_gc` audit in one transaction → remove staging), so a
+  failed item keeps both ledger row and directory. Because the publication
+  ledger is append-only (`202607160027` triggers), versions referenced by any
+  publication are permanently pinned (`blocked=publication_history`) and the
+  plan-A "delete expired publications" idea from the task book was recorded
+  as a conflict and dropped —
+  `decisions/2026-10-17-version-gc-publication-restrict-cooperation.md`.
+  Consequence: plugin versions that were ever enabled stay forever; the real
+  reclaim surface is theme history plus never-published plugin versions. Dev
+  instance dry-run evidence: 225 historical rows → 139 reclaimable /
+  63 publication-pinned / 13 within-retention / 10 disk-missing. The admin
+  entry (stage 5) shipped the same day (2026-10-17): `GET
+  /admin/extensions/version-gc/candidates` (read-preview, never mints tokens),
+  `POST .../version-gc/confirmations` (plan-bound one-time token) and
+  `POST .../version-gc/execute` behind the extensions read guard (GET) /
+  super_admin guard (POSTs) plus an authoritative super_admin service boundary
+  (`VersionGCAdminService`) that binds the actor into `mode=api` audit anchors;
+  the three-phase `SFAdminVersionGcDialog.vue` lives on the admin extensions
+  overview toolbar. Browser QA passed on desktop and 390x844; the dev instance
+  QA deliberately never executes a real sweep.
 - Ordinary uploaded packages remain recoverable through `extension disable`.
   A protected built-in/system executable requires `extension quarantine` with
   the exact active version and 64-character digest; the command atomically
@@ -1175,6 +1206,8 @@ Relevant plans:
 | --- | --- |
 | `apps/api/app/Models/Extensions` | Package, trust, lifecycle, registries, settings |
 | `apps/api/app/Models/Extensions/lifecycle_repository_orphan.go` | Orphan lifecycle operation reclaim (repository + store wrapper) |
+| `apps/api/app/Models/Extensions/postgres_store_version_gc.go` | Version GC candidate criteria, confirmation tokens, disk-first sweep |
+| `apps/api/app/Models/Extensions/artifact_retention.go` | Shared artifact health / retention judgment (GC + missing-artifact cleanup) |
 | `apps/api/app/Support/StableFile` | Cross-platform stable file-open primitive (extracted from Extensions, 2026-10-17) |
 | `apps/api/app/Support/ExtensionRuntime` | Plugin process/runtime coordination |
 | `apps/api/app/Support/Extensions/LifecycleRecovery` | Exact-evidence durable publication startup recovery |

@@ -49,6 +49,7 @@ type Controller struct {
 	gateway        RouteGateway
 	routeProviders *routes.ProviderSelectionAPI
 	routeInspector *routes.Inspector
+	routeCatalogAPI *routes.Catalog
 	// routeIncidents 是崩溃循环隔离持久状态的只读边界（M5 管理员诊断）。
 	routeIncidents apphttp.RouteRuntimeIncidentReader
 	cacheRegistry  *cacheregistry.Registry
@@ -76,6 +77,8 @@ type Controller struct {
 	mediaRegistry *mediaregistry.Registry
 	// devTrustSessions 为 nil 时 dev 信任会话路由 fail-closed（仅开发环境注入）。
 	devTrustSessions DevTrustSessionService
+	// versionGC 是版本 GC 管理端入口的读写边界（阶段 5）；nil 时路由 fail-closed。
+	versionGC VersionGCManagementService
 }
 
 type TrustedFrontendService interface {
@@ -140,6 +143,7 @@ func (h *Controller) WithRouteProviderSelection(
 ) *Controller {
 	h.routeProviders = api
 	h.routeInspector = routes.NewProviderSelectionInspector(api, nil)
+	h.routeCatalogAPI = routes.NewProviderSelectionCatalog(api)
 	h.routeAuditor = auditor
 	return h
 }

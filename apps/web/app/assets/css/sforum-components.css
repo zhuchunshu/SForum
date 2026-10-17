@@ -1015,6 +1015,13 @@
   height: 0.75rem;
 }
 
+/* Page Registry catch-all 客户端换页的三栏骨架：侧栏占位行加间距，接近最终导航密度。 */
+.sf-registry-page-pending__nav {
+  display: grid;
+  gap: 0.9rem;
+  width: 100%;
+}
+
 @keyframes sf-skeleton-pulse {
   0% {
     background-position: 100% 50%;

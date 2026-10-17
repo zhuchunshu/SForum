@@ -43,6 +43,11 @@ import {
   type AdminExtensionEventDefinition,
   type AdminExtensionEventDelivery
 } from '../../app/utils/admin/adminExtensions'
+import {
+  versionGcBlockedSummary,
+  versionGcReclaimable,
+  type AdminVersionGCCandidate
+} from '../../app/utils/admin/adminVersionGc'
 
 const baseExtension = {
   version: '1.0.0',
@@ -637,3 +642,38 @@ function definition(name: string): AdminExtensionEventDefinition {
     timeoutMs: 5000
   }
 }
+
+describe('version gc helpers', () => {
+  const candidates: AdminVersionGCCandidate[] = [
+    {
+      extensionId: 'test.gc', extensionType: 'theme', extensionName: 'Theme',
+      versionId: 3, version: '1.0.0', packageDigest: 'a'.repeat(64),
+      packagePath: '/tmp/v1', installedAt: '2026-10-17T00:00:00Z',
+      historyRank: 2, reclaimable: true
+    },
+    {
+      extensionId: 'test.gc', extensionType: 'theme', extensionName: 'Theme',
+      versionId: 2, version: '0.9.0', packageDigest: 'b'.repeat(64),
+      packagePath: '/tmp/v2', installedAt: '2026-10-16T00:00:00Z',
+      historyRank: 1, reclaimable: false, blockedReason: 'within_retention'
+    },
+    {
+      extensionId: 'other.plugin', extensionType: 'plugin', extensionName: 'Plugin',
+      versionId: 9, version: '1.2.0', packageDigest: 'c'.repeat(64),
+      packagePath: '/tmp/v3', installedAt: '2026-10-15T00:00:00Z',
+      historyRank: 1, reclaimable: false, blockedReason: 'publication_history'
+    }
+  ]
+
+  test('filters reclaimable candidates', () => {
+    expect(versionGcReclaimable(candidates).map(item => item.versionId)).toEqual([3])
+  })
+
+  test('summarizes blocked reasons', () => {
+    const summary = versionGcBlockedSummary(candidates)
+    expect(summary.get('within_retention')).toBe(1)
+    expect(summary.get('publication_history')).toBe(1)
+    expect(summary.get('disk_missing')).toBeUndefined()
+    expect(summary.size).toBe(2)
+  })
+})

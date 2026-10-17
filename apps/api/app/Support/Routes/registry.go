@@ -481,20 +481,25 @@ func routeLess(left, right preparedRoute) bool {
 
 func sortRoutes(routes []Route) {
 	sort.SliceStable(routes, func(i, j int) bool {
-		if routes[i].Priority != routes[j].Priority {
-			return routes[i].Priority > routes[j].Priority
-		}
-		if routes[i].Action != routes[j].Action {
-			return routes[i].Action < routes[j].Action
-		}
-		if routes[i].ID != routes[j].ID {
-			return routes[i].ID < routes[j].ID
-		}
-		if routes[i].Provider.Kind != routes[j].Provider.Kind {
-			return routes[i].Provider.Kind < routes[j].Provider.Kind
-		}
-		return routes[i].Provider.Artifact.ExtensionID < routes[j].Provider.Artifact.ExtensionID
+		return routeSortLess(routes[i], routes[j])
 	})
+}
+
+// routeSortLess 是注册表目录的稳定排序键：优先级降序，随后动作 / ID / 提供者。
+func routeSortLess(left, right Route) bool {
+	if left.Priority != right.Priority {
+		return left.Priority > right.Priority
+	}
+	if left.Action != right.Action {
+		return left.Action < right.Action
+	}
+	if left.ID != right.ID {
+		return left.ID < right.ID
+	}
+	if left.Provider.Kind != right.Provider.Kind {
+		return left.Provider.Kind < right.Provider.Kind
+	}
+	return left.Provider.Artifact.ExtensionID < right.Provider.Artifact.ExtensionID
 }
 
 func (r *Registry) loadSnapshot() *registrySnapshot {

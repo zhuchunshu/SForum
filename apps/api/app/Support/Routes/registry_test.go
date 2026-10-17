@@ -488,7 +488,9 @@ func TestCoreRouteCatalogHasExactReviewedGuardParity(t *testing.T) {
 	// 新增路由必须先进入 identities + OpenAPI + Guard 审核矩阵，再同步此处。
 	// 363 = 362 + core.route.extensions.inspect_route_incidents（M5 隔离账本读取）。
 	// 367 = 363 + 4 条开发期信任会话路由（list/create/revoke/dev-trust-refresh）。
-	if len(catalog) != 367 {
+	// 370 = 367 + 3 条版本 GC 管理端路由（candidates/confirmations/execute，阶段 5）。
+	// 371 = 370 + core.route.extensions.route_catalog（路由注册表只读目录）。
+	if len(catalog) != 371 {
 		t.Fatalf("generated core route count = %d", len(catalog))
 	}
 	kinds := make(map[CoreGuardKind]int)

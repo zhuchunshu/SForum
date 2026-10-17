@@ -37,6 +37,7 @@ go run ./cmd/sforum --version
 | `extension disable` / `disable-all` | Out-of-band disable of third-party extensions |
 | `extension quarantine` | Out-of-band quarantine of an exact built-in/system artifact |
 | `extension recovery lifecycle-close` | Out-of-band close of one open lifecycle operation to the cancelled terminal state (audited) |
+| `extension gc` | Version garbage collection: dry-run candidate list by default plus one-time-token execution (disk-first, audited) |
 | `extension command list/run` | List / run trusted plugin commands |
 | `extension api-lts` | Print Host/Frontend API LTS and shim telemetry |
 | `extension system-tier list/upsert/disable` | Out-of-band system tier management (no package code) |
@@ -356,6 +357,38 @@ the API afterwards to resume convergence. The startup path also reclaims
 automatically: orphan operations whose every step lease has expired are
 advanced to `cancelled` by the host during genesis retries and coordinator
 polls (`extension.lifecycle_orphan_reclaim` audit), no manual step required.
+
+### Version garbage collection — `gc`
+
+```bash
+# Dry-run is the default: print candidates plus retain/block reasons and mint
+# a one-time confirmation token (15 minutes, bound to this exact plan).
+go run ./cmd/sforum extension gc --json
+# Execute (the token is consumed once; repeat the same policy options).
+go run ./cmd/sforum extension gc --confirm-token <token from dry-run>
+# Policy knobs: retained historical versions per extension / retention days / one extension.
+go run ./cmd/sforum extension gc --retain 3 --retain-days 30 --extension-id <id> --json
+```
+
+`extension gc` reclaims **historical extension version rows and their disk
+directories** (default policy: keep the active version plus the most recent
+historical one; adjustable via `--retain` / `--retain-days`). Three fail-closed
+lines: a candidate must be neither active nor staged, must not be targeted by
+an open lifecycle operation, must not be referenced by the append-only
+publication ledger, must be beyond the retention window, and its directory
+must exist; execution deletes disk first (atomic staging rename) and the
+ledger second, and any failure rolls that item back with the directory
+restored. Versions referenced by `plugin_runtime_publication_members` are
+permanently undeletable at the SQL layer (`blocked=publication_history`), so
+**plugin versions that were ever enabled are retained forever** — the real
+reclaim surface is theme history plus plugin versions that never entered a
+publication. `blocked=disk_missing` rows belong to the admin missing-artifact
+cleanup flow, not GC. The confirmation token is one-time and bound to the
+plan digest: any criteria/list/option drift between dry-run and execution
+invalidates it. Every removal writes an `extension.version_gc` audit event and
+an `extension_version_gc_removals` anchor row. Criteria and boundaries:
+[version GC operator reference](../../extensions/version-gc.md) and
+`knowledge/decisions/2026-10-17-version-gc-publication-restrict-cooperation.md`.
 
 ### Development edit loop — `dev`
 

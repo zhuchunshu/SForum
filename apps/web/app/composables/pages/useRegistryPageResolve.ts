@@ -19,6 +19,7 @@ export async function useRegistryPageResolve(
   requestPath: Ref<string> | ComputedRef<string>,
   cacheKey: string
 ) {
+  const nuxtApp = useNuxtApp()
   const localePath = useLocalePath()
   const notFoundPresentation = useNotFoundPagePresentation()
 
@@ -52,7 +53,8 @@ export async function useRegistryPageResolve(
       throw createError({ statusCode: 404, statusMessage: 'Page not found' })
     }
     if (kind === 'unauthorized') {
-      await navigateTo(localePath('/login'))
+      // await 之后已脱离 setup 上下文，navigateTo 需显式挂回 Nuxt 实例。
+      await nuxtApp.runWithContext(() => navigateTo(localePath('/login')))
       return
     }
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
@@ -66,7 +68,7 @@ export async function useRegistryPageResolve(
     }
   } else {
     // 客户端：等待阶段由调用页骨架承接；错误改为响应式映射。
-    watch(error, (raw) => {
+    watch(resolve.error, (raw) => {
       if (raw) void mapResolveError(raw)
     })
   }

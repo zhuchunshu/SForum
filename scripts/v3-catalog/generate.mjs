@@ -120,6 +120,10 @@ function routePolicy(route) {
   if (path === '/api/v1/extensions/:extensionId/*') return ['declared', 'enabled plugin route declaration and manifest access policy']
   if (path.startsWith('/api/v1/extensions/runtime/')) return ['public', 'exact public frontend artifact trust, digest, and live runtime policy']
   if (path === '/api/v1/admin/extensions/:id/frontend/confirmation' && method === 'POST') return ['super_admin', 'active super_admin challenge issuance']
+  if (path.startsWith('/api/v1/admin/extensions/version-gc/')) {
+    if (method === 'GET') return ['super_admin_service_policy', 'version GC candidates read: extensions read gate, super_admin authoritative service policy']
+    return ['super_admin', 'explicit audited irreversible version reclamation; plan-bound one-time confirmation token']
+  }
   if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'POST') return ['super_admin', 'active super_admin plus actor-bound exact frontend artifact confirmation']
   if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'DELETE') return ['super_admin', 'active super_admin trust revocation']
   if (path === '/api/v1/admin/extensions/:id/page-bootstrap') return ['permission', 'extension.view for metadata pages; matching plugin/theme settings manage permission for declared settings views']
@@ -258,6 +262,8 @@ const reviewedGuardPolicies = new Map([
   ['post.revision.view_any plus post.edit_any', { kind: 'contextual', permissions: ['post.revision.view_any', 'post.edit_any'], evaluatorId: 'core.guard.forum.comment_revision_restore' }],
   ['topic.pin', { kind: 'permission_any', permissions: ['topic.pin'] }],
   ['active super_admin challenge issuance', { kind: 'super_admin' }],
+  ['explicit audited irreversible version reclamation; plan-bound one-time confirmation token', { kind: 'super_admin' }],
+  ['version GC candidates read: extensions read gate, super_admin authoritative service policy', { kind: 'contextual', evaluatorId: 'core.guard.extensions.read' }],
   ['active super_admin plus actor-bound exact frontend artifact confirmation', { kind: 'super_admin' }],
   ['active super_admin trust revocation', { kind: 'super_admin' }],
   ['super_admin revision redaction policy', { kind: 'super_admin' }],

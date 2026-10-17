@@ -265,6 +265,33 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **路由注册表 Route Catalog（2026-10-17）**。新只读管理页
+  `/control-panel/extensions/route-catalog`：按提供者来源分组展示 Route
+  Registry 快照全量路由（实测 397 条 / 核心 371 + 3 制品组）+ 每条运行时准入
+  状态（`routeAdmitted`）+ 冲突标记，补上「manifest 声明 vs registry 生效」
+  的观测缺口。`routes.Catalog` 与 inspector 共享同一 registry；新路由进入
+  guard 审核矩阵（`core.guard.extensions.read` 门）+ identities + OpenAPI，
+  计数 tripwire 370→371。桌面/390/暗色 QA 通过。详见
+  `sessions/2026-10-17-route-catalog-handoff.md`。
+
+- **扩展版本垃圾回收 Version GC（2026-10-17）**。`sforum extension gc`
+  交付：默认 dry-run（判据清单 + 保留/阻塞原因 + 一次性 confirm-token，绑定
+  精确计划摘要，15 分钟 TTL）+ `--confirm-token` 执行（先删盘后删台账、锁内
+  复核、`extension.version_gc` 审计 + `extension_version_gc_removals` 锚点、
+  幂等）。**管理端入口同日交付**：`GET version-gc/candidates` +
+  `POST confirmations/execute`（读守卫粗门 / super_admin 守卫 + 服务层权威
+  super_admin 边界）+ `SFAdminVersionGcDialog.vue` 三阶段对话框（计划→确认→
+  结果）+ OpenAPI + 四张审核矩阵；桌面与 390x844 渲染 QA 通过。**运行时冲突
+  修正**：发布账本是 append-only（`202607160027` 触发器拒绝一切删除），任务书
+  方案 A 的"删除过期发布修订"废止——被发布历史引用的版本行永久钉住
+  （`publication_history`），曾启用的插件版本永不回收；实际回收面 = 主题
+  历史版本 + 从未进入发布的插件版本。实机 dev 库 dry-run：225 历史行 →
+  139 可回收 / 63 发布钉住 / 13 窗口内 / 10 盘缺。架构腾位：
+  `Models/Extensions` flat 96→92（六次同族合并），基线 94→92。任务书
+  completed 并归档 `plans/archive/2026-10/`。决策：
+  `decisions/2026-10-17-version-gc-publication-restrict-cooperation.md`。
+  详见 `sessions/2026-10-17-extension-version-gc-handoff.md`。
+
 - **孤儿 lifecycle operation 自动回收 + 带外关闭 CLI（2026-10-17）**。op 115 卡死
   API 全接口 503 的事故闭环：仓库层 `ReclaimOrphanedLifecycleOperations`
   （fail-closed：只回收所有 step lease 均已过期的开放操作，CAS 关闭到

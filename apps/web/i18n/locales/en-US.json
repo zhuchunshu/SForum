@@ -886,7 +886,8 @@
       "extensionPages": "Page registry",
       "extensionComponentInspector": "Component inspector",
       "extensionNavigationInspector": "Navigation inspector",
-      "extensionRegistryCatalogs": "Registry catalogs"
+      "extensionRegistryCatalogs": "Registry catalogs",
+      "extensionRouteCatalog": "Route catalog"
     },
     "avatar": {
       "metaTitle": "Avatar settings",
@@ -1414,6 +1415,39 @@
         "confirm": "Uninstall {count} extensions",
         "success": "{count} missing-artifact extension(s) uninstalled."
       },
+      "versionGc": {
+        "action": "Version garbage collection",
+        "title": "Extension version garbage collection",
+        "description": "Reclaim historical version rows and their disk directories. The default policy keeps the active version plus the most recent historical one per extension; removal is disk-first, audited per item, and versions referenced by the publication ledger stay forever.",
+        "policyTitle": "Retention policy",
+        "retainLabel": "Historical versions kept per extension (excluding active)",
+        "retainDaysLabel": "Also keep versions installed within the last N days (0 = no time window)",
+        "refreshPlan": "Refresh the plan with this policy",
+        "listTitle": "Candidates",
+        "empty": "No historical version rows under the current policy.",
+        "reclaimableCount": "{count} reclaimable",
+        "reclaimableBadge": "Reclaimable",
+        "rank": "history #{rank}",
+        "blockedCount": "{reason} × {count}",
+        "blocked": {
+          "publication_history": "pinned by publication history (kept forever)",
+          "open_operation": "open lifecycle operation",
+          "within_retention": "within the retention window",
+          "disk_missing": "disk missing (use missing-artifact cleanup)"
+        },
+        "planWarning": "Deletion is irreversible: version rows and disk directories cannot be recovered after execution.",
+        "confirmPlan": "Mint a one-time confirmation token",
+        "confirmationTitle": "Execution confirmation",
+        "confirmationSummary": "A one-time token was minted for {count} reclaimable candidates and stays valid until {expires}. Execution is bound to this exact plan and fails closed on any drift.",
+        "executeWarning": "This deletes the ledger rows and disk directories of the reclaimable versions above and cannot be undone.",
+        "backToPlan": "Back to the plan",
+        "execute": "Execute reclaim",
+        "resultTitle": "Result",
+        "resultSummary": "{removed} version(s) reclaimed, {bytes} freed.",
+        "failedSummary": "{count} item(s) failed: their ledger rows and directories were preserved.",
+        "success": "Version GC finished: {removed} reclaimed",
+        "warningNotice": "Staging residue could not be removed; check the server logs."
+      },
       "source": {
         "builtin": "Built-in"
       },
@@ -1705,6 +1739,46 @@
           "guest": "Guests only",
           "moderation": "Moderation",
           "permission": "Permission"
+        }
+      },
+      "routeCatalog": {
+        "metaTitle": "Route catalog",
+        "title": "Route catalog",
+        "intro": "Every route in the current immutable Route Registry snapshot, grouped by provider source, with runtime admission state per route. Read-only; to resolve a request use the Route Inspector.",
+        "snapshot": "Snapshot #{revision}",
+        "safeMode": "Safe mode",
+        "totalRoutes": "{count} routes",
+        "pluginProviders": "{count} extension artifacts",
+        "unadmittedCount": "{count} unadmitted",
+        "conflictCount": "{count} in conflict",
+        "collapseAll": "Collapse all",
+        "expandAll": "Expand all",
+        "refreshed": "Route catalog refreshed.",
+        "loadFailed": "Failed to load the route catalog.",
+        "emptyTitle": "No routes in the registry",
+        "emptyDescription": "The current immutable route snapshot has no published routes. Core and extension routes appear here after publication.",
+        "hint": "Click a group header to collapse or expand; rows follow registry resolution order (path specificity and priority). A dot marks a route involved in a provider selection conflict.",
+        "coreBadge": "Core",
+        "pluginBadge": "Plugin",
+        "coreProvider": "Core framework",
+        "coreMeta": "provider: core · no artifact binding",
+        "routesCount": "{count} routes",
+        "unadmittedBadge": "{count} unadmitted",
+        "replaceBadge": "replace ×{count}",
+        "admitted": "Active",
+        "notAdmitted": "Unadmitted",
+        "notAdmittedHint": "Exact-artifact trust is not granted yet: the declaration stays in the registry but matches no request.",
+        "conflictHint": "This route takes part in a provider selection conflict; handle it on the Route Providers page.",
+        "replaceNoteTitle": "{count} replacement route(s)",
+        "replaceNoteBody": "Bound by a super admin to the exact artifact (contract version + package digest); review or reset on the Route Providers page.",
+        "unadmittedNoteTitle": "{count} route(s) lack runtime admission",
+        "unadmittedNoteBody": "Exact-artifact trust is not granted yet, so the declarations stay in place but match no request; they activate automatically once trust is confirmed.",
+        "columns": {
+          "method": "Method",
+          "path": "Path",
+          "action": "Action",
+          "guard": "Guard",
+          "admission": "Admission"
         }
       },
       "routeProviders": {

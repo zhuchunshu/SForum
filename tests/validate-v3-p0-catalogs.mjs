@@ -196,7 +196,7 @@ assertIdentityMutationRejected('UI source drift', changed => {
   changed.ui[changed.ui.findIndex(item => item.state === 'active')].source = 'apps/web/app/components/Moved.vue'
 }, 'new or moved UI surface')
 
-assert(routes.length === 363, `route inventory must contain exactly 363 reviewed routes: ${routes.length}`)
+assert(routes.length === 370, `route inventory must contain exactly 370 reviewed routes: ${routes.length}`)
 assert(identities.routes.length === routes.length, 'reviewed route identity map must cover every current route')
 unique(routes, item => item.id, 'route inventory ids')
 unique(routes, item => `${item.method} ${item.path}`, 'route inventory method/path pairs')
@@ -232,7 +232,7 @@ const retiredUI = load('docs/extensions/v3/catalogs/ui-retired-identities.json')
 // ownership semantics. The two outbound-link surfaces (`site.outbound` page and
 // `core.component.shared.sfoutbound_interstitial`) were reviewed and mapped in
 // docs/extensions/v3/catalog-identities.json in the same change.
-assert(ui.length === 321, `UI inventory must contain exactly 321 reviewed surfaces: ${ui.length}`)
+assert(ui.length === 322, `UI inventory must contain exactly 322 reviewed surfaces: ${ui.length}`)
 assert(JSON.stringify(retiredUI) === JSON.stringify(retiredIdentities), 'generated retired UI reservation catalog drifted from its reviewed ledger')
 const activeUIIdentities = identities.ui.filter(item => item.state === 'active')
 assert(activeUIIdentities.length === ui.length, 'active reviewed UI identity map must cover every current UI surface')

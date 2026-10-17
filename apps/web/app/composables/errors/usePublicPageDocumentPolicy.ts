@@ -46,11 +46,17 @@ export async function applyPublicPageDocumentPolicy(
   if (!policy) {
     return null
   }
+  if (import.meta.dev) {
+    // dev 下宿主自身样式由 Vite 以内联 <style> 注入，L2 基线 style-src 'self' 会拦截它；
+    // CSP 头只在生产（外链样式）下生效，dev 仅保留 digest 样式预注入。
+    return policy
+  }
   const headerValue = policy.documentPolicy.headerValue.trim()
   if (!headerValue) {
     return null
   }
-  setHeader(event, PUBLIC_PAGE_CSP_HEADER, headerValue)
-  setHeader(event, 'X-SForum-Document-Policy-Digest', policy.documentPolicy.digest)
+  // Nuxt 4 未导出 setResponseHeader 组合式，直接写 nitro 响应对象。
+  event.node.res.setHeader(PUBLIC_PAGE_CSP_HEADER, headerValue)
+  event.node.res.setHeader('X-SForum-Document-Policy-Digest', policy.documentPolicy.digest)
   return policy
 }

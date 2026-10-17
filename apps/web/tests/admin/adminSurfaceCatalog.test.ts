@@ -20,7 +20,13 @@ describe('admin surface placement catalog', () => {
     }
 
     // 与 apps/web/app/pages/admin 下页面及 v3-catalog 生成结果对齐；新增后台页必须先进入 generator。
-    expect(adminSurfacePlacements.length).toBe(48)
+    // 49 = 48 + core.component.page.admin.extensions.route.catalog（路由注册表）。
+    expect(adminSurfacePlacements.length).toBe(49)
+    expect(adminSurfacePlacements).toContainEqual({
+      id: 'core.component.page.admin.extensions.route.catalog',
+      contractVersion: 'sforum.component.page.admin.extensions.route.catalog@1',
+      route: '/admin/extensions/route-catalog'
+    })
     expect(adminSurfacePlacements).toContainEqual({
       id: 'core.component.page.admin.users',
       contractVersion: 'sforum.component.page.admin.users@1',

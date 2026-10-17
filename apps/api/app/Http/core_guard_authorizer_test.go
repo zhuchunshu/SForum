@@ -703,6 +703,8 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		"core.route.extensions.inspect_asset":           {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_cache":           {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_route":           {method: "GET", supported: true, permissions: viewer},
+		// 路由注册表目录：与其它检视器同一条已审核策略（extension.view 或 manage）。
+		"core.route.extensions.route_catalog":           {method: "GET", supported: true, permissions: viewer},
 		// M5 隔离账本读取：与其它检视器同一条已审核策略（extension.view 或 manage）。
 		"core.route.extensions.inspect_route_incidents":      {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_templates":            {method: "GET", supported: true, permissions: viewer},
@@ -716,6 +718,8 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		"core.route.extensions.entity_import_export_dry_run": {method: "GET", supported: true, permissions: viewer},
 		// 开发期信任会话列表：admin 扩展读取面。
 		"core.route.extensions.list_dev_trust_sessions": {method: "GET", supported: true, permissions: viewer},
+		// 版本 GC 候选清单：读守卫粗门 view/manage；服务层权威策略为 super_admin。
+		"core.route.extensions.version_gc_candidates": {method: "GET", supported: true, permissions: viewer},
 
 		"core.route.extensions.frontend_status":          {method: "GET"},
 		"core.route.extensions.frontend_asset":           {method: "GET"},

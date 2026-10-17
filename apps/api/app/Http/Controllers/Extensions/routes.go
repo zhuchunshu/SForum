@@ -33,6 +33,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Get("/admin/extensions/component-inspector", h.inspectComponentComposition)
 	api.Get("/admin/extensions/navigation-inspector", h.inspectNavigation)
 	api.Get("/admin/extensions/route-inspector", h.inspectRoute)
+	api.Get("/admin/extensions/route-catalog", h.routeCatalog)
 	api.Get("/admin/extensions/route-incidents", h.inspectRouteIncidents)
 	api.Get("/admin/extensions/openapi/aggregate", h.routeOpenAPIAggregate)
 	api.Get("/admin/extensions/openapi/generated-client", h.routeGeneratedClientMetadata)
@@ -45,6 +46,12 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/admin/extensions/provider-slots/probe", h.probeProviderSlot)
 	api.Post("/admin/extensions", h.install)
 	api.Post("/admin/extensions/missing-artifacts/uninstall", h.cleanupMissingArtifacts)
+	// 版本 GC（阶段 5）：静态段必须在带 :id 的 extension 路由之前注册。
+	// GET 走 extensions read 粗门 + 服务层 super_admin 权威策略；
+	// POST 走 super_admin 守卫 + 服务层同款权威策略。
+	api.Get("/admin/extensions/version-gc/candidates", h.versionGcCandidates)
+	api.Post("/admin/extensions/version-gc/confirmations", h.createVersionGcConfirmation)
+	api.Post("/admin/extensions/version-gc/execute", h.executeVersionGcSweep)
 	api.Delete("/admin/extensions/:id", h.uninstall)
 	api.Post("/admin/extensions/:id/enable", h.enable)
 	api.Post("/admin/extensions/:id/restart", h.restart)

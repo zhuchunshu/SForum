@@ -1,0 +1,84 @@
+RouteCatalogPluginArtifact:
+  type: object
+  additionalProperties: false
+  required: [extensionId, extensionVersion, packageDigest, runtimeInstanceId]
+  properties:
+    extensionId: { type: string }
+    extensionVersion: { type: string }
+    packageDigest: { type: string }
+    runtimeInstanceId: { type: string }
+
+RouteCatalogEntry:
+  type: object
+  additionalProperties: false
+  required:
+  - routeId
+  - contractVersion
+  - action
+  - method
+  - path
+  - pathSignature
+  - priority
+  - providerKind
+  - guard
+  - mode
+  - fallback
+  - timeoutMs
+  - guardRisk
+  - admitted
+  - conflictKinds
+  properties:
+    routeId: { type: string }
+    contractVersion: { type: string }
+    action:
+      type: string
+      description: Manifest route action (add, compose, replace, redirect, global).
+    targetRouteId: { type: string }
+    method: { type: string }
+    path:
+      type: string
+      description: Declared route template, never a raw request path.
+    pathSignature: { type: string }
+    priority: { type: integer }
+    providerKind: { type: string, enum: [core, plugin] }
+    artifact:
+      "$ref": "#/RouteCatalogPluginArtifact"
+    guard: { type: string }
+    permission: { type: string }
+    handler: { type: string }
+    destination: { type: string }
+    mode: { type: string }
+    fallback: { type: string }
+    requestSchema: { type: string }
+    responseSchema: { type: string }
+    timeoutMs: { type: integer }
+    guardRisk:
+      type: string
+      enum: [host_owned, extension_code, raw_request]
+      description: Authorization ownership classification derived from the published guard binding.
+    admitted:
+      type: boolean
+      description: >-
+        Runtime admission of the exact artifact. Core routes are always admitted;
+        a plugin route stays declared but matches no request while its artifact
+        lacks runtime admission.
+    conflictKinds:
+      type: array
+      items:
+        type: string
+        enum: [path_method, route_identity, provider_selection]
+
+ApiResponseRouteCatalog:
+  type: object
+  additionalProperties: false
+  required: [revision, safeMode, total, routes]
+  properties:
+    revision: { type: integer, minimum: 0 }
+    safeMode: { type: boolean }
+    total:
+      type: integer
+      description: Equal to the length of routes; clients can assert snapshot completeness.
+    routes:
+      type: array
+      items:
+        "$ref": "#/RouteCatalogEntry"

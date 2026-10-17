@@ -620,6 +620,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sf_admin_route_catalog_group",
+    "contractVersion": "sforum.component.admin.sf_admin_route_catalog_group@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/SFAdminRouteCatalogGroup.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_seo_content_tab",
     "contractVersion": "sforum.component.admin.sfadmin_seo_content_tab@1",
     "kind": "component",
@@ -844,6 +854,16 @@
     "contractVersion": "sforum.component.admin.sfadmin_user_list_toolbar@1",
     "kind": "component",
     "source": "apps/web/app/components/admin/identity/users/SFAdminUserListToolbar.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_version_gc_dialog",
+    "contractVersion": "sforum.component.admin.sfadmin_version_gc_dialog@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/SFAdminVersionGcDialog.vue",
     "owners": [
       "admin"
     ],
@@ -1153,6 +1173,17 @@
     "kind": "page",
     "route": "/admin/extensions/registry-catalogs",
     "source": "apps/web/app/pages/admin/extensions/registry-catalogs.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
+    "id": "core.component.page.admin.extensions.route.catalog",
+    "contractVersion": "sforum.component.page.admin.extensions.route.catalog@1",
+    "kind": "page",
+    "route": "/admin/extensions/route-catalog",
+    "source": "apps/web/app/pages/admin/extensions/route-catalog.vue",
     "owners": [
       "admin"
     ],

@@ -746,6 +746,12 @@
       "path": "/api/v1/admin/extensions/route-inspector"
     },
     {
+      "id": "core.route.extensions.route_catalog",
+      "contractVersion": "sforum.route.extensions.route_catalog@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/route-catalog"
+    },
+    {
       "id": "core.route.extensions.route_provider_conflicts",
       "contractVersion": "sforum.route.extensions.route_provider_conflicts@1",
       "method": "GET",
@@ -2202,6 +2208,24 @@
       "contractVersion": "sforum.route.extensions.inspect_route_incidents@1",
       "method": "GET",
       "path": "/api/v1/admin/extensions/route-incidents"
+    },
+    {
+      "id": "core.route.extensions.version_gc_candidates",
+      "contractVersion": "sforum.route.extensions.version_gc_candidates@1",
+      "method": "GET",
+      "path": "/api/v1/admin/extensions/version-gc/candidates"
+    },
+    {
+      "id": "core.route.extensions.create_version_gc_confirmation",
+      "contractVersion": "sforum.route.extensions.create_version_gc_confirmation@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/version-gc/confirmations"
+    },
+    {
+      "id": "core.route.extensions.execute_version_gc_sweep",
+      "contractVersion": "sforum.route.extensions.execute_version_gc_sweep@1",
+      "method": "POST",
+      "path": "/api/v1/admin/extensions/version-gc/execute"
     }
   ],
   "ui": [
@@ -2486,6 +2510,16 @@
       "source": "apps/web/app/components/extensions/public/SFRegistryPageShell.vue"
     },
     {
+      "id": "core.component.admin.sf_admin_route_catalog_group",
+      "contractVersion": "sforum.component.admin.sf_admin_route_catalog_group@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/SFAdminRouteCatalogGroup.vue"
+    },
+    {
       "id": "core.component.admin.sf_admin_theme_activate_dialog",
       "contractVersion": "sforum.component.admin.sf_admin_theme_activate_dialog@1",
       "kind": "component",
@@ -2714,6 +2748,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/admin/SFAdminMissingArtifactsCleanupDialog.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_version_gc_dialog",
+      "contractVersion": "sforum.component.admin.sfadmin_version_gc_dialog@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/SFAdminVersionGcDialog.vue"
     },
     {
       "id": "core.component.admin.sfadmin_attachment_compression_tab",
@@ -3334,6 +3378,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/pages/admin/extensions/route-inspector.vue"
+    },
+    {
+      "id": "core.component.page.admin.extensions.route.catalog",
+      "contractVersion": "sforum.component.page.admin.extensions.route.catalog@1",
+      "kind": "page",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/pages/admin/extensions/route-catalog.vue"
     },
     {
       "id": "core.component.page.admin.extensions.route.providers",

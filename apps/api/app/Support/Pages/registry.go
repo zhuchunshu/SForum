@@ -40,6 +40,8 @@ type PageContribution struct {
 	Target   string             `json:"target,omitempty"` // replace 目标 page id
 	Path     string             `json:"path,omitempty"`   // add 路径
 	Template string             `json:"template,omitempty"`
+	// Label 页面展示标题（可选）：theme.json 声明，resolve-path 透传给前端做标题兜底。
+	Label string `json:"label,omitempty"`
 	// View: template | component（空值等价 template）。
 	View PageView `json:"view,omitempty"`
 	// ComponentID 指向包内已声明的公开 L2 组件；view=component 时必填。
@@ -889,6 +891,7 @@ func (r *Registry) resolveLocked(core ResolvedPage) ResolvedPage {
 			Action:               string(ActionReplace),
 			Fallback:             false,
 			TemplatePath:         c.Template,
+			Label:                c.Label,
 			View:                 string(NormalizePageView(string(c.View))),
 			Component:            c.ComponentID,
 			SchemaDescriptorFile: c.SchemaDescriptorFile,

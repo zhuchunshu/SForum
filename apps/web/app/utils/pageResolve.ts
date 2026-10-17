@@ -40,6 +40,11 @@ export type PageResolvePayload = {
   templatePath?: string
   templateHtml?: string
   /**
+   * 页面展示标题（可选）：来自贡献声明（theme.json label）。模板刻意不输出 h1 时
+   * 前端用它做 document.title 兜底，避免标题退回路径。
+   */
+  label?: string
+  /**
    * 正文提供方式：template（L1 Go 模板，历史行为）| component（包内公开 L2 组件）。
    * component 时 templateHtml 为空是正常状态，正文由 SFRegistryPageBody 挂载组件提供。
    */

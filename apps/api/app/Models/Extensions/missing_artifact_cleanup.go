@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
@@ -117,31 +116,8 @@ func (s *LifecycleService) CleanupMissingArtifacts(
 	return MissingArtifactCleanupResult{Removed: items}, nil
 }
 
-func normalizeMissingArtifactDataMode(value string) (string, error) {
-	switch value {
-	case "", MissingArtifactDataPreserve:
-		return MissingArtifactDataPreserve, nil
-	case MissingArtifactDataDiscardSettings:
-		return MissingArtifactDataDiscardSettings, nil
-	default:
-		return "", fmt.Errorf("%w: invalid data mode", ErrMissingArtifactCleanupInvalid)
-	}
-}
-
-func normalizedMissingArtifactIDs(values []string) []string {
-	unique := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		if id := normalizeID(value); id != "" {
-			unique[id] = struct{}{}
-		}
-	}
-	ids := make([]string, 0, len(unique))
-	for id := range unique {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	return ids
-}
+// normalizeMissingArtifactDataMode 与 normalizedMissingArtifactIDs 位于
+// artifact_retention.go（GC 与缺失制品清理共用的制品保留判据文件）。
 
 func (s *CatalogService) pruneMissingBuiltins(ctx context.Context, activeIDs []string) error {
 	result, err := s.store.PruneMissingBuiltins(ctx, activeIDs)

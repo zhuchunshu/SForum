@@ -265,6 +265,8 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 		"core.route.extensions.inspect_asset",
 		"core.route.extensions.inspect_cache",
 		"core.route.extensions.inspect_route",
+		// 路由注册表目录：与 route inspector 同一 view/manage 门（只读观测面）。
+		"core.route.extensions.route_catalog",
 		// M5 隔离账本：与 route inspector 同一 view/manage 门（同一管理端读取面）。
 		"core.route.extensions.inspect_route_incidents",
 		"core.route.extensions.inspect_templates",
@@ -277,6 +279,9 @@ func requireExtensionsReadAuthority(_ context.Context, evaluation routes.CoreGua
 		"core.route.extensions.route_provider_selection",
 		// 开发期信任会话列表：admin 扩展读取面（创建走 mutation guard）。
 		"core.route.extensions.list_dev_trust_sessions",
+		// 版本 GC 候选清单（阶段 5）：扩展读取粗门；服务层另强制 super_admin
+		// （任务书硬约束：CLI 与 API 入口均 super_admin），守卫只是第一道门。
+		"core.route.extensions.version_gc_candidates",
 		// Entity import/export dry-run：admin 扩展检查面，与 list/inspectors 同 view 门。
 		"core.route.extensions.entity_import_export_dry_run":
 		return requireCoreGuardPermission(evaluation,

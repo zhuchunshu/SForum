@@ -1,0 +1,20 @@
+adminExtensionRouteCatalog:
+  get:
+    summary: List the full Route Registry snapshot catalog
+    operationId: listAdminExtensionRouteCatalog
+    description: >-
+      Requires extension.view or the legacy extension.manage permission. Read-only
+      observation surface: returns every declared route in the current immutable
+      Route Registry snapshot with runtime admission state, guard ownership
+      classification, and the conflict kinds each route participates in. The page
+      offers no mutation; provider selection remains on the route providers page.
+    responses:
+      '200':
+        description: Detached Route Registry catalog snapshot.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extension-route-catalog.yaml#/ApiResponseRouteCatalog"
+      '401': { "$ref": "../components/responses.yaml#/Unauthorized" }
+      '403': { "$ref": "../components/responses.yaml#/Forbidden" }
+      '503': { "$ref": "../components/responses.yaml#/ServiceUnavailable" }
