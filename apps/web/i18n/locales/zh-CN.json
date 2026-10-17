@@ -6097,6 +6097,12 @@
     }
   },
   "accountSecurity": {
+    "tabs": {
+      "navAriaLabel": "账号安全分区",
+      "devices": "设备与会话",
+      "loginMethods": "登录方式",
+      "password": "登录密码"
+    },
     "metaTitle": "账号安全",
     "metaDescription": "管理登录设备与会话安全。",
     "title": "账号安全",

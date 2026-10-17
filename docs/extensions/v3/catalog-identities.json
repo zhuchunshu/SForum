@@ -3847,7 +3847,7 @@
         "public"
       ],
       "state": "active",
-      "source": "apps/web/app/pages/settings/security.vue"
+      "source": "apps/web/app/pages/settings/security/index.vue"
     },
     {
       "id": "core.component.page.forum.settings.tokens",
@@ -5482,7 +5482,7 @@
         "public"
       ],
       "state": "active",
-      "source": "apps/web/app/pages/settings/login-methods.vue"
+      "source": "apps/web/app/pages/settings/security/login-methods.vue"
     },
     {
       "id": "core.component.page.forum.settings.password",
@@ -5492,7 +5492,7 @@
         "public"
       ],
       "state": "active",
-      "source": "apps/web/app/pages/settings/password.vue"
+      "source": "apps/web/app/pages/settings/security/password.vue"
     },
     {
       "id": "core.component.page.auth.email_verification",
@@ -5623,6 +5623,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/extensions/public/SFPublicSchemaView.vue"
+    },
+    {
+      "id": "core.component.shared.sfsettings_security_tab_nav",
+      "contractVersion": "sforum.component.shared.sfsettings_security_tab_nav@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/settings/SFSettingsSecurityTabNav.vue"
     }
   ]
 }

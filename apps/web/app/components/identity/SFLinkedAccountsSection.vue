@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<{
   returnPath?: string
   showHeading?: boolean
 }>(), {
-  returnPath: '/settings/login-methods',
+  returnPath: '/settings/security/login-methods',
   showHeading: true
 })
 

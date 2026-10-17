@@ -121,6 +121,10 @@ export default defineNuxtConfig({
       // 登录/注册/密码找回与受保护用户页保持 SSR，受保护页显式禁缓存，避免继承公开内容页 SWR。
       // 站外链接中转页：纯跳转中间页，禁缓存且永不索引（robots 由页面 SEO 再兜一层）。
       '/outbound': { cache: false, robots: { index: false } },
+      // 账号安全整合后的旧路径兼容：登录方式 / 密码已收进 /settings/security 子路由，
+      // 302 保住收藏夹与外部文档；in-app 链接已全部指向新路径，仅外部入口命中。
+      '/settings/login-methods': { redirect: { to: '/settings/security/login-methods', statusCode: 302 } },
+      '/settings/password': { redirect: { to: '/settings/security/password', statusCode: 302 } },
       '/settings/**': { cache: false, robots: { index: false } },
       '/topics/new': { cache: false, robots: { index: false } },
       // 管理后台：SSR + 禁缓存 + 禁止索引。未登录由 admin 中间件服务端重定向到 /login，不再返回空壳。

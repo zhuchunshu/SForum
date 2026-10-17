@@ -120,8 +120,9 @@ describe('profile settings canvas', () => {
     expect(chromeCss).toContain('@media (max-width: 980px)')
     expect(css).toContain('sforum-settings-profile__form')
     expect(nav).toContain("localePath('/settings/profile')")
-    expect(nav).toContain("localePath('/settings/login-methods')")
-    expect(nav).toContain("localePath('/settings/password')")
+    // 侧栏已合并为单一「账号安全」入口：登录方式 / 密码是其子路由 tab。
+    expect(nav).not.toContain("localePath('/settings/login-methods')")
+    expect(nav).not.toContain("localePath('/settings/password')")
     expect(nav).toContain("localePath('/settings/security')")
     expect(nav).toContain("localePath('/settings/tokens')")
     expect(src).not.toContain('ssr: false')

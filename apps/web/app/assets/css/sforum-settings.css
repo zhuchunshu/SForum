@@ -56,6 +56,57 @@
   border-bottom: 1px solid var(--sf-public-border-strong);
 }
 
+/* 账号安全合并页的固定子路由 tab 导航（设备与会话 / 登录方式 / 登录密码）。
+   注意：.sforum-content-column 是共享的 flex 纵列（中心列滚动契约），
+   本元素带 overflow-x:auto 后自动最小尺寸为 0，必须 flex-shrink:0
+   否则内容超高时 tab 栏会被 flex 收缩压成 1px。 */
+.sforum-settings__tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  margin: 14px 0 18px;
+  border-bottom: 1px solid var(--sf-public-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.sforum-settings__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.sforum-settings__tab {
+  position: relative;
+  flex-shrink: 0;
+  padding: 8px 14px 11px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sf-public-text-secondary);
+  border-radius: var(--sf-public-radius) var(--sf-public-radius) 0 0;
+  white-space: nowrap;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.sforum-settings__tab:hover {
+  color: var(--sf-public-text);
+  background: var(--sf-public-surface-muted);
+}
+
+.sforum-settings__tab.is-active {
+  color: var(--sf-accent);
+  font-weight: 600;
+}
+
+.sforum-settings__tab.is-active::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: -1px;
+  left: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--sf-accent);
+}
+
 .sforum-settings__head-actions {
   display: flex;
   align-items: center;

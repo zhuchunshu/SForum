@@ -68,8 +68,8 @@ How to call APIs: [API usage](../development/api.md).
 - Unbound external accounts enter `/auth/continue`: prove an existing local
   account to auto-bind, or register and auto-bind; emails are never used to
   match accounts automatically.
-- Settings → Login methods (`/settings/login-methods`) lists and unbinds
-  external identities.
+- Settings → Account security → Login methods
+  (`/settings/security/login-methods`) lists and unbinds external identities.
 - API: `GET /auth/providers`, `GET /auth/external-identities`, etc.; see
   `contracts/openapi.yaml`.
 

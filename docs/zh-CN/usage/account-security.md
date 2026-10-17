@@ -56,7 +56,7 @@ API 调用方式见[开发指南-API 使用](../development/api.md)。
 - 站点可启用外部登录（如内置 GitHub 登录）；在登录页选择对应方式即可。
 - 未绑定的外部账号会进入 `/auth/continue`：可证明已有本地账号后自动绑定，
   或走注册流程后自动绑定；系统不会用邮箱自动匹配账号。
-- 设置 → 登录方式（`/settings/login-methods`）可查看/解绑已绑定的外部身份。
+- 设置 → 账号安全 → 登录方式（`/settings/security/login-methods`）可查看/解绑已绑定的外部身份。
 - API：`GET /auth/providers`、`GET /auth/external-identities` 等，见
   OpenAPI `contracts/openapi.yaml`。
 

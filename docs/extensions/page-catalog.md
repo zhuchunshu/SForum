@@ -33,6 +33,8 @@ There is no Layer activation option or frontend release runtime.
 | `forum.profile.show` | `/u/:username` | public/feature-gated |
 | `forum.settings.profile` | `/settings/profile` | login |
 | `forum.settings.security` | `/settings/security` | login |
+| `forum.settings.login_methods` | `/settings/security/login-methods` | login |
+| `forum.settings.password` | `/settings/security/password` | login |
 | `forum.settings.notifications` | `/settings/notifications` | login |
 | `forum.notifications` | `/notifications` | login |
 | `forum.notification.show` | `/notifications/:notificationId` | login |

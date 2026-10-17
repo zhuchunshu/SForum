@@ -9,10 +9,11 @@ import {
 } from '~/composables/useWebOptions'
 import { buildAuthPageLink } from '~/utils/identity/authReturn'
 import SFSettingsShell from '~/components/settings/SFSettingsShell.vue'
+import SFSettingsSecurityTabNav from '~/components/settings/SFSettingsSecurityTabNav.vue'
 
 /**
  * 宿主 body 岛：forum.settings.password。
- * 本地密码独立于外部登录方式和设备/令牌安全页；密码材料只提交给 Host API。
+ * 「账号安全」的登录密码 tab；密码材料只提交给 Host API。
  */
 const { t } = useI18n()
 const toast = useToast()
@@ -55,7 +56,7 @@ const canSubmit = computed(() =>
   && !submitting.value
 )
 
-const reauthLoginLink = computed(() => buildAuthPageLink(localePath('/login'), '/settings/password'))
+const reauthLoginLink = computed(() => buildAuthPageLink(localePath('/login'), '/settings/security/password'))
 const passwordInputType = computed(() => showPassword.value ? 'text' : 'password')
 const confirmInputType = computed(() => showConfirm.value ? 'text' : 'password')
 
@@ -124,12 +125,14 @@ async function submitPassword() {
   <SFSettingsShell
     class="sforum-settings-local-password"
     data-sforum-island-body="identity.component.local_password_settings"
-    active="password"
+    active="security"
     title-id="local-password-settings-title"
     :title="t('localPasswordSettings.title')"
     :description="t('localPasswordSettings.intro')"
     :rail-label="t('localPasswordSettings.rail.ariaLabel')"
   >
+    <SFSettingsSecurityTabNav />
+
     <section
       class="sf-local-password__notice"
       data-testid="local-password-recommendation"

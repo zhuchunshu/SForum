@@ -265,6 +265,16 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **账号设置侧栏整合：账号安全三页合并（2026-10-17）**。登录方式 / 登录密码 /
+  账号安全收进单一「账号安全」侧栏入口与 `/settings/security` 子路由
+  （index = 设备与会话默认 tab / login-methods / password），共享
+  `SFSettingsSecurityTabNav` 路由 tab；三个 Page Registry 页面 ID 与主题模板绑定
+  零变更（默认主题制品无需重激活），Go 只改 catalog 两行 PathPattern +
+  external_auth 两处回调 redirect；旧路径 Nitro 302 兼容；identity 台账显式记录
+  移动并登记新 tab 组件。focused Go 与静态门禁全绿；桌面与 390x844 渲染 QA 均已通过
+  （含旧路径 302 与两个 QA 过程缺陷修复）。详见
+  `sessions/2026-10-17-account-security-consolidation-handoff.md`。
+
 - **路由注册表 Route Catalog（2026-10-17）**。新只读管理页
   `/control-panel/extensions/route-catalog`：按提供者来源分组展示 Route
   Registry 快照全量路由（实测 397 条 / 核心 371 + 3 制品组）+ 每条运行时准入

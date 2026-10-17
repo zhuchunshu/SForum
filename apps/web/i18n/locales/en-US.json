@@ -6057,6 +6057,12 @@
     }
   },
   "accountSecurity": {
+    "tabs": {
+      "navAriaLabel": "Account security sections",
+      "devices": "Devices & sessions",
+      "loginMethods": "Login methods",
+      "password": "Login password"
+    },
     "metaTitle": "Account security",
     "metaDescription": "Manage signed-in devices and session security.",
     "title": "Account security",

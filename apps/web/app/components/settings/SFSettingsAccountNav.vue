@@ -1,6 +1,9 @@
 <script setup lang="ts">
 /**
- * 账号设置左栏 after-nav：资料 / 安全（及可选公开主页）。
+ * 账号设置左栏 after-nav：资料 / 账号安全（及可选公开主页）。
+ * 「账号安全」是合并后的单一入口：/settings/security 下的三个子路由
+ * （设备与会话 / 登录方式 / 登录密码）都把 active 传为 security，
+ * 共享 tab 导航见 SFSettingsSecurityTabNav。
  * 样式复用 sf-home-navigation 链接语言，与通知/审核 after-nav 一致。
  */
 import type { AccountSettingsNavItem } from '~/composables/settings/useAccountSettingsNavigation'
@@ -48,28 +51,6 @@ function itemPath(item: AccountSettingsNavItem) {
       <span class="sf-home-navigation__link-main">
         <UIcon name="i-lucide-palette" class="size-[18px]" aria-hidden="true" />
         {{ t('userAppearanceSettings.title') }}
-      </span>
-    </NuxtLink>
-    <NuxtLink
-      :to="localePath('/settings/login-methods')"
-      class="sf-home-navigation__link"
-      :class="{ 'is-active': active === 'loginMethods' }"
-      @click="emit('navigate')"
-    >
-      <span class="sf-home-navigation__link-main">
-        <UIcon name="i-lucide-log-in" class="size-[18px]" aria-hidden="true" />
-        {{ t('loginMethodsSettings.title') }}
-      </span>
-    </NuxtLink>
-    <NuxtLink
-      :to="localePath('/settings/password')"
-      class="sf-home-navigation__link"
-      :class="{ 'is-active': active === 'password' }"
-      @click="emit('navigate')"
-    >
-      <span class="sf-home-navigation__link-main">
-        <UIcon name="i-lucide-lock-keyhole" class="size-[18px]" aria-hidden="true" />
-        {{ t('localPasswordSettings.title') }}
       </span>
     </NuxtLink>
     <NuxtLink

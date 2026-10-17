@@ -38,13 +38,15 @@ const SFLoginMethodsSettingsPage = await compileSecurityComponent(
   'app/components/settings/SFLoginMethodsSettingsPage.vue',
   {
     SFLinkedAccountsSection,
-    SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' }
+    SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' },
+    SFSettingsSecurityTabNav: { template: '<nav data-testid="security-tab-nav-stub" />' }
   }
 )
 const SFLocalPasswordSettingsPage = await compileSecurityComponent(
   'app/components/settings/SFLocalPasswordSettingsPage.vue',
   {
-    SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' }
+    SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' },
+    SFSettingsSecurityTabNav: { template: '<nav data-testid="security-tab-nav-stub" />' }
   }
 )
 const SFPersonalAccessTokensPage = await compileSecurityComponent(
@@ -98,7 +100,7 @@ describe('linked account data contracts', () => {
       authProviderDisplayMeta: (provider: { label?: string, icon?: string }, fallback: string) => ({ label: provider.label || fallback, icon: provider.icon || 'i-lucide-key-round' })
     })
     const wrapper = mount({ components: { SFLoginMethodsSettingsPage }, template: '<Suspense><SFLoginMethodsSettingsPage /></Suspense>' }, {
-      global: { stubs: { SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' }, SFCard: { template: '<div><slot /></div>' }, SFButton: { emits: ['click'], template: '<button @click="$emit(\'click\', $event)"><slot /></button>' }, SFAlert: { props: ['title', 'description'], template: '<div>{{ title }}{{ description }}<slot /></div>' }, SFSkeleton: true, SFEmptyState: true, UIcon: true, NuxtLink: { template: '<a><slot /></a>' }, SFLinkedAccountsSection } }
+      global: { stubs: { SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' }, SFSettingsSecurityTabNav: true, SFCard: { template: '<div><slot /></div>' }, SFButton: { emits: ['click'], template: '<button @click="$emit(\'click\', $event)"><slot /></button>' }, SFAlert: { props: ['title', 'description'], template: '<div>{{ title }}{{ description }}<slot /></div>' }, SFSkeleton: true, SFEmptyState: true, UIcon: true, NuxtLink: { template: '<a><slot /></a>' }, SFLinkedAccountsSection } }
     })
     try {
       await flushPromises()
@@ -134,6 +136,7 @@ describe('linked account data contracts', () => {
       global: {
         stubs: {
           SFSettingsShell: { template: '<section><slot /><slot name="rail" /><slot name="head-actions" /></section>' },
+          SFSettingsSecurityTabNav: true,
           SFCard: { template: '<div><slot /></div>' },
           SFButton: { props: ['disabled', 'loading', 'type'], emits: ['click'], template: '<button :type="type || \'button\'" :disabled="disabled || loading" @click="$emit(\'click\', $event)"><slot /></button>' },
           SFAlert: { props: ['title', 'description'], template: '<div>{{ title }}{{ description }}<slot /></div>' },

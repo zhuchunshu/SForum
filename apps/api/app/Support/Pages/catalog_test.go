@@ -41,7 +41,7 @@ func TestAppearanceSettingsPageContract(t *testing.T) {
 
 func TestLoginMethodsSettingsPageContract(t *testing.T) {
 	page, ok := Find("forum.settings.login_methods")
-	if !ok || page.PathPattern != "/settings/login-methods" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_login_methods@1" {
+	if !ok || page.PathPattern != "/settings/security/login-methods" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_login_methods@1" {
 		t.Fatalf("login methods settings contract missing or invalid: %#v ok=%v", page, ok)
 	}
 	if RequiredThemeBodyIslandTag(page.ID) != "sf-login-methods-settings" {
@@ -71,7 +71,7 @@ func TestEmailVerificationPageContract(t *testing.T) {
 
 func TestLocalPasswordSettingsPageContract(t *testing.T) {
 	page, ok := Find("forum.settings.password")
-	if !ok || page.PathPattern != "/settings/password" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_password@1" {
+	if !ok || page.PathPattern != "/settings/security/password" || page.Access != AccessLogin || !page.Replaceable || page.ContractVersion != "sforum.page.settings_password@1" {
 		t.Fatalf("local password settings contract missing or invalid: %#v ok=%v", page, ok)
 	}
 	if RequiredThemeBodyIslandTag(page.ID) != "sf-local-password-settings" {

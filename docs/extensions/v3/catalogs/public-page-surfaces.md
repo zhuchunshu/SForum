@@ -73,8 +73,8 @@ Views: `component`, `schema`, `template`. Layouts: `bare`, `site`.
 | `forum.profile.show` | `/u/:username` | public | yes | no | component, schema, template | bare, site | content_before, content_after, sidebar, profile_header_after |
 | `forum.settings.profile` | `/settings/profile` | public | yes | no | component, schema, template | bare, site | - |
 | `forum.settings.appearance` | `/settings/appearance` | public | yes | no | component, schema, template | bare, site | - |
-| `forum.settings.login_methods` | `/settings/login-methods` | public | yes | no | component, schema, template | bare, site | - |
-| `forum.settings.password` | `/settings/password` | public | yes | no | component, schema, template | bare, site | - |
+| `forum.settings.login_methods` | `/settings/security/login-methods` | public | yes | no | component, schema, template | bare, site | - |
+| `forum.settings.password` | `/settings/security/password` | public | yes | no | component, schema, template | bare, site | - |
 | `forum.settings.security` | `/settings/security` | public | yes | no | component, schema, template | bare, site | - |
 | `forum.settings.tokens` | `/settings/tokens` | public | yes | no | component, schema, template | bare, site | - |
 | `forum.settings.notifications` | `/settings/notifications` | public | yes | no | component, schema, template | bare, site | - |

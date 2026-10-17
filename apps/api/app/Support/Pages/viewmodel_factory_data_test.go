@@ -96,7 +96,7 @@ func TestBuildLoginMethodsSettingsViewModelFreezesHostBoundary(t *testing.T) {
 		ComponentID: "plugin.capture.login_methods", ActionRouteIDs: []string{"plugin.capture.credentials"},
 	}}
 	model, err := BuildCorePageViewModel(CorePageViewModelRequest{
-		PageID: "forum.settings.login_methods", Locale: "en-US", Path: "/settings/login-methods",
+		PageID: "forum.settings.login_methods", Locale: "en-US", Path: "/settings/security/login-methods",
 		Data: CorePageViewModelData{LoginMethodsSettings: input},
 	})
 	if err != nil {
@@ -143,7 +143,7 @@ func TestBuildLocalPasswordSettingsViewModelFreezesHostBoundary(t *testing.T) {
 		ComponentID: "plugin.capture.password", ActionRouteIDs: []string{"plugin.capture.password"},
 	}}
 	model, err := BuildCorePageViewModel(CorePageViewModelRequest{
-		PageID: "forum.settings.password", Locale: "en-US", Path: "/settings/password",
+		PageID: "forum.settings.password", Locale: "en-US", Path: "/settings/security/password",
 		Data: CorePageViewModelData{LocalPasswordSettings: input},
 	})
 	if err != nil {

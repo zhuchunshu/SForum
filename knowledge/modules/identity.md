@@ -256,7 +256,9 @@ Initial identity foundation is implemented.
   provider disabled; at that milestone, external-only local password setup used
   `POST /auth/password` from the account-security surface. Current account
   settings have since split local password onto `/settings/password` while
-  retaining the same Host API contract. Catalog label/icon only (no Core GitHub
+  retaining the same Host API contract. Since 2026-10-17 local password lives at
+  `/settings/security/password` inside the consolidated account-security subtree
+  (same Host API contract, same page ID). Catalog label/icon only (no Core GitHub
   brand).
   **M4B exit complete (full M4).** **T7 / M5 (2026-07-27):** lifecycle matrix
   (restart HMAC stability, disable/uninstall/Safe Mode/ForceDrain, staged
@@ -685,7 +687,8 @@ Initial identity foundation is implemented.
   `identity/session_service.go`（列表/revoke/enforce max 领域逻辑）、
   `Support/AuthSession/manager.go`（`SessionStore` 接口 + `sid` payload + revoke
   校验 + `CurrentSID`）、`Support/UserAgent`（UA/IP 解析与脱敏）。前端
-  `useAccountSecurityApi` composable + `settings/security.vue` 用户页 + admin
+  `useAccountSecurityApi` composable + `settings/security/index.vue` 用户页
+  （账号安全合并子树的默认 tab，见 `SFSettingsSecurityTabNav`） + admin
   settings accountSecurity tab 的 `identity.sessions.max_devices`。用户页登录历史默认
   显示，并通过 `/auth/sessions?includeHistory=true&page&perPage=10` 分页读取。
   决策见 `decisions/2026-07-10-account-security-sessions.md`。
@@ -707,12 +710,15 @@ Initial identity foundation is implemented.
 - Registration builds and loads the returned current-user access inside the
   bootstrap transaction so response construction failures roll back account
   creation instead of leaving a created user behind a 500 response.
-- Account login methods now live on `/settings/login-methods` with Page
-  Registry ID `forum.settings.login_methods`; `/settings/security` owns device
-  sessions and login history only. External identity linking uses
-  `SFLinkedAccountsSection` with return path `/settings/login-methods`, while
-  local password and personal access tokens live on `/settings/password` and
-  `/settings/tokens`.
+- Account security is one consolidated sidebar entry: `/settings/security`
+  (device sessions + login history, default tab), `/settings/security/login-methods`
+  (`forum.settings.login_methods`), and `/settings/security/password`
+  (`forum.settings.password`) share `SFSettingsSecurityTabNav` route tabs and a
+  single sidebar highlight (`active="security"`). Legacy flat paths 302-redirect
+  in Nitro routeRules; external-identity callback redirects live at the new
+  login-methods path. External identity linking uses `SFLinkedAccountsSection`
+  with return path `/settings/security/login-methods`; personal access tokens
+  remain on `/settings/tokens`.
 - `contracts/openapi.yaml` documents the current auth and role endpoints.
 
 ## Open Questions

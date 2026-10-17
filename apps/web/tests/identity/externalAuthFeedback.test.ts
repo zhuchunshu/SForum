@@ -33,7 +33,7 @@ describe('external auth callback feedback', () => {
     expect(externalAuthFeedbackUsesInlineSurface('/login')).toBe(true)
     expect(externalAuthFeedbackUsesInlineSurface('/register/')).toBe(true)
     expect(externalAuthFeedbackUsesInlineSurface('/')).toBe(false)
-    expect(externalAuthFeedbackUsesInlineSurface('/settings/login-methods')).toBe(false)
+    expect(externalAuthFeedbackUsesInlineSurface('/settings/security/login-methods')).toBe(false)
   })
 
   test('root surface renders non-success feedback during SSR and clears the hydrated query', () => {

@@ -1677,8 +1677,8 @@
     "id": "core.component.page.forum.settings.login_methods",
     "contractVersion": "sforum.component.page.forum.settings.login_methods@1",
     "kind": "page",
-    "route": "/settings/login-methods",
-    "source": "apps/web/app/pages/settings/login-methods.vue",
+    "route": "/settings/security/login-methods",
+    "source": "apps/web/app/pages/settings/security/login-methods.vue",
     "owners": [
       "public"
     ],
@@ -1699,8 +1699,8 @@
     "id": "core.component.page.forum.settings.password",
     "contractVersion": "sforum.component.page.forum.settings.password@1",
     "kind": "page",
-    "route": "/settings/password",
-    "source": "apps/web/app/pages/settings/password.vue",
+    "route": "/settings/security/password",
+    "source": "apps/web/app/pages/settings/security/password.vue",
     "owners": [
       "public"
     ],
@@ -1722,7 +1722,7 @@
     "contractVersion": "sforum.component.page.forum.settings.security@1",
     "kind": "page",
     "route": "/settings/security",
-    "source": "apps/web/app/pages/settings/security.vue",
+    "source": "apps/web/app/pages/settings/security/index.vue",
     "owners": [
       "public"
     ],
@@ -2898,6 +2898,16 @@
     "contractVersion": "sforum.component.shared.sfsettings_account_sidebar@1",
     "kind": "component",
     "source": "apps/web/app/components/settings/SFSettingsAccountSidebar.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfsettings_security_tab_nav",
+    "contractVersion": "sforum.component.shared.sfsettings_security_tab_nav@1",
+    "kind": "component",
+    "source": "apps/web/app/components/settings/SFSettingsSecurityTabNav.vue",
     "owners": [
       "public"
     ],

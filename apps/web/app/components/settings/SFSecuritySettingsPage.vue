@@ -3,9 +3,11 @@ import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import { useAccountSecurityApi } from '~/composables/identity/useAccountSecurityApi'
 import type { LoginSession, LoginSessionList } from '~/composables/identity/useAccountSecurityApi'
 import SFSettingsShell from '~/components/settings/SFSettingsShell.vue'
+import SFSettingsSecurityTabNav from '~/components/settings/SFSettingsSecurityTabNav.vue'
 /**
  * 宿主 body 岛：forum.settings.security。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
- * 三栏 chrome 由 SFSettingsShell 提供；设备会话。登录方式、密码和令牌已拆到独立页面。
+ * 三栏 chrome 由 SFSettingsShell 提供；本页是「账号安全」的默认 tab（设备与会话），
+ * 登录方式、密码是 /settings/security 下的兄弟 tab 路由。
  */
 
 const { t } = useI18n()
@@ -123,7 +125,9 @@ function formatTime(iso: string): string {
       </SFButton>
     </template>
 
-    <h2 class="mt-2 text-lg font-semibold text-slate-900 dark:text-zinc-50">
+    <SFSettingsSecurityTabNav />
+
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-zinc-50">
       {{ t('accountSecurity.devicesTitle') }}
     </h2>
     <p class="mt-1 text-sm text-slate-500 dark:text-zinc-400">

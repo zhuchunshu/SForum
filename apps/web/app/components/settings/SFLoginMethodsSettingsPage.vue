@@ -2,10 +2,11 @@
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import SFLinkedAccountsSection from '~/components/identity/SFLinkedAccountsSection.vue'
 import SFSettingsShell from '~/components/settings/SFSettingsShell.vue'
+import SFSettingsSecurityTabNav from '~/components/settings/SFSettingsSecurityTabNav.vue'
 
 /**
  * 宿主 body 岛：forum.settings.login_methods。
- * 登录方式独立于设备/令牌安全页，专注外部身份绑定；本地密码跳转到独立页面。
+ * 「账号安全」的登录方式 tab：专注外部身份绑定；密码跳转到兄弟 tab 路由。
  */
 const { t } = useI18n()
 const localePath = useLocalePath()
@@ -22,13 +23,15 @@ useSForumSeo({
   <SFSettingsShell
     class="sforum-settings-login-methods"
     data-sforum-island-body="identity.component.login_methods_settings"
-    active="loginMethods"
+    active="security"
     title-id="login-methods-settings-title"
     :title="t('loginMethodsSettings.title')"
     :description="t('loginMethodsSettings.intro')"
     :rail-label="t('loginMethodsSettings.rail.ariaLabel')"
   >
-    <section class="mt-2 rounded-md border border-teal-200 bg-teal-50/70 p-4 dark:border-teal-900/60 dark:bg-teal-950/25">
+    <SFSettingsSecurityTabNav />
+
+    <section class="rounded-md border border-teal-200 bg-teal-50/70 p-4 dark:border-teal-900/60 dark:bg-teal-950/25">
       <div class="flex gap-3">
         <UIcon name="i-lucide-shield-check" class="size-5 shrink-0 text-teal-700 dark:text-teal-300" aria-hidden="true" />
         <div class="min-w-0">
@@ -44,7 +47,7 @@ useSForumSeo({
 
     <SFLinkedAccountsSection
       class="mt-5"
-      return-path="/settings/login-methods"
+      return-path="/settings/security/login-methods"
       :show-heading="false"
     />
 
@@ -59,7 +62,7 @@ useSForumSeo({
           </p>
         </div>
         <NuxtLink
-          :to="localePath('/settings/password')"
+          :to="localePath('/settings/security/password')"
           class="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
           <UIcon name="i-lucide-lock-keyhole" class="size-4" aria-hidden="true" />
