@@ -742,7 +742,7 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := b.validateLifecycleRoutePolicyState(request.TargetExtension.ID, desired, source, target); err != nil {
+	if err := b.validateLifecycleRoutePolicyState(request.TargetExtension.ID, desired, source, target, extensionopenapi.NewArtifactLoader()); err != nil {
 		return fmt.Errorf("route policy registry: %w", err)
 	}
 	if phase == LifecycleRegistryPublicationTarget && desired != nil {

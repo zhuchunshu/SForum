@@ -124,3 +124,39 @@ func TestManifestV3AIToolTimeoutIsNeverDefaulted(t *testing.T) {
 		t.Fatalf("timeout must not be defaulted, got %d", normalized.AITools[0].TimeoutMS)
 	}
 }
+
+// 会话事实是「声明即授权」：缺省只给 locale，viewer 是一次身份披露，必须由
+// 作者显式写下；大小写写错应当被拒绝，而不是被宿主悄悄改写。
+func TestManifestV3AIToolsContextDeclaration(t *testing.T) {
+	declaration := aiToolDeclaration()
+	if got := declaration.AIToolContext(); len(got) != 1 || got[0] != AIToolContextLocale {
+		t.Fatalf("default context = %#v，缺省必须只含 locale", got)
+	}
+	if declaration.DeclaresAIToolContext(AIToolContextViewer) {
+		t.Fatal("viewer must not be disclosed without an explicit declaration")
+	}
+
+	declaration.Context = []string{AIToolContextLocale, AIToolContextTopic}
+	if err := Validate(aiToolManifest(declaration)); err != nil {
+		t.Fatalf("declared context must validate: %v", err)
+	}
+	if !declaration.DeclaresAIToolContext(AIToolContextTopic) {
+		t.Fatal("declared topic must be reported")
+	}
+
+	cases := map[string][]string{
+		"unknown fact": {"ip"},
+		"wrong case":   {"Locale"},
+		"duplicate":    {AIToolContextLocale, AIToolContextLocale},
+		"empty string": {""},
+	}
+	for name, context := range cases {
+		t.Run(name, func(t *testing.T) {
+			manifest := aiToolManifest(aiToolDeclaration())
+			manifest.AITools[0].Context = context
+			if err := Validate(manifest); err == nil {
+				t.Fatalf("%s must be rejected", name)
+			}
+		})
+	}
+}

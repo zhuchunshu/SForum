@@ -6,7 +6,7 @@ import SFAdminAIMultimodalBlock from '~/components/admin/ai/blocks/SFAdminAIMult
 import SFAdminAIProviderPicker from '~/components/admin/ai/blocks/SFAdminAIProviderPicker.vue'
 import { ADMIN_AI_KEY, MICRO_PER_UNIT } from '~/composables/admin/useAdminAI'
 import { ADMIN_AI_DRAFT_KEY } from '~/composables/admin/useAdminAISettingsForm'
-import { DEFAULT_TOOL_CALLS_PER_REPLY, toolCallsPerReplyUsesDefault } from '~/utils/admin/adminAI'
+import { coerceInteger, coerceNumber, toolCallsPerReplyUsesDefault } from '~/utils/admin/adminAI'
 
 const { t, te } = useI18n()
 // 数据由页面壳统一持有并注入；页签只渲染，不重新拉取。
@@ -15,6 +15,19 @@ const ai = inject(ADMIN_AI_KEY)!
 // 保存也只有一个（页面壳底部的操作条）。
 const draft = inject(ADMIN_AI_DRAFT_KEY)!
 const { form, selectedProviderId, selectedProfile, isCustom, profileIncomplete, providerOptions, canManage, readOnly } = draft
+// 上下限来自服务端（GET /admin/ai/settings 的 limits），前端不再硬编码一份数字。
+const limits = ai.limits
+
+// 数字输入框被清空时，模型仍持有上一个合法值（数据是对的），但输入框的 DOM 可能
+// 停在空串上——那会让人以为「这一项是空的」却保存了旧值。每次拒绝输入就换一个
+// key 让该输入框重新挂载，界面与模型因此不会长期不一致。
+const fieldEpoch = reactive<Record<string, number>>({})
+function fieldKey(name: string) {
+  return `${name}-${fieldEpoch[name] ?? 0}`
+}
+function resyncField(name: string) {
+  fieldEpoch[name] = (fieldEpoch[name] ?? 0) + 1
+}
 
 // 密钥输入按 profile 暂存；它只在下一次保存密钥之前存在。
 const credentials = reactive<Record<string, string>>({})
@@ -40,9 +53,44 @@ async function submitCredential(profileId: string) {
   if (await ai.saveCredential(profileId, apiKey)) credentials[profileId] = ''
 }
 
+// 每个闸门都有服务端天花板。这里用 coerceInteger 一条路径收敛：空值回退到
+// 上一次合法值，负数与分析器产出的小数/科学计数法都被夹到 [0, 上限]。
 function setNumber(path: 'rateLimitPerMinute' | 'extensionDailyQuota' | 'userDailyQuota', value: string | number) {
   if (!form.value) return
-  form.value.gates[path] = Math.max(0, Math.round(Number(value || 0)))
+  const max = path === 'rateLimitPerMinute'
+    ? limits.value.maxRateLimitPerMinute
+    : path === 'extensionDailyQuota'
+      ? limits.value.maxExtensionDailyQuota
+      : limits.value.maxUserDailyQuota
+  const next = coerceInteger(value, form.value.gates[path], 0, max)
+  if (next === form.value.gates[path]) {
+    resyncField(path)
+    return
+  }
+  form.value.gates[path] = next
+}
+
+// maxTokens / timeoutMs 以前直接用 v-model.number：输入框被清空时模型里留下空串，
+// PUT 出去就是 `"maxTokens":""`，Go 侧 int 解码失败 → 422。改走显式转换后，
+// 空值只是"恢复成上一次的合法值"，不会污染载荷。
+function setProfileInteger(field: 'maxTokens' | 'timeoutMs', value: string | number) {
+  const profile = selectedProfile.value
+  if (!profile) return
+  const next = field === 'maxTokens'
+    ? coerceInteger(value, profile.defaults.maxTokens, 1, limits.value.maxCompletionTokens)
+    : coerceInteger(value, profile.defaults.timeoutMs, limits.value.minTimeoutMs, limits.value.maxTimeoutMs)
+  if (next === profile.defaults[field]) {
+    // 输入被拒绝（空串/非法字符）：模型不变，但 DOM 需要回到真实值。
+    resyncField(field)
+    return
+  }
+  profile.defaults[field] = next
+}
+
+// 只允许数字键：默认允许小数会让 timeoutMs 这类 int 字段产生无法解码的载荷。
+function blockNonIntegerKey(event: KeyboardEvent) {
+  const allowed = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End']
+  if (!allowed.includes(event.key) && !event.metaKey && !event.ctrlKey && !/^\d$/.test(event.key)) event.preventDefault()
 }
 
 // toolCallsPerReply 用指针语义：清空表示「未设置，按默认 3 生效」，0 表示停用
@@ -54,9 +102,12 @@ function setToolCallsPerReply(value: string | number) {
     delete form.value.gates.toolCallsPerReply
     return
   }
-  const parsed = Math.round(Number(raw))
-  if (parsed < 0 || parsed > 5) return
-  form.value.gates.toolCallsPerReply = parsed
+  const next = coerceInteger(raw, 0, 0, limits.value.maxToolCallsPerReply)
+  if (next === form.value.gates.toolCallsPerReply) {
+    resyncField('toolCallsPerReply')
+    return
+  }
+  form.value.gates.toolCallsPerReply = next
 }
 
 // 恢复「未设置」：让站点以后能跟随后端默认值的调整，而不是被一次点击固化。
@@ -71,12 +122,19 @@ function toolCallsUsesDefault() {
 }
 
 function toolCallsValue() {
-  return toolCallsUsesDefault() ? DEFAULT_TOOL_CALLS_PER_REPLY : form.value?.gates.toolCallsPerReply
+  return toolCallsUsesDefault() ? limits.value.defaultToolCallsPerReply : form.value?.gates.toolCallsPerReply
 }
 
 function setBudgetYuan(value: string | number) {
   if (!form.value) return
-  form.value.gates.monthlyBudgetMicros = Math.round(Number(value || 0) * MICRO_PER_UNIT)
+  const maxUnits = limits.value.maxMonthlyBudgetMicros / MICRO_PER_UNIT
+  const current = form.value.gates.monthlyBudgetMicros / MICRO_PER_UNIT
+  const units = coerceNumber(value, current, 0, maxUnits)
+  if (units === current) {
+    resyncField('monthlyBudgetMicros')
+    return
+  }
+  form.value.gates.monthlyBudgetMicros = Math.round(units * MICRO_PER_UNIT)
 }
 
 function budgetYuan() {
@@ -90,7 +148,10 @@ function toggleAdvanced() {
 function setMicro(field: 'inputPerMillionMicros' | 'outputPerMillionMicros', value: string | number) {
   const profile = selectedProfile.value
   if (!profile) return
-  profile.price[field] = Math.round(Number(value || 0) * MICRO_PER_UNIT)
+  // 单价只要求非负，没有上限；负值会被后端拒绝，因此在这里就夹住。
+  const current = profile.price[field] / MICRO_PER_UNIT
+  const units = coerceNumber(value, current, 0, Number.MAX_SAFE_INTEGER / MICRO_PER_UNIT)
+  profile.price[field] = Math.round(units * MICRO_PER_UNIT)
 }
 
 // 缺省（undefined）视为支持工具调用；只有明确关闭时才写 false。
@@ -166,7 +227,7 @@ function setSupportsTools(value: boolean | 'indeterminate') {
           <UFormField v-if="isCustom" :label="t('admin.ai.protocol')">
             <USelect v-model="selectedProfile.protocol" :items="protocolOptions" :disabled="!canManage" class="w-full" />
           </UFormField>
-          <UFormField :label="t('admin.ai.baseUrl')">
+          <UFormField :label="t('admin.ai.baseUrl')" :error="draft.fieldError('baseUrl')">
             <UInput v-model="selectedProfile.baseUrl" :disabled="!canManage" class="w-full" />
           </UFormField>
           <UFormField :label="t('admin.ai.model')">
@@ -205,11 +266,33 @@ function setSupportsTools(value: boolean | 'indeterminate') {
               { label: t('admin.ai.costPremium'), value: 'premium' }
             ]" :disabled="!canManage" class="w-full" />
           </UFormField>
-          <UFormField :label="t('admin.ai.maxTokens')">
-            <UInput v-model.number="selectedProfile.defaults.maxTokens" type="number" :disabled="!canManage" class="w-full" />
+          <UFormField :label="t('admin.ai.maxTokens')" :error="draft.fieldError('defaults.maxTokens')">
+            <UInput
+              :key="fieldKey('maxTokens')"
+              :model-value="selectedProfile.defaults.maxTokens"
+              type="number"
+              min="1"
+              :max="limits.maxCompletionTokens"
+              step="1"
+              :disabled="!canManage"
+              class="w-full"
+              @keydown="blockNonIntegerKey"
+              @update:model-value="value => setProfileInteger('maxTokens', value)"
+            />
           </UFormField>
-          <UFormField :label="t('admin.ai.timeoutMs')">
-            <UInput v-model.number="selectedProfile.defaults.timeoutMs" type="number" :disabled="!canManage" class="w-full" />
+          <UFormField :label="t('admin.ai.timeoutMs')" :error="draft.fieldError('defaults.timeoutMs')">
+            <UInput
+              :key="fieldKey('timeoutMs')"
+              :model-value="selectedProfile.defaults.timeoutMs"
+              type="number"
+              :min="limits.minTimeoutMs"
+              :max="limits.maxTimeoutMs"
+              step="1"
+              :disabled="!canManage"
+              class="w-full"
+              @keydown="blockNonIntegerKey"
+              @update:model-value="value => setProfileInteger('timeoutMs', value)"
+            />
           </UFormField>
           <UFormField :label="t('admin.ai.supportsTools')" :help="t('admin.ai.supportsToolsHint')">
             <UCheckbox
@@ -246,30 +329,38 @@ function setSupportsTools(value: boolean | 'indeterminate') {
       <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.ai.gates') }}</p>
       <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.ai.gatesIntro') }}</p>
       <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <UFormField :label="t('admin.ai.rateLimit')">
-          <UInput :model-value="form.gates.rateLimitPerMinute" type="number" :disabled="!canManage" class="w-full"
+        <UFormField :label="t('admin.ai.rateLimit')" :error="draft.fieldError('gates.rateLimitPerMinute')">
+          <UInput :key="fieldKey('rateLimitPerMinute')" :model-value="form.gates.rateLimitPerMinute" type="number" min="0" :max="limits.maxRateLimitPerMinute"
+            step="1" :disabled="!canManage" class="w-full" @keydown="blockNonIntegerKey"
             @update:model-value="value => setNumber('rateLimitPerMinute', value)" />
         </UFormField>
-        <UFormField :label="t('admin.ai.extensionQuota')">
-          <UInput :model-value="form.gates.extensionDailyQuota" type="number" :disabled="!canManage" class="w-full"
+        <UFormField :label="t('admin.ai.extensionQuota')" :error="draft.fieldError('gates.extensionDailyQuota')">
+          <UInput :key="fieldKey('extensionDailyQuota')" :model-value="form.gates.extensionDailyQuota" type="number" min="0" :max="limits.maxExtensionDailyQuota"
+            step="1" :disabled="!canManage" class="w-full" @keydown="blockNonIntegerKey"
             @update:model-value="value => setNumber('extensionDailyQuota', value)" />
         </UFormField>
-        <UFormField :label="t('admin.ai.userQuota')">
-          <UInput :model-value="form.gates.userDailyQuota" type="number" :disabled="!canManage" class="w-full"
+        <UFormField :label="t('admin.ai.userQuota')" :error="draft.fieldError('gates.userDailyQuota')">
+          <UInput :key="fieldKey('userDailyQuota')" :model-value="form.gates.userDailyQuota" type="number" min="0" :max="limits.maxUserDailyQuota"
+            step="1" :disabled="!canManage" class="w-full" @keydown="blockNonIntegerKey"
             @update:model-value="value => setNumber('userDailyQuota', value)" />
         </UFormField>
-        <UFormField :label="t('admin.ai.monthlyBudget')">
-          <UInput :model-value="budgetYuan()" type="number" step="0.01" :disabled="!canManage" class="w-full"
+        <UFormField
+          :label="t('admin.ai.monthlyBudget')"
+          :help="t('admin.ai.monthlyBudgetHint', { max: limits.maxMonthlyBudgetMicros / MICRO_PER_UNIT })"
+          :error="draft.fieldError('gates.monthlyBudgetMicros')"
+        >
+          <UInput :key="fieldKey('monthlyBudgetMicros')" :model-value="budgetYuan()" type="number" min="0" step="0.01" :disabled="!canManage" class="w-full"
             @update:model-value="setBudgetYuan" />
         </UFormField>
         <UFormField :label="t('admin.ai.toolCalls')" :help="t('admin.ai.toolCallsHint')">
           <div class="flex min-w-0 items-center gap-2">
             <UInput
+              :key="fieldKey('toolCallsPerReply')"
               :model-value="toolCallsValue()"
               type="number"
               min="0"
-              max="5"
-              :placeholder="String(DEFAULT_TOOL_CALLS_PER_REPLY)"
+              :max="limits.maxToolCallsPerReply"
+              :placeholder="String(limits.defaultToolCallsPerReply)"
               :disabled="!canManage"
               class="min-w-0 flex-1"
               @update:model-value="setToolCallsPerReply"

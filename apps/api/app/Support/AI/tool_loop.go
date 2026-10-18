@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 )
 
@@ -46,6 +47,36 @@ type Tool interface {
 
 // ToolRegistry 是 Host 持有的工具登记表。插件贡献的工具同样登记在这里，
 // 因此「站内有哪些工具」永远有一个可枚举、可审计的答案。
+// ToolOrigin 标识一个工具来自哪里。控制台用它把 Core 工具与插件工具分开呈现，
+// 运营者因此能看出「这个名字是谁提供的」。
+type ToolOrigin struct {
+	// Kind 是 core 或 plugin。
+	Kind string `json:"kind"`
+	// ExtensionID / Version 只在 Kind=plugin 时有值。
+	ExtensionID string `json:"extensionId,omitempty"`
+	Version     string `json:"version,omitempty"`
+}
+
+// ToolAvailability 是「站内有哪些 AI 工具」的可枚举条目。它比 ToolDefinition
+// 多一个来源：模型只需要名字与描述，运营者还需要知道谁提供的。
+type ToolAvailability struct {
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Origin      ToolOrigin `json:"origin"`
+}
+
+// ToolCatalog 是登记表的只读枚举面。服务层与控制器只依赖它，因此不需要知道
+// 工具是进程内函数还是插件 RPC。
+type ToolCatalog interface {
+	Available() []ToolAvailability
+}
+
+// ToolOriginProvider 是工具可选实现的来源声明。没有实现它的工具一律视为 Core
+// 内置：插件工具必须主动说出自己的扩展身份。
+type ToolOriginProvider interface {
+	Origin() ToolOrigin
+}
+
 type ToolRegistry struct {
 	tools map[string]Tool
 }
@@ -102,6 +133,39 @@ func (r *ToolRegistry) Descriptors(names []string) []ToolDefinition {
 	return descriptors
 }
 
+// Available 返回全部已登记工具的枚举视图，按名字排序以保证控制台顺序稳定。
+//
+// 它只回答「站内有哪些工具」，不回答「模型能不能用」：可见性由用途白名单决定
+// （RunInput.ToolNames）。两者刻意分开——否则运营者在控制台看到的清单会随着
+// 每个用途的覆盖配置变化，而「站内有哪些工具」本该是一个全局事实。
+func (r *ToolRegistry) Available() []ToolAvailability {
+	if r == nil || len(r.tools) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(r.tools))
+	for name := range r.tools {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	out := make([]ToolAvailability, 0, len(names))
+	for _, name := range names {
+		tool := r.tools[name]
+		definition := tool.Definition()
+		origin := ToolOrigin{Kind: "core"}
+		if provider, ok := tool.(ToolOriginProvider); ok {
+			if declared := provider.Origin(); declared.Kind != "" {
+				origin = declared
+			}
+		}
+		out = append(out, ToolAvailability{
+			Name:        definition.Name,
+			Description: definition.Description,
+			Origin:      origin,
+		})
+	}
+	return out
+}
+
 // Orchestrator 在网关之上执行「模型 ↔ 工具」的循环。它归 Host 所有：步数预算、
 // 闸门、执行记录与用户配额口径必须在同一处，否则每个用途都会长出自己的版本，
 // 运营者也没法解释一次回复到底花了多少。
@@ -128,14 +192,14 @@ func NewOrchestrator(config OrchestratorConfig) *Orchestrator {
 
 // RunInput 是一次「带工具的补全」的全部输入。
 type RunInput struct {
-	Purpose       string
-	CostClass     string
-	System        string
-	User          string
+	Purpose   string
+	CostClass string
+	System    string
+	User      string
 	// Images 是首条用户消息要携带的图片部件（已编码）。只进首条消息：
 	// 后续工具步的历史消息带图只会重复计费。
-	Images    []Part
-	MaxTokens int
+	Images        []Part
+	MaxTokens     int
 	PromptVersion string
 	Metadata      Metadata
 	// SubjectUserID 只计入首次调用：用户配额按「一次回复」结算，而不是按步数。

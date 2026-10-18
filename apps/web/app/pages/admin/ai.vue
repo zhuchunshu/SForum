@@ -58,6 +58,14 @@ const tabComponents: Record<AITab, Component> = {
 
 const activeComponent = computed(() => tabComponents[activeTab.value])
 
+// 字段级错误按载荷路径索引（profiles[0].defaults.maxTokens 等）。汇总成一段可读
+// 文本，避免运营者在五个页签之间找「到底哪一项错了」。
+const fieldErrorSummary = computed(() =>
+  Object.entries(ai.fieldErrors.value)
+    .map(([path, messages]) => `${path}: ${messages.join(' ')}`)
+    .join('\n')
+)
+
 function normalizeTab(value: unknown): AITab {
   const candidate = Array.isArray(value) ? value[0] : value
   return validTabs.includes(candidate as AITab) ? (candidate as AITab) : 'providers'
@@ -131,6 +139,19 @@ function setActiveTab(value: string) {
         {{ t('admin.ai.reset') }}
       </UButton>
       <span v-if="draft.dirty.value" class="text-xs text-amber-600 dark:text-amber-400">{{ t('admin.ai.dirtyHint') }}</span>
+      <!-- 本地拦截原因：这一条会在发请求之前出现，说明该改哪个字段。 -->
+      <span v-if="draft.saveIssue.value" class="text-xs text-red-600 dark:text-red-400">{{ draft.saveIssue.value }}</span>
     </div>
+
+    <!-- 服务端的字段级 422 消息：任一页签都可能触发，因此在页面壳汇总展示；
+         具体字段旁另有就地提示（见 providers 页签）。 -->
+    <UAlert
+      v-if="Object.keys(ai.fieldErrors.value).length > 0"
+      color="error"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      :title="t('admin.ai.saveFailed')"
+      :description="fieldErrorSummary"
+    />
   </div>
 </template>

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
+	"sync"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
@@ -27,6 +29,19 @@ const (
 	DevAutoEmail       = "dev-auto@sforum.invalid"
 	DevAutoDisplayName = "SForum dev auto"
 )
+
+// devAutoMaxFailedUpgradeAttempts 限制 dev 自动机对同一冻结制品的自动恢复次数。
+// lifecycle 的 attempt 是「这份制品被真正执行过几次」，一次自动恢复 + 一次重试
+// 就 +1；不设上限时任何确定性失败都会被文件事件喂成无限重试（现场曾把同一
+// upgrade operation 推到 attempt=98、97 条恢复决定）。作者产出新摘要即重新计数。
+const devAutoMaxFailedUpgradeAttempts = 3
+
+// devAutoRecoveryScanLimit 是查找「当前摘要的失败升级」时回看的操作条数。
+const devAutoRecoveryScanLimit = 5
+
+// errDevAutoGiveUp 表示 dev 自动机主动放弃一次激活：同一冻结制品再重试没有意义。
+// 调用方只记一条台账，不再恢复、不再重试。
+var errDevAutoGiveUp = errors.New("dev auto: giving up on staged artifact")
 
 // DevIdentityStore 是本服务需要的最小身份写入边界（identity.Store 的窄投影）。
 type DevIdentityStore interface {
@@ -60,6 +75,10 @@ type DevAutoRuntime struct {
 	logger      *slog.Logger
 	// operatorUser 缓存 dev-auto 账号 id（进程内；不存在则惰性创建）。
 	operatorUserID int64
+	// giveUpNotes 记录已写过「放弃」台账的 (extensionID, digest)，避免每轮文件
+	// 事件重复刷同一条记录。watcher 单协程驱动，仍加锁以免 PromoteAll 被并发调用。
+	giveUpMu    sync.Mutex
+	giveUpNotes map[string]struct{}
 }
 
 func NewDevAutoRuntime(
@@ -160,7 +179,14 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 	}
 	switch extension.Status {
 	case StatusInstalled:
-		_, err = r.promoter.Enable(ctx, actor, extension.ID, EnableInput{ConfirmCapabilities: true})
+		// Enable 也要过 lifecycle coordinator，而它要求稳定幂等键——与 Upgrade
+		// 同一条规则。键由 extensionID + 目标摘要派生：同一制品重放安全，换摘要
+		// 即新键。缺了它，任何声明 lifecycle V2 的新装插件都无法被 dev auto 启用
+		// （表现为状态一直停在 installed，只有台账里一条 promote failed）。
+		_, err = r.promoter.Enable(ctx, actor, extension.ID, EnableInput{
+			ConfirmCapabilities: true,
+			IdempotencyKey:      DevIdempotencyKey(extension.ID, extension.StagedVersionOrActiveDigestForDev()),
+		})
 	case StatusEnabled:
 		if extension.StagedVersion == nil {
 			return nil
@@ -174,12 +200,30 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 		// V2 upgrade 要求 stable Idempotency-Key（HTTP 从请求头取）。
 
 		// extensionID+stagedDigest 派生确定性键：同摘要重放安全，新摘要即新键。
-		idempotencyKey := DevIdempotencyKey(extension.ID, extension.StagedVersion.PackageDigest)
+		stagedDigest := extension.StagedVersion.PackageDigest
+		idempotencyKey := DevIdempotencyKey(extension.ID, stagedDigest)
 		_, err = r.promoter.Upgrade(ctx, actor, extension.ID, UpgradeInput{
 			IdempotencyKey: idempotencyKey,
 		})
 		if errors.Is(err, ErrLifecycleCoordinatorRetryRequired) {
-			if recoverErr := r.recoverLatestFailedUpgrade(ctx, actor, extension.ID); recoverErr != nil {
+			// 先把闸设在这里：不是所有终态失败都值得自动恢复。冻结制品不可装载
+			// 时每一轮重试都只会复现同一失败，必须直接放弃（见
+			// errDevAutoGiveUp 与 devAutoMaxFailedUpgradeAttempts 的注释）。
+			staged, ok := extension.StagedArtifact()
+			if !ok {
+				r.noteDevAutoGiveUp(ctx, extension, stagedDigest,
+					fmt.Errorf("%w: staged artifact %s is not selectable", ErrArtifactUnusable, stagedDigest))
+				return nil
+			}
+			if usableErr := stagedArtifactUsable(staged); usableErr != nil {
+				r.noteDevAutoGiveUp(ctx, extension, stagedDigest, usableErr)
+				return nil
+			}
+			if recoverErr := r.recoverLatestFailedUpgrade(ctx, actor, extension.ID, stagedDigest); recoverErr != nil {
+				if errors.Is(recoverErr, errDevAutoGiveUp) {
+					r.noteDevAutoGiveUp(ctx, extension, stagedDigest, recoverErr)
+					return nil
+				}
 				return fmt.Errorf("auto recovery of last failed upgrade: %w", recoverErr)
 			}
 			_, err = r.promoter.Upgrade(ctx, actor, extension.ID, UpgradeInput{
@@ -202,13 +246,23 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 	return nil
 }
 
-// recoverLatestFailedUpgrade 对最近一次 terminal-failed 或 terminal-cancelled
-// 的 upgrade 执行一轮 decision=retry recovery，清除 fence 使下一次升级可以继续。
-// coordinator 对这两种终态都要求显式 retry（见 LifecycleCoordinator.Run），
+// recoverLatestFailedUpgrade 对最近一次属于当前冻结摘要的 terminal-failed 或
+// terminal-cancelled upgrade 执行一轮 decision=retry recovery，清除 fence 使下一次
+// 升级可以继续。coordinator 对这两种终态都要求显式 retry（见 LifecycleCoordinator.Run），
 // Recovery 服务也接受两者——这里若只认 failed，cancelled 的升级会让 dev auto
 // 永远撞 ErrLifecycleCoordinatorRetryRequired 且找不到可恢复对象。
-func (r *DevAutoRuntime) recoverLatestFailedUpgrade(ctx context.Context, actor identity.Actor, extensionID string) error {
-	operations, err := r.promoter.LifecycleOperations(ctx, actor, extensionID, 5)
+//
+// 两个新闸门（现场依据：operation 697 曾在同一摘要上被自动恢复 97 次）：
+//   - 只恢复 PackageDigest 等于当前 staged 摘要的操作，避免回头恢复别的制品的
+//     历史失败；
+//   - AttemptCount 达到 devAutoMaxFailedUpgradeAttempts 即放弃，不再自动恢复。
+func (r *DevAutoRuntime) recoverLatestFailedUpgrade(
+	ctx context.Context,
+	actor identity.Actor,
+	extensionID string,
+	stagedDigest string,
+) error {
+	operations, err := r.promoter.LifecycleOperations(ctx, actor, extensionID, devAutoRecoveryScanLimit)
 	if err != nil {
 		return err
 	}
@@ -219,12 +273,50 @@ func (r *DevAutoRuntime) recoverLatestFailedUpgrade(ctx context.Context, actor i
 		if operation.TerminalResult != LifecycleTerminalFailed && operation.TerminalResult != LifecycleTerminalCancelled {
 			continue
 		}
+		if !strings.EqualFold(strings.TrimSpace(operation.PackageDigest), strings.TrimSpace(stagedDigest)) {
+			continue
+		}
+		if operation.AttemptCount >= devAutoMaxFailedUpgradeAttempts {
+			return fmt.Errorf("%w: upgrade of %s already ran %d time(s) without success",
+				errDevAutoGiveUp, stagedDigest, operation.AttemptCount)
+		}
 		_, err := r.promoter.RecoverLifecycleOperation(ctx, actor, extensionID, operation.ID, LifecycleRecoveryInput{
 			Decision: "retry", Reason: "dev auto activation retry after failed or cancelled upgrade",
 		})
 		return err
 	}
-	return fmt.Errorf("no failed upgrade operation found to recover")
+	return fmt.Errorf("%w: no failed upgrade operation for staged artifact %s", errDevAutoGiveUp, stagedDigest)
+}
+
+// noteDevAutoGiveUp 记录一次主动放弃：日志 + 每个冻结摘要只写一条台账。
+// 台账是作者在 air 交互终端之外唯一稳定可见的地方，所以宁可留痕也不静默。
+func (r *DevAutoRuntime) noteDevAutoGiveUp(ctx context.Context, extension Extension, stagedDigest string, reason error) {
+	if r == nil || r.service == nil || r.service.store == nil {
+		return
+	}
+	key := extension.ID + "|" + stagedDigest
+	r.giveUpMu.Lock()
+	if r.giveUpNotes == nil {
+		r.giveUpNotes = make(map[string]struct{})
+	}
+	_, alreadyNoted := r.giveUpNotes[key]
+	if !alreadyNoted {
+		r.giveUpNotes[key] = struct{}{}
+	}
+	r.giveUpMu.Unlock()
+	if alreadyNoted {
+		return
+	}
+	if r.logger != nil {
+		r.logger.WarnContext(ctx, "dev auto: giving up on staged artifact",
+			"extensionId", extension.ID, "digest", stagedDigest, "reason", reason)
+	}
+	_, _ = r.service.store.CreateEvent(ctx, EventInput{
+		ExtensionID: extension.ID,
+		Action:      EventDevAutoSkipped,
+		Message: fmt.Sprintf("dev auto gave up activating %s @ %s: %s",
+			extension.ID, stagedDigest, reason),
+	})
 }
 
 // ensureDevAutoActor 返回（必要时创建）dev-auto 系统账号的 actor。

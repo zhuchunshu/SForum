@@ -76,6 +76,131 @@ func TestSyncExternalSourcesStagesChangedEnabledPackage(t *testing.T) {
 	}
 }
 
+// 制品目录被人工删除后必须能自愈：快照发布本身会在内容寻址路径重建并校验目录，
+// 幂等判定只要认这条路径，就不再需要换 digest 或手工改库。
+func TestSyncExternalSourcesRepublishesDeletedSnapshot(t *testing.T) {
+	sourceRoot := t.TempDir()
+	writeExternalTestPackage(t, sourceRoot, "demo.external", TypePlugin, "first")
+	store := &fakeExtensionStore{}
+	service := NewServiceWithOptions(store, t.TempDir(), "", nil, WithExternalExtensionRoots([]string{sourceRoot}))
+
+	if _, err := service.SyncExternalSources(context.Background()); err != nil {
+		t.Fatalf("initial sync: %v", err)
+	}
+	installed := store.items["demo.external"]
+	if err := os.RemoveAll(installed.PackagePath); err != nil {
+		t.Fatal(err)
+	}
+	if artifactState(installed.PackagePath) != ArtifactMissing {
+		t.Fatal("fixture must start from a deleted artifact directory")
+	}
+	eventsBefore := len(store.events)
+
+	result, err := service.SyncExternalSources(context.Background())
+	if err != nil || len(result.Diagnostics) != 0 || len(result.Items) != 1 {
+		t.Fatalf("self-heal sync result=%+v err=%v", result, err)
+	}
+	restored := store.items["demo.external"]
+	if restored.PackagePath != installed.PackagePath {
+		t.Fatalf("content-addressed path changed: before=%q after=%q", installed.PackagePath, restored.PackagePath)
+	}
+	if artifactState(restored.PackagePath) != ArtifactAvailable {
+		t.Fatalf("artifact was not re-published at %q", restored.PackagePath)
+	}
+	if body, err := os.ReadFile(filepath.Join(restored.PackagePath, "README.md")); err != nil || string(body) != "first" {
+		t.Fatalf("re-published body=%q err=%v", body, err)
+	}
+	// 同一路径重建是静默自愈：内容没变，不写新台账。
+	if len(store.events) != eventsBefore {
+		t.Fatalf("quiet self-heal must not append events: %+v", store.events[eventsBefore:])
+	}
+
+	if _, err := service.SyncExternalSources(context.Background()); err != nil {
+		t.Fatalf("stable resync: %v", err)
+	}
+	if len(store.events) != eventsBefore {
+		t.Fatalf("steady state must stay quiet: %+v", store.events[eventsBefore:])
+	}
+}
+
+// 记录路径漂移（旧 EXTENSION_ROOT / 手工改库 / 目录搬迁）等价于「行在、盘缺」：
+// 版本与摘要都没变，但记录指向别处。这次必须落盘到当前内容寻址根并修好行。
+func TestSyncExternalSourcesRepairsRelocatedSnapshotPath(t *testing.T) {
+	sourceRoot := t.TempDir()
+	writeExternalTestPackage(t, sourceRoot, "demo.external", TypePlugin, "first")
+	destination := t.TempDir()
+	store := &fakeExtensionStore{}
+	service := NewServiceWithOptions(store, destination, "", nil, WithExternalExtensionRoots([]string{sourceRoot}))
+
+	if _, err := service.SyncExternalSources(context.Background()); err != nil {
+		t.Fatalf("initial sync: %v", err)
+	}
+	canonical := store.items["demo.external"].PackagePath
+	stale := filepath.Join(t.TempDir(), "old-root", "demo.external")
+
+	drifted := store.items["demo.external"]
+	drifted.PackagePath = stale
+	store.items[drifted.ID] = drifted
+	eventsBefore := len(store.events)
+
+	if _, err := service.SyncExternalSources(context.Background()); err != nil {
+		t.Fatalf("repair sync: %v", err)
+	}
+	repaired := store.items["demo.external"]
+	if repaired.PackagePath != canonical {
+		t.Fatalf("recorded path was not repaired: got %q want %q", repaired.PackagePath, canonical)
+	}
+	if len(store.events) != eventsBefore+1 || store.events[eventsBefore].Action != EventVerified {
+		t.Fatalf("expected one re-publish event: %+v", store.events[eventsBefore:])
+	}
+	if message := store.events[eventsBefore].Message; !strings.Contains(message, "re-published") {
+		t.Fatalf("re-publish event message=%q", message)
+	}
+
+	// staged 记录的路径漂移同样要修：dev auto 只按 staged 摘要升级，路径错了
+	// 就永久 missing。
+	if _, err := service.SyncExternalSources(context.Background()); err != nil {
+		t.Fatalf("stable resync: %v", err)
+	}
+}
+
+// staged 记录漂移是 dev auto 最常撞到的形态：升级只看 staged 摘要，路径一错
+// 就永远 missing。这一例把源码推进到新摘要，再破坏 staged 路径，验证修回。
+func TestSyncExternalSourcesRepairsStagedSnapshotPath(t *testing.T) {
+	sourceRoot := t.TempDir()
+	packageRoot := writeExternalTestPackage(t, sourceRoot, "demo.external", TypePlugin, "first")
+	store := &fakeExtensionStore{}
+	service := NewServiceWithOptions(store, t.TempDir(), "", nil, WithExternalExtensionRoots([]string{sourceRoot}))
+
+	if _, err := service.SyncExternalSources(context.Background()); err != nil {
+		t.Fatalf("initial sync: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "README.md"), []byte("second"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SyncExternalSources(context.Background()); err != nil {
+		t.Fatalf("staged sync: %v", err)
+	}
+	staged := store.items["demo.external"].StagedVersion
+	if staged == nil {
+		t.Fatal("changed source must stage an immutable candidate")
+	}
+	canonical := staged.PackagePath
+	staged.PackagePath = filepath.Join(t.TempDir(), "old-root", "demo.external")
+	eventsBefore := len(store.events)
+
+	if _, err := service.SyncExternalSources(context.Background()); err != nil {
+		t.Fatalf("staged repair sync: %v", err)
+	}
+	repaired := store.items["demo.external"].StagedVersion
+	if repaired == nil || repaired.ID != staged.ID || repaired.PackagePath != canonical {
+		t.Fatalf("staged recorded path was not repaired: %+v", repaired)
+	}
+	if len(store.events) != eventsBefore+1 || store.events[eventsBefore].Action != EventVerified {
+		t.Fatalf("expected one re-publish event: %+v", store.events[eventsBefore:])
+	}
+}
+
 func TestSyncExternalSourcesRejectsDuplicateIDsAcrossRoots(t *testing.T) {
 	firstRoot := t.TempDir()
 	secondRoot := t.TempDir()

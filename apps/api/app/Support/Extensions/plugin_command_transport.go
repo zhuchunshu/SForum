@@ -78,11 +78,12 @@ var githubAuthEndpointOverrideEnvKeys = map[string]bool{
 
 // 插件子进程 GC 调优默认值。GOGC=50 让小堆插件更积极归还内存；
 // GOMEMLIMIT 是软上限——实测插件常驻 RSS 约 25-30MB，20MiB 会贴着 live heap
-// 造成 GC 连续抖动，48MiB 留足峰值余量。已部署实例零配置即生效；
-// 宿主进程环境里若存在 SFORUM_PLUGIN_GOMEMLIMIT（如 96MiB）则覆盖默认值。
+// 造成 GC 连续抖动。默认值按「最大单条 AI 输入」重新定标：Host 允许 12MiB 正文，
+// 经 JSON/proto 序列化后峰值可达数十 MiB，96MiB 留足余量仍能压住空闲水位。
+// 已部署实例零配置即生效；宿主进程环境里若存在 SFORUM_PLUGIN_GOMEMLIMIT 则覆盖。
 const (
 	pluginProcessGOGCDefault           = "GOGC=50"
-	pluginProcessGOMEMLIMITDefault     = "GOMEMLIMIT=48MiB"
+	pluginProcessGOMEMLIMITDefault     = "GOMEMLIMIT=96MiB"
 	pluginProcessGOMEMLIMITOverrideEnv = "SFORUM_PLUGIN_GOMEMLIMIT"
 )
 

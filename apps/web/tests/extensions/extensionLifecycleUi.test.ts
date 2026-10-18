@@ -107,6 +107,7 @@ function operation(overrides: Partial<AdminLifecycleOperation> = {}): AdminLifec
     attemptCount: 1,
     revision: 1,
     terminalResult: 'failed',
+    closed: true,
     error: { retryable: true },
     createdAt: '2026-07-14T00:00:00Z',
     updatedAt: '2026-07-14T00:01:00Z',

@@ -477,7 +477,8 @@ middle of one completion.
       "description": "Look up an order by its public number.",
       "parameters": { "type": "object", "properties": { "orderNumber": { "type": "string" } }, "required": ["orderNumber"] },
       "handler": "vendor.plugin.order_lookup",
-      "timeoutMs": 1000
+      "timeoutMs": 1000,
+      "context": ["locale", "viewer"]
     }
   ]
 }
@@ -496,8 +497,22 @@ Declaration rules (manifest validation rejects anything else):
 - `parameters` is a JSON Schema object, at most 8192 bytes. The Host validates
   the shape (valid JSON object) only and never re-interprets the schema, so the
   model and the plugin cannot end up with two different readings of it.
-- `timeoutMs` is required (`1..5000`) and is never defaulted: the number in the
-  manifest is the bound the operator sees.
+- `timeoutMs` is required (`1..30000`) and is never defaulted: the number in the
+  manifest is the bound the operator sees. It is a ceiling, not a wait — the Host
+  sets the call deadline from it, and the plugin's own budget decides how long
+  the call actually takes. Keep it close to what the tool really needs: tool time
+  is AI-worker time, and the AI queue runs with very low concurrency, so an
+  inflated ceiling turns one slow plugin into site-wide reply latency. Sites have
+  no separate tool-budget gate, so this declaration is the only upper bound an
+  operator can see.
+- `context` lists the conversation facts this tool needs: `locale`, `topic`,
+  `viewer`. It is a whitelist, not a hint — a fact that is not declared never
+  reaches the plugin process. Omitted means `["locale"]`, because "search in the
+  language of the site" is the common case and discloses nothing about a member.
+  `viewer` is the id of the member whose message triggered the call; declare it
+  only when the tool genuinely behaves differently per member (per-user quotas,
+  personalisation). Values are matched exactly: `Locale` or `ip` is rejected
+  rather than normalised.
 
 Transport reuses the versioned `ProviderCall` family on the reserved slot
 `sforum.ai.tool` with operation `invoke`: request schema
@@ -506,6 +521,16 @@ schema `sforum.ai.tool.invoke.response@1` carries `{content, isError}`. The Host
 dispatches only to a declaration frozen in that runtime's manifest, and the
 per-call deadline must equal the declared `timeoutMs` — a plugin cannot ask for
 a longer window than the manifest promised.
+
+Declared context facts are additive fields in the same request document:
+`locale` (BCP-47 string), `topicId` (integer) and `viewerUserId` (integer). They
+are written only when the declaration listed them, so a tool that declares
+nothing receives exactly the `{name, arguments}` shape it always did. The schema
+version therefore stays at `@1`, matching the same additive-field rule the
+completion contract used when image parts were introduced. On the SDK side they
+surface as `AIToolCall.Locale`, `AIToolCall.TopicID` and
+`AIToolCall.ViewerUserID`; undeclared facts stay at their zero value, and a
+plugin must not assume they are populated.
 
 Tool results are untrusted data in the same sense as any other tool output:
 `isError` distinguishes a failure the model may retry from a failure of the call
@@ -533,6 +558,15 @@ to name it. Names that are not registered at request time are skipped, so a
 configuration may be written before the plugin is installed. Tool registration
 happens during API assembly, so enabling or disabling a plugin takes effect for
 the AI tool list after an API restart.
+
+The console does not make operators guess those names. `GET /admin/ai/settings`
+returns `availableTools[]` — every registered tool with its `name`,
+`description` and `origin` (`kind: core | plugin`, plus `extensionId` and
+`version` for plugin tools). It is a global fact, deliberately separate from any
+purpose's allowlist: the catalog answers "what exists here", the allowlist
+answers "what this purpose may use". Disabled plugins are not registered at all,
+so their tools disappear from the catalog instead of lingering as entries that
+fail on every call.
 
 ### Event publish command
 

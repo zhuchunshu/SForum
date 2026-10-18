@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -155,25 +156,43 @@ func (s *serviceCore) updateSettingsViaLifecycle(
 	input UpdateSettingsInput,
 	locale string,
 ) (ExtensionSettings, error) {
+	started := time.Now()
+	var schemaAt, preflightAt, putAt, restartAt time.Time
+	defer func() {
+		// 只在成功走完全程时输出分段耗时；失败路径由返回错误本身说话。
+		if restartAt.IsZero() {
+			return
+		}
+		slog.InfoContext(ctx, "extension settings save stages",
+			"extension", extension.ID, "op", "update",
+			"schema_ms", schemaAt.Sub(started).Milliseconds(),
+			"preflight_ms", preflightAt.Sub(schemaAt).Milliseconds(),
+			"put_ms", putAt.Sub(preflightAt).Milliseconds(),
+			"restart_ms", restartAt.Sub(putAt).Milliseconds())
+	}()
 	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
+	schemaAt = time.Now()
 	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
+	preflightAt = time.Now()
 	actorID := settingsActorID(actor)
 	// 合并：未提交字段由 lifecycle Put 保留；secret 空串保留。
 	doc, err := s.settingsLifecycle.Put(ctx, extension.ID, actorID, input.Values, true)
 	if err != nil {
 		return ExtensionSettings{}, mapSettingsLifecycleError(err)
 	}
+	putAt = time.Now()
 	// 重启插件以加载新设置（与旧路径一致）。
 	if err := s.restartPluginForSettings(ctx, actor, extension, restart, settingsRestartMutationKey(extension, doc)); err != nil {
 		// 设置已 CAS 提交；Lifecycle 权威已前进，不倒退 revision。明确返回
 		// “已保存但重启失败”，由生命周期账本保留安全恢复状态。
 		return ExtensionSettings{}, err
 	}
+	restartAt = time.Now()
 	maybeBumpPublicSurfaceRevision(s.host, ctx, extension)
 	return resolveExtensionSettings(extension, settingsDocumentViewValues(doc), locale), nil
 }
@@ -185,13 +204,29 @@ func (s *serviceCore) resetSettingsViaLifecycle(
 	extension Extension,
 	locale string,
 ) (ExtensionSettings, error) {
+	started := time.Now()
+	var schemaAt, preflightAt, putAt, restartAt time.Time
+	defer func() {
+		// 只在成功走完全程时输出分段耗时；失败路径由返回错误本身说话。
+		if restartAt.IsZero() {
+			return
+		}
+		slog.InfoContext(ctx, "extension settings save stages",
+			"extension", extension.ID, "op", "reset",
+			"schema_ms", schemaAt.Sub(started).Milliseconds(),
+			"preflight_ms", preflightAt.Sub(schemaAt).Milliseconds(),
+			"put_ms", putAt.Sub(preflightAt).Milliseconds(),
+			"restart_ms", restartAt.Sub(putAt).Milliseconds())
+	}()
 	if err := s.host.RegisterSettingsLifecycleFromManifest(extension); err != nil {
 		return ExtensionSettings{}, err
 	}
+	schemaAt = time.Now()
 	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
 	if err != nil {
 		return ExtensionSettings{}, err
 	}
+	preflightAt = time.Now()
 	doc, err := s.settingsLifecycle.ResetDefaults(ctx, extension.ID, settingsActorID(actor), settingslifecycle.ResetOptions{
 		// 初学者友好：重置表单默认值时保留密钥引用。
 		PreserveSecrets: true,
@@ -199,9 +234,11 @@ func (s *serviceCore) resetSettingsViaLifecycle(
 	if err != nil {
 		return ExtensionSettings{}, mapSettingsLifecycleError(err)
 	}
+	putAt = time.Now()
 	if err := s.restartPluginForSettings(ctx, actor, extension, restart, settingsRestartMutationKey(extension, doc)); err != nil {
 		return ExtensionSettings{}, err
 	}
+	restartAt = time.Now()
 	maybeBumpPublicSurfaceRevision(s.host, ctx, extension)
 	return resolveExtensionSettings(extension, settingsDocumentViewValues(doc), locale), nil
 }
@@ -453,12 +490,25 @@ func (c settingsRestartCoordinator) restartLifecycleV2(
 	if mutationKey == "" {
 		return fmt.Errorf("%w: settings mutation identity is missing", ErrLifecycleCoordinatorInvalid)
 	}
+	started := time.Now()
+	var disabledAt time.Time
+	defer func() {
+		// 两阶段各跑一次完整生命周期状态机；这是设置保存响应时长的大头。
+		if disabledAt.IsZero() {
+			return
+		}
+		slog.InfoContext(ctx, "extension settings plugin restart",
+			"extension", extension.ID,
+			"disable_ms", disabledAt.Sub(started).Milliseconds(),
+			"enable_ms", time.Since(disabledAt).Milliseconds())
+	}()
 	if _, err := s.disableLifecycleV2(ctx, actor, extension, LifecycleRequestInput{
 		IdempotencyKey: settingsRestartPhaseKey(mutationKey, "disable"),
 	}); err != nil {
 		return fmt.Errorf("disable exact plugin for settings restart: %w", err)
 	}
 
+	disabledAt = time.Now()
 	disabled, err := s.store.Get(ctx, extension.ID)
 	if err != nil {
 		return fmt.Errorf("reload plugin after settings disable: %w", err)

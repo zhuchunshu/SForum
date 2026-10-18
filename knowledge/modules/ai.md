@@ -48,8 +48,8 @@ live in configuration, not in Core code.
 
 - 页面壳 `pages/admin/ai.vue` 是唯一数据所有者：数据经 `ADMIN_AI_KEY` 注入，可编辑
   草稿经 `ADMIN_AI_DRAFT_KEY` 注入（`useAdminAISettingsForm`）。页签只渲染，不重新拉取。
-- 四个固定页签：providers / **replyPrompt** / diagnose / observability。页签用
-  `router.replace` 同步 query（`push` 会触发完整导航并白屏）。
+- 五个固定页签：providers / **replyPrompt** / purposes / diagnose / observability。
+  页签用 `router.replace` 同步 query（`push` 会触发完整导航并白屏）。
 - **草稿由页面壳持有**，因为回复提示词与供应商是同一次保存的内容：两个页签各持一份
   副本的话，在提示词页签里的改动切回供应商页签就消失了。保存/重置操作条也放在页面壳
   （任一页签都能就地保存），并显示未保存提示。
@@ -287,3 +287,56 @@ live in configuration, not in Core code.
 - 站内已有一个真实的上传型 AI 工具插件在跑：`sforum.fetch-url`（仓库外
   `~/Code/github/sforum-fetch-url`，域名白名单 + 总开关 + 出站代理的网页抓取工具）。
   它是「插件工具 + 用途白名单点名 + 设置页探测」这条链路的活样例。
+- **工具能拿到的会话事实是清单声明的白名单**（2026-10-18）。`aiTools[].context`
+  只接受 `locale` / `topic` / `viewer`，缺省等价 `["locale"]`：语言是最常见、披露
+  最少的一项，`viewer` 是身份披露，必须由作者显式写下。校验精确匹配、不做规范化
+  （`Locale` 会被拒，而不是被悄悄改写）。事实随工具请求文档一起下发，是**加项**，
+  `sforum.ai.tool.invoke.request@1` 版本不变——与 `sforum.ai.completion@1` 增加图片
+  部件时同一规则。SDK 侧落在 `AIToolCall.Locale/TopicID/ViewerUserID`，未声明的项
+  保持零值，插件不得假定它们存在。
+- **locale 只能是站点默认语言**：`Identity` 没有 per-user locale 列，回复生成器
+  通过可选的 `aireply.LocaleSource` 读 `options.site.default_locale`。读失败留空，
+  不阻断回复；插件按「未提供」处理。决策：
+  `decisions/2026-10-18-ai-tool-context-and-catalog.md`。
+- **控制台能列出站内已注册的工具**：`GET /admin/ai/settings` 的 `availableTools[]`
+  带 `name` / `description` / `origin{kind, extensionId, version}`，是「有哪些工具
+  可以点名」的权威清单，与每个用途自己的白名单分开（全局事实 vs 用途配置）。
+  用途页签把它渲染成复选框（插件工具标注扩展 id），手打输入保留为出口；选中但既不在
+  声明也不在目录里的名字标为未知，因为服务端会跳过它。
+- **停用插件不再登记工具**：`registerPluginAITools` 此前遍历 `ExtensionStore.List`
+  却不看 `Status`，与自己的注释矛盾，会造出「看得见、调不动」的工具；现在跳过
+  非 `enabled` 的扩展。工具登记仍在装配期完成，启用/停用要等 API 重启才反映到目录。
+- **工具超时上限 30 秒（2026-10-19，5000 → 180000 → 30000）**。`AIToolMaximumTimeoutMS` 是
+  声明上限，不是等待时长：宿主按声明值设截止时间，插件自己的预算决定实际等多久。
+  原先的 5000 是 SDK 传输默认请求超时被直接推上来的值，对冷启动检索过紧。四处
+  必须同步：`ExtensionManifest.AIToolMaximumTimeoutMS`、`protocolV2Client`
+  的派发校验（改用工具自己的上限，不再复用传输默认值）、SDK
+  `HostAIToolMaximumTimeoutMS`、`schemas/manifest-v3.schema.json` 的 `maximum`。
+  没有站点级闸门（运营者决策）：唯一的上界就是各插件声明的 `timeoutMs`，所以
+  「一次回复最多等多久」由插件作者决定，控制台看不到也改不了。正因为没有第二道
+  闸门，上限本身不能太大——30 秒与模型 profile 的默认请求超时同量级。
+
+## Limits and validation
+
+- **上限只有一个权威**：`Support/AI/limits.go` 的常量经
+  `CurrentLimits()` 随 `GET /admin/ai/settings` 的 `limits` 下发，控制台据此
+  渲染 `min`/`max` 与提示文案。前端 `utils/admin/adminAI.ts` 的
+  `DEFAULT_AI_LIMITS` 只是旧载荷兜底。调天花板只改后端常量。
+- 天花板按模型能力定标（输出 128k、输入总预算 12 MiB、工具步数 12、
+  月度预算 1000 万元），**默认值保持保守**。理由与数值见
+  `decisions/2026-10-19-ai-context-and-budget-ceilings.md`。
+- 三处必须同步的连带约束：`sdk/plugin/v2` 的镜像常量
+  （`HostAICompleteMaxMessages` / `HostAICompleteMaxTokens`）、gRPC
+  `DefaultMaxMessageBytes`（必须 ≥ `MaxTotalInputBytes`）、插件进程
+  `GOMEMLIMIT`。`limits_test.go` 把前两条钉成测试。
+- **失败必须能定位**：`Settings.Issues()` / `Profile.Issues()` 返回
+  `{Field, Code}`，控制器把它变成 `422 ai.settings_invalid` 的 `data.fields`；
+  请求形状不对（数字字段收到空串/小数）返回 `ai.settings_malformed`，只暴露
+  字段路径、不回显原值。控制台用 `apiErrorFields` 把消息挂到对应输入框。
+- 前端数值入口统一走 `coerceInteger` / `coerceNumber`：空值回退上一次合法值，
+  其余夹到服务端上限。`v-model.number` 会让清空的数字框产出空串，那是 422 的
+  主要来源，供应商页签已不再使用它。
+- 保存前本地拦截：启用中的供应商必须通过 `profileIssue`（URL 形状、label/model
+  按**字节**计长度）；`autoAction.enabled` 且动作全空时自动补 `hide`。
+- 提交前剥掉历史字段 `reply.tools`：服务端 `migrateLegacyReplyTools` 会把它
+  重新写回 `purposes["forum.reply"]`，否则用途页签的「恢复默认」永远不生效。

@@ -502,6 +502,23 @@ Registry, and save values without building Nuxt:
 See `extensions/builtin/themes/sforum-default/manifest/settings.json` and
 `extensions/fixtures/themes/sforum-schema-theme/`.
 
+#### Admin menu placement
+
+`admin.pages[]` entries with `"menu": true` reach the admin sidebar. There are
+two placement modes:
+
+- **Flat (default).** The page is listed under *Extensions* and only shows in
+  professional mode.
+- **Shared section.** `"group": "<section-id>"` joins a Core-registered
+  first-level menu. `ai-tools` is the current example: Core owns the container
+  (label, icon, position) plus its own console page, and any plugin page that
+  declares `group: "ai-tools"` is appended to the same menu. Core never learns
+  plugin ids, and a plugin cannot invent a new top-level container — an
+  unregistered `group` value falls back to the flat behaviour.
+
+Section membership lives in the manifest, so it is an exact-artifact change: an
+already-installed plugin picks it up through the normal upgrade path.
+
 ### Reference B — provider Schema + Probe action
 
 SMTP is the production reference. Operators can install → configure while
@@ -604,6 +621,10 @@ Rules for this kind:
 - The probe runtime still cannot register routes, events, jobs, schedules, or
   providers, and it runs even while the plugin itself is disabled, so operators
   can test before enabling.
+- A probe call carries the same declared `context` facts as a model-driven call.
+  With no declaration that means `locale`; a probe that reports "no locale" is
+  telling you the site has no default locale configured, not that the Host
+  dropped the field.
 
 ### Reference C — trusted prebuilt complex component
 
@@ -1038,7 +1059,10 @@ implementation.
     explicit `timeoutMs`. Answer them through the reserved `sforum.ai.tool`
     slot; the declared timeout is the only runtime freedom. Contributing a tool
     needs no `ai.invoke` — the purpose that runs the loop pays — and a declared
-    tool is not automatically visible to the model.
+    tool is not automatically visible to the model. Declare `context`
+    (`locale`/`topic`/`viewer`) when the tool needs conversation facts:
+    omitting it means `["locale"]`, and `viewer` is an identity disclosure that
+    has to be written down explicitly.
 13. **Events** — declare custom event names in your own namespace and publish
     them through `sforum.events.emit@1`; never publish another plugin's
     namespace or a Core-owned name.

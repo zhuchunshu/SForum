@@ -107,3 +107,5 @@ func validateLoopbackAddress(addr string) error {
 	}
 	return nil
 }
+
+// pprof smoke

@@ -47,6 +47,10 @@ const (
 	EventThemeActivationQueued = "theme_activation_queued"
 	EventMigrationsApplied     = "migrations_applied"
 
+	// EventDevAutoSkipped 记录 dev 自动机主动放弃一次激活（冻结制品不可装载，
+	// 或同一摘要已被自动恢复过上限次数）。它不是失败：不再重试才不再刷台账。
+	EventDevAutoSkipped = "dev_auto_skipped"
+
 	DeliveryQueued    = "queued"
 	DeliveryRunning   = "running"
 	DeliverySucceeded = "succeeded"

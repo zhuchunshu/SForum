@@ -188,6 +188,12 @@ function closeDialog() {
                     <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.lifecycle.version') }}</dt>
                     <dd class="mt-1 text-slate-900 dark:text-zinc-100">v{{ operation.extensionVersion }}</dd>
                   </div>
+                  <div v-if="operation.closed">
+                    <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.lifecycle.lastPhase') }}</dt>
+                    <dd class="mt-1 text-slate-900 dark:text-zinc-100">
+                      {{ t(`admin.extensions.lifecycle.states.${operation.state}`) }}
+                    </dd>
+                  </div>
                   <div>
                     <dt class="text-slate-500 dark:text-zinc-400">{{ t('admin.extensions.lifecycle.attempts') }}</dt>
                     <dd class="mt-1 text-slate-900 dark:text-zinc-100">{{ operation.attemptCount }}</dd>

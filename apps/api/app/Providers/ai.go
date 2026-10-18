@@ -1,6 +1,8 @@
 package providers
 
 import (
+	"context"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -42,7 +44,7 @@ type AIOutboundOptions struct {
 // allowHTTP 沿用仓库其它出站路径的同一约定（非生产允许 http，生产只允许 https）：
 // 供应商地址由运营者在后台填写，本地反代或内网网关常常只有 http。私网、回环与保留
 // 地址默认仍被拒绝，需要 outbound.AllowPrivate 显式放行。
-func NewAIProvider(pool *pgxpool.Pool, secrets *secretstore.Service, users identityStore, sessions *authsession.Manager, outbound AIOutboundOptions, cacheStore cache.Cache) *AIProvider {
+func NewAIProvider(pool *pgxpool.Pool, secrets *secretstore.Service, users identityStore, sessions *authsession.Manager, outbound AIOutboundOptions, cacheStore cache.Cache, defaultLocale func(context.Context) (string, error)) *AIProvider {
 	store := supportai.NewPostgresStore(pool)
 	// 同一个受控出站实例同时服务补全与只读探测：SSRF 校验、超时与响应体上限
 	// 只有一处实现，探测不会成为绕过它们的旁路。
@@ -74,6 +76,7 @@ func NewAIProvider(pool *pgxpool.Pool, secrets *secretstore.Service, users ident
 		CredentialReader: resolver,
 		Models:           supportai.NewHTTPModelLister(invoker),
 		BotAccounts:      users,
+		DefaultLocale:    defaultLocale,
 	})
 	return &AIProvider{controller: aicontroller.NewController(service, users, sessions, secrets), service: service}
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminAIPurposeOverride, AdminAIValidatedPurpose } from '~/composables/admin/useAdminAI'
+import type { AdminAIPurposeOverride, AdminAIToolAvailability, AdminAIToolOrigin, AdminAIValidatedPurpose } from '~/composables/admin/useAdminAI'
 import { ADMIN_AI_DRAFT_KEY } from '~/composables/admin/useAdminAISettingsForm'
 import {
   AI_FAILURE_POSTURES,
@@ -24,6 +24,9 @@ const pendingToolName = ref<Record<string, string>>({})
 const toolNameError = ref<Record<string, string>>({})
 
 const catalog = computed<AdminAIValidatedPurpose[]>(() => ai.purposes.value ?? [])
+// 站内已注册的工具（Core 内置 + 已启用插件）。旧载荷没有这一项时为空，界面退化
+// 成「声明列表 + 手动输入」，与引入工具目录之前一致。
+const availableTools = computed<AdminAIToolAvailability[]>(() => ai.availableTools.value ?? [])
 
 function localized(text: { default: string, 'en-US'?: string } | undefined) {
   if (!text) return ''
@@ -61,7 +64,34 @@ function selectedTools(purpose: AdminAIValidatedPurpose) {
 }
 
 function toolChoices(purpose: AdminAIValidatedPurpose) {
-  return purposeToolOptions(purpose.declaredTools, overrideFor(purpose.id)?.tools?.allowed)
+  // 已注册但未声明的工具（插件贡献）也必须出现在选项里：让运营者手打一个拼错的
+  // 名字，再让服务端静默跳过，是这条链路上最容易犯的错。
+  //
+  // declaredTools 在旧载荷上可能是 null（没有声明任何工具的用途），因此这里必须
+  // 用 ?? [] 兜底：直接展开 null 会让整个页签渲染失败。
+  return purposeToolOptions(
+    [...(purpose.declaredTools ?? []), ...availableTools.value.map(tool => tool.name)],
+    overrideFor(purpose.id)?.tools?.allowed
+  )
+}
+
+function toolOrigin(name: string): AdminAIToolOrigin | undefined {
+  return availableTools.value.find(tool => tool.name === name)?.origin
+}
+
+// 插件工具在标签里带上扩展 id：运营者要能看出这个名字是谁提供的，而不是靠工具名
+// 的形状去猜。
+function toolLabel(name: string) {
+  const origin = toolOrigin(name)
+  if (origin?.kind === 'plugin') return `${name} · ${origin.extensionId || 'plugin'}`
+  return name
+}
+
+// 真正「未注册」的选中项：既不在用途声明里，也不在站内工具目录里。服务端会跳过
+// 这些名字，因此必须让运营者看见它们。
+function unknownTools(purpose: AdminAIValidatedPurpose) {
+  const known = new Set([...(purpose.declaredTools ?? []), ...availableTools.value.map(tool => tool.name)])
+  return selectedTools(purpose).filter(name => !known.has(name))
 }
 
 function postureValue(purpose: AdminAIValidatedPurpose): string {
@@ -295,7 +325,7 @@ function restorePurpose(purpose: AdminAIValidatedPurpose) {
               :key="name"
               :model-value="selectedTools(purpose).includes(name)"
               :disabled="readOnly"
-              :label="name"
+              :label="toolLabel(name)"
               :aria-label="name"
               @update:model-value="(checked: boolean | 'indeterminate') => toggleTool(purpose, name, checked === true)"
             />
@@ -319,11 +349,11 @@ function restorePurpose(purpose: AdminAIValidatedPurpose) {
             <p v-if="toolNameError[purpose.id]" class="mt-1 text-xs text-red-600 dark:text-red-400">
               {{ toolNameError[purpose.id] }}
             </p>
-            <div v-if="selectedTools(purpose).some(name => !purpose.declaredTools.includes(name))" class="mt-2 flex flex-wrap gap-1">
+            <div v-if="unknownTools(purpose).length > 0" class="mt-2 flex flex-wrap gap-1">
               <UBadge
-                v-for="name in selectedTools(purpose).filter(entry => !purpose.declaredTools.includes(entry))"
+                v-for="name in unknownTools(purpose)"
                 :key="name"
-                color="primary"
+                color="warning"
                 variant="soft"
                 size="sm"
                 class="font-mono"

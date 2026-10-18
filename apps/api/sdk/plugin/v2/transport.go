@@ -14,7 +14,12 @@ import (
 )
 
 const (
-	DefaultMaxMessageBytes  = 4 << 20
+	// DefaultMaxMessageBytes 是 Protocol V2 单条 gRPC 消息上限。它与 Host 侧
+	// ai.MaxTotalInputBytes 同源：AI 补全请求经插件传输时，Host 允许的输入规模
+	// 不能大于传输层能收下的规模，否则大上下文请求会先死在 gRPC 上。
+	// 16MiB 给 JSON/proto 序列化留出余量（正文 + 转义 + 副本），可承载
+	// ai.MaxTotalInputBytes 的 12MiB 正文。
+	DefaultMaxMessageBytes  = 16 << 20
 	DefaultConcurrentCalls  = 16
 	DefaultRequestTimeout   = 5 * time.Second
 	DefaultHandshakeTimeout = 5 * time.Second

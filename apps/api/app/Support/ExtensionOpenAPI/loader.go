@@ -27,7 +27,10 @@ type loadedArtifact struct {
 	budget     *resourceBudget
 }
 
-func loadArtifact(input Artifact, budget *resourceBudget) (*loadedArtifact, error) {
+func loadArtifact(input Artifact, budget *resourceBudget, loader *ArtifactLoader) (*loadedArtifact, error) {
+	if cached, ok := loader.get(input); ok {
+		return cached, nil
+	}
 	if strings.TrimSpace(input.Root) == "" || input.ExtensionID == "" || input.Version == "" ||
 		len(input.PackageDigest) != 64 || input.PackageDigest != strings.ToLower(input.PackageDigest) {
 		return nil, fmt.Errorf("%w: incomplete identity", ErrInvalidArtifact)
@@ -119,6 +122,7 @@ func loadArtifact(input Artifact, budget *resourceBudget) (*loadedArtifact, erro
 	if err != nil || actualDigest != input.PackageDigest {
 		return nil, fmt.Errorf("%w: package digest mismatch after static inspection", ErrInvalidArtifact)
 	}
+	loader.put(input, loaded)
 	return loaded, nil
 }
 

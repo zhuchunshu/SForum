@@ -72,6 +72,10 @@ type CoreOperation struct {
 type BuildInput struct {
 	Core      []CoreOperation
 	Artifacts []Artifact
+	// Loader optionally reuses artifacts already loaded and digest-verified by a
+	// previous build over the same immutable set. Nil disables reuse and keeps
+	// the previous one-verification-per-build behavior.
+	Loader *ArtifactLoader
 }
 
 type SourceIdentity struct {

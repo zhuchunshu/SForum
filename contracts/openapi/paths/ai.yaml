@@ -20,7 +20,13 @@ adminAISettings:
       '200': {description: Saved settings., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAISettings"}}}}
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
       '403': {$ref: "../components/responses.yaml#/Forbidden"}
-      '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}
+      '422':
+        $ref: "../components/responses.yaml#/UnprocessableEntity"
+        description: |
+          配置不合法。reason 为 ai.settings_malformed（字段类型不对，例如数字字段
+          收到空串或小数）或 ai.settings_invalid（取值越界/形状不合法）；两种情况
+          data.fields 都会按载荷路径给出字段级消息，例如
+          {"gates.rateLimitPerMinute": ["取值超出允许范围…"]}。
 
 adminAISettingsReset:
   post:

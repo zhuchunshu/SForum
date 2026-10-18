@@ -1,7 +1,7 @@
 import type { InjectionKey } from 'vue'
 import type { AdminAIContext, AdminAIProfile, AdminAISettings } from '~/composables/admin/useAdminAI'
 import { useAuthSession } from '~/composables/identity/useAuthSession'
-import { normalizedAISettingsForComparison } from '~/utils/admin/adminAI'
+import { normalizedAISettingsForComparison, profileIssue } from '~/utils/admin/adminAI'
 
 // 页面壳创建这份草稿，所有页签注入同一份：回复提示词与供应商是同一次保存的内容，
 // 拆到两个页签后仍然必须共享同一个 form、同一次 dirty 判定与同一个保存动作。
@@ -23,6 +23,8 @@ export function useAdminAISettingsForm(ai: AdminAIContext) {
   const readOnly = computed(() => !canManage.value)
 
   const form = ref<AdminAISettings | null>(null)
+  // 本地拦截原因：一旦有值，保存就不会发出请求。
+  const saveIssue = ref('')
   // selectedProviderId 是界面选择，profile.enabled 才是实际生效：两者分开，
   // 是为了让「选了自定义但还没填完」这种中间状态可以保存而不被拒绝。
   const selectedProviderId = ref('')
@@ -73,9 +75,9 @@ export function useAdminAISettingsForm(ai: AdminAIContext) {
     form.value?.profiles.find(profile => profile.id === selectedProviderId.value) ?? null
   )
   const isCustom = computed(() => selectedProviderId.value === CUSTOM_PROFILE_ID)
-  const profileIncomplete = computed(() =>
-    selectedProfile.value ? !isProfileComplete(selectedProfile.value) : false
-  )
+  // 「不完整」与「不合法」是同一件事：填了 baseUrl 但缺 scheme 的供应商同样
+  // 不能启用——后端会在保存时 422。判定统一收在 profileIssue 里。
+  const profileIncomplete = computed(() => profileIssue(selectedProfile.value) !== null)
 
   // 与内置默认相同的文本不算自定义：空白差异（编辑器会重排 Markdown）与「空串 /
   // 字段被省略」两种写法都视为「使用默认」。比较与保存都走这里，避免「预填了默认
@@ -93,7 +95,7 @@ export function useAdminAISettingsForm(ai: AdminAIContext) {
   })
 
   function isProfileComplete(profile: AdminAIProfile) {
-    return Boolean(profile.label.trim() && profile.baseUrl.trim() && profile.model.trim())
+    return profileIssue(profile) === null
   }
 
   // 只有一个提供商生效。选中项配置不完整时保持未启用——启用一份不完整的配置
@@ -134,16 +136,65 @@ export function useAdminAISettingsForm(ai: AdminAIContext) {
       costClass: 'standard',
       enabled: false,
       price: { inputPerMillionMicros: 0, outputPerMillionMicros: 0 },
-      defaults: { maxTokens: 2048, timeoutMs: 30000 }
+      // 默认输出预算跟随服务端，而不是写死一个可能已经过时的数字。
+      defaults: { maxTokens: ai.limits.value.defaultCompletionTokens, timeoutMs: 30000 }
     })
+  }
+
+  // 开启自动裁决但没有勾任何动作时，后端会以 422 拒绝：补一个安全默认值，
+  // 而不是把运营者卡在保存按钮上。hide 是三个动作里最轻的一个。
+  function ensureAutoActionActions() {
+    const current = form.value
+    if (!current) return
+    if (current.autoAction.enabled && current.autoAction.allowedActions.length === 0) {
+      current.autoAction.allowedActions = ['hide']
+    }
+  }
+
+  // blockingIssue 汇总「发出去必然 422」的本地条件。宁可在这里拦下并给出字段级
+  // 说明，也不要让运营者收到一个没有指向的 422。
+  function blockingIssue(): string {
+    const profile = selectedProfile.value
+    if (profile && profile.enabled) {
+      const issue = profileIssue(profile)
+      if (issue) return t(`admin.ai.profileIssue.${issue}`)
+    }
+    const current = form.value
+    if (current && current.autoAction.enabled && current.autoAction.allowedActions.length === 0) {
+      return t('admin.ai.autoActionNeedsActions')
+    }
+    return ''
   }
 
   async function save() {
     if (!form.value) return
     syncEnabledProfiles()
+    ensureAutoActionActions()
+    saveIssue.value = ''
+    const blocking = blockingIssue()
+    if (blocking) {
+      saveIssue.value = blocking
+      return
+    }
     // 归一化后再提交：与默认逐字相同的内容以空值存库，保持「使用默认」语义，
     // 这样以后升级内置提示词时这部分站点会跟着更新。
-    await ai.saveSettings(normalizedForComparison(form.value))
+    const payload = normalizedForComparison(form.value)
+    // 新前端只通过 purposes 表达工具白名单。历史字段 reply.tools 若继续回传，
+    // 服务端 migrateLegacyReplyTools 会把「已恢复默认」的用途覆盖重建回来，
+    // 于是恢复操作看起来永远不生效。
+    if (payload.reply) {
+      delete (payload.reply as { tools?: unknown }).tools
+    }
+    await ai.saveSettings(payload)
+  }
+
+  // fieldError 按载荷路径后缀取服务端字段级消息（例如 maxTokens / rateLimitPerMinute），
+  // 让 422 的说明落在对应输入框旁。
+  function fieldError(suffix: string): string | undefined {
+    for (const [path, messages] of Object.entries(ai.fieldErrors.value)) {
+      if (path.endsWith(suffix)) return messages[0]
+    }
+    return undefined
   }
 
   return {
@@ -158,6 +209,8 @@ export function useAdminAISettingsForm(ai: AdminAIContext) {
     profileIncomplete,
     providerOptions,
     selectProvider,
+    saveIssue,
+    fieldError,
     save,
     normalizedForComparison
   }

@@ -240,6 +240,70 @@ func insertPhysicalLifecyclePackageReference(
 	return operationID, cleanupID
 }
 
+// 摘要相同即同一件制品：再次保存只允许把 package_path 修到本次校验过的路径。
+// 少了这条，目录重建或 EXTENSION_ROOT 变化后行会永久判 missing（artifactState），
+// 而 exact-artifact 语义不允许为此换 digest。
+func TestPostgresStoreSaveInstalledRepairsRelocatedPackagePath(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("SFORUM_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+
+	id := fmt.Sprintf("test.package-path-repair.%d", time.Now().UnixNano())
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM extensions WHERE id = $1`, id)
+	})
+	store := NewPostgresStore(pool)
+	manifest := stagedVersionTestManifest(id, "1.0.0")
+	digest := strings.Repeat("a", 64)
+
+	first, err := store.SaveInstalled(ctx, SaveInstalledInput{
+		Manifest: manifest, PackagePath: "/tmp/repair-old-path", PackageDigest: digest,
+	})
+	if err != nil {
+		t.Fatalf("save initial version: %v", err)
+	}
+	repaired, err := store.SaveInstalled(ctx, SaveInstalledInput{
+		Manifest: manifest, PackagePath: "/tmp/repair-new-path", PackageDigest: digest,
+	})
+	if err != nil {
+		t.Fatalf("repair save: %v", err)
+	}
+	if repaired.PackagePath != "/tmp/repair-new-path" {
+		t.Fatalf("package path was not repaired: %q", repaired.PackagePath)
+	}
+	if repaired.ActiveVersionID != first.ActiveVersionID || repaired.PackageDigest != digest || repaired.Version != "1.0.0" {
+		t.Fatalf("repair changed artifact identity: before=%#v after=%#v", first, repaired)
+	}
+
+	var versionCount int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*) FROM extension_versions WHERE extension_id = $1
+	`, id).Scan(&versionCount); err != nil {
+		t.Fatal(err)
+	}
+	if versionCount != 1 {
+		t.Fatalf("version count=%d, want 1 (repair must not allocate a new immutable version)", versionCount)
+	}
+
+	// 路径已一致时重放不产生额外写入，也不改身份。
+	replayed, err := store.SaveInstalled(ctx, SaveInstalledInput{
+		Manifest: manifest, PackagePath: "/tmp/repair-new-path", PackageDigest: digest,
+	})
+	if err != nil {
+		t.Fatalf("replay save: %v", err)
+	}
+	if replayed.ActiveVersionID != first.ActiveVersionID || replayed.PackagePath != "/tmp/repair-new-path" {
+		t.Fatalf("replay changed the recorded artifact: %#v", replayed)
+	}
+}
+
 func stagedVersionTestManifest(id, version string) Manifest {
 	return Manifest{ID: id, Name: "Staged Version Test", Version: version, Type: TypePlugin}
 }

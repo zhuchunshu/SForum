@@ -196,8 +196,9 @@ func (s *CatalogService) SyncExternalSources(ctx context.Context) (ExternalSyncR
 			continue
 		}
 
-		unchanged := existingFound && externalArtifactAlreadyKnown(existing, manifest.Version, snapshot.Digest)
-		if unchanged {
+		sameExactArtifact := existingFound && externalArtifactRecorded(existing, manifest.Version, snapshot.Digest)
+		reusable := existingFound && externalArtifactReusable(existing, manifest.Version, snapshot.Digest, snapshot.Root)
+		if reusable {
 			result.Items = append(result.Items, existing)
 			_ = owned.Release()
 			continue
@@ -221,7 +222,14 @@ func (s *CatalogService) SyncExternalSources(ctx context.Context) (ExternalSyncR
 		_ = owned.Release()
 		message := "External source package discovered and installed as an inert snapshot."
 		action := EventInstalled
-		if existingFound {
+		switch {
+		case sameExactArtifact:
+			// 版本+摘要仍是同一件制品，只是记录路径不在本次 DigestTree 校验过的
+			// 快照根下（制品目录被删、EXTENSION_ROOT 变化、手工改库）。这次保存
+			// 会把 package_path 修回内容寻址根，是自愈而不是新内容。
+			message = "External source artifact was missing or relocated on disk; re-published the verified immutable snapshot."
+			action = EventVerified
+		case existingFound:
 			message = "External source package changed; immutable candidate staged for operator review."
 			action = EventUpgraded
 		}
@@ -240,13 +248,53 @@ func (s *CatalogService) SyncExternalSources(ctx context.Context) (ExternalSyncR
 	return result, nil
 }
 
-func externalArtifactAlreadyKnown(existing Extension, version, digest string) bool {
+// externalArtifactRecorded 判断 DB 是否已经记录了这个精确制品（版本 + 摘要）。
+func externalArtifactRecorded(existing Extension, version, digest string) bool {
 	if existing.ID == "" {
 		return false
 	}
-	if existing.Version == version && strings.EqualFold(existing.PackageDigest, digest) {
+	if externalArtifactRecordMatches(existing.Version, existing.PackageDigest, version, digest) {
 		return true
 	}
-	return existing.StagedVersion != nil && existing.StagedVersion.Version == version &&
-		strings.EqualFold(existing.StagedVersion.PackageDigest, digest)
+	staged := existing.StagedVersion
+	return staged != nil && externalArtifactRecordMatches(staged.Version, staged.PackageDigest, version, digest)
+}
+
+// externalArtifactReusable 判定既有记录能否直接复用本次的不可变快照。
+//
+// 版本 + 摘要相同并不证明制品还在盘上：快照发布已经用 DigestTree 校验过
+// snapshot.Root，所以「记录路径等于 snapshot.Root」才是磁盘存在的证据。少了
+// 这一条，制品目录被删或 EXTENSION_ROOT 变化后行会永久停在 missing，只能靠
+// 换摘要或手工改库恢复（见 knowledge/sessions/2026-10-19-dev-artifact-self-heal.md）。
+func externalArtifactReusable(existing Extension, version, digest, snapshotRoot string) bool {
+	if existing.ID == "" {
+		return false
+	}
+	reusable := false
+	if externalArtifactRecordMatches(existing.Version, existing.PackageDigest, version, digest) {
+		if !externalSnapshotPathMatches(existing.PackagePath, snapshotRoot) {
+			return false
+		}
+		reusable = true
+	}
+	if staged := existing.StagedVersion; staged != nil &&
+		externalArtifactRecordMatches(staged.Version, staged.PackageDigest, version, digest) {
+		if !externalSnapshotPathMatches(staged.PackagePath, snapshotRoot) {
+			return false
+		}
+		reusable = true
+	}
+	return reusable
+}
+
+func externalArtifactRecordMatches(recordVersion, recordDigest, version, digest string) bool {
+	return recordVersion == version && strings.EqualFold(recordDigest, digest)
+}
+
+func externalSnapshotPathMatches(recorded, snapshotRoot string) bool {
+	recorded = strings.TrimSpace(recorded)
+	if recorded == "" || strings.TrimSpace(snapshotRoot) == "" {
+		return false
+	}
+	return filepath.Clean(recorded) == filepath.Clean(snapshotRoot)
 }

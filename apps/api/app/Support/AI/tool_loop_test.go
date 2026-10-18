@@ -316,7 +316,8 @@ func TestOrchestratorPropagatesGateFailureMidLoop(t *testing.T) {
 }
 
 func TestOrchestratorTruncatesToolResults(t *testing.T) {
-	tool := &fakeTool{name: "forum-search", result: ai.ToolResult{Content: strings.Repeat("长", 20_000)}}
+	// 用常量构造超限内容：上限调整后写死数字的用例会静默失去覆盖。
+	tool := &fakeTool{name: "forum-search", result: ai.ToolResult{Content: strings.Repeat("长", ai.MaxToolResultBytes)}}
 	invoker := &scriptedInvoker{responses: []ai.WireResponse{
 		toolCallResponse("call_1", "forum-search"),
 		finalResponse("好"),
@@ -362,4 +363,46 @@ func wireBody(t *testing.T, request ai.WireRequest) string {
 		t.Fatal("wire request has no body")
 	}
 	return string(request.Body)
+}
+
+// originTool 模拟插件工具：它主动说出自己的扩展身份。
+type originTool struct {
+	fakeTool
+	origin ai.ToolOrigin
+}
+
+func (t *originTool) Origin() ai.ToolOrigin { return t.origin }
+
+// 控制台要能回答「站内有哪些工具、谁提供的」，且顺序稳定——否则运营者每次
+// 刷新都看到不同的清单，也没法判断一个名字是 Core 的还是某个插件的。
+func TestToolRegistryAvailableReportsOriginSorted(t *testing.T) {
+	registry := ai.NewToolRegistry()
+	if err := registry.Register(&fakeTool{name: "time-now"}); err != nil {
+		t.Fatal(err)
+	}
+	pluginTool := &originTool{
+		fakeTool: fakeTool{name: "web-search"},
+		origin:   ai.ToolOrigin{Kind: "plugin", ExtensionID: "sforum.web-search", Version: "1.0.0"},
+	}
+	if err := registry.Register(pluginTool); err != nil {
+		t.Fatal(err)
+	}
+
+	available := registry.Available()
+	if len(available) != 2 {
+		t.Fatalf("available = %#v", available)
+	}
+	if available[0].Name != "time-now" || available[0].Origin.Kind != "core" ||
+		available[0].Origin.ExtensionID != "" {
+		t.Fatalf("core tool entry drifted: %#v", available[0])
+	}
+	if available[1].Name != "web-search" || available[1].Description != "测试工具" ||
+		available[1].Origin.Kind != "plugin" || available[1].Origin.ExtensionID != "sforum.web-search" ||
+		available[1].Origin.Version != "1.0.0" {
+		t.Fatalf("plugin tool entry drifted: %#v", available[1])
+	}
+
+	if got := ai.NewToolRegistry().Available(); got != nil {
+		t.Fatalf("empty registry must report no tools, got %#v", got)
+	}
 }

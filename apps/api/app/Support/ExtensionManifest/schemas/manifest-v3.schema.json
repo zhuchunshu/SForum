@@ -3341,7 +3341,19 @@
           "timeoutMs": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 5000
+            "maximum": 30000
+          },
+          "context": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "locale",
+                "topic",
+                "viewer"
+              ]
+            },
+            "maxItems": 3,
+            "uniqueItems": true
           }
         }
       }

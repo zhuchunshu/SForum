@@ -28,6 +28,12 @@ export type AdminNavigationFolderEntry = {
   labelKey: string
   icon: string
   defaultOpen?: boolean
+  /**
+   * sectionId 把这个文件夹标记为「Core 注册的共享分区」：扩展 admin 页只要在
+   * manifest 里声明 `group: <sectionId>`，就会作为子项并入这里，与 Core 自己的
+   * 页面同处一个一级菜单。容器归 Core，成员由各自的所有者注册。
+   */
+  sectionId?: string
   children: readonly AdminNavigationEntry[]
 }
 
@@ -472,7 +478,18 @@ export const adminSidebarNavigation = [
         { type: 'page', pageId: '/entity-meta' },
         { type: 'page', pageId: '/personalization' },
         { type: 'page', pageId: '/seo' },
-        { type: 'page', pageId: '/search' },
+        { type: 'page', pageId: '/search' }
+      ]
+    },
+    {
+      // 「AI 能力」是一级菜单：Core 的 AI 控制台在这里，插件把 manifest 的
+      // admin.pages[].group 写成 "ai-tools" 就能把自己的设置页并进来。
+      // 容器归 Core（label/icon/位置），成员归各自的所有者。
+      type: 'folder',
+      labelKey: 'admin.nav.aiTools',
+      icon: 'i-lucide-sparkles',
+      sectionId: 'ai-tools',
+      children: [
         { type: 'page', pageId: '/ai' }
       ]
     },
@@ -636,3 +653,15 @@ export function shouldShowAdminPageInNav(
   }
   return true
 }
+
+/**
+ * Core 注册的共享一级菜单分区 id。
+ *
+ * 扩展在 manifest 里写 `admin.pages[].group: "<id>"` 就并入对应的 Core 一级菜单；
+ * 未注册的 group 保持旧行为（按扩展各自成组）。容器（label/icon/位置）归 Core，
+ * 成员归各自的所有者——Core 不硬编码任何插件 id。
+ *
+ * 必须与 `adminSidebarNavigation` 里带 `sectionId` 的文件夹保持一致，由
+ * `tests/admin/adminAiSectionNav.test.ts` 钉住。
+ */
+export const ADMIN_NAV_SECTION_IDS: readonly string[] = ['ai-tools']

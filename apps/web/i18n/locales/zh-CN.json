@@ -619,6 +619,11 @@
       "selectedCount": "已选择 {count} 项"
     },
     "ai": {
+      "saveFailed": "AI 配置保存失败。",
+      "resetFailed": "恢复推荐默认值失败。",
+      "credentialFailed": "供应商密钥保存失败。",
+      "modelListFailed": "读取模型列表失败。",
+      "monthlyBudgetHint": "每月最多 {max} 元。0 表示不限制花费。",
       "title": "AI 能力",
       "intro": "配置 AI 供应商、成本闸门，并查看用量与每次执行的归因记录。",
       "refresh": "刷新",
@@ -711,6 +716,11 @@
       "autoActionTag": "打标签",
       "autoActionReject": "驳回",
       "autoActionNeedsActions": "启用自动裁决前请至少选择一个动作。",
+      "profileIssue": {
+        "label": "供应商名称不能为空，且不超过 64 字节。",
+        "baseUrl": "请填写完整的 http(s) 地址，例如 https://api.example.com/v1，且不要包含密钥。",
+        "model": "模型标识不能为空，且不超过 128 字节。"
+      },
       "redaction": "内容脱敏",
       "redactionIntro": "提交给供应商之前移除可识别信息。不会影响站内存储的内容。",
       "redactionEnabled": "启用脱敏",
@@ -775,6 +785,7 @@
         "costHint": "自主模式会对每条新主题和评论产生一次轻量模型调用，按触发者配额计量；短时间同一主题的发言会合并判定。"
       },
       "diagnose": {
+        "failed": "连通性测试失败。",
         "current": "当前配置",
         "provider": "提供商",
         "model": "模型",
@@ -889,7 +900,8 @@
       "search": "搜索索引",
       "jobs": "后台任务",
       "schedules": "定时任务",
-      "ai": "AI 能力",
+      "ai": "AI 控制台",
+      "aiTools": "AI 能力",
       "moderation": "审核管理",
       "attachments": "附件设置",
       "extensions": "扩展管理",
@@ -1190,6 +1202,19 @@
         "forced": "强制模式",
         "version": "精确版本",
         "attempts": "执行次数",
+        "lastPhase": "最后阶段",
+        "states": {
+          "planned": "已计划",
+          "migrating": "迁移中",
+          "starting": "启动中",
+          "healthy": "运行正常",
+          "registering": "注册中",
+          "enabled": "已启用",
+          "draining": "停止流量",
+          "uninstalling": "卸载中",
+          "failed": "已失败",
+          "recovery": "恢复中"
+        },
         "removalMode": "数据处理",
         "audit": "初始审计记录",
         "steps": "步骤记录",

@@ -14,7 +14,8 @@ const customized = computed(() => !promptUsesDefault(form.value?.reply?.systemPr
 
 function restoreDefaultPrompt() {
   if (!form.value) return
-  form.value.reply = { systemPrompt: ai.defaultSystemPrompt.value }
+  // 只替换提示词，保留触发方式：整对象替换会静默把 autonomous/off 改回 mention。
+  form.value.reply = { ...form.value.reply, systemPrompt: ai.defaultSystemPrompt.value }
 }
 </script>
 

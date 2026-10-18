@@ -130,6 +130,9 @@ func (v *v3Validator) validateAITools() error {
 		if !IsOwnedID(v.manifest.ID, declaration.Handler) {
 			return fmt.Errorf("%w: v3 aitools rule #12", ErrInvalidManifest)
 		}
+		if err := ValidateAIToolContext(declaration.Context); err != nil {
+			return err
+		}
 	}
 	return nil
 }

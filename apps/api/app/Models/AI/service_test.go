@@ -321,3 +321,32 @@ func TestServicePurposeDetailsCarryDeclaredAndEffectiveParameters(t *testing.T) 
 		t.Fatalf("purpose catalog requires ai.manage: %v", err)
 	}
 }
+
+type stubToolCatalog struct {
+	tools []supportai.ToolAvailability
+}
+
+func (s stubToolCatalog) Available() []supportai.ToolAvailability { return s.tools }
+
+// 工具目录只对 ai.manage 可见；未注入目录时返回空清单而不是报错——控制台会
+// 退化成手动输入工具名，那是一个更笨但可用的界面。
+func TestAvailableToolsRequiresManagePermissionAndUsesCatalog(t *testing.T) {
+	catalog := stubToolCatalog{tools: []supportai.ToolAvailability{{
+		Name: "web-search", Description: "检索站外互联网。",
+		Origin: supportai.ToolOrigin{Kind: "plugin", ExtensionID: "sforum.web-search", Version: "1.0.0"},
+	}}}
+	service := modelsai.NewService(modelsai.Config{}).WithToolCatalog(catalog)
+
+	if _, err := service.AvailableTools(identity.Actor{ID: 1, Status: identity.UserStatusActive}); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("non-manager must be denied, got %v", err)
+	}
+	tools, err := service.AvailableTools(managerActor())
+	if err != nil || len(tools) != 1 || tools[0].Origin.ExtensionID != "sforum.web-search" {
+		t.Fatalf("tools=%#v err=%v", tools, err)
+	}
+
+	empty := modelsai.NewService(modelsai.Config{})
+	if got, err := empty.AvailableTools(managerActor()); err != nil || got != nil {
+		t.Fatalf("missing catalog must report no tools, got %#v err=%v", got, err)
+	}
+}

@@ -24,7 +24,10 @@ func (i *bootstrapPluginToolInvoker) InvokeVersionedAITool(
 }
 
 func bootstrapAIToolPlugin(id, name string) extensions.Extension {
-	extension := extensions.Extension{ID: id, Name: id, Version: "1.0.0", Type: extensions.TypePlugin, PackageDigest: "digest"}
+	extension := extensions.Extension{
+		ID: id, Name: id, Version: "1.0.0", Type: extensions.TypePlugin,
+		Status: extensions.StatusEnabled, PackageDigest: "digest",
+	}
 	extension.Manifest.AITools = []extensions.ManifestAITool{{
 		ID: id + ".lookup", ContractVersion: id + ".lookup@1", Name: name,
 		Description: "Look something up.",
@@ -44,15 +47,17 @@ func TestRegisterPluginAIToolsRegistersOnlyValidPluginDeclarations(t *testing.T)
 	theme := bootstrapAIToolPlugin("theme.ai-tool", "theme-order-lookup")
 	theme.Type = extensions.TypeTheme
 	undeclared := extensions.Extension{ID: "plugin.plain", Type: extensions.TypePlugin}
+	disabled := bootstrapAIToolPlugin("plugin.ai-tool.disabled", "disabled-order-lookup")
+	disabled.Status = extensions.StatusDisabled
 
-	failures := registerPluginAITools(registry, invoker, []extensions.Extension{valid, invalid, theme, undeclared})
+	failures := registerPluginAITools(registry, invoker, []extensions.Extension{valid, invalid, theme, undeclared, disabled})
 	if len(failures) != 1 {
 		t.Fatalf("invalid declaration should be reported once, got %#v", failures)
 	}
 	if _, ok := registry.Lookup("valid-order-lookup"); !ok {
 		t.Fatal("valid plugin tool must be registered in the host tool registry")
 	}
-	for _, absent := range []string{"invalid-order-lookup", "theme-order-lookup"} {
+	for _, absent := range []string{"invalid-order-lookup", "theme-order-lookup", "disabled-order-lookup"} {
 		if _, ok := registry.Lookup(absent); ok {
 			t.Fatalf("%s must not be registered", absent)
 		}

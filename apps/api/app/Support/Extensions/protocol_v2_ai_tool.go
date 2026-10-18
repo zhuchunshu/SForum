@@ -6,6 +6,7 @@ import (
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -35,6 +36,11 @@ type VersionedAIToolRequest struct {
 	// 同一个 handler 下的另一个工具名。
 	Name      string
 	Arguments string
+	// Locale / TopicID / ViewerUserID 是清单 aiTools[].context 声明过的会话事实。
+	// 未声明的项保持零值，不会出现在请求文档里——声明即授权，宿主不做隐式披露。
+	Locale       string
+	TopicID      int64
+	ViewerUserID int64
 }
 
 // VersionedAIToolResponse 是插件给出的结果。
@@ -73,16 +79,31 @@ func (c *protocolV2Client) InvokeVersionedAITool(
 		return VersionedAIToolResponse{}, fmt.Errorf("protocol v2 AI tool declaration %q is not frozen", input.DeclarationID)
 	}
 	declaredTimeout := time.Duration(declared.TimeoutMS) * time.Millisecond
-	if input.Timeout != declaredTimeout || declaredTimeout <= 0 || declaredTimeout > DefaultProtocolV2RequestTimeout {
+	// 上限用工具声明自己的边界，而不是传输默认超时：后者是「调用方没给 deadline
+	// 时的兜底」，工具调用永远自带 deadline。两者混用会把 5 秒的传输默认值变成
+	// 工具能力的硬顶。
+	maxTimeout := time.Duration(extensionmanifest.AIToolMaximumTimeoutMS) * time.Millisecond
+	if input.Timeout != declaredTimeout || declaredTimeout <= 0 || declaredTimeout > maxTimeout {
 		return VersionedAIToolResponse{}, fmt.Errorf("protocol v2 AI tool declaration %q timeout drifted", input.DeclarationID)
 	}
 	requestSchemaID, requestSchemaVersion, err := protocolV2SchemaRef(ProtocolV2AIToolRequestSchema)
 	if err != nil {
 		return VersionedAIToolResponse{}, err
 	}
-	document, err := protocolV2Document(requestSchemaID, requestSchemaVersion, map[string]any{
+	// 会话事实是加项：未声明的字段根本不写进文档，旧插件读不到也不受影响。
+	payload := map[string]any{
 		"name": input.Name, "arguments": input.Arguments,
-	})
+	}
+	if input.Locale != "" {
+		payload["locale"] = input.Locale
+	}
+	if input.TopicID > 0 {
+		payload["topicId"] = input.TopicID
+	}
+	if input.ViewerUserID > 0 {
+		payload["viewerUserId"] = input.ViewerUserID
+	}
+	document, err := protocolV2Document(requestSchemaID, requestSchemaVersion, payload)
 	if err != nil {
 		return VersionedAIToolResponse{}, err
 	}

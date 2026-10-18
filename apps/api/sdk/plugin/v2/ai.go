@@ -18,8 +18,10 @@ const (
 
 	// 与 Host 侧 ai.* 常量同值。SDK 刻意不 import Support/AI：插件 SDK 只应依赖
 	// 契约，边界值在这里重复声明一次，避免把整个网关实现拖进插件二进制。
-	HostAICompleteMaxMessages    = 64
-	HostAICompleteMaxTokens      = 32_000
+	// 两者必须同步：Host 侧测试 TestSDKAICompletionLimitsMatchHost 钉住了这层镜像，
+	// 否则会出现「Host 放行、SDK 先拒」的分裂。
+	HostAICompleteMaxMessages    = 256
+	HostAICompleteMaxTokens      = 128_000
 	HostAICompleteMaxPurposeLen  = 128
 	HostAICompleteMaxTools       = 16
 	HostAICompleteMaxToolNameLen = 64

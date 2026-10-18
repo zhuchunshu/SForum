@@ -383,7 +383,10 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	aiProvider := providers.NewAIProvider(pool, aiSecrets, identityStore, authSessions, providers.AIOutboundOptions{
 		AllowHTTP:    !strings.EqualFold(cfg.AppEnv, "production"),
 		AllowPrivate: config.AllowPrivateAIEndpoint(cfg),
-	}, cache.NewRedisCache(sharedRedisClient))
+	}, cache.NewRedisCache(sharedRedisClient), func(ctx context.Context) (string, error) {
+		// 工具调用的 locale 事实来自站点默认语言：Identity 没有 per-user locale。
+		return optionsService.WebOption(ctx, options.NameSiteDefaultLocale)
+	})
 	// AI 网关在这里才可用（它需要 Secret Store，后者由扩展平台阶段产出），因此
 	// 命令目录冻结时拿到的是一个占位目标，此刻回填真实网关。
 	if extensionPlatform.commandDeferred != nil {
@@ -529,6 +532,9 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 			}
 		}
 	}
+	// 工具目录必须在登记完成后注入：控制台据此列出可点名的工具，包含刚登记的
+	// 插件工具。它在装配期调用一次，此后只读。
+	aiProvider.Service().WithToolCatalog(aiToolRegistry)
 	pageModerationService := moderation.NewServiceWithWorkbench(
 		moderationStore, moderation.NewForumTargetValidator(forumStore), moderationStore, moderationStore,
 	)

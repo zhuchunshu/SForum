@@ -121,58 +121,87 @@ func (p Profile) Normalized() Profile {
 // ValidateEndpointURL 校验 API 根地址：必须是 http(s)，且不得内嵌凭据。
 // 保存与只读探测（列出模型）共用它，两条路径对「什么算合法地址」不能有不同答案。
 func ValidateEndpointURL(raw string) error {
-	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || parsed.Host == "" {
-		return ErrProfileInvalid
-	}
-	if parsed.Scheme != "https" && parsed.Scheme != "http" {
-		return ErrProfileInvalid
-	}
-	// 凭据不得出现在 URL 中：密钥只能通过 Secret Store 引用提供，否则会随
-	// 设置文档、导出与日志一起泄漏。
-	if parsed.User != nil {
+	if _, ok := endpointURLIssue(raw); !ok {
 		return ErrProfileInvalid
 	}
 	return nil
 }
 
-// Validate 只校验该 profile 自身。天花板越界一律拒绝，不给「我只想调大一点」
-// 留空间；需要更大的值应先修改 Host 常量并记录决策。
-func (p Profile) Validate() error {
+// endpointURLIssue 返回地址不合法的具体原因码。它与 ValidateEndpointURL 共用同一套
+// 判定，只是多带出「哪一条不满足」，供控制台把消息挂到 baseUrl 输入框。
+func endpointURLIssue(raw string) (string, bool) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" {
+		return IssueCodeInvalidURL, false
+	}
+	if parsed.Scheme != "https" && parsed.Scheme != "http" {
+		return IssueCodeInvalidURL, false
+	}
+	// 凭据不得出现在 URL 中：密钥只能通过 Secret Store 引用提供，否则会随
+	// 设置文档、导出与日志一起泄漏。
+	if parsed.User != nil {
+		return IssueCodeCredentialInURL, false
+	}
+	return "", true
+}
+
+// Issues 逐项报告该 profile 的问题，Field 用载荷路径（profiles[i].xxx），
+// 供控制台把消息落到具体输入框。index 是它在 profiles 数组里的下标。
+func (p Profile) Issues(index int) []Issue {
+	field := func(name string) string { return profileField(index, name) }
+	var issues []Issue
 	if !validProfileID(p.ID) || len(p.ID) > MaxProfileIDLen {
-		return ErrProfileInvalid
+		issues = append(issues, Issue{Field: field("id"), Code: IssueCodeInvalidValue})
 	}
 	label := strings.TrimSpace(p.Label)
-	if label == "" || len(label) > MaxLabelLen {
-		return ErrProfileInvalid
+	switch {
+	case label == "":
+		issues = append(issues, Issue{Field: field("label"), Code: IssueCodeRequired})
+	case len(label) > MaxLabelLen:
+		issues = append(issues, Issue{Field: field("label"), Code: IssueCodeTooLong})
 	}
 	if !ValidProtocol(p.Protocol) {
-		return ErrProfileInvalid
+		issues = append(issues, Issue{Field: field("protocol"), Code: IssueCodeInvalidValue})
 	}
-	if err := ValidateEndpointURL(p.BaseURL); err != nil {
-		return ErrProfileInvalid
+	if code, ok := endpointURLIssue(p.BaseURL); !ok {
+		issues = append(issues, Issue{Field: field("baseUrl"), Code: code})
 	}
 	ref := strings.TrimSpace(p.APIKeyRef)
 	if !strings.HasPrefix(ref, SecretReferencePrefix) || len(ref) == len(SecretReferencePrefix) {
-		return ErrProfileInvalid
+		issues = append(issues, Issue{Field: field("apiKeyRef"), Code: IssueCodeInvalidValue})
 	}
 	model := strings.TrimSpace(p.Model)
-	if model == "" || len(model) > MaxModelLen {
-		return ErrProfileInvalid
+	switch {
+	case model == "":
+		issues = append(issues, Issue{Field: field("model"), Code: IssueCodeRequired})
+	case len(model) > MaxModelLen:
+		issues = append(issues, Issue{Field: field("model"), Code: IssueCodeTooLong})
 	}
 	if !ValidCostClass(p.CostClass) {
-		return ErrProfileInvalid
+		issues = append(issues, Issue{Field: field("costClass"), Code: IssueCodeInvalidValue})
 	}
 	if p.Defaults.MaxTokens <= 0 || p.Defaults.MaxTokens > MaxCompletionTokens {
-		return ErrProfileInvalid
+		issues = append(issues, Issue{Field: field("defaults.maxTokens"), Code: IssueCodeOutOfRange})
 	}
 	if p.Defaults.TimeoutMS < MinTimeoutMS || p.Defaults.TimeoutMS > MaxTimeoutMS {
-		return ErrProfileInvalid
+		issues = append(issues, Issue{Field: field("defaults.timeoutMs"), Code: IssueCodeOutOfRange})
 	}
 	if p.Defaults.Temperature != nil && (*p.Defaults.Temperature < MinTemperature || *p.Defaults.Temperature > MaxTemperature) {
-		return ErrProfileInvalid
+		issues = append(issues, Issue{Field: field("defaults.temperature"), Code: IssueCodeOutOfRange})
 	}
-	if p.Price.InputPerMillionMicros < 0 || p.Price.OutputPerMillionMicros < 0 {
+	if p.Price.InputPerMillionMicros < 0 {
+		issues = append(issues, Issue{Field: field("price.inputPerMillionMicros"), Code: IssueCodeOutOfRange})
+	}
+	if p.Price.OutputPerMillionMicros < 0 {
+		issues = append(issues, Issue{Field: field("price.outputPerMillionMicros"), Code: IssueCodeOutOfRange})
+	}
+	return issues
+}
+
+// Validate 只校验该 profile 自身。天花板越界一律拒绝，不给「我只想调大一点」
+// 留空间；需要更大的值应先修改 Host 常量并记录决策。
+func (p Profile) Validate() error {
+	if len(p.Issues(0)) > 0 {
 		return ErrProfileInvalid
 	}
 	return nil

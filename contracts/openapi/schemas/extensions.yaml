@@ -638,6 +638,9 @@ LifecycleOperationSummary:
     terminalResult:
       type: string
       enum: [succeeded, failed, cancelled, skipped]
+    closed:
+      type: boolean
+      description: True once the operation reached a durable terminal result. This mirrors completed_at and is the same predicate the runtime fence and `sforum extension recovery lifecycle-close` use; state is only the last phase the operation reached.
     requestedByUserId:
       type: integer
       format: int64
@@ -831,6 +834,9 @@ LifecycleOperationDetail:
     terminalResult:
       type: string
       enum: [succeeded, failed, cancelled, skipped]
+    closed:
+      type: boolean
+      description: True once the operation reached a durable terminal result. This mirrors completed_at and is the same predicate the runtime fence and `sforum extension recovery lifecycle-close` use; state is only the last phase the operation reached.
     requestedByUserId:
       type: integer
       format: int64

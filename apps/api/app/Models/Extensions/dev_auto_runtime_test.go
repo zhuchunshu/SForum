@@ -5,10 +5,13 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 // DevAutoRuntime 的行为测试：彻底 0 命令 dev 自动激活的三个核心语义——
@@ -80,6 +83,9 @@ type devAutoFakePromoter struct {
 	// upgradedKeys 捕获每次 Upgrade 收到的 IdempotencyKey（dev 通道必须是
 	// dev-auto/ 前缀的确定性键；契约版本晋升在真实 Service.Upgrade 内完成）。
 	upgradedKeys []string
+	// enabledKeys 捕获每次 Enable 收到的 IdempotencyKey。Enable 同样要过
+	// lifecycle coordinator，缺键会让新装插件永远停在 installed。
+	enabledKeys  []string
 	upgradeCalls int
 	// firstUpgradeErr 非空时首次 Upgrade 返回该错误（模拟 coordinator 撞上
 	// 需要显式 retry 的终态 operation），第二次起正常成功。
@@ -90,8 +96,9 @@ type devAutoFakePromoter struct {
 	recoveredIDs []int64
 }
 
-func (p *devAutoFakePromoter) Enable(_ context.Context, _ identity.Actor, id string, _ EnableInput) (Extension, error) {
+func (p *devAutoFakePromoter) Enable(_ context.Context, _ identity.Actor, id string, input EnableInput) (Extension, error) {
 	p.enabledIDs = append(p.enabledIDs, id)
+	p.enabledKeys = append(p.enabledKeys, input.IdempotencyKey)
 	return Extension{ID: id, Status: StatusEnabled}, nil
 }
 
@@ -144,6 +151,11 @@ func TestDevAutoRuntimeEnablesFreshlyInstalledExtension(t *testing.T) {
 	}
 	if len(grants.ensured) != 1 || !strings.HasPrefix(grants.ensured[0], extension.ID+"@") {
 		t.Fatalf("grants = %#v", grants.ensured)
+	}
+	// Enable 也必须带确定性幂等键：真实 coordinator 缺键会直接拒绝，
+	// 结果是新装插件永远停在 installed（只有台账里一条 promote failed）。
+	if len(promoter.enabledKeys) != 1 || !strings.HasPrefix(promoter.enabledKeys[0], DevAutoIdempotencyKeyPrefix) {
+		t.Fatalf("enable idempotency keys = %#v", promoter.enabledKeys)
 	}
 }
 
@@ -260,18 +272,13 @@ func TestDevAutoRuntimeRewritesComponentContractVersions(t *testing.T) {
 // coordinator 对 cancelled 与 failed 终态同等地要求显式 retry;恢复扫描必须
 // 同时覆盖两者,否则 cancelled 的升级会让 dev auto 永远撞 RetryRequired。
 func TestDevAutoRuntimeRecoversCancelledUpgrade(t *testing.T) {
-	extension := devTrustTestExtension(t)
-	extension.Status = StatusEnabled
-	extension.Type = TypePlugin
-	extension.Manifest.Backend.ProtocolVersion = 2
-	extension.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "sforum.lifecycle@1"}
-	stagedDigest := strings.Repeat("ef", 32)
-	extension.StagedVersion = &ExtensionVersion{ID: 77, Version: "2.0.0", PackageDigest: stagedDigest}
+	extension, staged := devAutoUpgradableExtension(t)
 	promoter := &devAutoFakePromoter{
 		firstUpgradeErr: ErrLifecycleCoordinatorRetryRequired,
 		operations: []LifecycleOperationSummary{{
 			ID: 361, ExtensionID: extension.ID,
 			Operation: string(LifecycleMachineUpgrade), TerminalResult: LifecycleTerminalCancelled,
+			PackageDigest: staged.PackageDigest, AttemptCount: 1,
 		}},
 	}
 	runtime := &DevAutoRuntime{
@@ -329,10 +336,172 @@ func TestDevAutoRuntimeSkipsNonRetryableOperations(t *testing.T) {
 	}
 }
 
+// devAutoUpgradableExtension 构造一个「已启用、声明 lifecycle V2、且带着一份
+// 真实可装载 staged 制品」的包。放弃闸门依赖磁盘事实，所以 fixtures 必须是
+// 真实临时包：目录在、摘要对得上、backend entry 存在。
+func devAutoUpgradableExtension(t *testing.T) (Extension, *ExtensionVersion) {
+	t.Helper()
+	extension := devTrustTestExtension(t)
+	extension.Status = StatusEnabled
+	extension.Type = TypePlugin
+	extension.Manifest.Backend.ProtocolVersion = 2
+	extension.Manifest.Lifecycle = &ManifestLifecycle{ContractVersion: "sforum.lifecycle@1"}
+	stagedPackage := devTrustTestExtension(t)
+	staged := &ExtensionVersion{
+		ID: 77, Version: "2.0.0", PackageDigest: stagedPackage.PackageDigest,
+		PackagePath: stagedPackage.PackagePath, Manifest: stagedPackage.Manifest,
+	}
+	extension.StagedVersion = staged
+	return extension, staged
+}
+
+func newDevAutoRuntimeWithStore(t *testing.T, extension Extension) (*DevAutoRuntime, *devAutoFakePromoter, *fakeExtensionStore) {
+	t.Helper()
+	store := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}
+	promoter := &devAutoFakePromoter{}
+	runtime := &DevAutoRuntime{
+		service:    NewService(store, t.TempDir()),
+		promoter:   promoter,
+		identities: newDevAutoFakeIdentity(),
+		grants:     &devAutoFakeGrants{},
+		logger:     discardLogger(),
+	}
+	return runtime, promoter, store
+}
+
+func devAutoSkippedEvents(store *fakeExtensionStore) []ExtensionEvent {
+	skipped := make([]ExtensionEvent, 0)
+	for _, event := range store.events {
+		if event.Action == EventDevAutoSkipped {
+			skipped = append(skipped, event)
+		}
+	}
+	return skipped
+}
+
+// 冻结制品不可装载（目录被删、摘要漂移、manifest 坏了）时继续重试只会复现同一
+// 终态失败——现场曾把 operation 697 推到 attempt=98、97 条恢复决定。闸门必须在
+// 恢复之前生效：只写一条放弃台账，不恢复、不二次升级。
+func TestDevAutoRuntimeGivesUpWhenStagedArtifactUnloadable(t *testing.T) {
+	extension, staged := devAutoUpgradableExtension(t)
+	if err := os.RemoveAll(staged.PackagePath); err != nil {
+		t.Fatal(err)
+	}
+	runtime, promoter, store := newDevAutoRuntimeWithStore(t, extension)
+	promoter.firstUpgradeErr = ErrLifecycleCoordinatorRetryRequired
+	promoter.operations = []LifecycleOperationSummary{{
+		ID: 697, ExtensionID: extension.ID,
+		Operation: string(LifecycleMachineUpgrade), TerminalResult: LifecycleTerminalFailed,
+		PackageDigest: staged.PackageDigest, AttemptCount: 1,
+	}}
+
+	runtime.promoteOneForTest(t, extension.ID)
+
+	if len(promoter.recoveredIDs) != 0 {
+		t.Fatalf("unloadable artifact must not be recovered: %#v", promoter.recoveredIDs)
+	}
+	if promoter.upgradeCalls != 1 {
+		t.Fatalf("upgrade calls = %d; want a single diagnostic attempt", promoter.upgradeCalls)
+	}
+	skipped := devAutoSkippedEvents(store)
+	if len(skipped) != 1 || !strings.Contains(skipped[0].Message, "not loadable") {
+		t.Fatalf("expected one give-up event with a loadability reason: %+v", skipped)
+	}
+
+	// 下一次文件事件不得重复刷台账（同一冻结摘要只留一条）。
+	runtime.promoteOneForTest(t, extension.ID)
+	if got := len(devAutoSkippedEvents(store)); got != 1 {
+		t.Fatalf("give-up note repeated: %d", got)
+	}
+}
+
+// 制品可装载但同一摘要已经被自动恢复过上限次数：同样直接放弃。
+func TestDevAutoRuntimeGivesUpAfterRepeatedRecoveries(t *testing.T) {
+	extension, staged := devAutoUpgradableExtension(t)
+	runtime, promoter, store := newDevAutoRuntimeWithStore(t, extension)
+	promoter.firstUpgradeErr = ErrLifecycleCoordinatorRetryRequired
+	promoter.operations = []LifecycleOperationSummary{{
+		ID: 697, ExtensionID: extension.ID,
+		Operation: string(LifecycleMachineUpgrade), TerminalResult: LifecycleTerminalFailed,
+		PackageDigest: staged.PackageDigest, AttemptCount: devAutoMaxFailedUpgradeAttempts,
+	}}
+
+	runtime.promoteOneForTest(t, extension.ID)
+
+	if len(promoter.recoveredIDs) != 0 || promoter.upgradeCalls != 1 {
+		t.Fatalf("exhausted artifact must give up: recovered=%#v calls=%d", promoter.recoveredIDs, promoter.upgradeCalls)
+	}
+	skipped := devAutoSkippedEvents(store)
+	if len(skipped) != 1 || !strings.Contains(skipped[0].Message, "without success") {
+		t.Fatalf("expected one attempt-cap give-up event: %+v", skipped)
+	}
+}
+
+// 只恢复「当前冻结摘要」的失败操作：回头恢复别的制品的历史失败会污染操作历史。
+func TestDevAutoRuntimeIgnoresFailedUpgradeForAnotherDigest(t *testing.T) {
+	extension, _ := devAutoUpgradableExtension(t)
+	runtime, promoter, _ := newDevAutoRuntimeWithStore(t, extension)
+	promoter.firstUpgradeErr = ErrLifecycleCoordinatorRetryRequired
+	promoter.operations = []LifecycleOperationSummary{{
+		ID: 429, ExtensionID: extension.ID,
+		Operation: string(LifecycleMachineUpgrade), TerminalResult: LifecycleTerminalFailed,
+		PackageDigest: strings.Repeat("cd", 32), AttemptCount: 1,
+	}}
+
+	runtime.promoteOneForTest(t, extension.ID)
+
+	if len(promoter.recoveredIDs) != 0 {
+		t.Fatalf("recovered an unrelated digest: %#v", promoter.recoveredIDs)
+	}
+}
+
+func TestStagedArtifactUsableRejectsUnloadableArtifacts(t *testing.T) {
+	extension, _ := devAutoUpgradableExtension(t)
+	staged, ok := extension.StagedArtifact()
+	if !ok {
+		t.Fatal("fixture must stage an artifact")
+	}
+	if err := stagedArtifactUsable(staged); err != nil {
+		t.Fatalf("loadable artifact rejected: %v", err)
+	}
+
+	missing := staged
+	missing.PackagePath = filepath.Join(t.TempDir(), "gone")
+	if err := stagedArtifactUsable(missing); !errors.Is(err, ErrArtifactUnusable) {
+		t.Fatalf("missing artifact error=%v", err)
+	}
+
+	mismatched := staged
+	mismatched.ID = "other.extension"
+	if err := stagedArtifactUsable(mismatched); !errors.Is(err, ErrArtifactUnusable) ||
+		!strings.Contains(err.Error(), "identity") {
+		t.Fatalf("identity mismatch error=%v", err)
+	}
+
+	broken, _ := devAutoUpgradableExtension(t)
+	brokenStaged, _ := broken.StagedArtifact()
+	if err := os.WriteFile(filepath.Join(brokenStaged.PackagePath, extensionmanifest.ManifestFileName), []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := stagedArtifactUsable(brokenStaged); !errors.Is(err, ErrArtifactUnusable) ||
+		!strings.Contains(err.Error(), "manifest") {
+		t.Fatalf("unreadable manifest error=%v", err)
+	}
+
+	drifted, _ := devAutoUpgradableExtension(t)
+	driftedStaged, _ := drifted.StagedArtifact()
+	if err := os.WriteFile(filepath.Join(driftedStaged.PackagePath, "drift.txt"), []byte("drift"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := stagedArtifactUsable(driftedStaged); !errors.Is(err, ErrArtifactUnusable) ||
+		!strings.Contains(err.Error(), "frozen digest") {
+		t.Fatalf("digest drift error=%v", err)
+	}
+}
+
 func (p *devAutoFakePromoter) LifecycleOperations(_ context.Context, _ identity.Actor, _ string, _ int) ([]LifecycleOperationSummary, error) {
 	return p.operations, nil
 }
-
 func (p *devAutoFakePromoter) RecoverLifecycleOperation(
 	_ context.Context, _ identity.Actor, _ string, operationID int64, _ LifecycleRecoveryInput,
 ) (LifecycleOperationDetail, error) {

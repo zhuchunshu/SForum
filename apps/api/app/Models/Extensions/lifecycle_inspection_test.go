@@ -103,6 +103,9 @@ func TestLifecycleInspectionReturnsOnlyAllowlistedFields(t *testing.T) {
 	if err != nil || len(history) != 1 || history[0].ID != operation.ID {
 		t.Fatalf("history=%#v err=%v", history, err)
 	}
+	if history[0].Closed {
+		t.Fatal("an operation without completed_at must not report closed")
+	}
 	detail, err := service.LifecycleOperation(context.Background(), actor, operation.ExtensionID, operation.ID)
 	if err != nil || len(detail.Steps) != 1 || detail.Steps[0].ID != step.ID ||
 		len(detail.Recoveries) != 1 || detail.Recoveries[0].ID != recovery.ID {
@@ -125,6 +128,41 @@ func TestLifecycleInspectionReturnsOnlyAllowlistedFields(t *testing.T) {
 	if detail.Error.Code != "lifecycle.action_failed" || detail.Error.Reason != "lifecycle.action_failed" ||
 		detail.Steps[0].Error.Code != "lifecycle.action_failed" || detail.Steps[0].ProgressMessage != "" {
 		t.Fatalf("public lifecycle errors were not canonicalized: %#v", detail)
+	}
+}
+
+// operation 703 的形态：uninstall 收尾在 uninstalling 阶段，终态只由 completed_at
+// + terminal_result 表达。closed 必须是唯一判据，否则 API 表面读起来像「还没关」，
+// 而 CLI 依据 completed_at 报「已关闭」——两边对同一行得出相反结论。
+func TestLifecycleInspectionMarksCompletedOperationClosedRegardlessOfPhase(t *testing.T) {
+	now := time.Now().UTC()
+	completedAt := now.Add(-time.Minute)
+	operation := LifecycleOperation{
+		ID: 703, ExtensionID: "sforum.web-search", ExtensionVersion: "1.0.0",
+		PackageDigest: strings.Repeat("a", 64),
+		Operation:     LifecycleOperationUninstall, State: LifecycleStateUninstalling,
+		PlanVersion: "sforum.web-search@1", AttemptCount: 1, Revision: 26,
+		TerminalResult: LifecycleTerminalSucceeded, CompletedAt: &completedAt,
+		CreatedAt: now, UpdatedAt: completedAt,
+	}
+	repository := &lifecycleInspectionTestRepository{
+		operation: operation, operations: []LifecycleOperation{operation},
+	}
+	service := NewServiceWithOptions(newFakeExtensionStore(map[string]Extension{}), "", "", nil, WithLifecycleInspectionRepository(repository))
+	actor := identity.Actor{ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{identity.PermissionExtensionView: true}}
+
+	detail, err := service.LifecycleOperation(context.Background(), actor, operation.ExtensionID, operation.ID)
+	if err != nil {
+		t.Fatalf("load completed operation: %v", err)
+	}
+	if !detail.Closed {
+		t.Fatalf("completed operation must report closed: %#v", detail.LifecycleOperationSummary)
+	}
+	if detail.State != LifecycleStateUninstalling || detail.TerminalResult != LifecycleTerminalSucceeded {
+		t.Fatalf("last phase and terminal result must stay visible: %#v", detail.LifecycleOperationSummary)
+	}
+	if detail.CompletedAt == nil {
+		t.Fatal("completedAt must be exposed next to closed")
 	}
 }
 

@@ -219,3 +219,123 @@ export function normalizedAISettingsForComparison<T extends AIComparableSettings
   delete (copy as { identity?: unknown }).identity
   return copy
 }
+
+// ---------------------------------------------------------------------------
+// 取值天花板：服务端下发 + 旧载荷兜底
+// ---------------------------------------------------------------------------
+//
+// 上限的唯一权威是服务端（GET /admin/ai/settings 的 limits）。前端保留一份同值
+// 兜底，只用于旧载荷或缺字段的场景——面板不能因为一个可选字段缺失就退化成
+// 「没有上下限」的自由输入。两处数字漂移正是「界面允许、服务端 422」的成因，
+// 因此改后端常量时这段兜底必须同步，adminAILimits 测试会钉住这一致性。
+
+export type AdminAILimits = {
+  minTimeoutMs: number
+  maxTimeoutMs: number
+  maxCompletionTokens: number
+  defaultCompletionTokens: number
+  maxToolCallsPerReply: number
+  defaultToolCallsPerReply: number
+  maxRateLimitPerMinute: number
+  maxExtensionDailyQuota: number
+  maxUserDailyQuota: number
+  maxMonthlyBudgetMicros: number
+  maxTotalInputBytes: number
+}
+
+export const DEFAULT_AI_LIMITS: AdminAILimits = {
+  minTimeoutMs: 1_000,
+  maxTimeoutMs: 120_000,
+  maxCompletionTokens: 128_000,
+  defaultCompletionTokens: 4_096,
+  maxToolCallsPerReply: 12,
+  defaultToolCallsPerReply: DEFAULT_TOOL_CALLS_PER_REPLY,
+  maxRateLimitPerMinute: 60_000,
+  maxExtensionDailyQuota: 100_000_000,
+  maxUserDailyQuota: 1_000_000,
+  maxMonthlyBudgetMicros: 10_000_000 * 1_000_000,
+  maxTotalInputBytes: 12 * 1024 * 1024
+}
+
+/**
+ * coerceInteger 把一个可能来自输入框的值收敛成服务端能接受的整数。
+ *
+ * 为什么需要它：`<input type="number">` 被清空时读回的是空串，而数字输入框
+ * 在 Nuxt UI 里会把它原样写进模型（`looseToNumber('') === ''`）。空串随 PUT
+ * 提交后，Go 侧 `int` 字段解码直接失败——运营者只看到没有指向的 422。
+ * 小数同理：`12.5` 无法解码成 int。
+ *
+ * 因此规则是：空值/非数字回退到 fallback（上一次合法值），其余夹到 [min,max]
+ * 并取整。**永不返回空串**。
+ */
+export function coerceInteger(value: unknown, fallback: number, min: number, max: number): number {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === 'string' && value.trim() === '') return fallback
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) return fallback
+  const rounded = Math.round(parsed)
+  if (!Number.isSafeInteger(rounded)) return fallback
+  return Math.min(max, Math.max(min, rounded))
+}
+
+/** coerceNumber 用于允许小数的字段（预算按元输入、单价按每百万 token 输入）。 */
+export function coerceNumber(value: unknown, fallback: number, min: number, max: number): number {
+  if (value === null || value === undefined) return fallback
+  if (typeof value === 'string' && value.trim() === '') return fallback
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(max, Math.max(min, parsed))
+}
+
+/** utf8ByteLength 与 Go 的 len(string) 同口径：上限按字节而不是字符计。 */
+export function utf8ByteLength(value: string | undefined): number {
+  return new TextEncoder().encode(value ?? '').length
+}
+
+// 与后端 profile.go 的 APIKeyRef / label / model 上限同源。
+export const MAX_PROFILE_LABEL_BYTES = 64
+export const MAX_PROFILE_MODEL_BYTES = 128
+
+/**
+ * isValidEndpointUrl 与后端 ValidateEndpointURL 同口径：必须 http(s)、必须有
+ * host、不得内嵌凭据。界面在保存前用它把「填了但不合法」拦下来——否则后端
+ * 会在启用该供应商的那一刻返回 422。
+ */
+export function isValidEndpointUrl(raw: string | undefined): boolean {
+  const value = (raw ?? '').trim()
+  if (!value) return false
+  let parsed: URL
+  try {
+    parsed = new URL(value)
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
+  if (!parsed.hostname) return false
+  if (parsed.username || parsed.password) return false
+  return true
+}
+
+export type AIProfileIssueField = 'label' | 'baseUrl' | 'model'
+
+export type AIProfileDraftLike = {
+  label?: string
+  baseUrl?: string
+  model?: string
+}
+
+/**
+ * profileIssue 返回该供应商第一个阻碍启用的字段，null 表示可以启用。
+ *
+ * 它与后端 Profile.Issues 的判定一致，只是顺序取第一个便于在界面上就地提示。
+ * 「非空」不等于「合法」：`api.deepseek.com` 看起来填了，但缺 scheme。
+ */
+export function profileIssue(profile: AIProfileDraftLike | null | undefined): AIProfileIssueField | null {
+  if (!profile) return null
+  const label = (profile.label ?? '').trim()
+  if (!label || utf8ByteLength(label) > MAX_PROFILE_LABEL_BYTES) return 'label'
+  if (!isValidEndpointUrl(profile.baseUrl)) return 'baseUrl'
+  const model = (profile.model ?? '').trim()
+  if (!model || utf8ByteLength(model) > MAX_PROFILE_MODEL_BYTES) return 'model'
+  return null
+}

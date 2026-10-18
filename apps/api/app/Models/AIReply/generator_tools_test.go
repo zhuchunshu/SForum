@@ -192,3 +192,38 @@ func TestGenerateFallsBackToDeclaredAllowlistWhenSourceFails(t *testing.T) {
 		}
 	}
 }
+
+// localeParameters 在用途参数之外额外提供站点语言，用来验证 LocaleSource 这条
+// 可选能力。
+type localeParameters struct {
+	fakePurposeParameters
+	locale string
+}
+
+func (l localeParameters) DefaultLocale(context.Context) (string, error) { return l.locale, nil }
+
+// 工具拿到的语言来自站点默认值：Identity 没有 per-user locale 字段，因此这里
+// 能给出的只有站点语言。没有 LocaleSource 时保持空值，不阻断回复。
+func TestGeneratePassesSiteLocaleToToolContext(t *testing.T) {
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "回答"}}
+	generator := aireply.NewGenerator(&fakeThreads{thread: sampleThread()}, completer, &fakePoster{}, localeParameters{
+		fakePurposeParameters: fakePurposeParameters{parameters: aireply.ReplyPurposeParameters{
+			CostClass: supportai.CostClassStandard, ToolsAllowed: []string{"web-search"}, PromptVersion: "forum-reply@test",
+		}},
+		locale: "zh-CN",
+	})
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	if got := completer.inputs[0].ToolContext.Locale; got != "zh-CN" {
+		t.Fatalf("tool context locale = %q", got)
+	}
+
+	plain := &fakeCompleter{output: aireply.CompletionOutput{Text: "回答"}}
+	if err := aireply.NewGenerator(&fakeThreads{thread: sampleThread()}, plain, &fakePoster{}, nil).Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	if got := plain.inputs[0].ToolContext.Locale; got != "" {
+		t.Fatalf("locale without a source must stay empty, got %q", got)
+	}
+}

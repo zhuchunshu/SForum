@@ -6,6 +6,29 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### Control-panel AI 保存 422 与上限放宽
+
+- Status: **landed (2026-10-19)**。422 根因（空串/小数数字字段、无上界钳制、
+  「填了但不合法」的供应商、自动裁决空动作列表）全部修复；`Support/AI` 天花板按
+  模型能力重定标（输出 128k、输入 12 MiB、工具步数 12），默认值不变；上限经
+  `GET /admin/ai/settings.limits` 下发给控制台，422 改为字段级 `data.fields`。
+- Plan: 无独立计划文件；设计与取舍见
+  `decisions/2026-10-19-ai-context-and-budget-ceilings.md`
+- Handoff: `sessions/2026-10-19-admin-ai-save-422-and-limits.md`
+- Modules: `modules/ai.md`
+
+### AI Web Search Plugin（插件工具 + 工具目录/上下文补强）
+
+- Status: **Core 侧 landed (2026-10-18)**；插件侧在仓库外
+  `~/Code/github/sforum-web-search`（`sforum.web-search`，四 provider 适配器）。
+  Core 交付：`aiTools[].context`（`locale`/`topic`/`viewer`，缺省 `locale`）、
+  `GET /admin/ai/settings` 的 `availableTools[]`、控制台用途页签的已注册工具选择器、
+  停用插件不再登记工具、工具调用的 locale 来自站点默认语言。
+- Plan: 无独立计划文件；设计与取舍见
+  `decisions/2026-10-18-ai-tool-context-and-catalog.md`
+- Handoff: `sessions/2026-10-18-ai-web-search-plugin-handoff.md`
+- Modules: `modules/ai.md`
+
 ### Core Attachment Extension API（OAuth2 图标上传）
 
 - Status: **landed (2026-10-18)**. Core 侧全部交付：三条 Host Command
@@ -278,6 +301,8 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **控制台 AI 保存 422 与上限放宽（2026-10-19）**：定位到六条触发路径（`v-model.number` 清空产生空串、闸门/预算无上界、供应商「非空但不合法」、自动裁决空动作、数值入口分散、错误不可诊断）。修复方向是「前端永不产出非法形状 + 服务端说清哪个字段」：新增 `Settings.Issues()` 与字段级 422（`ai.settings_malformed` / `ai.settings_invalid` + `data.fields`），控制台改走 `coerceInteger`/`profileIssue` 并在保存前拦截；同时把 `Support/AI` 天花板按模型能力重定标（输出 128k、输入总预算 12 MiB、工具步数 12、月度预算 1000 万元，默认值不变），经 `limits` 下发前端；同步 SDK 镜像常量、gRPC 16 MiB 与插件 `GOMEMLIMIT` 96 MiB。详见 `sessions/2026-10-19-admin-ai-save-422-and-limits.md`、`decisions/2026-10-19-ai-context-and-budget-ceilings.md`。
+- **dev 制品自愈 + lifecycle 终态一致（2026-10-19）**：stage 幂等改为「记录路径 == 本次 DigestTree 校验过的快照根」，`ensureExtensionVersion` 冲突时只修 `package_path`，删目录/换根不再永久 missing；dev auto 在自动恢复前先判冻结制品可装载，并按摘要 + attempt 上限（3）放弃，不再把 operation 推到 attempt=98；lifecycle 汇总新增 `closed`（`completed_at` 唯一判据），CLI already-closed 报错带 `state/terminal/completedAt`。详见 `sessions/2026-10-19-dev-artifact-self-heal.md`。
 - **站点时区保存失败修复（2026-10-18）**：容器镜像（alpine，无 `/usr/share/zoneinfo`，`CGO_ENABLED=0`，未内嵌 `time/tzdata`）里 `time.LoadLocation` 拒绝所有非 UTC 时区，后台改时区保存返回 422 `options.invalid`（发布镜像 v3.0.9 内已复现；本机 dev 正常）。新增 `app/Support/Timezone`（内嵌 tzdata + `Load`），替换 options / ExtensionManifest / Jobs 三处调用；`tests/validate-runtime-tzdata.mjs` 接入 `scripts/test.sh` 做回归门禁。修复后 CGO off 探针在 alpine:3.22 内解析非 UTC 时区全部成功。详见 `sessions/2026-10-18-site-timezone-save-fix.md`、`decisions/2026-10-18-embed-tzdata.md`。
 - **同意式 email 读取面（2026-10-18）**：新增高风险能力 `users.email.read` 与
   `sforum.core.identity.self_email@1`（结果 schema `sforum.core.self_email@1`，

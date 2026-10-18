@@ -446,6 +446,7 @@ export type AdminLifecycleOperation = {
   revision: number
   currentStepId?: string
   terminalResult?: AdminLifecycleTerminalResult
+  closed: boolean
   requestedByUserId?: number
   auditEventId?: number
   recoveryActorUserId?: number

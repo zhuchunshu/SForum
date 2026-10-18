@@ -40,6 +40,11 @@ func registerPluginAITools(
 		if item.Type != extensions.TypePlugin || len(item.Manifest.AITools) == 0 {
 			continue
 		}
+		// 停用的插件没有运行时可派发：登记它只会造出「看得见、调不动」的工具，
+		// 并在控制台里把运营者引到一个必然失败的白名单条目上。
+		if item.Status != extensions.StatusEnabled {
+			continue
+		}
 		extension := item
 		for _, declaration := range extension.Manifest.AITools {
 			tool, err := toolplugin.NewPluginTool(extension, declaration, invoker)

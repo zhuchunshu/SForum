@@ -939,6 +939,11 @@ type extensionVersionInput struct {
 
 // ensureExtensionVersion 以完整包摘要区分同版本的不可变安装内容。
 // 完全相同的三元组只复用原记录，不允许后续安装覆盖已批准的清单或包路径。
+// ensureExtensionVersion 幂等写入一条不可变版本行。(extension_id, version,
+// package_digest) 是制品身份：摘要相同即同一件制品，因此冲突时只允许把
+// package_path 修到本次校验过的内容寻址路径——否则目录重建/撤回根之后行会
+// 永久指向不存在的路径（artifactState 判 missing），而 exact-artifact 语义
+// 不允许为此换 digest。manifest 与摘要仍然不可改写。
 func ensureExtensionVersion(ctx context.Context, tx pgx.Tx, input extensionVersionInput) (int64, error) {
 	var versionID int64
 	err := tx.QueryRow(ctx, `
@@ -947,7 +952,9 @@ func ensureExtensionVersion(ctx context.Context, tx pgx.Tx, input extensionVersi
 				 extension_id, version, manifest, package_path, package_digest, admin_frontend_digest
 			)
 			VALUES ($1, $2, $3, $4, $5, $6)
-			ON CONFLICT (extension_id, version, package_digest) DO NOTHING
+			ON CONFLICT (extension_id, version, package_digest) DO UPDATE
+			SET package_path = EXCLUDED.package_path
+			WHERE extension_versions.package_path IS DISTINCT FROM EXCLUDED.package_path
 			RETURNING id
 		)
 		SELECT id FROM inserted

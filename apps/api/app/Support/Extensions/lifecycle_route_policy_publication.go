@@ -159,10 +159,13 @@ func (b *PostgresLifecycleBoundaryRegistries) validateLifecycleRoutePolicyStates
 	if extensionID == "" {
 		return ErrLifecycleRegistryPublicationInvalid
 	}
-	if err := b.validateLifecycleRoutePolicyState(extensionID, source, source, target); err != nil {
+	// 两种候选（source 相位、target 相位）读取的是同一批不可变制品：共享一次
+	// 加载与整树摘要校验，避免对同一批扩展包重复读取并重复 SHA-256。
+	loader := extensionopenapi.NewArtifactLoader()
+	if err := b.validateLifecycleRoutePolicyState(extensionID, source, source, target, loader); err != nil {
 		return err
 	}
-	return b.validateLifecycleRoutePolicyState(extensionID, target, source, target)
+	return b.validateLifecycleRoutePolicyState(extensionID, target, source, target, loader)
 }
 
 func lifecycleRoutePolicyExtensionID(materials ...*lifecycleRegistryMaterial) string {
@@ -180,6 +183,7 @@ func lifecycleRoutePolicyExtensionID(materials ...*lifecycleRegistryMaterial) st
 func (b *PostgresLifecycleBoundaryRegistries) validateLifecycleRoutePolicyState(
 	extensionID string,
 	desired, source, target *lifecycleRegistryMaterial,
+	loader *extensionopenapi.ArtifactLoader,
 ) error {
 	var desiredRoutes *routes.PluginRouteSet
 	var desiredSchema *extensionopenapi.Artifact
@@ -199,10 +203,11 @@ func (b *PostgresLifecycleBoundaryRegistries) validateLifecycleRoutePolicyState(
 	if err != nil {
 		return err
 	}
-	preparedSchemas, err := b.routeSchemas.PrepareExtensionReplacement(
+	preparedSchemas, err := b.routeSchemas.PrepareExtensionReplacementWithLoader(
 		extensionID,
 		desiredSchema,
 		lifecycleRouteSchemaAllowedArtifacts(source, target),
+		loader,
 	)
 	if err != nil {
 		if errors.Is(err, extensionopenapi.ErrRouteSchemaArtifactConflict) {

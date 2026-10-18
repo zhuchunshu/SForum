@@ -157,7 +157,7 @@ func (p *RouteSchemaPublication) ReplaceExtensionIfRevision(
 	allowed []PublishedRouteSchemaArtifact,
 	expectedRevision uint64,
 ) (RouteSchemaPublicationSnapshot, error) {
-	prepared, err := p.prepareExtensionReplacement(extensionID, desired, allowed, expectedRevision)
+	prepared, err := p.prepareExtensionReplacement(extensionID, desired, allowed, expectedRevision, nil)
 	if err != nil {
 		if p == nil {
 			return RouteSchemaPublicationSnapshot{}, err
@@ -189,7 +189,24 @@ func (p *RouteSchemaPublication) PrepareExtensionReplacement(
 	if p == nil {
 		return nil, ErrRouteSchemaPublicationInvalid
 	}
-	return p.prepareExtensionReplacement(extensionID, desired, allowed, p.Revision())
+	return p.prepareExtensionReplacement(extensionID, desired, allowed, p.Revision(), nil)
+}
+
+// PrepareExtensionReplacementWithLoader is PrepareExtensionReplacement sharing
+// one artifact loader. A caller that compiles several candidates over the same
+// immutable artifact set (for example the source and target phases of one
+// lifecycle validation) verifies each distinct package once instead of once per
+// candidate.
+func (p *RouteSchemaPublication) PrepareExtensionReplacementWithLoader(
+	extensionID string,
+	desired *Artifact,
+	allowed []PublishedRouteSchemaArtifact,
+	loader *ArtifactLoader,
+) (*PreparedRouteSchemaPublication, error) {
+	if p == nil {
+		return nil, ErrRouteSchemaPublicationInvalid
+	}
+	return p.prepareExtensionReplacement(extensionID, desired, allowed, p.Revision(), loader)
 }
 
 func (p *RouteSchemaPublication) prepareExtensionReplacement(
@@ -197,6 +214,7 @@ func (p *RouteSchemaPublication) prepareExtensionReplacement(
 	desired *Artifact,
 	allowed []PublishedRouteSchemaArtifact,
 	expectedRevision uint64,
+	loader *ArtifactLoader,
 ) (*PreparedRouteSchemaPublication, error) {
 	if p == nil {
 		return nil, ErrRouteSchemaPublicationInvalid
@@ -232,7 +250,7 @@ func (p *RouteSchemaPublication) prepareExtensionReplacement(
 		return nil, err
 	}
 	catalog, err := BuildRouteSchemaCatalog(BuildInput{
-		Core: append([]CoreOperation(nil), p.core...), Artifacts: frozen,
+		Core: append([]CoreOperation(nil), p.core...), Artifacts: frozen, Loader: loader,
 	})
 	if err != nil {
 		return nil, err
@@ -240,7 +258,7 @@ func (p *RouteSchemaPublication) prepareExtensionReplacement(
 	var aggregate Snapshot
 	if p.publishContracts {
 		aggregate, err = Build(BuildInput{
-			Core: append([]CoreOperation(nil), p.core...), Artifacts: frozen,
+			Core: append([]CoreOperation(nil), p.core...), Artifacts: frozen, Loader: loader,
 		})
 		if err != nil {
 			return nil, err

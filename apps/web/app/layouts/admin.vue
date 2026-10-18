@@ -11,6 +11,7 @@ import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
 import SFAdminSystemUpdatePrompt from '~/components/admin/system/SFAdminSystemUpdatePrompt.vue'
 import {
   ADMIN_DASHBOARD_PAGE_ID,
+  ADMIN_NAV_SECTION_IDS,
   adminSidebarNavigation,
   findAdminPageDefinition,
   isExtensionAdminPageId,
@@ -237,12 +238,38 @@ function extensionNavigationPageId(item: AdminExtensionNavigationItem) {
   return `/extensions/${item.extensionId}/pages${item.path}`
 }
 
+/** group 命中 Core 注册分区时，该页并入对应的一级菜单，不再自成一组。 */
+function isRegisteredNavSection(group?: string) {
+  const value = (group || '').trim()
+  return value !== '' && ADMIN_NAV_SECTION_IDS.includes(value)
+}
+
+/**
+ * 按分区归拢插件页。分区容器由 Core 声明（label/icon/位置），成员由各插件在
+ * manifest 里用 `group` 注册，因此 Core 不需要知道任何插件 id。
+ */
+const sectionExtensionPages = computed<Map<string, AdminExtensionNavigationItem[]>>(() => {
+  const sections = new Map<string, AdminExtensionNavigationItem[]>()
+  for (const item of extensionNavigation.value || []) {
+    if (!isRegisteredNavSection(item.group)) {
+      continue
+    }
+    const key = item.group!.trim()
+    const bucket = sections.get(key) ?? []
+    bucket.push(item)
+    sections.set(key, bucket)
+  }
+  return sections
+})
+
 /**
  * 把同一扩展里 `group` 相同的菜单页签收进一个可展开的一级菜单。
  * 未声明 group 的页签保持旧行为（平铺在「扩展管理」内，且仅专业模式可见）。
  */
 const extensionGroupNavigation = computed<SidebarNavigationItem[]>(() => {
-  return groupExtensionNavigation(extensionNavigation.value || []).map((group) => {
+  // 已并入 Core 分区的页不再单独成组，否则同一个设置页会出现两次。
+  const grouped = (extensionNavigation.value || []).filter(item => !isRegisteredNavSection(item.group))
+  return groupExtensionNavigation(grouped).map((group) => {
     const children = group.pages.map((item): SidebarNavigationItem => {
       const pageId = extensionNavigationPageId(item)
       return {
@@ -283,6 +310,21 @@ function buildNavigationItem(
       .map(child => buildNavigationItem(child, currentAdminPageId, visibility))
       .filter((item): item is SidebarNavigationItem => Boolean(item))
 
+    // Core 注册的共享分区：把声明了同一 group 的插件页并进来。静态子项在前，
+    // 插件成员按 manifest order 追加在后。
+    if (entry.sectionId) {
+      for (const item of sectionExtensionPages.value.get(entry.sectionId) ?? []) {
+        const pageId = extensionNavigationPageId(item)
+        children.push({
+          label: item.label,
+          icon: item.icon || entry.icon,
+          to: adminRoutes.path(pageId),
+          value: pageId,
+          active: currentAdminPageId === pageId
+        })
+      }
+    }
+
     // 扩展贡献页与 Admin Surface 导航属于高级工具，随专业模式显示。
     if (entry.labelKey === 'admin.nav.extensions' && visibility.professionalMode) {
       children.push(...buildExtensionNavigationItems(currentAdminPageId))
@@ -293,7 +335,10 @@ function buildNavigationItem(
       return null
     }
 
-    const isActive = isAdminNavigationEntryActive(entry, currentAdminPageId)
+    // 分区里的插件页不在静态 entry 里，isAdminNavigationEntryActive 看不到它们：
+    // 用子项的 active 补一次，否则正在看插件设置页时父菜单既不高亮也不展开。
+    const sectionActive = entry.sectionId ? children.some(child => child.active) : false
+    const isActive = isAdminNavigationEntryActive(entry, currentAdminPageId) || sectionActive
 
     return {
       label: t(entry.labelKey),
@@ -301,7 +346,7 @@ function buildNavigationItem(
       value: entry.labelKey,
       active: isActive,
       defaultOpen: entry.defaultOpen,
-      open: shouldOpenAdminNavigationEntry(entry, currentAdminPageId),
+      open: shouldOpenAdminNavigationEntry(entry, currentAdminPageId) || sectionActive,
       children
     }
   }

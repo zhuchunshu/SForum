@@ -337,6 +337,9 @@ func (i *aiToolRuntimeInvoker) InvokeVersionedAITool(
 		Timeout:         call.Timeout,
 		Name:            call.Name,
 		Arguments:       call.Arguments,
+		Locale:          call.Locale,
+		TopicID:         call.TopicID,
+		ViewerUserID:    call.ViewerUserID,
 	})
 	if err != nil {
 		return toolplugin.PluginToolResult{}, err

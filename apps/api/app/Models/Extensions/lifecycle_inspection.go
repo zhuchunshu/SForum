@@ -40,6 +40,13 @@ type LifecycleOperationSummary struct {
 	UpdatedAt            time.Time            `json:"updatedAt"`
 	StartedAt            *time.Time           `json:"startedAt,omitempty"`
 	CompletedAt          *time.Time           `json:"completedAt,omitempty"`
+
+	// Closed 是「操作已到达 durable 终态」的唯一判据（completed_at 非空），
+	// 与 ListOpenLifecycleOperations 的 fence、RecoverLifecycleOperation 和
+	// `sforum extension recovery lifecycle-close` 完全同源。State 只是最后一次
+	// 阶段（uninstall 收尾于 uninstalling、disable 收尾于 draining），不能拿来
+	// 判断操作是否还在进行。
+	Closed bool `json:"closed"`
 }
 
 type LifecycleRecoverySummary struct {
@@ -182,6 +189,7 @@ func lifecycleOperationSummary(operation LifecycleOperation) LifecycleOperationS
 		RemovalMode: operation.RemovalMode, Forced: operation.Forced,
 		AttemptCount: operation.AttemptCount, Revision: operation.Revision,
 		CurrentStepID: operation.CurrentStepID, TerminalResult: operation.TerminalResult,
+		Closed:            operation.CompletedAt != nil,
 		RequestedByUserID: operation.RequestedByUserID, AuditEventID: operation.AuditEventID,
 		RecoveryActorUserID: operation.RecoveryActorUserID, RecoveryAuditEventID: operation.RecoveryAuditEventID,
 		Error: lifecyclePublicError(operation.Error), CreatedAt: operation.CreatedAt,

@@ -672,6 +672,22 @@ does not rebuild Nuxt.
   bilingual handbook `docs/extensions/build-and-load.md` + `docs/zh-CN` teach the
   chain and when a manual contractVersion bump is genuinely required. Decision:
   `../decisions/2026-10-17-dev-zero-command.md`.
+- Dev artifact self-heal and give-up rules (2026-10-19): stage idempotency now
+  requires the recorded `package_path` to equal the immutable snapshot root that
+  `SnapshotExternalSourceOwned` just verified with `DigestTree`, and
+  `ensureExtensionVersion` repairs `package_path` for an existing
+  `(extension_id, version, package_digest)` row, so a deleted artifact directory
+  or a changed `EXTENSION_ROOT` no longer parks a row in permanent `missing`.
+  `DevAutoRuntime` only auto-recovers a failed upgrade whose `PackageDigest`
+  equals the current staged digest, refuses when `stagedArtifactUsable` says the
+  frozen artifact cannot load, and gives up after
+  `devAutoMaxFailedUpgradeAttempts` (3) attempts, writing one `dev_auto_skipped`
+  event per artifact instead of pushing the operation to attempt=98. Lifecycle
+  summaries expose `closed` (`completed_at != nil`) as the single terminal
+  predicate — `state` is only the last phase (`uninstall` ends in
+  `uninstalling`, `disable` in `draining`), which is why the CLI's
+  already-closed error now prints `state`/`terminal`/`completedAt`. See
+  `../sessions/2026-10-19-dev-artifact-self-heal.md`.
 - Request-context contract (2026-10-16, M7): no new request/response field was
   admitted. The filtered header projection (with `x-sforum-*`, hop-by-hop and
   credential blocking, plus `httpguts` name/value validation),

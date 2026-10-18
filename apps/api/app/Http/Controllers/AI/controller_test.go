@@ -2,6 +2,7 @@ package aicontroller
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
@@ -133,5 +134,73 @@ func TestUpdateSettingsRequestKeepsReplyOverrides(t *testing.T) {
 	}
 	if err := settingsFromRequest(invalid).Validate(); err == nil {
 		t.Fatal("an invalid tool name must be rejected before saving")
+	}
+}
+
+// 控制台把数字输入框清空时，载荷里的数字字段会变成空串；填入小数时是 12.5。
+// 两种形状都无法解码成 Go 的 int。它们必须被单独识别为「形状不对」并指出字段，
+// 而不是折叠成一个没有任何指向的 ai.settings_invalid。
+func TestDecodeSettingsRequestReportsMalformedNumericFields(t *testing.T) {
+	cases := map[string]string{
+		"empty string": `{"enabled":true,"profiles":[{"id":"deepseek","label":"DeepSeek","protocol":"openai-chat","baseUrl":"https://api.deepseek.com","apiKeyRef":"sforum.secret://core/ai.deepseek.api_key","model":"deepseek-chat","costClass":"economy","enabled":true,"defaults":{"maxTokens":"","timeoutMs":30000}}]}`,
+		"decimal":      `{"enabled":true,"profiles":[{"id":"deepseek","label":"DeepSeek","protocol":"openai-chat","baseUrl":"https://api.deepseek.com","apiKeyRef":"sforum.secret://core/ai.deepseek.api_key","model":"deepseek-chat","costClass":"economy","enabled":true,"defaults":{"maxTokens":12.5,"timeoutMs":30000}}]}`,
+	}
+	for name, body := range cases {
+		_, fields, reason := decodeSettingsRequest([]byte(body))
+		if reason != "ai.settings_malformed" {
+			t.Fatalf("%s: reason = %q", name, reason)
+		}
+		found := false
+		for field := range fields {
+			if strings.HasSuffix(field, "maxTokens") {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("%s: fields must point at maxTokens, got %#v", name, fields)
+		}
+		// 只暴露字段路径：载荷里可能有密钥，原值不得回显。
+		for _, messages := range fields {
+			for _, message := range messages {
+				if strings.Contains(message, "12.5") || strings.Contains(message, "cannot unmarshal") {
+					t.Fatalf("%s: message leaks request details: %q", name, message)
+				}
+			}
+		}
+	}
+}
+
+// 取值越界走另一条路径：字段级消息按载荷路径给出，控制台据此把文案挂到输入框。
+func TestDecodeSettingsRequestReportsFieldLevelIssues(t *testing.T) {
+	_, fields, reason := decodeSettingsRequest([]byte(`{"gates":{"rateLimitPerMinute":999999}}`))
+	if reason != "ai.settings_invalid" {
+		t.Fatalf("reason = %q", reason)
+	}
+	messages, ok := fields["gates.rateLimitPerMinute"]
+	if !ok || len(messages) == 0 {
+		t.Fatalf("fields = %#v", fields)
+	}
+	if messages[0] != "ai.field."+supportai.IssueCodeOutOfRange {
+		t.Fatalf("message key = %q", messages[0])
+	}
+}
+
+// 一份推荐配置必须原样通过：放宽上限后仍然要有一条「不做任何修改也能保存」的基线。
+func TestDecodeSettingsRequestAcceptsRecommendedDocument(t *testing.T) {
+	settings := supportai.RecommendedSettings().Normalized()
+	settings.Enabled = true
+	for index := range settings.Profiles {
+		settings.Profiles[index].Enabled = settings.Profiles[index].ID == "deepseek"
+	}
+	raw, err := json.Marshal(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, fields, reason := decodeSettingsRequest(raw)
+	if reason != "" {
+		t.Fatalf("recommended document rejected: reason=%q fields=%#v", reason, fields)
+	}
+	if err := decoded.Validate(); err != nil {
+		t.Fatalf("decoded document must validate: %v", err)
 	}
 }

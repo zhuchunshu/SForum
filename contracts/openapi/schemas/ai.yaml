@@ -322,6 +322,38 @@ AIValidatedPurpose:
     toolsOverridden:
       type: boolean
 
+AIAvailableTool:
+  type: object
+  description: |
+    One registered AI tool the operator may name in a purpose allowlist. `origin`
+    tells the console whether the tool is Core-owned or contributed by a plugin;
+    it is display metadata only and never changes how the tool is dispatched.
+  required:
+  - name
+  - origin
+  properties:
+    name:
+      type: string
+      description: The name the model sees; this is what an allowlist entry must match.
+    description:
+      type: string
+    origin:
+      type: object
+      required:
+      - kind
+      properties:
+        kind:
+          type: string
+          enum:
+          - core
+          - plugin
+        extensionId:
+          type: string
+          description: Present only when kind is plugin.
+        version:
+          type: string
+          description: Present only when kind is plugin.
+
 AILocalizedText:
   type: object
   properties:
@@ -378,6 +410,14 @@ AISettingsPayload:
         特例来理解和配置 AI 行为。
       items:
         "$ref": "#/AIValidatedPurpose"
+    availableTools:
+      type: array
+      description: |
+        站内已注册的全部 AI 工具（Core 内置 + 已启用插件贡献）。它是「有哪些工具
+        可以点名」的权威清单，与每个用途自己的白名单是两个问题：前者是全局事实，
+        后者是某个用途的生效配置。插件被停用后不会出现在这里。
+      items:
+        "$ref": "#/AIAvailableTool"
     encryptionEnabled:
       type: boolean
       description: Secret Store 是否具备加密能力；为 false 时不应保存真实密钥。
@@ -403,6 +443,50 @@ AISettingsPayload:
     safetyAppendix:
       type: string
       description: 始终附加在提示词末尾的防注入声明，只读展示，不可配置。
+    limits:
+      "$ref": "#/AISettingsLimits"
+
+AISettingsLimits:
+  type: object
+  description: |
+    服务端当前生效的取值天花板。控制台据此渲染 min/max 与提示文案，不再各自
+    硬编码一份数字——两处常量漂移正是「界面允许、服务端 422」的成因。
+  required:
+  - minTimeoutMs
+  - maxTimeoutMs
+  - maxCompletionTokens
+  - defaultCompletionTokens
+  - maxToolCallsPerReply
+  - defaultToolCallsPerReply
+  - maxRateLimitPerMinute
+  - maxExtensionDailyQuota
+  - maxUserDailyQuota
+  - maxMonthlyBudgetMicros
+  - maxTotalInputBytes
+  properties:
+    minTimeoutMs:
+      type: integer
+    maxTimeoutMs:
+      type: integer
+    maxCompletionTokens:
+      type: integer
+    defaultCompletionTokens:
+      type: integer
+    maxToolCallsPerReply:
+      type: integer
+    defaultToolCallsPerReply:
+      type: integer
+    maxRateLimitPerMinute:
+      type: integer
+    maxExtensionDailyQuota:
+      type: integer
+    maxUserDailyQuota:
+      type: integer
+    maxMonthlyBudgetMicros:
+      type: integer
+      format: int64
+    maxTotalInputBytes:
+      type: integer
 
 AIUsageSnapshot:
   type: object

@@ -297,18 +297,27 @@ func TestExtensionRecoveryLifecycleCloseRejectsClosedOrMissingOperation(t *testi
 	fixture := newLifecycleClosePostgresFixture(t)
 	ctx := fixture.ctx
 	closedID := insertLifecycleCloseOperation(t, ctx, fixture.pool, "close.closed.plugin", "disable:first")
+	// 复刻现场 operation 703 的形态：uninstall 成功收尾但 state 仍停在阶段名
+	// uninstalling。终态判据只有 completed_at + terminal_result，报错必须把它们
+	// 一起说出来，否则「已关闭」会和观测到的 uninstalling 互相矛盾。
 	if _, err := fixture.pool.Exec(ctx, `
 		UPDATE extension_lifecycle_operations
-		SET state = 'failed', terminal_result = 'cancelled',
-		    error_code = 'lifecycle.cli_closed', error_reason = 'lifecycle.cli_closed',
+		SET operation = 'uninstall', removal_mode = 'preserve',
+		    state = 'uninstalling', terminal_result = 'succeeded',
 		    completed_at = statement_timestamp(), updated_at = statement_timestamp()
 		WHERE id = $1
 	`, closedID); err != nil {
 		t.Fatal(err)
 	}
 	opts := lifecycleCloseOptions{OperationID: closedID, Reason: "second attempt"}
-	if _, err := closeLifecycleOperationOutOfBand(ctx, fixture.pool, opts); !errors.Is(err, errLifecycleCloseAlreadyClosed) {
+	_, err := closeLifecycleOperationOutOfBand(ctx, fixture.pool, opts)
+	if !errors.Is(err, errLifecycleCloseAlreadyClosed) {
 		t.Fatalf("closed operation err=%v, want errLifecycleCloseAlreadyClosed", err)
+	}
+	for _, fact := range []string{"state=uninstalling", "terminal=succeeded", "completedAt="} {
+		if !strings.Contains(err.Error(), fact) {
+			t.Fatalf("already-closed error must report %q: %v", fact, err)
+		}
 	}
 
 	opts.OperationID = 42_000_000

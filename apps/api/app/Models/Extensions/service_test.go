@@ -2419,12 +2419,17 @@ func (s *fakeExtensionStore) SaveInstalled(_ context.Context, input SaveInstalle
 			return Extension{}, ErrNotDeletable
 		}
 		if existing.Version == input.Manifest.Version && existing.PackageDigest == input.PackageDigest {
+			// 与 PostgresStore.ensureExtensionVersion 同语义：摘要未变即同一件
+			// 制品，只把 package_path 修到本次校验过的路径。
+			existing.PackagePath = input.PackagePath
+			s.items[existing.ID] = existing
 			return existing, nil
 		}
 		var candidate *ExtensionVersion
 		if existing.StagedVersion != nil && existing.StagedVersion.Version == input.Manifest.Version &&
 			existing.StagedVersion.PackageDigest == input.PackageDigest {
 			candidate = existing.StagedVersion
+			candidate.PackagePath = input.PackagePath
 		} else {
 			s.nextVersionID++
 			candidate = &ExtensionVersion{

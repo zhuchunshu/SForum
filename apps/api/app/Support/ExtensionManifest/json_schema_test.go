@@ -2,6 +2,7 @@ package extensionmanifest
 
 import (
 	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -123,5 +124,31 @@ func TestManifestV3JSONSchemaAcceptsAdminPageGroup(t *testing.T) {
 	tooLong := []byte(`[{"path":"/clients","label":"Clients","menu":true,"group":"` + strings.Repeat("x", 41) + `"}]`)
 	if err := validateV3JSONSchemaFragment(tooLong, "adminPages"); err == nil {
 		t.Fatal("admin page group label above the length budget must be rejected")
+	}
+}
+
+// 工具超时上限与会话事实声明都在 JSON Schema 里：schema 是清单的第一道门，
+// 语义校验只是第二道。两者不同步时，插件作者会先撞上 schema 的 maximum。
+func TestManifestV3JSONSchemaBoundsAIToolTimeoutAndContext(t *testing.T) {
+	tool := func(timeout int, context string) []byte {
+		suffix := ""
+		if context != "" {
+			suffix = `,"context":` + context
+		}
+		return []byte(`[{"id":"demo.plugin.lookup","contractVersion":"demo.plugin.lookup@1","name":"demo-lookup","description":"Look up.","handler":"demo.plugin.lookup","timeoutMs":` +
+			strconv.Itoa(timeout) + suffix + `}]`)
+	}
+
+	if err := validateV3JSONSchemaFragment(tool(AIToolMaximumTimeoutMS, ""), "aiTools"); err != nil {
+		t.Fatalf("tool timeout at the ceiling must validate: %v", err)
+	}
+	if err := validateV3JSONSchemaFragment(tool(AIToolMaximumTimeoutMS+1, ""), "aiTools"); err == nil {
+		t.Fatal("tool timeout above the ceiling must be rejected")
+	}
+	if err := validateV3JSONSchemaFragment(tool(4000, `["locale","viewer"]`), "aiTools"); err != nil {
+		t.Fatalf("declared context must validate: %v", err)
+	}
+	if err := validateV3JSONSchemaFragment(tool(4000, `["ip"]`), "aiTools"); err == nil {
+		t.Fatal("unknown context fact must be rejected")
 	}
 }

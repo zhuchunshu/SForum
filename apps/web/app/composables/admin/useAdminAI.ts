@@ -1,4 +1,6 @@
 import type { InjectionKey } from 'vue'
+import type { AdminAILimits } from '~/utils/admin/adminAI'
+import { DEFAULT_AI_LIMITS } from '~/utils/admin/adminAI'
 
 export type AdminAIProtocol = 'openai-chat' | 'anthropic-messages'
 export type AdminAICostClass = 'economy' | 'standard' | 'premium'
@@ -75,6 +77,20 @@ export type AdminAIReplyBot = {
   configured: boolean
 }
 
+export type AdminAIToolOrigin = {
+  kind: 'core' | 'plugin' | string
+  extensionId?: string
+  version?: string
+}
+
+// AdminAIToolAvailability 是「站内有哪些 AI 工具」的条目。它与用途白名单是两个
+// 问题：这里是全局事实，白名单是某个用途的生效配置。
+export type AdminAIToolAvailability = {
+  name: string
+  description?: string
+  origin: AdminAIToolOrigin
+}
+
 export type AdminAISettingsPayload = {
   settings: AdminAISettings
   warnings: string[]
@@ -83,10 +99,14 @@ export type AdminAISettingsPayload = {
   replyBot: AdminAIReplyBot
   /** 站内已声明的 AI 用途清单（声明 + 当前生效参数）。 */
   purposes: AdminAIValidatedPurpose[]
+  /** 站内已注册的全部 AI 工具（Core 内置 + 已启用插件贡献）。旧载荷可能没有。 */
+  availableTools?: AdminAIToolAvailability[]
   /** 内置回复提示词（不含安全尾注）。编辑器用它预填，让默认值可见。 */
   defaultSystemPrompt: string
   /** 始终附加在提示词末尾的防注入声明，只读展示。 */
   safetyAppendix: string
+  /** 服务端当前生效的取值天花板。旧载荷可能没有，此时用前端兜底值。 */
+  limits?: AdminAILimits
 }
 
 export type AdminAIUsageSnapshot = {
@@ -216,8 +236,16 @@ export function useAdminAI() {
   const encryptionEnabled = computed(() => payload.data.value?.encryptionEnabled ?? false)
   const replyBot = computed<AdminAIReplyBot>(() => payload.data.value?.replyBot ?? { configured: false })
   const purposes = computed<AdminAIValidatedPurpose[]>(() => payload.data.value?.purposes ?? [])
+  // 旧载荷没有 availableTools：空清单让用途页签退化成「手动输入工具名」，
+  // 那是可用但更笨的界面，不该让整页打不开。
+  const availableTools = computed<AdminAIToolAvailability[]>(() => payload.data.value?.availableTools ?? [])
   const defaultSystemPrompt = computed(() => payload.data.value?.defaultSystemPrompt ?? '')
+  // 上限的唯一权威是服务端：界面据此渲染 min/max，不再各自硬编码一份数字。
+  const limits = computed<AdminAILimits>(() => payload.data.value?.limits ?? DEFAULT_AI_LIMITS)
   const safetyAppendix = computed(() => payload.data.value?.safetyAppendix ?? '')
+  // 保存失败时的字段级消息（服务端 422 的 data.fields）。它按载荷路径索引，
+  // 例如 profiles[0].defaults.maxTokens / gates.rateLimitPerMinute。
+  const fieldErrors = ref<Record<string, string[]>>({})
   const loadFailed = computed(() => Boolean(payload.error.value))
   const loading = computed(() => payload.pending.value)
 
@@ -230,15 +258,34 @@ export function useAdminAI() {
     await Promise.all([payload.refresh(), usage.refresh(), executions.refresh()])
   }
 
+  // reportFailure 把失败说清楚：优先用服务端 envelope 的 message，其次按
+  // reason 兜底。以前这里直接 `${error}`，运营者看到的只是 ofetch 的
+  // 「FetchError: ... 422」，完全不知道是哪个字段。
+  function reportFailure(error: unknown, fallbackKey: string) {
+    fieldErrors.value = apiErrorFields(error)
+    toast.add({
+      color: 'error',
+      icon: 'i-lucide-triangle-alert',
+      title: apiErrorMessage(error) || t(fallbackKey),
+      duration: 0
+    })
+  }
+
+  // 任意一次成功写入都清空上一次的字段级错误：留着会让已修好的字段继续报错。
+  function clearFieldErrors() {
+    fieldErrors.value = {}
+  }
+
   async function saveSettings(next: AdminAISettings) {
     busy.value = 'settings'
+    clearFieldErrors()
     try {
       await request('/admin/ai/settings', { method: 'PUT', body: next })
       toast.add({ color: 'success', icon: 'i-lucide-save', title: t('admin.ai.saved'), duration: 10000 })
       await refresh()
       return true
     } catch (error) {
-      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: `${error}`, duration: 0 })
+      reportFailure(error, 'admin.ai.saveFailed')
       return false
     } finally {
       busy.value = ''
@@ -252,7 +299,7 @@ export function useAdminAI() {
       toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.ai.resetDone'), duration: 10000 })
       await refresh()
     } catch (error) {
-      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: `${error}`, duration: 0 })
+      reportFailure(error, 'admin.ai.resetFailed')
     } finally {
       busy.value = ''
     }
@@ -270,7 +317,7 @@ export function useAdminAI() {
       await refresh()
       return true
     } catch (error) {
-      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: `${error}`, duration: 0 })
+      reportFailure(error, 'admin.ai.credentialFailed')
       return false
     } finally {
       busy.value = ''
@@ -295,7 +342,7 @@ export function useAdminAI() {
         body: { baseUrl: probe.baseUrl, protocol: probe.protocol, apiKey: probe.apiKey }
       })
     } catch (error) {
-      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: `${error}`, duration: 0 })
+      reportFailure(error, 'admin.ai.modelListFailed')
       return null
     } finally {
       busy.value = ''
@@ -321,7 +368,7 @@ export function useAdminAI() {
       await executions.refresh()
       return result
     } catch (error) {
-      toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: `${error}`, duration: 0 })
+      reportFailure(error, 'admin.ai.diagnose.failed')
       return null
     } finally {
       busy.value = ''
@@ -336,8 +383,11 @@ export function useAdminAI() {
     encryptionEnabled,
     replyBot,
     purposes,
+    availableTools,
     defaultSystemPrompt,
     safetyAppendix,
+    limits,
+    fieldErrors,
     loadFailed,
     loading,
     siteUsage,

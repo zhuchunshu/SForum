@@ -9,6 +9,7 @@ import (
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
+	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 )
 
 // 插件工具执行器：把 Host 的工具接口接到「一次 Host → plugin RPC」上。
@@ -36,6 +37,11 @@ type PluginToolCall struct {
 	Timeout         time.Duration
 	Name            string
 	Arguments       string
+	// Locale / TopicID / ViewerUserID 只在清单的 aiTools[].context 声明过时才有值。
+	// 未声明的项保持零值，适配层据此决定是否写进请求文档。
+	Locale       string
+	TopicID      int64
+	ViewerUserID int64
 }
 
 // PluginToolResult 是派发结果。IsError 表示「工具可解释的失败」，会原样给模型。
@@ -80,11 +86,24 @@ func (t *PluginTool) Definition() supportai.ToolDefinition {
 	}
 }
 
+// Origin 声明该工具来自哪个扩展。控制台据此把插件工具与 Core 内置工具分开，
+// 运营者不用靠工具名的形状去猜。
+func (t *PluginTool) Origin() supportai.ToolOrigin {
+	if t == nil {
+		return supportai.ToolOrigin{}
+	}
+	return supportai.ToolOrigin{
+		Kind:        "plugin",
+		ExtensionID: t.extension.ID,
+		Version:     t.extension.Version,
+	}
+}
+
 // Invoke 执行一次工具调用。
 //
 // 超时来自声明且不可协商：调用时若插件进程慢，这里返回的错误只会被编排层记为
 // 「工具执行失败」并给模型一句通用说明，不会把插件的内部错误串带进社区发布物。
-func (t *PluginTool) Invoke(ctx context.Context, call supportai.ToolCall, _ supportai.ToolContext) (supportai.ToolResult, error) {
+func (t *PluginTool) Invoke(ctx context.Context, call supportai.ToolCall, env supportai.ToolContext) (supportai.ToolResult, error) {
 	if t == nil || t.invoker == nil {
 		return supportai.ToolResult{}, errors.New("ai: plugin tool is not wired")
 	}
@@ -94,14 +113,25 @@ func (t *PluginTool) Invoke(ctx context.Context, call supportai.ToolCall, _ supp
 		return supportai.ToolResult{Content: "工具 " + call.Name + " 不可用。", IsError: true}, nil
 	}
 	timeout := time.Duration(t.declaration.TimeoutMS) * time.Millisecond
-	response, err := t.invoker.InvokeVersionedAITool(ctx, t.extension, PluginToolCall{
+	dispatch := PluginToolCall{
 		DeclarationID:   t.declaration.ID,
 		ContractVersion: t.declaration.ContractVersion,
 		Handler:         t.declaration.Handler,
 		Timeout:         timeout,
 		Name:            t.declaration.Name,
 		Arguments:       call.Arguments,
-	})
+	}
+	// 只填清单声明过的事实：默认集合只有 locale，viewer 需要作者显式声明才披露。
+	if t.declaration.DeclaresAIToolContext(extensionmanifest.AIToolContextLocale) {
+		dispatch.Locale = env.Locale
+	}
+	if t.declaration.DeclaresAIToolContext(extensionmanifest.AIToolContextTopic) {
+		dispatch.TopicID = env.TopicID
+	}
+	if t.declaration.DeclaresAIToolContext(extensionmanifest.AIToolContextViewer) {
+		dispatch.ViewerUserID = env.ViewerUserID
+	}
+	response, err := t.invoker.InvokeVersionedAITool(ctx, t.extension, dispatch)
 	if err != nil {
 		// 调用本身的失败：返回 error，由编排层统一处理（记日志 + 给模型通用
 		// 说明）。刻意不把 err 的文案放进 ToolResult——插件的内部错误串不该

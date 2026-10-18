@@ -25,7 +25,7 @@ const (
 	HostAIToolNameMaximumLength    = 64
 	HostAIToolDescriptionMaximum   = 1024
 	HostAIToolSchemaMaximumBytes   = 8192
-	HostAIToolMaximumTimeoutMS     = 5000
+	HostAIToolMaximumTimeoutMS     = 30_000
 	HostAIToolsMaximumPerExtension = 16
 )
 
@@ -60,6 +60,11 @@ type AIToolCall struct {
 	ID        string
 	Name      string
 	Arguments string
+	// Locale / TopicID / ViewerUserID 是宿主按清单 aiTools[].context 声明传入的
+	// 会话事实。未声明的项保持零值：插件不能假定它们总是存在。
+	Locale       string
+	TopicID      int64
+	ViewerUserID int64
 }
 
 // AIToolResult 是给模型的回答。
@@ -133,10 +138,13 @@ func (r *AIToolRegistry) ProviderCall(ctx context.Context, request *pluginwire.P
 	defer cancel()
 	values := TypedDocumentValues(request.GetInput())
 	result, err := definition.Execute(handlerCtx, &AIToolCall{
-		Context:   cloneRequestContext(request.GetContext()),
-		ID:        definition.ID,
-		Name:      definition.Name,
-		Arguments: aiToolArguments(values),
+		Context:      cloneRequestContext(request.GetContext()),
+		ID:           definition.ID,
+		Name:         definition.Name,
+		Arguments:    aiToolArguments(values),
+		Locale:       aiToolString(values, "locale"),
+		TopicID:      aiToolInt64(values, "topicId"),
+		ViewerUserID: aiToolInt64(values, "viewerUserId"),
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -236,4 +244,32 @@ func aiToolArguments(values map[string]any) string {
 		return ""
 	}
 	return raw
+}
+
+// aiToolString 读取一个可选字符串事实。缺失或类型不符一律返回空串：会话事实
+// 是加项，读不到时工具应当按「没有这个事实」工作，而不是让整次调用失败。
+func aiToolString(values map[string]any, key string) string {
+	raw, ok := values[key].(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(raw)
+}
+
+// aiToolInt64 读取一个可选整数事实。structpb 把数字解成 float64，这里只接受
+// 能无损表示的整数值，其余情况返回 0。
+func aiToolInt64(values map[string]any, key string) int64 {
+	switch value := values[key].(type) {
+	case float64:
+		if value != float64(int64(value)) {
+			return 0
+		}
+		return int64(value)
+	case int64:
+		return value
+	case int:
+		return int64(value)
+	default:
+		return 0
+	}
 }

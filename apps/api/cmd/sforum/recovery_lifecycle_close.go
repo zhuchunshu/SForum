@@ -103,6 +103,21 @@ func newExtensionRecoveryLifecycleCloseCommand() *cobra.Command {
 	return cmd
 }
 
+// lifecycleCloseAlreadyClosedError 说明「为什么已经是终态」。只回一句
+// 「已关闭」会与现场观测到的 state=uninstalling 冲突：state 只是最后阶段
+// （uninstall 收尾在 uninstalling、disable 收尾在 draining），completed_at 与
+// terminal_result 才是终态判据。把两者一起打出来，运维才能对上 API 的 closed。
+func lifecycleCloseAlreadyClosedError(
+	operationID int64,
+	summary lifecycleCloseOperation,
+	terminal string,
+	completedAt *time.Time,
+) error {
+	return fmt.Errorf("%w: operation %d (%s %s) state=%s terminal=%s completedAt=%s",
+		errLifecycleCloseAlreadyClosed, operationID, summary.ExtensionID, summary.Operation,
+		summary.PreviousState, terminal, completedAt.UTC().Format(time.RFC3339))
+}
+
 // withRecoveryPool 与 withRecoveryRepository 并列：lifecycle-close 需要裸
 // pool 操作 lifecycle 账本，同样只连 PostgreSQL、不装载任何应用配置或插件代码。
 func withRecoveryPool(ctx context.Context, databaseURL string, run func(*pgxpool.Pool) error) error {
@@ -138,14 +153,15 @@ func closeLifecycleOperationOutOfBand(ctx context.Context, pool *pgxpool.Pool, o
 	summary.Forced = opts.Force
 	var revision int64
 	var completedAt *time.Time
+	var previousTerminal string
 	err = tx.QueryRow(ctx, `
-		SELECT extension_id, operation, state, revision, completed_at
+		SELECT extension_id, operation, state, COALESCE(terminal_result, ''), revision, completed_at
 		FROM extension_lifecycle_operations
 		WHERE id = $1
 		FOR UPDATE
 	`, opts.OperationID).Scan(
 		&summary.ExtensionID, &summary.Operation, &summary.PreviousState,
-		&revision, &completedAt,
+		&previousTerminal, &revision, &completedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return lifecycleCloseOperation{}, errLifecycleCloseNotFound
@@ -154,7 +170,7 @@ func closeLifecycleOperationOutOfBand(ctx context.Context, pool *pgxpool.Pool, o
 		return lifecycleCloseOperation{}, fmt.Errorf("lock lifecycle operation for close: %w", err)
 	}
 	if completedAt != nil {
-		return lifecycleCloseOperation{}, errLifecycleCloseAlreadyClosed
+		return lifecycleCloseOperation{}, lifecycleCloseAlreadyClosedError(opts.OperationID, summary, previousTerminal, completedAt)
 	}
 
 	if !opts.Force {
@@ -200,7 +216,8 @@ func closeLifecycleOperationOutOfBand(ctx context.Context, pool *pgxpool.Pool, o
 		return lifecycleCloseOperation{}, fmt.Errorf("close lifecycle operation: %w", err)
 	}
 	if tag.RowsAffected() != 1 {
-		return lifecycleCloseOperation{}, errLifecycleCloseAlreadyClosed
+		return lifecycleCloseOperation{}, fmt.Errorf("%w: operation %d was closed concurrently",
+			errLifecycleCloseAlreadyClosed, opts.OperationID)
 	}
 
 	metadata, err := json.Marshal(map[string]any{

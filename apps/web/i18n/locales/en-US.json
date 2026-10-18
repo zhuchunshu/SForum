@@ -579,6 +579,11 @@
       "selectedCount": "{count} selected"
     },
     "ai": {
+      "saveFailed": "Saving the AI settings failed.",
+      "resetFailed": "Restoring the recommended defaults failed.",
+      "credentialFailed": "Saving the provider key failed.",
+      "modelListFailed": "Reading the model list failed.",
+      "monthlyBudgetHint": "Up to {max} per month. 0 means no spend limit.",
       "title": "AI",
       "intro": "Configure AI providers and cost gates, and review usage and per-call attribution.",
       "refresh": "Refresh",
@@ -671,6 +676,11 @@
       "autoActionTag": "Tag",
       "autoActionReject": "Reject",
       "autoActionNeedsActions": "Select at least one action before enabling automatic decisions.",
+      "profileIssue": {
+        "label": "The provider name is required and must stay within 64 bytes.",
+        "baseUrl": "Enter a full http(s) URL such as https://api.example.com/v1, without credentials.",
+        "model": "The model identifier is required and must stay within 128 bytes."
+      },
       "redaction": "Content redaction",
       "redactionIntro": "Removes identifying information before it is sent to the provider. Stored site content is never changed.",
       "redactionEnabled": "Enable redaction",
@@ -735,6 +745,7 @@
         "costHint": "Autonomous mode makes one lightweight model call per new topic and comment, metered against the poster's quota; rapid posts in the same topic are merged into one judgment."
       },
       "diagnose": {
+        "failed": "The connectivity test failed.",
         "current": "Current configuration",
         "provider": "Provider",
         "model": "Model",
@@ -878,7 +889,8 @@
       "search": "Search Index",
       "jobs": "Background jobs",
       "schedules": "Scheduled jobs",
-      "ai": "AI",
+      "ai": "AI console",
+      "aiTools": "AI",
       "moderation": "Moderation management",
       "webhooks": "Webhooks",
       "featureFlags": "Feature flags",
@@ -1150,6 +1162,19 @@
         "forced": "Forced mode",
         "version": "Exact version",
         "attempts": "Attempts",
+        "lastPhase": "Last phase",
+        "states": {
+          "planned": "Planned",
+          "migrating": "Migrating",
+          "starting": "Starting",
+          "healthy": "Healthy",
+          "registering": "Registering",
+          "enabled": "Enabled",
+          "draining": "Draining",
+          "uninstalling": "Uninstalling",
+          "failed": "Failed",
+          "recovery": "Recovery"
+        },
         "removalMode": "Data disposition",
         "audit": "Initial audit event",
         "steps": "Step history",

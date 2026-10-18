@@ -220,3 +220,26 @@ describe('admin AI purposes console surface', () => {
     }
   })
 })
+
+describe('tool catalog', () => {
+  const block = source('../../app/components/admin/ai/blocks/SFAdminAIPurposesBlock.vue')
+  const composable = source('../../app/composables/admin/useAdminAI.ts')
+
+  test('the payload carries the registered tool catalog', () => {
+    expect(composable).toContain('AdminAIToolAvailability')
+    expect(composable).toContain('availableTools?: AdminAIToolAvailability[]')
+    expect(composable).toContain('payload.data.value?.availableTools')
+  })
+
+  test('registered plugin tools are offered instead of typed from memory', () => {
+    // 手打一个拼错的名字会被服务端静默跳过：选项里必须包含站内已注册的工具。
+    expect(block).toContain('ai.availableTools.value')
+    expect(block).toContain('availableTools.value.map(tool => tool.name)')
+    expect(block).toContain('toolLabel(name)')
+  })
+
+  test('only genuinely unregistered names are flagged', () => {
+    expect(block).toContain('unknownTools(purpose)')
+    expect(block).toContain('!known.has(name)')
+  })
+})

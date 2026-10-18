@@ -49,3 +49,11 @@ Protocol V2 插件是每插件一个独立 Go 子进程的隔离模型（安全�
 
 空闲插件进程挂起/懒启动为独立工作流，需先写 ADR（涉及 runtime lease、
 required hook provider 豁免、首调用延迟披露），本决定不预置其实现。
+
+## 修订（2026-10-19）
+
+默认值从 48 MiB 上调到 96 MiB。原因不是插件常驻内存变化，而是
+`Support/AI` 的输入天花板放宽到 12 MiB：单个大上下文请求在插件进程里要过
+JSON + proto（+ 可能的 base64）三份副本，48 MiB 会贴着软上限触发连续 GC。
+`GOGC=50`、覆盖键 `SFORUM_PLUGIN_GOMEMLIMIT`、env 白名单的语义全部不变。
+见 `2026-10-19-ai-context-and-budget-ceilings.md`。

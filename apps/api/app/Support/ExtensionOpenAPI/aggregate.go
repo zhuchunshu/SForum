@@ -68,7 +68,7 @@ func buildAggregate(input BuildInput, requirePolicies bool) (Snapshot, error) {
 			return Snapshot{}, fmt.Errorf("%w: duplicate artifact %s@%s", ErrInvalidArtifact, artifact.ExtensionID, artifact.Version)
 		}
 		seenArtifacts[identity] = struct{}{}
-		loaded, err := loadArtifact(artifact, budget)
+		loaded, err := loadArtifact(artifact, budget, input.Loader)
 		if err != nil {
 			return Snapshot{}, err
 		}

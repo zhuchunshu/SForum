@@ -210,10 +210,60 @@ func TestAIToolSDKContractIsPinned(t *testing.T) {
 			HostAIToolSlot, HostAIToolOperation, HostAIToolRequestSchemaRef, HostAIToolResponseSchemaRef)
 	}
 	if HostAIToolNameMaximumLength != 64 || HostAIToolDescriptionMaximum != 1024 ||
-		HostAIToolSchemaMaximumBytes != 8192 || HostAIToolMaximumTimeoutMS != 5000 ||
+		HostAIToolSchemaMaximumBytes != 8192 || HostAIToolMaximumTimeoutMS != 30_000 ||
 		HostAIToolsMaximumPerExtension != 16 {
 		t.Fatalf("sdk ai tool limits drifted: name=%d description=%d schema=%d timeout=%d count=%d",
 			HostAIToolNameMaximumLength, HostAIToolDescriptionMaximum,
 			HostAIToolSchemaMaximumBytes, HostAIToolMaximumTimeoutMS, HostAIToolsMaximumPerExtension)
+	}
+}
+
+// 宿主按清单声明写入的会话事实必须能被插件读到；没写的事实保持零值，插件不能
+// 假定它们总是存在。
+func TestAIToolRegistryDeliversDeclaredContextFacts(t *testing.T) {
+	var captured *AIToolCall
+	definition := AIToolDefinition{
+		ID:              "plugin.ai-tool.reference.context",
+		ContractVersion: "plugin.ai-tool.reference.context@1",
+		Name:            "reference-context",
+		Description:     "Capture context facts.",
+		Parameters:      `{"type":"object"}`,
+		TimeoutMS:       1000,
+		Execute: func(_ context.Context, call *AIToolCall) (*AIToolResult, error) {
+			captured = call
+			return &AIToolResult{Content: "ok"}, nil
+		},
+	}
+	registry, err := NewAIToolRegistry(definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dispatch := func(values map[string]any) {
+		t.Helper()
+		document, err := NewTypedDocument(HostAIToolRequestSchemaRef, values)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response, err := registry.ProviderCall(context.Background(), &pluginwire.ProviderCallRequest{
+			Context: aiToolTestRequestContext(), SlotId: HostAIToolSlot, Operation: HostAIToolOperation,
+			ContractVersion: definition.ContractVersion, DeclarationId: definition.ID, Input: document,
+		})
+		if err != nil || response.GetError() != nil {
+			t.Fatalf("dispatch failed: err=%v detail=%v", err, response.GetError())
+		}
+	}
+
+	dispatch(map[string]any{
+		"name": definition.Name, "arguments": "{}",
+		"locale": "zh-CN", "topicId": 42, "viewerUserId": 7,
+	})
+	if captured.Locale != "zh-CN" || captured.TopicID != 42 || captured.ViewerUserID != 7 {
+		t.Fatalf("context facts drifted: %#v", captured)
+	}
+
+	dispatch(map[string]any{"name": definition.Name, "arguments": "{}"})
+	if captured.Locale != "" || captured.TopicID != 0 || captured.ViewerUserID != 0 {
+		t.Fatalf("absent facts must stay zero: %#v", captured)
 	}
 }

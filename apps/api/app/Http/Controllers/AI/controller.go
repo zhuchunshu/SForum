@@ -1,6 +1,7 @@
 package aicontroller
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -70,6 +71,9 @@ type settingsResponse struct {
 	// Purposes 是站内已声明的 AI 用途清单（含生效参数）。运营者按用途而不是按
 	// 某一项特例来理解和配置 AI 行为。
 	Purposes []purposeCatalogEntry `json:"purposes"`
+	// AvailableTools 是站内已注册的全部 AI 工具（Core 内置 + 已启用插件贡献）。
+	// 它是「有哪些工具可以点名」的权威清单，与每个用途的白名单是两个问题。
+	AvailableTools []supportai.ToolAvailability `json:"availableTools"`
 	// EncryptionEnabled 表示 Secret Store 是否具备加密能力；为 false 时不应保存真实密钥。
 	EncryptionEnabled bool `json:"encryptionEnabled"`
 	// CredentialStatus 按 profile id 报告密钥是否已配置。它不含密钥值。
@@ -81,6 +85,9 @@ type settingsResponse struct {
 	DefaultSystemPrompt string `json:"defaultSystemPrompt"`
 	// SafetyAppendix 是始终附加在提示词末尾的防注入声明。它只读展示，不可配置。
 	SafetyAppendix string `json:"safetyAppendix"`
+	// Limits 是服务端当前生效的取值天花板。控制台据此渲染 min/max 与提示文案，
+	// 不再各自硬编码一份数字——两处常量漂移正是「界面允许、服务端 422」的成因。
+	Limits supportai.LimitsView `json:"limits"`
 }
 
 // profileCredentialRequest 是密钥录入的唯一载荷。密钥值只在这次请求里存在，
@@ -127,6 +134,16 @@ func (h *Controller) getSettings(c fiber.Ctx) error {
 	return h.settingsPayload(c, actor, settings)
 }
 
+// nonNilStrings 把 nil 切片变成空切片。契约里这些字段是 array，nil 切片会被
+// encoding/json 写成 null——前端按数组迭代时就会炸（真实事故：用途页签在
+// 「没有声明任何工具的用途」上整页 500）。
+func nonNilStrings(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	return append([]string{}, values...)
+}
+
 // settingsPayload 统一组装配置响应。密钥状态每次都重新读取，因此刚保存过的
 // 密钥会立刻显示为「已配置」。
 func (h *Controller) settingsPayload(c fiber.Ctx, actor identity.Actor, settings supportai.Settings) error {
@@ -142,6 +159,10 @@ func (h *Controller) settingsPayload(c fiber.Ctx, actor identity.Actor, settings
 	if err != nil {
 		return mapAIError(err)
 	}
+	availableTools, err := h.service.AvailableTools(actor)
+	if err != nil {
+		return mapAIError(err)
+	}
 	catalog := make([]purposeCatalogEntry, 0, len(details))
 	for _, detail := range details {
 		catalog = append(catalog, purposeCatalogEntry{
@@ -154,8 +175,8 @@ func (h *Controller) settingsPayload(c fiber.Ctx, actor identity.Actor, settings
 			BlastRadius:              detail.Declaration.BlastRadius,
 			FailurePosture:           detail.FailurePosture,
 			FailurePostureOverridden: detail.FailurePostureOverridden,
-			DeclaredTools:            append([]string(nil), detail.Declaration.ToolAllowlist...),
-			ToolsAllowed:             detail.ToolsAllowed,
+			DeclaredTools:            nonNilStrings(detail.Declaration.ToolAllowlist),
+			ToolsAllowed:             nonNilStrings(detail.ToolsAllowed),
 			ToolsOverridden:          detail.ToolsOverridden,
 		})
 	}
@@ -163,11 +184,13 @@ func (h *Controller) settingsPayload(c fiber.Ctx, actor identity.Actor, settings
 		Settings:            settings,
 		Warnings:            settings.Warnings(),
 		Purposes:            catalog,
+		AvailableTools:      availableTools,
 		EncryptionEnabled:   h.encryptionEnabled(),
 		CredentialStatus:    status,
 		ReplyBot:            bot,
 		DefaultSystemPrompt: supportai.DefaultReplySystemPrompt,
 		SafetyAppendix:      supportai.ReplyPromptSafetyAppendix,
+		Limits:              supportai.CurrentLimits(),
 	})
 }
 
@@ -227,16 +250,44 @@ func (h *Controller) updateSettings(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	var request updateSettingsRequest
-	if err := c.Bind().JSON(&request); err != nil {
-		return fiber.NewError(fiber.StatusUnprocessableEntity, "ai.settings_invalid")
+	settings, fields, reason := decodeSettingsRequest(c.Body())
+	if reason != "" {
+		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, reason, fields)
 	}
-	settings := settingsFromRequest(request)
 	saved, err := h.service.UpdateSettings(c.Context(), actor, settings)
 	if err != nil {
 		return mapAIError(err)
 	}
 	return h.settingsPayload(c, actor, saved)
+}
+
+// decodeSettingsRequest 把控制台载荷解码成规范化配置，并返回定位到字段的问题。
+//
+// 两种失败刻意分开：解码失败意味着「形状不对」（例如数字字段收到空串或小数），
+// 与「取值不合法」是两件不同的事。合成一个 ai.settings_invalid 会让运营者拿到
+// 一个没有任何指向的 422——这正是控制台曾经最难诊断的一条路径。
+func decodeSettingsRequest(raw []byte) (supportai.Settings, map[string][]string, string) {
+	var request updateSettingsRequest
+	if err := json.Unmarshal(raw, &request); err != nil {
+		fields := map[string][]string{}
+		var typeErr *json.UnmarshalTypeError
+		// 只暴露字段路径，不回显原值：载荷里可能有密钥或用户输入。
+		if errors.As(err, &typeErr) && typeErr.Field != "" {
+			fields[typeErr.Field] = []string{"ai.field." + supportai.IssueCodeInvalidValue}
+		}
+		return supportai.Settings{}, fields, "ai.settings_malformed"
+	}
+	settings := settingsFromRequest(request)
+	issues := settings.Issues()
+	if len(issues) == 0 {
+		return settings, nil, ""
+	}
+	fields := make(map[string][]string, len(issues))
+	for _, issue := range issues {
+		key := "ai.field." + issue.Code
+		fields[issue.Field] = append(fields[issue.Field], key)
+	}
+	return settings, fields, "ai.settings_invalid"
 }
 
 func (h *Controller) resetSettings(c fiber.Ctx) error {

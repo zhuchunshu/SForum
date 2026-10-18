@@ -50,6 +50,15 @@ type ReplyParameterSource interface {
 	ReplyPurposeParameters(ctx context.Context) (ReplyPurposeParameters, error)
 }
 
+// LocaleSource 是可选能力：提供站点默认语言，作为工具调用的 locale 事实。
+//
+// 它不是 ReplyParameterSource 的必需部分：没有它的装配（单测、旧装配）里工具
+// 拿到的 locale 是空值，插件按「未提供」处理。Identity 没有 per-user locale
+// 字段，因此这里能给出的只有站点语言，不是提问者语言。
+type LocaleSource interface {
+	DefaultLocale(ctx context.Context) (string, error)
+}
+
 // ReplyPurposeParameters 是一次解析后的回复用途参数。
 type ReplyPurposeParameters struct {
 	CostClass     string
@@ -169,6 +178,19 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 	}
 	parameters, systemOverride := g.resolveParameters(ctx)
 	system, user := buildReplyPrompt(thread, systemOverride)
+	// 工具以提问者视角取数：可见性判定用触发者身份，位置信息用于限定
+	// 「当前这栋楼」。语言来自站点默认值——读失败留空，工具按「不知道语言」
+	// 工作，不因为一句可选事实而让整次回复失败。
+	toolContext := supportai.ToolContext{
+		ViewerUserID: input.TriggerUserID,
+		TopicID:      input.TopicID,
+		CommentID:    input.TriggerCommentID,
+	}
+	if source, ok := g.parameters.(LocaleSource); ok {
+		if locale, err := source.DefaultLocale(ctx); err == nil {
+			toolContext.Locale = strings.TrimSpace(locale)
+		}
+	}
 	completion, err := g.completer.Complete(ctx, CompletionInput{
 		Purpose:       ReplyPurpose,
 		CostClass:     parameters.CostClass,
@@ -180,13 +202,7 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 		Images:        g.resolveImageCandidates(ctx, input),
 		ActorUserID:   input.BotUserID,
 		Tools:         append([]string(nil), parameters.ToolsAllowed...),
-		// 工具以提问者视角取数：可见性判定用触发者身份，位置信息用于限定
-		// 「当前这栋楼」。
-		ToolContext: supportai.ToolContext{
-			ViewerUserID: input.TriggerUserID,
-			TopicID:      input.TopicID,
-			CommentID:    input.TriggerCommentID,
-		},
+		ToolContext:   toolContext,
 	})
 	if err != nil {
 		return fmt.Errorf("complete reply: %w", err)

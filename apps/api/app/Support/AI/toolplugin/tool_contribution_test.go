@@ -213,3 +213,39 @@ func (t *stubTool) Definition() supportai.ToolDefinition { return t.definition }
 func (t *stubTool) Invoke(context.Context, supportai.ToolCall, supportai.ToolContext) (supportai.ToolResult, error) {
 	return supportai.ToolResult{}, nil
 }
+
+// 会话事实按声明过滤：默认只传 locale。即便编排层手里有提问者 id 与主题 id，
+// 没写进清单的工具也拿不到——声明即授权，宿主不做隐式披露。
+func TestPluginToolDispatchFiltersContextByDeclaration(t *testing.T) {
+	extension, declaration := pluginAIToolFixture()
+	env := supportai.ToolContext{ViewerUserID: 7, TopicID: 9, CommentID: 11, Locale: "zh-CN"}
+
+	invoker := &recordingPluginToolInvoker{}
+	tool, err := toolplugin.NewPluginTool(extension, declaration, invoker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tool.Invoke(context.Background(), supportai.ToolCall{Name: declaration.Name}, env); err != nil {
+		t.Fatal(err)
+	}
+	if got := invoker.calls[0]; got.Locale != "zh-CN" || got.TopicID != 0 || got.ViewerUserID != 0 {
+		t.Fatalf("default declaration must disclose locale only: %#v", got)
+	}
+
+	declaration.Context = []string{
+		extensionmanifest.AIToolContextLocale,
+		extensionmanifest.AIToolContextTopic,
+		extensionmanifest.AIToolContextViewer,
+	}
+	invoker = &recordingPluginToolInvoker{}
+	tool, err = toolplugin.NewPluginTool(extension, declaration, invoker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tool.Invoke(context.Background(), supportai.ToolCall{Name: declaration.Name}, env); err != nil {
+		t.Fatal(err)
+	}
+	if got := invoker.calls[0]; got.Locale != "zh-CN" || got.TopicID != 9 || got.ViewerUserID != 7 {
+		t.Fatalf("declared facts must reach the plugin: %#v", got)
+	}
+}

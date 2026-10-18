@@ -51,6 +51,10 @@ type Service struct {
 	// purposes 是用途登记表：解析生效参数（成本等级、工具白名单、失败姿态）并
 	// 供控制台枚举。它是进程级只读声明，不是可配置项。
 	purposes *supportai.PurposeRegistry
+	// defaultLocale 提供站点默认语言，作为工具调用的 locale 事实；缺省时为空。
+	defaultLocale func(context.Context) (string, error)
+	// toolCatalog 是站内已注册 AI 工具的只读枚举面；缺省时控制台退化为手动输入。
+	toolCatalog supportai.ToolCatalog
 }
 
 // Config 汇总服务层依赖。除 Settings 外均可缺省，缺省时对应视图返回空结果
@@ -69,6 +73,9 @@ type Config struct {
 	CredentialReader CredentialReader
 	Models           ModelLister
 	BotAccounts      BotAccountReader
+	// DefaultLocale 返回站点默认语言（BCP-47）。缺省时工具调用的 locale 为空，
+	// 插件按「未提供」处理——它是一项可选事实，不是必需依赖。
+	DefaultLocale func(ctx context.Context) (string, error)
 }
 
 func NewService(cfg Config) *Service {
@@ -77,16 +84,26 @@ func NewService(cfg Config) *Service {
 		purposes = supportai.DefaultPurposeRegistry()
 	}
 	return &Service{
-		settings:    cfg.Settings,
-		purposes:    purposes,
-		gateway:     cfg.Gateway,
-		usage:       cfg.Usage,
-		traces:      cfg.Traces,
-		credentials: cfg.Credentials,
-		reader:      cfg.CredentialReader,
-		models:      cfg.Models,
-		botAccounts: cfg.BotAccounts,
+		settings:      cfg.Settings,
+		purposes:      purposes,
+		gateway:       cfg.Gateway,
+		usage:         cfg.Usage,
+		traces:        cfg.Traces,
+		credentials:   cfg.Credentials,
+		reader:        cfg.CredentialReader,
+		models:        cfg.Models,
+		botAccounts:   cfg.BotAccounts,
+		defaultLocale: cfg.DefaultLocale,
 	}
+}
+
+// DefaultLocale 返回站点默认语言。它是 aireply.LocaleSource 的实现：工具调用
+// 需要「现在用什么语言检索」时读这里，而不是从对话内容里猜。
+func (s *Service) DefaultLocale(ctx context.Context) (string, error) {
+	if s == nil || s.defaultLocale == nil {
+		return "", nil
+	}
+	return s.defaultLocale(ctx)
 }
 
 // ReplyBot 返回当前充当 AI 助手的账号，供控制台显示。没有机器人账号时返回
