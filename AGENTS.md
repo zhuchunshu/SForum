@@ -252,15 +252,19 @@ contracts first.
 - Plugin development is **zero-command** in development: the host process itself
   watches `EXTERNAL_EXTENSION_ROOTS` (dev assembly only), and on every source
   change runs frontend (bun) + backend (go) builds → digest (incl. SRI
-  recompute) → stage → exact per-digest grant → enable/upgrade (L2 component
-  contractVersions are auto-bumped in-memory per digest; the public asset
-  registry is republished) with the plugin subprocess restarting — no login, no
-  password, no dev trust session, no manual confirmation, and it works on a
-  fresh database with zero admin accounts (a dedicated credential-less
+  recompute) → stage → exact per-digest grant → enable/upgrade, with the plugin
+  subprocess restarting and the lifecycle publishing the new public assets — no
+  login, no password, no dev trust session, no manual confirmation, and it works
+  on a fresh database with zero admin accounts (a dedicated credential-less
   `dev-auto` system account is the audit attribution; disabling or deleting it
-  in the admin disables the channel). Agents must NOT wrap plugin iteration in
-  any credential/auth step, must NOT restart the dev API to pick up a digest,
-  and must NOT hand-roll SRI/digest scripts. The old
+  in the admin disables the channel). Editing content (CSS/JS/backend logic/
+  settings/routes) needs no version bump; only a real component **interface**
+  change (props/schema shape, a different `l2Component` ref, added/removed
+  component id) requires a manual `components[].contractVersion` bump — that is
+  the correct human checkpoint and must NOT be automated (auto-bumping fights
+  the exact-artifact system and was removed). Agents must NOT wrap plugin
+  iteration in any credential/auth step, must NOT restart the dev API to pick
+  up a digest, and must NOT hand-roll SRI/digest scripts. The old
   `scripts/dev-plugin-loop.sh` and per-digest trust CLI flows are retired;
   `sforum extension dev-trust *` remains only as a legacy credential-gated
   helper. Do not weaken production: the dev watcher and dev-auto grants are

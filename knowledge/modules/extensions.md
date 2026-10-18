@@ -641,25 +641,37 @@ does not rebuild Nuxt.
   with zero admins work; production and Safe Mode never assemble the watcher
   (fail closed); install/enable/upgrade HTTP routes keep their super_admin
   gates. The wrapper script and CLI credential layers were removed. Decision:
-  `../decisions/2026-10-17-dev-zero-command.md`. Frontend-artifact parity
-  (same-day round 6): the dev pipeline also builds `frontend/admin` (bun run
-  build when package.json exists); `UpgradeInput.Extension` carries an in-memory
-  staged copy whose `components[].contractVersion` is rewritten to
-  `dev-<digest8>` (accepted only on exact ID/version/staged-digest match), so L2
-  frontend edits no longer need manual contract bumps; after any promotion
-  `FrontendService.RepublishPublicAssetsForDev` rebuilds the public asset
-  registry (Host otherwise rebuilds it only at boot, leaving browsers on the
-  boot-time digest). Dev upgrades use deterministic Idempotency-Keys and
-  auto-recover one-shot from a failed-upgrade fence; promote failures are
-  recorded in `extension_events`.
-  transaction built→digest→validate→test green (7 checks). Decision:
-  `../decisions/2026-10-17-dev-live-activation-chain.md`. Agent contract:
-  the `AGENTS.md` plugin-development rule now mandates this chain (never restart
-  the dev API to stage, never ask for per-artifact manual trust, never hand-roll
-  SRI scripts; credentials declared once in gitignored `.env`); the bilingual
-  handbook `docs/extensions/build-and-load.md` + `docs/zh-CN` teach only the
-  chain, and `scripts/dev-plugin-loop.sh <package-root>` is the single
-  entrypoint (`--ensure` makes session creation idempotent).
+  `../decisions/2026-10-17-dev-zero-command.md`. The dev pipeline also builds
+  `frontend/admin` (bun run build when package.json exists) and recomputes
+  declared `assets[].integrity` SRI during digest. Dev upgrades use deterministic
+  Idempotency-Keys (`dev-auto/<id>/<digest>`), auto-recover one-shot from a
+  failed-upgrade fence, and record promote failures in `extension_events`;
+  startup reconcile runs inside the watcher goroutine (serialized with the build
+  so `SyncExternalSources` never snapshots a half-written `backend/plugin`).
+  **contractVersion auto-bump and asset republish were both added then REMOVED
+  (2026-10-18)**: editing content (CSS/JS/backend/settings/routes) does not touch
+  component declarations, so the registry rule ("same contractVersion forbids
+  declaration change") never fires and no bump is needed; only a real component
+  interface change (props/schema shape, different `l2Component`, added/removed
+  id) needs a manual bump — the correct human checkpoint. Auto-bumping (in-memory
+  view rewrite, then source-manifest write) fought the exact-artifact system at
+  four layers (trust impact / authority snapshot / route-schema byte-compare /
+  component registry) and was dropped. `RepublishPublicAssetsForDev` was removed
+  because `bindAssetRegistryConsumers` makes `frontendService.publicAssets` the
+  SAME registry the lifecycle writes via fenced `ReplaceAllIfRevision`; the
+  unfenced `ReplaceAll` republish was a second writer that bumped the revision
+  and broke the next upgrade ("asset registry revision changed during
+  replacement"). The lifecycle upgrade publishes public assets itself.
+  Agent contract: the `AGENTS.md` plugin-development rule mandates this
+  zero-command chain (never restart the dev API to stage, never wrap iteration
+  in a credential/auth step, never hand-roll SRI scripts, never automate the
+  contractVersion bump). There is NO wrapper script and NO credential to
+  declare — the host watcher does everything on file save; the old
+  `scripts/dev-plugin-loop.sh` and the `extension dev-trust` credential flow are
+  retired (dev-trust remains only as a legacy credential-gated helper). The
+  bilingual handbook `docs/extensions/build-and-load.md` + `docs/zh-CN` teach the
+  chain and when a manual contractVersion bump is genuinely required. Decision:
+  `../decisions/2026-10-17-dev-zero-command.md`.
 - Request-context contract (2026-10-16, M7): no new request/response field was
   admitted. The filtered header projection (with `x-sforum-*`, hop-by-hop and
   credential blocking, plus `httpguts` name/value validation),

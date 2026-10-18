@@ -449,11 +449,16 @@ APP_ENV=development go run ./cmd/sforum extension dev-trust revoke <sessionID>
   from the stored snapshot path, and digests staged by `SyncExternalSources`
   are auto-granted as well.
 - `--ensure`: idempotent confirmation — a `409 extension.dev_trust_session_exists`
-  response (an active session already exists) counts as success. Combined with
-  the one-command wrapper `scripts/dev-plugin-loop.sh <package-root>` (sources
-  .env credentials → ensures the session → starts the watcher with
-  `--auto-upgrade`), daily plugin development is a single command while the
-  explicit confirm audit and per-digest grant semantics stay untouched.
+  response (an active session already exists) counts as success.
+
+> **Legacy note**: the CLI dev loop in this section (`extension dev
+> --auto-trust/--auto-upgrade`) and `dev-trust` are the **credential-gated old
+> path**. Everyday plugin development now uses the **zero-command host channel** —
+> under the development assembly the host watches `EXTERNAL_EXTENSION_ROOTS`
+> itself and, on file save, auto build → stage → grant → upgrade with no login,
+> no credentials, no session, and no wrapper script (the old
+> `scripts/dev-plugin-loop.sh` was removed). See the "zero-command dev
+> live-reload" section in `docs/extensions/build-and-load.md`.
 - `extension dev --auto-trust`: calls `POST /admin/extensions/{id}/dev-trust-refresh`
   after each successful build and prints `dev_trusted digest=…`; without a session
   or credentials it falls back to `reload_required`, identical to the manual path.

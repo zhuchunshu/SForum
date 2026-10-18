@@ -218,28 +218,40 @@ EXTERNAL_EXTENSION_ROOTS=/abs/path/to/sforum-plugins
 - API/worker boot scans each root and copies valid packages into
   `EXTENSION_ROOT` as immutable snapshots. Changes become **staged
   candidates**; they never auto-promote or inherit trust.
-- For everyday iteration use the **dev live-reload chain** (below) — no API
-  restart is needed to see a new snapshot: `dev-trust-refresh` re-scans
-  `EXTERNAL_EXTENSION_ROOTS` in the development assembly and stages the freshly
-  built digest into the running instance.
+- For everyday iteration use the **zero-command dev live-reload** (below) — the
+  host dev assembly watches `EXTERNAL_EXTENSION_ROOTS` itself; you just save.
 
-### Everyday iteration: the dev live-reload chain (recommended entrypoint)
+### Everyday iteration: zero-command dev live-reload (recommended)
 
-```sh
-scripts/dev-plugin-loop.sh /abs/path/to/sforum-plugins/plugins/acme.notes
+**No command at all.** Under the development assembly (`APP_ENV=development`,
+not Safe Mode) the host process watches `EXTERNAL_EXTENSION_ROOTS` with fsnotify.
+You only **save a file**:
+
+```text
+save → host auto: frontend bun run build (if any) + backend go build → digest
+(incl. SRI recompute) → stage the new digest → write the exact per-digest grant
+→ enable/upgrade → plugin subprocess restarts at the new digest → lifecycle
+publishes the new public assets
 ```
 
-Save → the watcher runs build/digest (including SRI recompute)/validate/contract
-tests → `dev-trust-refresh` re-scans external sources and stages the new digest →
-the dev trust session auto-writes the exact per-digest grant → the existing
-`upgrade` route promotes it → the plugin subprocess restarts at the new digest.
-No API restart and no manual per-artifact confirmation. `extension dev
---auto-upgrade` (implies `--auto-trust`) is equivalent. Prerequisite: the
-operator declares credentials once in `.env`
-(`SFORUM_ADMIN_EMAIL`+`SFORUM_ADMIN_PASSWORD` or `SFORUM_SESSION_COOKIE`,
-gitignored, dev machine only); `dev-trust create --ensure` runs once per package
-per development session (the script does it idempotently). See the dev loop and
-dev trust sections in `docs/zh-CN/development/cli.md` / `docs/en-US/development/cli.md`.
+- **No login, no password, no trust session, no manual confirmation**; works on a
+  fresh database with zero admins — a credential-less `dev-auto` system account is
+  the audit attribution (disable/delete it in the admin to close the channel).
+- First install is automatic too: drop the package into an external root and the
+  host installs → enables it.
+- **Content edits need no version bump**: CSS/JS, backend logic, settings, and
+  routes go live directly. Only a component **interface** change (props/schema
+  shape, a different `l2Component` ref, added/removed component id) requires a
+  manual `components[].contractVersion` bump (e.g. `@3`→`@4`) — the correct human
+  checkpoint, which must not be automated (auto-bumping fought the exact-artifact
+  system and was removed).
+- Production and Safe Mode never assemble the watcher (fail closed); the HTTP
+  install/enable/upgrade routes keep their super_admin gates.
+
+> Legacy: the CLI `sforum extension dev <root> --auto-upgrade` and
+> `extension dev-trust *` still exist but are only the credential-gated old path;
+> everyday development uses the zero-command host channel above. See
+> `docs/en-US/development/cli.md`.
 
 ### Enable and trust
 

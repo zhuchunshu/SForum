@@ -211,20 +211,30 @@ EXTERNAL_EXTENSION_ROOTS=/abs/path/to/sforum-plugins
   `dev-trust-refresh` 会在开发装配下重扫 `EXTERNAL_EXTENSION_ROOTS`，把刚构建的
   新摘要直接暂存进运行中实例。
 
-### 日常迭代：dev live-reload 链（推荐入口）
+### 日常迭代：零命令 dev live-reload（推荐）
 
-```sh
-scripts/dev-plugin-loop.sh /abs/path/to/sforum-plugins/plugins/acme.notes
+**不需要任何命令。** 开发装配（`APP_ENV=development` 且非 Safe Mode）下，host
+进程自己用 fsnotify 监视 `EXTERNAL_EXTENSION_ROOTS`。你只要**保存文件**：
+
+```text
+保存 → host 自动：前端 bun run build（如有）+ 后端 go build → digest（含 SRI 重算）
+→ 暂存新摘要 → 逐摘要写入精确制品授予 → 自动 enable/upgrade → 插件子进程按新摘要
+重启 → lifecycle 发布新公开资产
 ```
 
-保存 → watcher 自动执行构建/摘要（含 SRI 重算）/校验/契约测试 →
-`dev-trust-refresh` 重扫外部源暂存新摘要 → dev 会话自动写入精确制品授予
-→ 自动走既有 upgrade 路由 → 插件子进程按新摘要重启。全程无需重启 API、
-无需人工逐制品确认；`extension dev --auto-upgrade`（隐含 `--auto-trust`）
-与此等价。前置：操作者凭据声明一次于 `.env`（`SFORUM_ADMIN_EMAIL`+
-`SFORUM_ADMIN_PASSWORD` 或 `SFORUM_SESSION_COOKIE`，gitignored 仅本机）；
-每个包每个开发会话一次 `dev-trust create --ensure`（脚本自动幂等）。
-详见 `docs/zh-CN/development/cli.md` 的 dev 循环与 dev trust 章节。
+- **零登录、零密码、零信任会话、零人工确认**；空库（0 管理员）也可用——一个无凭据的
+  `dev-auto` 系统账号作为审计归因（在后台禁用/删除它即关闭本通道）。
+- 首次安装也自动：把包放进外部根，host 自动 install → enable。
+- **改内容不提版**：改 CSS/JS、后端逻辑、settings、routes 都直接生效。只有改组件
+  **接口声明**（props/schema 形状、换 `l2Component` 引用、增删组件 ID）才需手动把
+  `components[].contractVersion` 提版（如 `@3`→`@4`）——这是正确的人工检查点，
+  不应自动化（自动提版会与精确制品体系冲突，已被移除）。
+- 生产与 Safe Mode 不装配 watcher（fail closed）；HTTP install/enable/upgrade 路由的
+  super_admin 门原样保留。
+
+> 遗留：CLI `sforum extension dev <root> --auto-upgrade` 与 `extension dev-trust *`
+> 仍在，但只是带凭据的旧路径；日常开发用上面的零命令 host 通道即可。
+> 详见 `docs/zh-CN/development/cli.md`。
 
 ### 启用与信任
 

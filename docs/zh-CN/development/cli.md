@@ -406,10 +406,14 @@ APP_ENV=development go run ./cmd/sforum extension dev-trust revoke <sessionID>
   会话唯一键是扩展 ID——源码根与落库快照路径解耦，`SyncExternalSources`
   暂存（staged）的新摘要同样会被自动授权。
 - `--ensure`：幂等确认——服务端返回 `409 extension.dev_trust_session_exists`
-  （已有活跃会话）时视为成功。配合一键 wrapper
-  `scripts/dev-plugin-loop.sh <package-root>`（源 .env 凭据 → 查/建会话 → 启动
-  带 `--auto-upgrade` 的 watch 循环），日常开发只剩这一条命令——
-  显式 confirm 审计与逐摘要 grant 语义一行不改。
+  （已有活跃会话）时视为成功。
+
+> **遗留说明**：本节描述的 CLI dev 循环（`extension dev --auto-trust/--auto-upgrade`）
+> 与 `dev-trust` 是**带凭据的旧路径**。日常插件开发已改为**零命令 host 通道**——
+> 开发装配下 host 自己监视 `EXTERNAL_EXTENSION_ROOTS`，保存文件即自动
+> 构建→暂存→授予→升级，无需登录/凭据/会话，也无需 wrapper 脚本（旧的
+> `scripts/dev-plugin-loop.sh` 已删除）。详见
+> `docs/zh-CN/extensions/build-and-load.md` 的「零命令 dev live-reload」。
 - 带 `--auto-trust` 的 `extension dev`：每轮构建成功后调用
   `POST /admin/extensions/{id}/dev-trust-refresh`，输出 `dev_trusted digest=…`；
   无会话/凭据时回落 `reload_required`，与人工路径一致。开发装配下该端点会**先重扫

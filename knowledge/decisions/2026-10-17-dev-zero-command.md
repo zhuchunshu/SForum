@@ -44,13 +44,15 @@ dev 装配，host 启动即自动生效，连 wrapper 本身也删除。
 1. **dev 构建管线补前端**：`BuildFrontend`——`frontend/admin/package.json` 存在时
    执行 `bun run build`（跳过依赖安装）。此前 dev 管线只构建 Go 后端，改前端源码
    不会进 dist 产物，只能手工构建。
-2. **组件契约版本自动晋升**：组件注册表拒绝「同 contractVersion 下声明/内容变化」
+2. **组件契约版本自动晋升**（⚠️ 已被下方「更正（2026-10-18）」推翻并移除）：
+   组件注册表拒绝「同 contractVersion 下声明/内容变化」
    （要求每次改 L2 前端手动 bump）。dev 通道在传给 upgrade 的**内存副本**上把
    `components[].contractVersion` 改写为 `dev-<stagedDigest 前 8 位>`：制品文件与
    真实版本号不变，registry 把每次摘要变化视为新契约发布。`UpgradeInput.Extension`
    新增非序列化内存载体（HTTP 恒 nil），仅在 ID/version/staged digest 与 store
    staged 精确一致时采信。
-3. **公开资产注册表重发布**：Host 只在启动时 `RestoreRoutePublications`；自动
+3. **公开资产注册表重发布**（⚠️ 已被下方「更正二（2026-10-18）」推翻并移除）：
+   Host 只在启动时 `RestoreRoutePublications`；自动
    upgrade 后必须显式 `RepublishPublicAssetsForDev`（与启动恢复同一确定性构建、
    完整图替换），否则浏览器按启动快照旧 digest 请求资产（404/旧内容）——
    这就是「前端要走生命周期切换制品才生效」的完整根因。
