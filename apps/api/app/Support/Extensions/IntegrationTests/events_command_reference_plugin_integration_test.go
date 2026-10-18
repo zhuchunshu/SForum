@@ -49,10 +49,11 @@ func TestEventsCommandReferencePluginPublishesThroughRealBroker(t *testing.T) {
 	}
 	commandRuntime, err := hostapi.NewPostgresProtocolV2CommandRuntime(hostapi.PostgresProtocolV2CommandRuntimeConfig{
 		Pool: pool, ActorDelegations: authority,
-		Jobs:               supportjobs.NewDispatcher(aiCommandFixtureRiverClient{}),
-		Moderation:         moderation.NewPostgresStore(pool),
-		AttachmentStatuses: protocolV2RouteAttachmentMutator{},
-		Events:             publisher,
+		Jobs:                 supportjobs.NewDispatcher(aiCommandFixtureRiverClient{}),
+		Moderation:           moderation.NewPostgresStore(pool),
+		AttachmentStatuses:   protocolV2RouteAttachmentMutator{},
+		AttachmentExtensions: protocolV2RouteAttachmentMutator{},
+		Events:               publisher,
 	})
 	if err != nil {
 		t.Fatalf("build events command runtime: %v", err)

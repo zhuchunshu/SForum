@@ -44,6 +44,20 @@ func WithLifecycleCleanupFinalizer(finalizer LifecycleCleanupFinalizer) ServiceO
 	}
 }
 
+// ExtensionAttachmentReferenceReaper 释放某个扩展拥有的附件引用（公开图标等）。
+//
+// 插件被卸载后若引用悬空，附件永远不会被孤儿回收。禁用不释放：禁用期间图标
+// 保持可读是预期行为。实现由 attachments 域提供，bootstrap 装配注入。
+type ExtensionAttachmentReferenceReaper interface {
+	ReleaseExtensionAttachmentReferences(ctx context.Context, extensionID string) (int, error)
+}
+
+func WithExtensionAttachmentReferenceReaper(reaper ExtensionAttachmentReferenceReaper) ServiceOption {
+	return func(service *Service) {
+		service.attachmentReferences = reaper
+	}
+}
+
 // LifecycleAuthorityRepository exposes only the immutable successful snapshot
 // needed for deactivation and historical rollback.
 type LifecycleAuthorityRepository interface {
@@ -649,6 +663,16 @@ func (s *serviceCore) finalizeLifecycleUninstall(
 			ErrLifecycleCleanupFinalization,
 			fmt.Errorf("quarantine exact lifecycle asset publication (forced=%t): %w", operation.Forced, assetErr),
 		)
+	}
+	// 卸载是附件引用的唯一释放点（禁用不释放）。必须在物理 purge 之前释放，
+	// 失败时保留精确制品与身份，让同一次卸载可以幂等重试。
+	if s.attachmentReferences != nil {
+		if _, err := s.attachmentReferences.ReleaseExtensionAttachmentReferences(ctx, extensionID); err != nil {
+			return UninstallResult{}, errors.Join(
+				ErrLifecycleCleanupFinalization,
+				fmt.Errorf("release uninstalled extension attachment references: %w", err),
+			)
+		}
 	}
 	// Provider selections are Host registrations, not plugin-owned data. Clear
 	// them before physical purge so a failed options write leaves the exact

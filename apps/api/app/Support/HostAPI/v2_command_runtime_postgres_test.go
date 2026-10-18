@@ -2,10 +2,12 @@ package hostapi
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	extensionreference "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/ExtensionReference"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
 )
@@ -18,7 +20,8 @@ func TestPostgresProtocolV2CommandRuntimeRequiresCompleteDependencies(t *testing
 	config := PostgresProtocolV2CommandRuntimeConfig{
 		Pool: new(pgxpool.Pool), ActorDelegations: authority,
 		Jobs: &supportjobs.Dispatcher{}, Moderation: moderation.NewPostgresStore(new(pgxpool.Pool)),
-		AttachmentStatuses: protocolV2AttachmentMutatorStub{},
+		AttachmentStatuses:   protocolV2AttachmentMutatorStub{},
+		AttachmentExtensions: protocolV2AttachmentExtensionStub{},
 	}
 	fields := []func(*PostgresProtocolV2CommandRuntimeConfig){
 		func(value *PostgresProtocolV2CommandRuntimeConfig) { value.Pool = nil },
@@ -26,6 +29,7 @@ func TestPostgresProtocolV2CommandRuntimeRequiresCompleteDependencies(t *testing
 		func(value *PostgresProtocolV2CommandRuntimeConfig) { value.Jobs = nil },
 		func(value *PostgresProtocolV2CommandRuntimeConfig) { value.Moderation = nil },
 		func(value *PostgresProtocolV2CommandRuntimeConfig) { value.AttachmentStatuses = nil },
+		func(value *PostgresProtocolV2CommandRuntimeConfig) { value.AttachmentExtensions = nil },
 	}
 	for index, clear := range fields {
 		invalid := config
@@ -44,7 +48,8 @@ func TestPostgresProtocolV2CommandRuntimePublishesDomainCommands(t *testing.T) {
 	runtime, err := NewPostgresProtocolV2CommandRuntime(PostgresProtocolV2CommandRuntimeConfig{
 		Pool: new(pgxpool.Pool), ActorDelegations: authority,
 		Jobs: &supportjobs.Dispatcher{}, Moderation: moderation.NewPostgresStore(new(pgxpool.Pool)),
-		AttachmentStatuses: protocolV2AttachmentMutatorStub{},
+		AttachmentStatuses:   protocolV2AttachmentMutatorStub{},
+		AttachmentExtensions: protocolV2AttachmentExtensionStub{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +58,7 @@ func TestPostgresProtocolV2CommandRuntimePublishesDomainCommands(t *testing.T) {
 	if engine.queryInvalidationJobs == nil {
 		t.Fatal("production command runtime omitted Query invalidation dispatcher")
 	}
-	if len(engine.definitions) != 13 {
+	if len(engine.definitions) != 16 {
 		t.Fatalf("command count = %d", len(engine.definitions))
 	}
 	for _, command := range []string{
@@ -63,6 +68,8 @@ func TestPostgresProtocolV2CommandRuntimePublishesDomainCommands(t *testing.T) {
 		CommandExtensionPluginDisableID, CommandExtensionSettingsResetID,
 		CommandExtensionSettingsUpdateID, CommandExtensionSettingsActionID,
 		CommandNotificationsEmitID, CommandEventsEmitID, CommandAICompleteID,
+		CommandAttachmentExtensionClaimID, CommandAttachmentExtensionReleaseID,
+		CommandAttachmentExtensionListID,
 	} {
 		if _, ok := engine.definitions[protocolV2CommandKey{id: command, version: "1"}]; !ok {
 			t.Fatalf("missing command %s", command)
@@ -100,4 +107,30 @@ type protocolV2AttachmentMutatorStub struct{}
 
 func (protocolV2AttachmentMutatorStub) MutateProtocolV2AttachmentStatus(context.Context, pgx.Tx, int64, string) (ProtocolV2AttachmentStatusResult, error) {
 	return ProtocolV2AttachmentStatusResult{}, nil
+}
+
+type protocolV2AttachmentExtensionStub struct{}
+
+func (protocolV2AttachmentExtensionStub) ExtensionAttachmentPolicy(context.Context) (extensionreference.Policy, error) {
+	return extensionreference.Policy{}, nil
+}
+
+func (protocolV2AttachmentExtensionStub) PrepareClaim(context.Context, pgx.Tx, extensionreference.ClaimInput) (*extensionreference.ClaimPlan, error) {
+	return nil, errors.New("stub")
+}
+
+func (protocolV2AttachmentExtensionStub) ApplyClaim(context.Context, pgx.Tx, *extensionreference.ClaimPlan) (extensionreference.Claim, error) {
+	return extensionreference.Claim{}, errors.New("stub")
+}
+
+func (protocolV2AttachmentExtensionStub) Count(context.Context, pgx.Tx, extensionreference.ReleaseInput) (int, error) {
+	return 0, errors.New("stub")
+}
+
+func (protocolV2AttachmentExtensionStub) Release(context.Context, pgx.Tx, extensionreference.ReleaseInput) (extensionreference.Release, error) {
+	return extensionreference.Release{}, errors.New("stub")
+}
+
+func (protocolV2AttachmentExtensionStub) List(context.Context, pgx.Tx, extensionreference.ListInput) (extensionreference.List, error) {
+	return extensionreference.List{}, errors.New("stub")
 }

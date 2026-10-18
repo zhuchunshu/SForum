@@ -225,6 +225,8 @@ const (
 	NameAttachmentCompressionMaxDimension      = "attachment.compression.max_dimension"
 	NameAttachmentCompressionMinSizeKB         = "attachment.compression.min_size_kb"
 	NameAttachmentCompressionMinSavingsPercent = "attachment.compression.min_savings_percent"
+	// 单个扩展最多可认领多少张存活附件（公开图标等），防止插件把站点当图床。
+	NameAttachmentExtensionReferenceLimit = "attachment.extension_reference_limit"
 
 	// 头像运行时选项。统一头像策略：用户上传优先，否则按 default_provider 回退。
 	NameAvatarAllowUpload           = "avatar.allow_upload"

@@ -74,10 +74,11 @@ func TestAIPluginCommandReferenceEntersHostGatesAndAccounting(t *testing.T) {
 	}
 	commandRuntime, err := hostapi.NewPostgresProtocolV2CommandRuntime(hostapi.PostgresProtocolV2CommandRuntimeConfig{
 		Pool: pool, ActorDelegations: authority,
-		Jobs:               supportjobs.NewDispatcher(aiCommandFixtureRiverClient{}),
-		Moderation:         moderation.NewPostgresStore(pool),
-		AttachmentStatuses: protocolV2RouteAttachmentMutator{},
-		AI:                 gateway,
+		Jobs:                 supportjobs.NewDispatcher(aiCommandFixtureRiverClient{}),
+		Moderation:           moderation.NewPostgresStore(pool),
+		AttachmentStatuses:   protocolV2RouteAttachmentMutator{},
+		AttachmentExtensions: protocolV2RouteAttachmentMutator{},
+		AI:                   gateway,
 	})
 	if err != nil {
 		t.Fatalf("build AI command runtime: %v", err)

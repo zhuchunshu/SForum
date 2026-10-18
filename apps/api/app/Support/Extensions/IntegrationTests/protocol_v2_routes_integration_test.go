@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	extensionreference "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/ExtensionReference"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
@@ -118,6 +119,7 @@ func TestProtocolV2RouteDeliversHostSignedDelegationAcrossRealBroker(t *testing.
 	commandRuntime, err := hostapi.NewPostgresProtocolV2CommandRuntime(hostapi.PostgresProtocolV2CommandRuntimeConfig{
 		Pool: pool, ActorDelegations: authority, Jobs: new(supportjobs.Dispatcher),
 		Moderation: moderation.NewPostgresStore(pool), AttachmentStatuses: protocolV2RouteAttachmentMutator{},
+		AttachmentExtensions: protocolV2RouteAttachmentMutator{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -377,6 +379,32 @@ func (protocolV2RouteAttachmentMutator) MutateProtocolV2AttachmentStatus(
 ) (hostapi.ProtocolV2AttachmentStatusResult, error) {
 	return hostapi.ProtocolV2AttachmentStatusResult{}, errors.New("route delegation fixture does not execute attachment commands")
 }
+
+func (protocolV2RouteAttachmentMutator) ExtensionAttachmentPolicy(context.Context) (extensionreference.Policy, error) {
+	return extensionreference.Policy{}, errRouteDelegationAttachmentCommand
+}
+
+func (protocolV2RouteAttachmentMutator) PrepareClaim(context.Context, pgx.Tx, extensionreference.ClaimInput) (*extensionreference.ClaimPlan, error) {
+	return nil, errRouteDelegationAttachmentCommand
+}
+
+func (protocolV2RouteAttachmentMutator) ApplyClaim(context.Context, pgx.Tx, *extensionreference.ClaimPlan) (extensionreference.Claim, error) {
+	return extensionreference.Claim{}, errRouteDelegationAttachmentCommand
+}
+
+func (protocolV2RouteAttachmentMutator) Count(context.Context, pgx.Tx, extensionreference.ReleaseInput) (int, error) {
+	return 0, errRouteDelegationAttachmentCommand
+}
+
+func (protocolV2RouteAttachmentMutator) Release(context.Context, pgx.Tx, extensionreference.ReleaseInput) (extensionreference.Release, error) {
+	return extensionreference.Release{}, errRouteDelegationAttachmentCommand
+}
+
+func (protocolV2RouteAttachmentMutator) List(context.Context, pgx.Tx, extensionreference.ListInput) (extensionreference.List, error) {
+	return extensionreference.List{}, errRouteDelegationAttachmentCommand
+}
+
+var errRouteDelegationAttachmentCommand = errors.New("route delegation fixture does not execute attachment commands")
 
 func protocolV2RouteResponseContext(request *protocolwire.RequestContext) *protocolwire.ResponseContext {
 	return &protocolwire.ResponseContext{

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 
 import {
   normalizeAuthReturnPath,
+  requiresDocumentNavigation,
   resolveAuthReturnPath
 } from '../../app/utils/identity/authReturn'
 import * as authReturn from '../../app/utils/identity/authReturn'
@@ -75,6 +76,26 @@ describe('buildAuthPageLink', () => {
   })
 })
 
+describe('requiresDocumentNavigation', () => {
+  test('treats API and plugin endpoints as document navigations', () => {
+    expect(requiresDocumentNavigation('/api/oauth/authorize?client_id=sfo_client_x&state=s')).toBe(true)
+    expect(requiresDocumentNavigation('/api/v1/auth/session')).toBe(true)
+    expect(requiresDocumentNavigation('/plugin/echo')).toBe(true)
+  })
+
+  test('keeps Nuxt pages on client-side navigation', () => {
+    expect(requiresDocumentNavigation('/settings/security')).toBe(false)
+    expect(requiresDocumentNavigation('/t/42?page=2')).toBe(false)
+    expect(requiresDocumentNavigation('/en/settings/oauth-apps')).toBe(false)
+  })
+
+  test('rejects non-path values', () => {
+    expect(requiresDocumentNavigation('https://evil.example/api/x')).toBe(false)
+    expect(requiresDocumentNavigation('api/oauth/authorize')).toBe(false)
+    expect(requiresDocumentNavigation('')).toBe(false)
+  })
+})
+
 describe('useAuthReturnNavigation source contract', () => {
   test('resolves a safe return destination and replaces the auth history entry', () => {
     const source = readFileSync(
@@ -94,8 +115,21 @@ describe('useAuthReturnNavigation source contract', () => {
     expect(source).toContain('const redirect = computed(() => options ? options.explicitRedirect : route?.query.redirect)')
     expect(source).toContain('referrerPath.value')
     expect(source).toContain("localePath('/')")
-    expect(source).toContain('navigateTo(destination.value, { replace: true })')
     expect(source).toContain('buildAuthPageLink(localePath(path), redirect.value)')
     expect(source).toContain('return { destination, returnFromAuth, authPageLink }')
+  })
+
+  test('navigates with a full document load for API and plugin endpoints', () => {
+    const source = readFileSync(
+      new URL('../../app/composables/identity/useAuthReturnNavigation.ts', import.meta.url),
+      'utf8'
+    )
+
+    // 客户端路由会把 API/插件端点交给 catch-all 页面，回跳必须整页导航。
+    expect(source).toContain('if (requiresDocumentNavigation(target))')
+    expect(source).toContain('window.location.assign(target)')
+    expect(source).toContain("navigateTo(target, { external: true })")
+    // 普通页面保持 SPA 回跳。
+    expect(source).toContain('navigateTo(target, { replace: true })')
   })
 })

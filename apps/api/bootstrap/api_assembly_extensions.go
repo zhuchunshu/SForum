@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	extensionreference "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/ExtensionReference"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	cacheregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/CacheRegistry"
@@ -64,6 +65,8 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	moderationStore := infrastructure.moderationStore
 	attachmentStore := infrastructure.attachmentStore
 	attachmentService := infrastructure.attachmentService
+	// 扩展附件引用（公开图标等）的写入口：Host Command 与卸载收口共用同一个实例。
+	extensionReferences := extensionreference.NewStore(pool)
 	extensionStore := infrastructure.extensionStore
 	frontendTrustStore := infrastructure.frontendTrustStore
 	executableTrustStore := infrastructure.executableTrustStore
@@ -131,6 +134,8 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		extensions.WithCipher(optionCipher),
 		// E6.1：禁用声明存储槽位的插件时，attachment.provider 从 plugin:<id> 回落 local。
 		extensions.WithStorageSelectionClearer(attachmentService),
+		// 卸载收口释放该插件拥有的附件引用（公开图标等），否则附件永不回收。
+		extensions.WithExtensionAttachmentReferenceReaper(extensionReferences),
 		// 运行时 Page Registry（主题激活同步注册页面贡献）。
 		extensions.WithPageRegistry(pageRegistryAdapter),
 		// S4/S5：扩展禁用/卸载后擦除它的会话状态（提交后 best-effort）。
@@ -173,7 +178,8 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	// 六域 Host Command 必须在首个插件 broker 注册前冻结；否则同一启动中
 	// 已运行插件会看到缺失目录，而后启动插件看到另一份能力集合。
 	commandDeferred, err := bindPostgresProtocolV2CommandRuntime(
-		hostAPIGateway, pool, jobDispatcher, moderationStore, attachmentStore, identityAuthorityGate,
+		hostAPIGateway, pool, jobDispatcher, moderationStore,
+		attachmentStore, attachmentService, extensionReferences, identityAuthorityGate,
 	)
 	if err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {

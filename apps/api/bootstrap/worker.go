@@ -25,6 +25,7 @@ import (
 	webhookjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Webhooks"
 	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	extensionreference "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/ExtensionReference"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -606,6 +607,15 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 			return nil, nil, nil, fmt.Errorf("worker Host Command dispatcher setup failed: %w", commandErr)
 		}
 		commandDispatcher := supportjobs.NewDispatcher(commandJobClient)
+		// Host Command 目录必须在首个插件 broker 注册前冻结，因此这里先建一份
+		// 只用于「扩展附件引用」策略与读写的附件服务；worker 自己的附件服务
+		// 随后构造，两者共享同一个 pool 与选项来源。
+		commandAttachmentStore := attachments.NewPostgresStore(pool)
+		commandAttachmentService := attachments.NewService(
+			commandAttachmentStore,
+			options.NewServiceWithDefaults(options.NewPostgresStore(pool), optionsDefaultsFromConfig(cfg)),
+		)
+		commandExtensionReferences := extensionreference.NewStore(pool)
 		return buildStandaloneWorkerExtensionRuntime(
 			bootstrapCtx, cfg,
 			postgresProtocolV2DatabaseCatalogBinderFactory(
@@ -617,7 +627,9 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 				pool,
 				commandDispatcher,
 				moderation.NewPostgresStore(pool),
-				attachments.NewPostgresStore(pool),
+				commandAttachmentStore,
+				commandAttachmentService,
+				commandExtensionReferences,
 			),
 			extensionStore, optionCipher, runtimeTrust, databaseLeaseRegistry,
 			deps.HostCacheInstallationID, deps.HostCacheRedis, logger, activation,

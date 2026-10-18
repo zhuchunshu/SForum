@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	extensionreference "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/ExtensionReference"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	options "github.com/zhuchunshu/sforum/apps/api/app/Models/Options"
 )
@@ -27,7 +28,7 @@ const (
 	ContextAppleTouchIcon = "apple-touch-icon"
 )
 
-// isSitePublicReference 是否为应始终匿名可读的站点资产引用。
+// isSitePublicReference 是否为站点自有的公开资产引用（SEO、头像、品牌图）。
 func isSitePublicReference(ref AttachmentReference) bool {
 	switch strings.TrimSpace(ref.ResourceType) {
 	case ResourceTypeSEO:
@@ -40,6 +41,31 @@ func isSitePublicReference(ref AttachmentReference) bool {
 	default:
 		return false
 	}
+}
+
+// isAnonymousReadableReference 判定该引用是否让附件对匿名读者可读。
+//
+// 这一支与「是否返回存储永久 URL」是两个不同的问题，必须分开判：
+// 扩展引用的图片要对所有访客可见，但绝不能因此把存储 PublicURL 泄漏到
+// 管理列表与附件 API。见 isPermanentURLReference 的说明。
+func isAnonymousReadableReference(ref ReferenceAccess) bool {
+	if isSitePublicReference(ref.AttachmentReference) {
+		return true
+	}
+	if strings.TrimSpace(ref.ResourceType) != extensionreference.ResourceType {
+		return false
+	}
+	// content_type 是读时重查的，不做缓存：MIME 不合格就按不可读处理。
+	return extensionreference.IsContentType(ref.ContentType)
+}
+
+// isPermanentURLReference 判定该引用是否允许返回存储的永久 URL 而不是代理路径。
+//
+// 只有站点自有资产（品牌图、头像、SEO 图）走永久 URL。扩展引用刻意不加入：
+// 已认领的图标继续返回稳定的 /media/attachments/<publicId> 代理地址，
+// 否则管理列表与附件 API 会把对象存储直链暴露给插件与运营。
+func isPermanentURLReference(ref ReferenceAccess) bool {
+	return isSitePublicReference(ref.AttachmentReference)
 }
 
 func isForumReference(resourceType string) bool {
@@ -136,7 +162,7 @@ func AuthorizeReadGuardSubject(actor identity.Actor, subject ReadGuardSubject, g
 		return identity.ErrPermissionDenied
 	}
 	for _, ref := range subject.References {
-		if isSitePublicReference(ref.AttachmentReference) {
+		if isAnonymousReadableReference(ref) {
 			return nil
 		}
 		if !isForumReference(ref.ResourceType) || !canViewForumReference(actor, ref) {
@@ -150,20 +176,27 @@ func AuthorizeReadGuardSubject(actor identity.Actor, subject ReadGuardSubject, g
 	return identity.ErrPermissionDenied
 }
 
-// mediaAttachmentURLPath 是正文和普通附件使用的稳定媒体地址；Nuxt 在内部代理到
-// 带会话授权的 display 变体路由，变体不可用时由附件服务回退原文件。
-func mediaAttachmentURLPath(publicID string) string {
+// MediaAttachmentURLPath 是正文、普通附件与扩展公开资产共用的稳定媒体地址；
+// Nuxt 在内部代理到带会话授权的 display 变体路由，变体不可用时由附件服务回退原文件。
+//
+// 与宿主域名无关，也不复用 decorateURL：扩展数据里绝不能出现对象存储直链，
+// 换域名或换存储后端时插件侧存下来的 URL 才不会烂掉。
+func MediaAttachmentURLPath(publicID string) string {
 	return "/media/attachments/" + publicID
 }
 
-// shouldProxyAuthorizedURL 只有站点公开资产可返回永久 URL；论坛与未引用媒体始终走代理。
+func mediaAttachmentURLPath(publicID string) string {
+	return MediaAttachmentURLPath(publicID)
+}
+
+// shouldProxyAuthorizedURL 只有站点自有资产可返回永久 URL；论坛、扩展与未引用媒体始终走代理。
 func (s *Service) shouldProxyAuthorizedURL(ctx context.Context, attachment Attachment) bool {
 	refs, err := s.store.ListReferenceAccess(ctx, attachment.ID)
 	if err != nil {
 		return true
 	}
 	for _, ref := range refs {
-		if isSitePublicReference(ref.AttachmentReference) {
+		if isPermanentURLReference(ref) {
 			return false
 		}
 	}

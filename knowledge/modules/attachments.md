@@ -330,6 +330,10 @@ upload and presigned upload credentials are intentionally deferred.
 - `attachments.cleanup_orphans` is defined as a River maintenance job contract;
   worker wiring can be enabled when the worker process begins registering
   module jobs.
+- Extensions reuse Core attachments through three Host Commands
+  (`sforum.attachments.extension.claim|release|list@1`, see below). The public
+  read predicate is split: extension references are anonymously readable but
+  never use a permanent storage URL.
 
 ## API
 
@@ -399,6 +403,45 @@ Current focused coverage includes:
   contract decision.
 - Consider WebDAV/rclone and direct browser upload only after the first
   provider set is stable.
+
+## Extension-Owned Assets (2026-10-18)
+
+Plugins that need an operator- or member-supplied image (application icons,
+branding, integration logos) reuse Core attachments instead of inventing a
+parallel store. The capability lives in
+`apps/api/app/Models/Attachments/ExtensionReference`; the Host exposes it as
+three Host Commands (`sforum.attachments.extension.claim|release|list@1`) and as
+an uninstall hook.
+
+- Storage contract: `resource_type = 'extension'`, `resource_id = 0`,
+  `context = "<extensionId>:<pluginContext>"`. The extension id always comes from
+  the verified runtime identity, never from plugin input.
+- Only `image/png`, `image/jpeg`, `image/webp` under
+  `min(attachment.max_file_size_mb, 512 KiB)` are claimable. The asset becomes
+  anonymously readable, so SVG/HTML stay excluded.
+- Claim forces `visibility = public`, refuses attachments already referenced by
+  forum/avatar/SEO/site, replaces the row for the same context (a unique index
+  allows one row per context globally), and enforces
+  `attachment.extension_reference_limit` (default `500`).
+- `reference_count` is recomputed from the reference rows under a per-extension
+  `pg_advisory_xact_lock`, never blindly incremented. The engine's own advisory
+  key includes the idempotency key and therefore does not serialize two
+  different requests writing the same context; without the extra lock a lost
+  insert still increments the count and produces an attachment that is counted
+  but unreferenced — permanently exempt from orphan cleanup.
+- Namespace prefix checks use `LEFT(context, length($n) + 1) = $n || ':'`, not
+  `LIKE`: extension ids may contain `_`, which LIKE would treat as a wildcard.
+- Read policy is split in `Models/Attachments/access.go`:
+  `isAnonymousReadableReference` (extension images included, MIME re-checked at
+  read time) decides visibility, while `isPermanentURLReference` (site assets
+  only) decides whether the storage public URL may be returned. Extension
+  references stay on the proxied `/media/attachments/<publicId>` path so admin
+  lists and the attachment API never leak object-storage URLs.
+- Uninstall releases every reference the extension owns
+  (`WithExtensionAttachmentReferenceReaper`, wired in bootstrap); disable does
+  not. Release only deletes reference rows — the stored object still waits for
+  `attachment.cleanup_orphan_after_days`, which doubles as the accidental-release
+  grace window.
 
 ## SEO Assets (2026-07-11)
 

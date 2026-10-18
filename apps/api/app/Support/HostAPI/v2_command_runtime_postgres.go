@@ -19,7 +19,9 @@ type PostgresProtocolV2CommandRuntimeConfig struct {
 	Jobs               *supportjobs.Dispatcher
 	Moderation         *moderation.PostgresStore
 	AttachmentStatuses ProtocolV2AttachmentStatusMutator
-	IdentityAuthority  ProtocolV2IdentityAuthorityMutationGate
+	// AttachmentExtensions 是扩展复用 Core 附件（claim/release/list）的领域边界。
+	AttachmentExtensions ProtocolV2AttachmentExtensionRuntime
+	IdentityAuthority    ProtocolV2IdentityAuthorityMutationGate
 	// Events 是插件发布自身事件的宿主事件总线。为 nil 时事件发布命令报告
 	// 不可用而不是被静默省略 —— 目录是密封的，缺依赖必须显式可见。
 	Events ProtocolV2EventPublisher
@@ -33,17 +35,15 @@ type PostgresProtocolV2CommandRuntimeConfig struct {
 // command and creating different API/worker capabilities.
 func NewPostgresProtocolV2CommandRuntime(config PostgresProtocolV2CommandRuntimeConfig) (ProtocolV2CommandRuntime, error) {
 	if config.Pool == nil || config.ActorDelegations == nil || config.Jobs == nil ||
-		config.Moderation == nil || config.AttachmentStatuses == nil {
+		config.Moderation == nil || config.AttachmentStatuses == nil ||
+		config.AttachmentExtensions == nil {
 		return nil, errors.New("hostapi: complete PostgreSQL Host Command runtime dependencies are required")
 	}
 	identityCommand := newProtocolV2IdentityUserStatusCommandDefinition()
 	if config.IdentityAuthority != nil {
 		identityCommand.RunAuthorityMutation = config.IdentityAuthority.RunSessionPolicyMutation
 	}
-	engine, err := newProtocolV2CommandEngineWithInvalidationJobs(
-		NewPostgresProtocolV2HostCommandBackend(config.Pool),
-		config.ActorDelegations,
-		config.Jobs,
+	definitions := []protocolV2CommandDefinition{
 		identityCommand,
 		newProtocolV2TopicVisibilityCommandDefinition(config.Pool, config.Jobs),
 		newProtocolV2EntityMetaCommandDefinition(config.Pool),
@@ -57,6 +57,14 @@ func NewPostgresProtocolV2CommandRuntime(config PostgresProtocolV2CommandRuntime
 		newProtocolV2NotificationEmitCommandDefinition(config.Pool, config.Jobs),
 		newProtocolV2EventsEmitCommandDefinition(config.Events),
 		newProtocolV2AICompleteCommandDefinition(config.AI),
+	}
+	definitions = append(definitions,
+		newProtocolV2AttachmentExtensionCommandDefinitions(config.AttachmentExtensions)...)
+	engine, err := newProtocolV2CommandEngineWithInvalidationJobs(
+		NewPostgresProtocolV2HostCommandBackend(config.Pool),
+		config.ActorDelegations,
+		config.Jobs,
+		definitions...,
 	)
 	if err != nil {
 		return nil, err

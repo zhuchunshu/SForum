@@ -33,6 +33,7 @@ func attachmentOptionDefinitions() []optionDefinition {
 		{name: NameAttachmentCompressionMaxDimension, managePermission: identity.PermissionAttachmentSettings},
 		{name: NameAttachmentCompressionMinSizeKB, managePermission: identity.PermissionAttachmentSettings},
 		{name: NameAttachmentCompressionMinSavingsPercent, managePermission: identity.PermissionAttachmentSettings},
+		{name: NameAttachmentExtensionReferenceLimit, managePermission: identity.PermissionAttachmentSettings},
 	}
 }
 
@@ -53,6 +54,7 @@ func mergeAttachmentDefaults(values map[string]string) {
 	values[NameAttachmentCompressionMaxDimension] = "2560"
 	values[NameAttachmentCompressionMinSizeKB] = "256"
 	values[NameAttachmentCompressionMinSavingsPercent] = "8"
+	values[NameAttachmentExtensionReferenceLimit] = "500"
 }
 
 // attachmentActiveContentDenylist 是禁止作为公开附件存储的"主动内容"MIME 类型。
@@ -95,6 +97,7 @@ func attachmentOptionNames() []string {
 		NameAttachmentCompressionMaxDimension,
 		NameAttachmentCompressionMinSizeKB,
 		NameAttachmentCompressionMinSavingsPercent,
+		NameAttachmentExtensionReferenceLimit,
 	}
 }
 

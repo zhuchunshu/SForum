@@ -64,9 +64,10 @@ func TestNotificationReferencePluginEmitsThroughRealBroker(t *testing.T) {
 	}
 	commandRuntime, err := hostapi.NewPostgresProtocolV2CommandRuntime(hostapi.PostgresProtocolV2CommandRuntimeConfig{
 		Pool: pool, ActorDelegations: authority,
-		Jobs:               supportjobs.NewDispatcher(notificationReferenceRiverClient{}),
-		Moderation:         moderation.NewPostgresStore(pool),
-		AttachmentStatuses: protocolV2RouteAttachmentMutator{},
+		Jobs:                 supportjobs.NewDispatcher(notificationReferenceRiverClient{}),
+		Moderation:           moderation.NewPostgresStore(pool),
+		AttachmentStatuses:   protocolV2RouteAttachmentMutator{},
+		AttachmentExtensions: protocolV2RouteAttachmentMutator{},
 	})
 	if err != nil {
 		t.Fatal(err)

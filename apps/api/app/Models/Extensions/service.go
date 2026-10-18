@@ -77,11 +77,13 @@ type serviceCore struct {
 	lifecyclePreflight     LifecycleStaticPreflight
 	lifecycleAuthority     LifecycleAuthorityRepository
 	lifecycleFinalizer     LifecycleCleanupFinalizer
-	queryPublications      RuntimeQueryPublicationBoundary
-	cachePublications      RuntimeCachePublicationBoundary
-	contentPublications    RuntimeContentPublicationBoundary
-	identityPublications   RuntimeIdentityPublicationBoundary
-	pluginMemorySampler    func() map[string]uint64 // 测试可注入固定 RSS 映射；nil 时使用 OS 采样。
+	// attachmentReferences 在卸载收口释放插件拥有的附件引用（公开图标等）。
+	attachmentReferences ExtensionAttachmentReferenceReaper
+	queryPublications    RuntimeQueryPublicationBoundary
+	cachePublications    RuntimeCachePublicationBoundary
+	contentPublications  RuntimeContentPublicationBoundary
+	identityPublications RuntimeIdentityPublicationBoundary
+	pluginMemorySampler  func() map[string]uint64 // 测试可注入固定 RSS 映射；nil 时使用 OS 采样。
 	// settingsLifecycle 生产后台设置权威（保存/重置/导入/升级迁移）。
 	// 未注入时测试与旧路径仍走 store.ReplaceSettings。
 	settingsLifecycle SettingsLifecycleRuntime

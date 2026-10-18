@@ -489,6 +489,74 @@ what an author can know locally (name shape, kind, payload size, idempotency
 key); namespace ownership stays a Host decision, so a plugin cannot "fix" a
 foreign name on its side.
 
+### Extension attachment commands
+
+Three Host Commands let a plugin reuse Core's attachment system (upload,
+object storage, image delivery, variants, reference counting, orphan
+reclamation) instead of storing images in its own tables. They are the only
+supported way to turn an uploaded file into a plugin-owned public asset.
+
+| Command | Purpose |
+| --- | --- |
+| `sforum.attachments.extension.claim@1` | Register an uploaded attachment as this extension's public asset |
+| `sforum.attachments.extension.release@1` | Delete this extension's references so orphan reclamation applies again |
+| `sforum.attachments.extension.list@1` | Read-only reconciliation of this extension's live references |
+
+All three run under delegated actor authority and require
+`attachment.upload` in `RequiredPermissions`, so a principal with no upload
+capability never receives a delegation. They require the `host_commands`
+database grant like every other Host Command.
+
+**Claim** input is `{attachmentPublicId, context}`; `expectedRevision` travels in
+the request envelope and must equal the attachment's current revision, exactly
+like `sforum.attachments.status.set@1`. `context` is the plugin's own key
+(`[a-z0-9._:-]{1,64}`, for example `oauth2-client:sfo_client_xxx`); the Host
+stores it as `<extensionId>:<context>` using the verified runtime identity, never
+plugin input, so one extension can never overwrite or release another's
+references. Output carries `publicId`, a host-relative `url`
+(`/media/attachments/<publicId>`), `contentType`, dimensions, size, `sha256`, and
+`referenceCount`. Claim:
+
+- accepts only `image/png`, `image/jpeg`, and `image/webp` under
+  `min(site upload limit, 512 KiB)` — SVG/HTML are never claimable because the
+  asset becomes anonymously readable;
+- requires the delegated actor to own the attachment, unless it holds
+  `attachment.manage`;
+- refuses attachments already referenced by forum, avatar, SEO, or site assets,
+  so a file in active use cannot be republished as a plugin asset;
+- forces `visibility = public` (uploads default to `attachment.default_visibility`,
+  which an operator may have set to private);
+- replaces the reference in the same `context` (delete-then-insert, because a
+  unique index allows exactly one row per context globally);
+- recomputes `reference_count` from the reference rows instead of incrementing,
+  under a per-extension advisory lock, so concurrent claims cannot leave a
+  counted-but-unreferenced attachment that would never be reclaimed;
+- enforces `attachment.extension_reference_limit` (default `500`) live
+  references per extension.
+
+**Release** takes exactly one of `{context}` or `{attachmentPublicId}` and only
+deletes rows inside the caller's own namespace. It is idempotent (`released: 0`
+when nothing matches). Deleting references does not delete the stored object:
+the normal `attachment.cleanup_orphan_after_days` retention window reclaims it,
+which is also the grace period for an accidental release.
+
+**List** returns this extension's live references with `context`, `publicId`,
+`url`, `contentType`, dimensions, size, `sha256`, and `createdAt`, so a plugin can
+recover its own display state after a business-table loss. It never exposes
+another extension's references or the storage object key.
+
+Uninstalling the extension releases every reference it owns; disabling it does
+not, because a disabled plugin's icons are expected to keep rendering.
+
+On a Host without these commands, `DelegatedCommandRequest` fails with
+`ErrHostActorDelegationUnavailable`. Map that to a readable message ("this Host
+version does not support icon upload; upgrade SForum or use an image URL") and
+never silently fall back to an inline base64 blob. Stable failure reasons are
+`host.attachment_not_found`, `host.attachment_extension_forbidden`,
+`host.attachment_extension_too_large`, `host.attachment_extension_reference_limit`,
+`host.attachment_extension_invalid`, `host.attachment_extension_conflict`, and
+`host.attachment_revision_conflict`.
+
 ## Plugin session state (S9)
 
 `PluginSessionService` holds small bounded workflow state for the **current Host

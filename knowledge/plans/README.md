@@ -20,6 +20,7 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
+| `2026-10-18-core-attachment-extension-api.md` | **landed** -- 扩展认领 Core 附件：`sforum.attachments.extension.claim/release/list@1` 三条 Host 命令 + 公开读谓词拆分 + 卸载自动释放 + `attachment.extension_reference_limit` 已落地（实现放在 `Models/Attachments/ExtensionReference`，含 advisory 锁与按引用行重算计数）；插件侧接线在 `sforum-oauth2-provider` 仓库 |
 | `2026-10-11-ai-plugin-host-api-m1.md` | **landed** -- 插件 Host AI 命令（`sforum.ai.complete` + `ai.invoke`）、事件发布命令（`sforum.events.emit`）与 `ai.tool` 贡献路径（`aiTools[]`、保留 slot、装配登记、SDK 路由）已落地并端到端验证；M4 `ai.purpose` registry 也已落地（见 `sessions/2026-10-12-ai-purpose-registry-m4-handoff.md`）；剩余 M3/M5、按用途覆盖的控制台 UI 与缓存开关 |
 | `2026-10-11-ai-control-panel-remediation.md` | **completed** -- AI 控制台修复 M0-M6 完成（fail-closed/重置语义/策略 UI/nil 语义/诊断对齐/观测打磨）；仅渲染 QA 待管理员凭据 |
 | `2026-08-22-builtin-shortcodes.md` | **active / blocked** -- M10B parser conformance and focused gates pass; exact immutable active-artifact promotion and final lifecycle/browser leakage gate remain |

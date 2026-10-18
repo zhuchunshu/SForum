@@ -6,6 +6,19 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### Core Attachment Extension API（OAuth2 图标上传）
+
+- Status: **landed (2026-10-18)**. Core 侧全部交付：三条 Host Command
+  （`sforum.attachments.extension.claim/release/list@1`）、公开读谓词拆分、
+  卸载自动释放、`attachment.extension_reference_limit` 选项。实现落在
+  `app/Models/Attachments/ExtensionReference`（扩展级 advisory 锁 + 按引用行重算计数）。
+  插件侧接线（manifest `host_commands`、client-write、上传控件）在
+  `sforum-oauth2-provider` 仓库，未在本仓库内。
+- Plan: `plans/2026-10-18-core-attachment-extension-api.md`
+- Handoff: `sessions/2026-10-18-core-attachment-extension-api-handoff.md`
+- 需求来源: `sforum-oauth2-provider` 应用图标「上传图片」
+- Modules: `modules/attachments.md`, `modules/extensions.md`
+
 ### Extension Authoring Speed And Controlled Power
 
 - Status: **completed and archived (2026-10-17)**. M0–M9 complete; **M10 all ten rows
@@ -265,6 +278,7 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **扩展复用 Core 附件（2026-10-18）**：计划 `2026-10-18-core-attachment-extension-api.md` 的 Core 侧落地——三条 Host Command（`sforum.attachments.extension.claim|release|list@1`）、公开读谓词拆分（匿名可读 vs 永久 URL）、卸载自动释放、`attachment.extension_reference_limit`（默认 500）。实现落在新包 `app/Models/Attachments/ExtensionReference`（扩展级 advisory 锁 + 按引用行重算计数，10 个真实 PostgreSQL 集成用例含并发不变式）。Go 全量测试通过；架构边界与改动前同样的 8 条既有失败（唯一新增越线是 `Models/Extensions/service.go` 1001→1003 行）。插件侧接线在 `sforum-oauth2-provider` 仓库，未在本仓库内。详见 `sessions/2026-10-18-core-attachment-extension-api-handoff.md`。
 - **dev watcher 自触发重建循环与 lifecycle 恢复修复（2026-10-18）**：`BuildBackend`/`WriteDigest` 幂等写守卫（内容不变不重写）终结 ~15 秒稳态重建循环；`recoverLatestFailedUpgrade` 补认 `cancelled` 终态（与 coordinator/recovery 语义对齐）；外部 `sforum-fetch-url` 补 lifecycle V2 声明 + no-op `runLifecycle`（dev-auto 自动 promote 生效）；删除损坏的 `sforum.marketplace` dev 脚手架。详见 `sessions/2026-10-18-dev-watcher-rebuild-loop-handoff.md`。
 - **插件数据面 E10 全量交付（2026-10-18，两段）**：第一段 = 政策 ADR + 五视图 + 稳定查询 4→9 + `int64_list` RPC 通道 + **授权解析器 V3 grants 修复**；第二段 = 管理端查询目录页 `/control-panel/extensions/query-catalog`（后端窄边界 + Nuxt 页 + 四个审核矩阵 + identities/生成目录 + OpenAPI + 计数 tripwire 372）+ 消费型参考 fixture `sforum-query-surface-reference`（`core_views` 授权、三查询聚合、参考包门禁 12/12）。Go 全量零失败；Web 1238/1239（唯一失败为 HEAD 既有的 CSP 文档策略测试，与本变更无关）。剩余：fixture 的 dev 链浏览器证据（操作者侧）。详见 `sessions/2026-10-18-plugin-data-surface-e10-handoff.md`。
 - **插件数据面 E10（2026-10-18）**：数据面政策 ADR（view/query/command/event 四条路 + surface request + 版本化）落定并写入 AGENTS.md 同变更交付规则；迁移 `202610180001` 新增 `site_stats`/`public_categories`/`safe_user_avatars` 稳定视图（已应用 dev 库并抽查）；稳定查询目录 4→9（站点统计、公开评论列表、按用户名查用户、批量作者+头像、公开分类），`int64_list` 过滤接入 RPC 通道（规范 JSON 数组 ≤100）；**修复查询授权解析器只认 legacy `database.authority` 的缺口**（V3 grants 清单此前永远过不了解析器）。authoring-guide 新增稳定查询清单。剩余：管理端查询目录页 + 消费型参考 fixture。详见 `sessions/2026-10-18-plugin-data-surface-e10-handoff.md`、`decisions/2026-10-18-extension-data-surface-policy.md`、`reports/2026-10-18-host-query-inventory.md`。

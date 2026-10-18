@@ -1,4 +1,8 @@
-import { buildAuthPageLink, resolveAuthReturnPath } from '~/utils/identity/authReturn'
+import {
+  buildAuthPageLink,
+  requiresDocumentNavigation,
+  resolveAuthReturnPath
+} from '~/utils/identity/authReturn'
 
 export function useAuthReturnNavigation(options?: { explicitRedirect: unknown }) {
   // 路由中间件必须使用传入的 to；只有页面组件调用时才读取 Nuxt 当前路由。
@@ -26,7 +30,20 @@ export function useAuthReturnNavigation(options?: { explicitRedirect: unknown })
     )
   )
 
-  const returnFromAuth = () => navigateTo(destination.value, { replace: true })
+  // 回跳目标是 API / 插件端点时必须整页导航：客户端路由只会命中
+  // `[...sfRegistryPage]` catch-all，端点永远收不到请求（例如 OAuth2 的
+  // `/api/oauth/authorize`，登录后回跳会停在 “Failed to load extension page”）。
+  const returnFromAuth = async () => {
+    const target = destination.value
+    if (requiresDocumentNavigation(target)) {
+      if (import.meta.client) {
+        window.location.assign(target)
+        return
+      }
+      return navigateTo(target, { external: true })
+    }
+    return navigateTo(target, { replace: true })
+  }
   const authPageLink = (path: string) =>
     buildAuthPageLink(localePath(path), redirect.value)
 

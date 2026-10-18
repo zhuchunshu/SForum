@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	extensionreference "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/ExtensionReference"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
@@ -23,6 +24,8 @@ func TestBindPostgresProtocolV2CommandRuntimePublishesDelegatedCatalog(t *testin
 		new(supportjobs.Dispatcher),
 		moderation.NewPostgresStore(pool),
 		attachments.NewPostgresStore(pool),
+		attachments.NewService(attachments.NewPostgresStore(pool), nil),
+		extensionreference.NewStore(pool),
 		nil,
 	)
 	if err != nil {

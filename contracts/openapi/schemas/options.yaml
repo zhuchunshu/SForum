@@ -194,6 +194,7 @@ AdminWebOption:
       - attachment.allowed_mime_types
       - attachment.default_visibility
       - attachment.cleanup_orphan_after_days
+      - attachment.extension_reference_limit
       - attachment.local.root
       - attachment.local.public_prefix
       - avatar.allow_upload
@@ -509,6 +510,7 @@ AdminWebOptionInput:
       - attachment.allowed_mime_types
       - attachment.default_visibility
       - attachment.cleanup_orphan_after_days
+      - attachment.extension_reference_limit
       - attachment.local.root
       - attachment.local.public_prefix
       - avatar.allow_upload

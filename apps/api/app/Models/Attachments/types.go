@@ -107,6 +107,9 @@ type AttachmentReference struct {
 // TopicStatus 对 comment/post 表示其所属主题状态。
 type ReferenceAccess struct {
 	AttachmentReference
+	// ContentType 是附件自身 MIME（读时重查）。扩展引用的匿名可读判定需要它：
+	// 只有图片类扩展资产才允许匿名内联读取，fail-closed。
+	ContentType        string
 	AuthorUserID       int64
 	ResourceStatus     string
 	TopicStatus        string

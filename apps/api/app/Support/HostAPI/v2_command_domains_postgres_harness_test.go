@@ -91,9 +91,10 @@ func newPostgresDomainCommandHarness(t *testing.T) *postgresDomainCommandHarness
 	}
 	runtime, err := NewPostgresProtocolV2CommandRuntime(PostgresProtocolV2CommandRuntimeConfig{
 		Pool: pool, ActorDelegations: authority,
-		Jobs:               supportjobs.NewDispatcher(postgresDomainCommandJobs{}),
-		Moderation:         moderation.NewPostgresStore(pool),
-		AttachmentStatuses: postgresDomainAttachmentStatusMutator{},
+		Jobs:                 supportjobs.NewDispatcher(postgresDomainCommandJobs{}),
+		Moderation:           moderation.NewPostgresStore(pool),
+		AttachmentStatuses:   postgresDomainAttachmentStatusMutator{},
+		AttachmentExtensions: protocolV2AttachmentExtensionStub{},
 	})
 	if err != nil {
 		t.Fatal(err)

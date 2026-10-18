@@ -135,6 +135,7 @@ func (s *PostgresStore) ListReferences(ctx context.Context, attachmentID int64) 
 func (s *PostgresStore) ListReferenceAccess(ctx context.Context, attachmentID int64) ([]ReferenceAccess, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT ar.id, ar.attachment_id, ar.resource_type, ar.resource_id, ar.context, ar.created_at,
+		  a.content_type,
 		  COALESCE(t.author_user_id, c.author_user_id, pt.author_user_id, pc.author_user_id, 0),
 		  COALESCE(t.status, c.status, pt.status, pc.status, ''),
 		  COALESCE(t.status, ct.status, pt.status, pct.status, ''),
@@ -146,6 +147,7 @@ func (s *PostgresStore) ListReferenceAccess(ctx context.Context, attachmentID in
 		    ELSE TRUE
 		  END
 		FROM attachment_references ar
+		JOIN attachments a ON a.id = ar.attachment_id
 		LEFT JOIN topics t ON ar.resource_type = 'topic' AND t.id = ar.resource_id
 		LEFT JOIN categories tc ON tc.id = t.category_id
 		LEFT JOIN comments c ON ar.resource_type = 'comment' AND c.id = ar.resource_id
@@ -168,6 +170,7 @@ func (s *PostgresStore) ListReferenceAccess(ctx context.Context, attachmentID in
 		var item ReferenceAccess
 		if err := rows.Scan(
 			&item.ID, &item.AttachmentID, &item.ResourceType, &item.ResourceID, &item.Context, &item.CreatedAt,
+			&item.ContentType,
 			&item.AuthorUserID, &item.ResourceStatus, &item.TopicStatus, &item.CategoryVisibility, &item.Exists,
 		); err != nil {
 			return nil, fmt.Errorf("scan attachment reference access: %w", err)
@@ -189,6 +192,7 @@ func (s *PostgresStore) LoadReadGuardSubject(ctx context.Context, publicID strin
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.public_id, COALESCE(a.owner_user_id, 0), a.status, a.visibility,
 		  ar.id, ar.attachment_id, ar.resource_type, ar.resource_id, ar.context, ar.created_at,
+		  a.content_type,
 		  COALESCE(t.author_user_id, c.author_user_id, pt.author_user_id, pc.author_user_id, 0),
 		  COALESCE(t.status, c.status, pt.status, pc.status, ''),
 		  COALESCE(t.status, ct.status, pt.status, pct.status, ''),
@@ -224,13 +228,14 @@ func (s *PostgresStore) LoadReadGuardSubject(ctx context.Context, publicID strin
 		var reference struct {
 			ID, AttachmentID, ResourceID, AuthorUserID                             sql.NullInt64
 			ResourceType, Context, ResourceStatus, TopicStatus, CategoryVisibility sql.NullString
+			ContentType                                                            sql.NullString
 			CreatedAt                                                              sql.NullTime
 			Exists                                                                 sql.NullBool
 		}
 		if err := rows.Scan(
 			&subject.PublicID, &subject.OwnerUserID, &subject.Status, &subject.Visibility,
 			&reference.ID, &reference.AttachmentID, &reference.ResourceType, &reference.ResourceID,
-			&reference.Context, &reference.CreatedAt, &reference.AuthorUserID,
+			&reference.Context, &reference.CreatedAt, &reference.ContentType, &reference.AuthorUserID,
 			&reference.ResourceStatus, &reference.TopicStatus, &reference.CategoryVisibility, &reference.Exists,
 		); err != nil {
 			return ReadGuardSubject{}, fmt.Errorf("scan attachment read guard subject: %w", err)
@@ -243,6 +248,7 @@ func (s *PostgresStore) LoadReadGuardSubject(ctx context.Context, publicID strin
 					ResourceType: reference.ResourceType.String, ResourceID: reference.ResourceID.Int64,
 					Context: reference.Context.String, CreatedAt: reference.CreatedAt.Time,
 				},
+				ContentType:  reference.ContentType.String,
 				AuthorUserID: reference.AuthorUserID.Int64, ResourceStatus: reference.ResourceStatus.String,
 				TopicStatus: reference.TopicStatus.String, CategoryVisibility: reference.CategoryVisibility.String,
 				Exists: reference.Exists.Bool,

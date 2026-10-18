@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
+	extensionreference "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/ExtensionReference"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	moderation "github.com/zhuchunshu/sforum/apps/api/app/Models/Moderation"
 	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
@@ -57,6 +58,76 @@ func (g *deferredIdentityAuthorityMutationGate) RunSessionPolicyMutation(
 
 type protocolV2AttachmentStatusMutator struct {
 	store *attachments.PostgresStore
+}
+
+// protocolV2AttachmentExtensionRuntime 把「扩展复用 Core 附件」接到 Host Command：
+// 约束（站点上限/引用上限）来自附件服务，引用行读写走 ExtensionReference store。
+// 两条依赖分开注入是有意的：策略是站点配置，引用行是附件领域数据。
+type protocolV2AttachmentExtensionRuntime struct {
+	service *attachments.Service
+	store   *extensionreference.Store
+}
+
+func (r protocolV2AttachmentExtensionRuntime) ExtensionAttachmentPolicy(ctx context.Context) (extensionreference.Policy, error) {
+	if r.service == nil {
+		return extensionreference.Policy{}, fmt.Errorf("attachment extension policy service is unavailable")
+	}
+	return r.service.ExtensionAttachmentPolicy(ctx)
+}
+
+func (r protocolV2AttachmentExtensionRuntime) PrepareClaim(
+	ctx context.Context,
+	tx pgx.Tx,
+	input extensionreference.ClaimInput,
+) (*extensionreference.ClaimPlan, error) {
+	if r.store == nil {
+		return nil, fmt.Errorf("attachment extension reference store is unavailable")
+	}
+	return r.store.PrepareClaim(ctx, tx, input)
+}
+
+func (r protocolV2AttachmentExtensionRuntime) ApplyClaim(
+	ctx context.Context,
+	tx pgx.Tx,
+	plan *extensionreference.ClaimPlan,
+) (extensionreference.Claim, error) {
+	if r.store == nil {
+		return extensionreference.Claim{}, fmt.Errorf("attachment extension reference store is unavailable")
+	}
+	return r.store.ApplyClaim(ctx, tx, plan)
+}
+
+func (r protocolV2AttachmentExtensionRuntime) Count(
+	ctx context.Context,
+	tx pgx.Tx,
+	input extensionreference.ReleaseInput,
+) (int, error) {
+	if r.store == nil {
+		return 0, fmt.Errorf("attachment extension reference store is unavailable")
+	}
+	return r.store.Count(ctx, tx, input)
+}
+
+func (r protocolV2AttachmentExtensionRuntime) Release(
+	ctx context.Context,
+	tx pgx.Tx,
+	input extensionreference.ReleaseInput,
+) (extensionreference.Release, error) {
+	if r.store == nil {
+		return extensionreference.Release{}, fmt.Errorf("attachment extension reference store is unavailable")
+	}
+	return r.store.Release(ctx, tx, input)
+}
+
+func (r protocolV2AttachmentExtensionRuntime) List(
+	ctx context.Context,
+	tx pgx.Tx,
+	input extensionreference.ListInput,
+) (extensionreference.List, error) {
+	if r.store == nil {
+		return extensionreference.List{}, fmt.Errorf("attachment extension reference store is unavailable")
+	}
+	return r.store.List(ctx, tx, input)
 }
 
 type protocolV2CommandRuntimeBinder func(*hostapi.Gateway) error
@@ -157,6 +228,8 @@ func bindPostgresProtocolV2CommandRuntime(
 	jobs *supportjobs.Dispatcher,
 	moderationStore *moderation.PostgresStore,
 	attachmentStore *attachments.PostgresStore,
+	attachmentService *attachments.Service,
+	extensionReferences *extensionreference.Store,
 	identityAuthority identity.IdentityAuthorityMutationGate,
 ) (protocolV2CommandRuntimeDeferred, error) {
 	deferred := protocolV2CommandRuntimeDeferred{
@@ -166,16 +239,20 @@ func bindPostgresProtocolV2CommandRuntime(
 	if gateway == nil {
 		return deferred, fmt.Errorf("Host Command gateway is required")
 	}
+	if attachmentStore == nil || attachmentService == nil || extensionReferences == nil {
+		return deferred, fmt.Errorf("attachment extension reference runtime is required")
+	}
 	delegations, err := hostapi.NewProtocolV2ActorDelegationAuthority()
 	if err != nil {
 		return deferred, fmt.Errorf("create Host Command actor delegation authority: %w", err)
 	}
 	runtime, err := hostapi.NewPostgresProtocolV2CommandRuntime(hostapi.PostgresProtocolV2CommandRuntimeConfig{
 		Pool: pool, ActorDelegations: delegations, Jobs: jobs, Moderation: moderationStore,
-		AttachmentStatuses: protocolV2AttachmentStatusMutator{store: attachmentStore},
-		IdentityAuthority:  identityAuthority,
-		Events:             deferred.Events,
-		AI:                 deferred.AI,
+		AttachmentStatuses:   protocolV2AttachmentStatusMutator{store: attachmentStore},
+		AttachmentExtensions: protocolV2AttachmentExtensionRuntime{service: attachmentService, store: extensionReferences},
+		IdentityAuthority:    identityAuthority,
+		Events:               deferred.Events,
+		AI:                   deferred.AI,
 	})
 	if err != nil {
 		return deferred, fmt.Errorf("create Host Command runtime: %w", err)
@@ -191,11 +268,17 @@ func postgresProtocolV2CommandRuntimeBinder(
 	jobs *supportjobs.Dispatcher,
 	moderationStore *moderation.PostgresStore,
 	attachmentStore *attachments.PostgresStore,
+	attachmentService *attachments.Service,
+	extensionReferences *extensionreference.Store,
 ) protocolV2CommandRuntimeBinder {
 	return func(gateway *hostapi.Gateway) error {
-		_, err := bindPostgresProtocolV2CommandRuntime(gateway, pool, jobs, moderationStore, attachmentStore, nil)
+		_, err := bindPostgresProtocolV2CommandRuntime(
+			gateway, pool, jobs, moderationStore,
+			attachmentStore, attachmentService, extensionReferences, nil,
+		)
 		return err
 	}
 }
 
 var _ hostapi.ProtocolV2AttachmentStatusMutator = protocolV2AttachmentStatusMutator{}
+var _ hostapi.ProtocolV2AttachmentExtensionRuntime = protocolV2AttachmentExtensionRuntime{}
