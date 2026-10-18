@@ -33,6 +33,16 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 	if err := b.restoreIdentityPublications(ctx, items, safeMode); err != nil {
 		return err
 	}
+	// A plugin whose Identity publication could not be proven exact stays
+	// unpublished everywhere for this boot. Publishing its routes/assets/pages
+	// while its identity surface is closed would hand out a half-registered
+	// extension, so drop it from every following restore instead.
+	if suppressed := b.SuppressedIdentityExtensions(); len(suppressed) > 0 {
+		remaining := lifecycleItemsWithout(items, suppressed)
+		slog.Error("extension suppressed for this boot: identity publication is not exact",
+			"extensions", suppressed, "remaining", len(remaining))
+		items = remaining
+	}
 	if err := b.restoreNotificationPublications(ctx, items, safeMode); err != nil {
 		return err
 	}
@@ -100,4 +110,26 @@ func (b *PostgresLifecycleBoundaryRegistries) RestoreRoutePublications(
 		}
 	}
 	return b.restoreRoutePolicyPublications(ctx, pluginRoutes, schemaArtifacts, safeMode)
+}
+
+// lifecycleItemsWithout returns items minus the suppressed extension ids. A
+// suppressed plugin must not publish any other surface either: a half
+// registered extension (routes without its identity declarations) is worse than
+// a closed one.
+func lifecycleItemsWithout(items []extensions.Extension, suppressed []string) []extensions.Extension {
+	if len(suppressed) == 0 {
+		return items
+	}
+	dropped := make(map[string]struct{}, len(suppressed))
+	for _, extensionID := range suppressed {
+		dropped[extensionID] = struct{}{}
+	}
+	remaining := make([]extensions.Extension, 0, len(items))
+	for _, item := range items {
+		if _, skip := dropped[item.ID]; skip {
+			continue
+		}
+		remaining = append(remaining, item)
+	}
+	return remaining
 }

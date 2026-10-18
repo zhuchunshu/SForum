@@ -108,3 +108,25 @@ func TestRequiresConfirmation(t *testing.T) {
 		t.Fatal("any capability should require confirmation")
 	}
 }
+
+// users.email.read 是能力门控 + actor 委派的同意式读取面：高风隖、只在显式
+// 声明时存在，宿主永远不会从 backend/jobs/settings 推断出它。
+func TestUsersEmailReadIsExplicitHighRisk(t *testing.T) {
+	definition, ok := Find(UsersEmailRead)
+	if !ok {
+		t.Fatalf("capability %q must be in the catalog", UsersEmailRead)
+	}
+	if definition.Risk != RiskHigh {
+		t.Fatalf("risk = %q, want %q", definition.Risk, RiskHigh)
+	}
+	if definition.LabelZH == "" || definition.LabelEN == "" || definition.Description == "" {
+		t.Fatalf("capability disclosure text is incomplete: %#v", definition)
+	}
+	keys, implied := Resolve(ResolveInput{
+		HasBackend: true, HasJobs: true, HasSettings: true,
+		ProviderSlots: []string{"mail.provider"},
+	})
+	if NewSet(keys).Has(UsersEmailRead) || implied[UsersEmailRead] {
+		t.Fatalf("users.email.read must never be implied: keys=%v", keys)
+	}
+}

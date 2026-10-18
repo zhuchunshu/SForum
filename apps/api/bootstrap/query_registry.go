@@ -326,6 +326,23 @@ func productionQueryContextError(ctx context.Context) error {
 	return cause
 }
 
+// productionQueryRegistryOptions 收集生产 outlet 的可选宿主策略。零值保持
+// 「consent-gated 查询 fail closed」的默认语义。
+type productionQueryRegistryOptions struct {
+	consentGate *hostapi.ProtocolV2QueryConsentGate
+}
+
+// productionQueryRegistryOption mutates the production outlet policy.
+type productionQueryRegistryOption func(*productionQueryRegistryOptions)
+
+// withProductionQueryRegistryConsentGate installs the capability + rate-limit +
+// audit gate used by ConsentGated definitions.
+func withProductionQueryRegistryConsentGate(
+	gate *hostapi.ProtocolV2QueryConsentGate,
+) productionQueryRegistryOption {
+	return func(options *productionQueryRegistryOptions) { options.consentGate = gate }
+}
+
 func bindProductionQueryRegistry(
 	registry *queryregistry.Registry,
 	catalog *hostapi.QueryRegistryCoreCatalog,
@@ -334,9 +351,10 @@ func bindProductionQueryRegistry(
 	runtime *extensionsruntime.Manager,
 	gateway *hostapi.Gateway,
 	trace hostapi.QueryTraceSink,
+	options ...productionQueryRegistryOption,
 ) (*productionQueryRegistry, error) {
 	return bindProductionQueryRegistryWithCache(
-		registry, catalog, stableRuntime, actors, runtime, gateway, trace, nil,
+		registry, catalog, stableRuntime, actors, runtime, gateway, trace, nil, options...,
 	)
 }
 
@@ -349,9 +367,16 @@ func bindProductionQueryRegistryWithCache(
 	gateway *hostapi.Gateway,
 	trace hostapi.QueryTraceSink,
 	cache queryregistry.QueryResultCache,
+	options ...productionQueryRegistryOption,
 ) (*productionQueryRegistry, error) {
 	if registry == nil || catalog == nil || stableRuntime == nil || actors == nil || runtime == nil || gateway == nil || trace == nil {
 		return nil, fmt.Errorf("bootstrap: production Query Registry dependency unavailable")
+	}
+	configured := productionQueryRegistryOptions{}
+	for _, option := range options {
+		if option != nil {
+			option(&configured)
+		}
 	}
 	coreProviders, err := hostapi.NewProtocolV2QueryRegistryProviderResolver(stableRuntime, catalog.Bindings())
 	if err != nil {
@@ -384,8 +409,12 @@ func bindProductionQueryRegistryWithCache(
 	if err != nil {
 		return nil, fmt.Errorf("create Query Registry execution runtime: %w", err)
 	}
+	serviceOptions := make([]hostapi.ProtocolV2QueryRegistryOption, 0, 1)
+	if configured.consentGate != nil {
+		serviceOptions = append(serviceOptions, hostapi.WithProtocolV2QueryConsentGate(configured.consentGate))
+	}
 	service, err := hostapi.NewProtocolV2QueryRegistryService(
-		registry, execution, &productionQueryActorAuthority{store: actors}, admission,
+		registry, execution, &productionQueryActorAuthority{store: actors}, admission, serviceOptions...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create Query Registry Protocol V2 service: %w", err)

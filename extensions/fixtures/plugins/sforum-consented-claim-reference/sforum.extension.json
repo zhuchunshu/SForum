@@ -1,0 +1,86 @@
+{
+  "author": {
+    "name": "SForum Team",
+    "url": "https://sforum.local"
+  },
+  "backend": {
+    "digest": "05dec090aa7885a65473bcfcca1180fa34013ea26e60e8f50f6f969188542d31",
+    "entry": "backend/plugin",
+    "hostApiVersion": "sforum.host@2",
+    "protocolVersion": 2,
+    "rpc": "hashicorp-go-plugin"
+  },
+  "capabilities": [
+    "host.api",
+    "users.email.read"
+  ],
+  "database": {
+    "backup": {
+      "required": false,
+      "strategy": "pg_dump"
+    },
+    "contractVersion": "sforum.consented-claim-reference.database@1",
+    "grants": [
+      "core_views"
+    ],
+    "retention": {
+      "days": 30,
+      "onDisable": "retain",
+      "onUninstall": "export"
+    }
+  },
+  "description": "Reference plugin that reads the signed-in actor's own email verification state through the capability-gated, Host-issued consent query (users.email.read) and never echoes the email value.",
+  "id": "sforum.consented-claim-reference",
+  "manifestVersion": 3,
+  "name": "SForum Consented Claim Reference",
+  "openapi": [
+    {
+      "contractVersion": "sforum.consented-claim-reference.openapi.routes@1",
+      "digest": "03e97366a7f7736600b531977de03e486a575eeddc962c159686f97fa8e2cae7",
+      "id": "sforum.consented-claim-reference.openapi.routes",
+      "namespace": "sforum.consented-claim-reference",
+      "path": "openapi/routes.yaml"
+    }
+  ],
+  "packageFiles": [
+    {
+      "digest": "05dec090aa7885a65473bcfcca1180fa34013ea26e60e8f50f6f969188542d31",
+      "id": "sforum.consented-claim-reference.file.backend",
+      "kind": "executable",
+      "path": "backend/plugin"
+    },
+    {
+      "digest": "1559599f454b011455fbdab015bf919d24fad371f53a21284e0a48ee8eff8d02",
+      "id": "sforum.consented-claim-reference.identity",
+      "kind": "schema",
+      "path": "schemas/identity.json",
+      "version": "1"
+    },
+    {
+      "digest": "03e97366a7f7736600b531977de03e486a575eeddc962c159686f97fa8e2cae7",
+      "id": "sforum.consented-claim-reference.file.openapi",
+      "kind": "openapi",
+      "path": "openapi/routes.yaml"
+    }
+  ],
+  "routes": [
+    {
+      "action": "add",
+      "contractVersion": "sforum.consented-claim-reference.route.identity@1",
+      "fallback": "closed",
+      "guard": "core.guard.login",
+      "handler": "sforum.consented-claim-reference.route.identity",
+      "id": "sforum.consented-claim-reference.route.identity",
+      "methods": [
+        "GET"
+      ],
+      "mode": "http",
+      "path": "/consented-claim/me",
+      "responseSchema": "sforum.consented-claim-reference.identity@1"
+    }
+  ],
+  "sforumVersion": "\u003e=0.1.0",
+  "type": "plugin",
+  "url": "https://sforum.local/plugins/consented-claim-reference",
+  "version": "1.0.0"
+}

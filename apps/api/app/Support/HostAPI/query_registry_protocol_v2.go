@@ -54,6 +54,34 @@ type ProtocolV2QueryRegistryService struct {
 	actors          ProtocolV2QueryActorAuthority
 	callerAdmission ProtocolV2QueryCallerAdmission
 	delegations     *ProtocolV2QueryDelegationAuthority
+	// consent is the Host-owned policy for ConsentGated definitions. Nil keeps
+	// consent-gated queries fail closed instead of accidentally readable.
+	consent *ProtocolV2QueryConsentGate
+}
+
+// ProtocolV2QueryRegistryOptions collects optional Host-owned policy for the
+// Query Registry Protocol V2 outlet.
+type ProtocolV2QueryRegistryOptions struct {
+	ConsentGate *ProtocolV2QueryConsentGate
+}
+
+// ProtocolV2QueryRegistryOption mutates the outlet policy at construction.
+type ProtocolV2QueryRegistryOption interface {
+	applyProtocolV2QueryRegistry(*ProtocolV2QueryRegistryOptions)
+}
+
+type protocolV2QueryRegistryOptionFunc func(*ProtocolV2QueryRegistryOptions)
+
+func (f protocolV2QueryRegistryOptionFunc) applyProtocolV2QueryRegistry(options *ProtocolV2QueryRegistryOptions) {
+	f(options)
+}
+
+// WithProtocolV2QueryConsentGate installs the capability + rate-limit + audit
+// gate used by ConsentGated definitions (for example the self-email read).
+func WithProtocolV2QueryConsentGate(gate *ProtocolV2QueryConsentGate) ProtocolV2QueryRegistryOption {
+	return protocolV2QueryRegistryOptionFunc(func(options *ProtocolV2QueryRegistryOptions) {
+		options.ConsentGate = gate
+	})
 }
 
 func NewProtocolV2QueryRegistryService(
@@ -61,12 +89,13 @@ func NewProtocolV2QueryRegistryService(
 	execution *queryregistry.ExecutionRuntime,
 	actors ProtocolV2QueryActorAuthority,
 	callerAdmission ProtocolV2QueryCallerAdmission,
+	options ...ProtocolV2QueryRegistryOption,
 ) (*ProtocolV2QueryRegistryService, error) {
 	delegations, err := NewProtocolV2QueryDelegationAuthority()
 	if err != nil {
 		return nil, err
 	}
-	return newProtocolV2QueryRegistryService(registry, execution, actors, callerAdmission, delegations)
+	return newProtocolV2QueryRegistryService(registry, execution, actors, callerAdmission, delegations, options...)
 }
 
 func newProtocolV2QueryRegistryService(
@@ -75,6 +104,7 @@ func newProtocolV2QueryRegistryService(
 	actors ProtocolV2QueryActorAuthority,
 	callerAdmission ProtocolV2QueryCallerAdmission,
 	delegations *ProtocolV2QueryDelegationAuthority,
+	options ...ProtocolV2QueryRegistryOption,
 ) (*ProtocolV2QueryRegistryService, error) {
 	if registry == nil || execution == nil || !execution.BoundToRegistry(registry) ||
 		actors == nil || callerAdmission == nil || delegations == nil {
@@ -85,9 +115,15 @@ func newProtocolV2QueryRegistryService(
 			return nil, errors.New("hostapi: Query Registry Protocol V2 service conflicts with a reserved Host query id")
 		}
 	}
+	configured := ProtocolV2QueryRegistryOptions{}
+	for _, option := range options {
+		if option != nil {
+			option.applyProtocolV2QueryRegistry(&configured)
+		}
+	}
 	return &ProtocolV2QueryRegistryService{
 		registry: registry, execution: execution, actors: actors,
-		callerAdmission: callerAdmission, delegations: delegations,
+		callerAdmission: callerAdmission, delegations: delegations, consent: configured.ConsentGate,
 	}, nil
 }
 
@@ -116,6 +152,16 @@ func (s *ProtocolV2QueryRegistryService) IssueProtocolV2QueryActorDelegation(
 	}
 	if protocolV2QueryRegistryReservedID(query.ID) {
 		return ProtocolV2QueryActorDelegationGrant{}, queryregistry.ErrConflict
+	}
+	// consent-gated definitions: never mint authority for an anonymous caller or
+	// for an exact artifact that does not declare the required capability.
+	if IsProtocolV2ConsentGatedQuery(query.ID) {
+		if request.ActorUserID <= 0 {
+			return ProtocolV2QueryActorDelegationGrant{}, ErrProtocolV2QueryActorDenied
+		}
+		if err := s.consent.AuthorizeCapability(ctx, runtime); err != nil {
+			return ProtocolV2QueryActorDelegationGrant{}, err
+		}
 	}
 	projection, err := s.actors.ResolveProtocolV2QueryActor(ctx, request.ActorUserID)
 	if ctxErr := ctx.Err(); ctxErr != nil {
@@ -223,6 +269,18 @@ func (s *ProtocolV2QueryRegistryService) execute(
 		response.Error = queryRegistryProtocolV2Error(err)
 		return response
 	}
+	// consent-gated definitions re-check the exact-artifact capability and the
+	// per-(actor, extension) rate limit before reading anything. The delegation
+	// is not consumed on this path, so a denied call cannot burn the token.
+	consentGated := IsProtocolV2ConsentGatedQuery(query.ID)
+	if consentGated {
+		if err := s.consent.Authorize(
+			ctx, runtime, delegation.Binding.Actor.ActorUserID, query.ID,
+		); err != nil {
+			response.Error = queryRegistryProtocolV2Error(err)
+			return response
+		}
+	}
 	permissionRecheck := &protocolV2QueryPermissionRecheck{service: s, delegation: delegation}
 	planRequest.Permission = queryregistry.PermissionInput{
 		Authenticated:     delegation.Binding.Actor.Authenticated,
@@ -239,6 +297,21 @@ func (s *ProtocolV2QueryRegistryService) execute(
 	if err != nil {
 		response.Error = queryRegistryProtocolV2Error(permissionRecheck.classify(err))
 		return response
+	}
+	if consentGated {
+		// 每次成功读取一条审计（不含任何字段值）。审计不可用时 fail closed：
+		// 宿主不返回无法追溯的同意数据。
+		event := ProtocolV2ConsentQueryEvent{
+			ActorUserID: delegation.Binding.Actor.ActorUserID,
+			ExtensionID: runtime.GetExtensionId(), ExtensionVersion: runtime.GetExtensionVersion(),
+			ArtifactDigest: runtime.GetArtifactDigest(),
+			QueryID:        query.ID, PlanVersion: query.PlanVersion,
+			RequestID: request.GetContext().GetRequestId(), Rows: len(result.Rows),
+		}
+		if err := s.consent.Record(executionContext, event); err != nil {
+			response.Error = queryRegistryProtocolV2Error(err)
+			return response
+		}
 	}
 	response.Rows = make([]*protocolv2.TypedDocument, 0, len(result.Rows))
 	for _, row := range result.Rows {
@@ -467,6 +540,12 @@ func queryRegistryProtocolV2Error(err error) *protocolv2.ErrorDetail {
 		return queryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.query_replay_ledger_unavailable", "The query replay ledger has reached its safe bound.", true)
 	case errors.Is(err, ErrProtocolV2QueryDelegationInvalid):
 		return queryError(protocolv2.ErrorCode_ERROR_CODE_UNAUTHENTICATED, "host.query_actor_delegation_invalid", "The Host-signed query delegation is invalid or stale.", false)
+	case errors.Is(err, ErrProtocolV2QueryCapabilityDenied):
+		return queryError(protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED, "host.query_capability_denied", "The exact extension artifact does not declare the capability this query requires.", false)
+	case errors.Is(err, ErrProtocolV2QueryRateLimited):
+		return queryError(protocolv2.ErrorCode_ERROR_CODE_RATE_LIMITED, "host.query_rate_limited", "The consent query rate limit for this actor and extension was reached.", true)
+	case errors.Is(err, ErrProtocolV2QueryConsentGateUnavailable):
+		return queryError(protocolv2.ErrorCode_ERROR_CODE_UNAVAILABLE, "host.query_consent_gate_unavailable", "The consent query gate is not configured or unavailable.", true)
 	case errors.Is(err, ErrProtocolV2QueryActorDenied), errors.Is(err, queryregistry.ErrDenied):
 		return queryError(protocolv2.ErrorCode_ERROR_CODE_PERMISSION_DENIED, "host.query_actor_permission_denied", "The delegated actor is not allowed to execute this query.", false)
 	case errors.Is(err, queryregistry.ErrCostExceeded):

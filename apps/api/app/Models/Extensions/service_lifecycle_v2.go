@@ -718,21 +718,6 @@ func extensionFromExactVersion(base Extension, version ExtensionVersion) Extensi
 	return base
 }
 
-func promoteDevComponentContractVersions(target Extension) Extension {
-	if len(target.Manifest.Components) == 0 {
-		return target
-	}
-	suffix := "dev" + target.PackageDigest[:8] + "@1"
-	_ = suffix
-	rewritten := make([]ManifestComponent, len(target.Manifest.Components))
-	copy(rewritten, target.Manifest.Components)
-	for index := range rewritten {
-		rewritten[index].ContractVersion = suffix
-	}
-	target.Manifest.Components = rewritten
-	return target
-}
-
 func validLifecycleServiceIdempotencyKey(value string) bool {
 	if len(value) == 0 || len(value) > 128 || value != strings.TrimSpace(value) {
 		return false

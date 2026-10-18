@@ -83,9 +83,9 @@ func queryRegistryCoreResultSchemaProperties(definition protocolV2QueryDefinitio
 	case QuerySiteStatsResultSchemaID:
 		// COUNT(*) returns bigint, which normalize maps to a decimal string.
 		properties = map[string]any{
-			"topic_count":            schemaString(),
-			"comment_count":          schemaString(),
-			"user_count":             schemaString(),
+			"topic_count":             schemaString(),
+			"comment_count":           schemaString(),
+			"user_count":              schemaString(),
 			"public_attachment_count": schemaString(),
 		}
 	case QueryPublicCommentResultSchemaID:
@@ -124,6 +124,14 @@ func queryRegistryCoreResultSchemaProperties(definition protocolV2QueryDefinitio
 			"description": schemaStringOrNull(),
 			"icon":        schemaStringOrNull(),
 			"icon_color":  schemaStringOrNull(),
+		}
+	case QuerySelfEmailSchemaID:
+		// 只暴露展示形态的 email、布尔验证位与更新时间；email_lower 是唯一性/
+		// 登录匹配列，永远不进 schema。属性数必须与 Host 字段数严格相等。
+		properties = map[string]any{
+			"email":          schemaString(),
+			"email_verified": schemaBoolean(),
+			"updated_at":     schemaString(),
 		}
 	default:
 		if shortcode, ok := shortcodeProjectionSchemaProperties(definition.ResultSchemaID); ok {

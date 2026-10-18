@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -64,21 +65,27 @@ func (r *postgresProtocolV2QueryAuthorityResolver) ResolveProtocolV2QueryAuthori
 	var source string
 	var system bool
 	var manifestDatabase []byte
+	var manifestCapabilities []byte
 	err := r.pool.QueryRow(ctx, `
 		SELECT extensions.source, extensions.is_system,
-		       COALESCE(extension_versions.manifest -> 'database', 'null'::jsonb)
+		       COALESCE(extension_versions.manifest -> 'database', 'null'::jsonb),
+		       COALESCE(extension_versions.manifest -> 'capabilities', 'null'::jsonb)
 		FROM extensions
 		JOIN extension_versions ON extension_versions.id = extensions.active_version_id
 		WHERE extensions.id = $1 AND extensions.type = 'plugin' AND extensions.status = 'enabled'
 		  AND extension_versions.version = $2 AND extension_versions.package_digest = $3
 	`, identity.GetExtensionId(), identity.GetExtensionVersion(), identity.GetArtifactDigest()).Scan(
-		&source, &system, &manifestDatabase,
+		&source, &system, &manifestDatabase, &manifestCapabilities,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 	}
 	if err != nil {
 		return ProtocolV2QueryAuthority{}, fmt.Errorf("resolve stable query artifact: %w", err)
+	}
+	capabilities, capabilitiesErr := protocolV2QueryManifestCapabilities(manifestCapabilities)
+	if capabilitiesErr != nil {
+		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 	}
 	manifestGrants, grantsErr := protocolV2QueryDatabaseGrants(manifestDatabase)
 	if grantsErr != nil {
@@ -88,7 +95,9 @@ func (r *postgresProtocolV2QueryAuthorityResolver) ResolveProtocolV2QueryAuthori
 		if source != "builtin" || !system {
 			return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 		}
-		return ProtocolV2QueryAuthority{ExactArtifact: true, CoreViews: hasQueryCoreViewsGrant(manifestGrants)}, nil
+		return ProtocolV2QueryAuthority{
+			ExactArtifact: true, CoreViews: hasQueryCoreViewsGrant(manifestGrants), Capabilities: capabilities,
+		}, nil
 	}
 	if source != "uploaded" || system {
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
@@ -98,13 +107,15 @@ func (r *postgresProtocolV2QueryAuthorityResolver) ResolveProtocolV2QueryAuthori
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 	}
 	var impactDatabase []byte
+	var impactCapabilities []byte
 	err = r.pool.QueryRow(ctx, `
-		SELECT COALESCE(impact_document -> 'database', 'null'::jsonb)
+		SELECT COALESCE(impact_document -> 'database', 'null'::jsonb),
+		       COALESCE(impact_document -> 'capabilities', 'null'::jsonb)
 		FROM extension_trust_grants
 		WHERE id = $1 AND extension_id = $2 AND extension_version = $3
 		  AND package_digest = $4 AND action = 'enable' AND revoked_at IS NULL
 	`, grantID, identity.GetExtensionId(), identity.GetExtensionVersion(),
-		identity.GetArtifactDigest()).Scan(&impactDatabase)
+		identity.GetArtifactDigest()).Scan(&impactDatabase, &impactCapabilities)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 	}
@@ -115,7 +126,13 @@ func (r *postgresProtocolV2QueryAuthorityResolver) ResolveProtocolV2QueryAuthori
 	if grantsErr != nil || !reflect.DeepEqual(impactGrants, manifestGrants) {
 		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
 	}
-	return ProtocolV2QueryAuthority{ExactArtifact: true, CoreViews: hasQueryCoreViewsGrant(manifestGrants)}, nil
+	impactCaps, capsErr := protocolV2QueryImpactCapabilities(impactCapabilities)
+	if capsErr != nil || !reflect.DeepEqual(impactCaps, capabilities) {
+		return ProtocolV2QueryAuthority{}, ErrProtocolV2QueryRuntimeStale
+	}
+	return ProtocolV2QueryAuthority{
+		ExactArtifact: true, CoreViews: hasQueryCoreViewsGrant(manifestGrants), Capabilities: capabilities,
+	}, nil
 }
 
 // protocolV2QueryDatabaseGrants expands a stored manifest/impact database
@@ -162,6 +179,74 @@ func hasQueryCoreViewsGrant(grants []string) bool {
 		}
 	}
 	return false
+}
+
+// protocolV2QueryManifestCapabilities 读取精确制品 manifest 的有效能力 key。
+// manifest 已在 Normalize 阶段校验并排序；这里只做形状与去重校验，形状异常
+// 一律按 stale 处理（fail closed）。
+func protocolV2QueryManifestCapabilities(document []byte) ([]string, error) {
+	if len(document) == 0 {
+		return nil, nil
+	}
+	var values *[]string
+	if err := json.Unmarshal(document, &values); err != nil {
+		return nil, err
+	}
+	if values == nil {
+		return nil, nil
+	}
+	result := make([]string, 0, len(*values))
+	seen := make(map[string]bool, len(*values))
+	for _, value := range *values {
+		if value == "" || value != strings.TrimSpace(value) {
+			return nil, errors.New("invalid manifest capability key")
+		}
+		if seen[value] {
+			return nil, errors.New("duplicate manifest capability key")
+		}
+		seen[value] = true
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
+// protocolV2QueryImpactCapabilities 从启用影响评审文档取**显式声明**的能力 key
+// 集合。影响文档存的是完整 Grant 对象（含宿主推断项），manifest 只存显式声明；
+// 因此这里必须丢掉 implied 项再与 manifest 比较，否则任何带 backend/jobs 的
+// 插件都会被误判成漂移。
+func protocolV2QueryImpactCapabilities(document []byte) ([]string, error) {
+	if len(document) == 0 {
+		return nil, nil
+	}
+	var grants *[]struct {
+		Key     string `json:"key"`
+		Implied bool   `json:"implied"`
+	}
+	if err := json.Unmarshal(document, &grants); err != nil {
+		return nil, err
+	}
+	if grants == nil {
+		return nil, nil
+	}
+	result := make([]string, 0, len(*grants))
+	seen := make(map[string]bool, len(*grants))
+	for _, grant := range *grants {
+		if grant.Implied {
+			continue
+		}
+		key := strings.TrimSpace(grant.Key)
+		if key == "" {
+			return nil, errors.New("invalid impact capability key")
+		}
+		if seen[key] {
+			return nil, errors.New("duplicate impact capability key")
+		}
+		seen[key] = true
+		result = append(result, key)
+	}
+	sort.Strings(result)
+	return result, nil
 }
 
 func validProtocolV2QueryIdentity(identity *protocolv2.ExtensionIdentity) bool {
@@ -497,5 +582,8 @@ func stableCoreProtocolV2QueryDefinitions() []protocolV2QueryDefinition {
 			DefaultSorts: []protocolV2QuerySort{{Field: "id", Expression: "stable.id"}},
 		},
 	}
+	// consent-gated 定义只在这里声明一次；actorless 稳定入口拒绝执行它，
+	// 委派执行走它在 Query Registry 的显式投影。
+	definitions = append(definitions, selfEmailQueryDefinition())
 	return append(definitions, shortcodeProjectionProtocolV2QueryDefinitions()...)
 }

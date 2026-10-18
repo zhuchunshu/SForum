@@ -1097,6 +1097,28 @@ entity-event invalidator). An id-list filter takes a **canonical JSON array**:
 strictly ascending, unique, positive int64 ids, at most 100 — e.g.
 `"[1,5,9]"`. Missing ids simply do not return a row.
 
+### Capability-gated consent read (own email)
+
+One identity field is deliberately outside that table: the signed-in actor's
+own email. It is **never** in `sforum_core_v1`, never in a public query, and
+never addressable by a user id. Declare the `users.email.read` capability and
+read it through the Host-delivered consent delegation:
+
+| Query id | Fields | Notes |
+| --- | --- | --- |
+| `core.query.identity.self_email` (`@1`, plan `.plan@1`) | `email`, `email_verified`, `updated_at` | Result schema `sforum.core.self_email@1`; single row; actor comes only from the Host-issued delegation; no filters/sorts; never cached |
+
+The Host mints the single-use delegation on route/admin invocations that have a
+live actor, and only when the exact artifact declares the capability. Call
+`host.SelfEmailQueryRequest(incomingContext)` (or `DelegatedQueryRequest`) with
+the incoming `RequestContext`; the request itself stays actorless. Anonymous
+calls, background jobs, and artifacts without the capability receive no
+delegation. Every successful read is audited (`identity.email.consent.read`,
+never with the value) and rate limited per (actor, extension). See
+`docs/extensions/host-api-v2.md` → "Consent-gated reads" for the full contract,
+error reasons, and the reference fixture
+`extensions/fixtures/plugins/sforum-consented-claim-reference`.
+
 A need the catalog cannot express goes through the surface-request process in
 `knowledge/decisions/2026-10-18-extension-data-surface-policy.md` — never
 through raw-core grants or per-plugin RPC methods. The same read models are

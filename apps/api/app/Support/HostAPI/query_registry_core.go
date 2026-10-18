@@ -390,6 +390,16 @@ func queryRegistryCoreMappingFor(definition protocolV2QueryDefinition) (queryReg
 			ResultSchema:     QueryPublicCategorySchemaID + "@" + QueryStableCoreResultSchemaV1,
 			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationOffset,
 		}
+	case QuerySelfEmail:
+		// 同意式读取：login 策略强制活 actor，真正的门在 consent gate（精确制品
+		// 能力 + 限流）与 host 签发的单次委派上；永不走 public 策略。
+		mapping = queryRegistryCoreMapping{
+			HostQueryID: QuerySelfEmail, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: QuerySelfEmailRegistryID, ContractVersion: QuerySelfEmailRegistryContractVersion,
+			Entity: "core.query.identity.self_email", PlanVersion: QuerySelfEmailRegistryPlanVersion,
+			ResultSchema:     QuerySelfEmailSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyLogin, Pagination: queryregistry.PaginationNone,
+		}
 	default:
 		if shortcode, ok := shortcodeProjectionCoreMapping(definition); ok {
 			mapping = shortcode

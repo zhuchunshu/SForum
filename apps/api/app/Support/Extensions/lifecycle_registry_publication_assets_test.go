@@ -787,3 +787,78 @@ func bytesDigestHex(body []byte) string {
 	sum := sha256.Sum256(body)
 	return hex.EncodeToString(sum[:])
 }
+
+func TestLifecycleAssetPlanRetryingConvergesAfterConcurrentPublication(t *testing.T) {
+	ctx := context.Background()
+	assets := assetregistry.New()
+	source := lifecycleAssetTestExtension(t, "lifecycle.assets", nil)
+	target := lifecycleAssetUpgrade(t, source, "2.0.0")
+	sourcePublication := mustLifecycleAssetPublication(t, source, strings.Repeat("c", 64))
+	if _, err := assets.ReplaceAll([]assetregistry.Publication{sourcePublication}); err != nil {
+		t.Fatal(err)
+	}
+	boundary := NewPostgresLifecycleBoundaryRegistries(LifecycleRegistryBoundaryConfig{Assets: assets})
+	sourceMaterial := lifecycleAssetMaterial(t, source, sourcePublication, true)
+	targetPublication := mustLifecycleAssetPublication(t, target, strings.Repeat("d", 64))
+	targetMaterial := lifecycleAssetMaterial(t, target, targetPublication, true)
+
+	plan, err := boundary.prepareAssetPlan(sourceMaterial, targetMaterial)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An unrelated owner publishes between registering (prepare) and activation
+	// (apply). The exact graph for this owner is still consistent, so the
+	// activation must converge instead of failing the lifecycle operation.
+	unrelated := lifecycleAssetTestExtension(t, "unrelated.assets", nil)
+	if _, err := assets.Publish(mustLifecycleAssetPublication(t, unrelated, strings.Repeat("f", 64))); err != nil {
+		t.Fatal(err)
+	}
+	if err := boundary.applyAssetPlanRetrying(
+		ctx, plan, LifecycleRegistryPublicationTarget, sourceMaterial, targetMaterial,
+	); err != nil {
+		t.Fatalf("retrying apply: %v", err)
+	}
+	published, ok := assets.SnapshotPublication(target.ID)
+	if !ok || published.Artifact != targetPublication.Artifact {
+		t.Fatalf("target publication=%#v ok=%t", published, ok)
+	}
+	if _, ok := assets.SnapshotPublication(unrelated.ID); !ok {
+		t.Fatal("retry dropped the concurrent unrelated publication")
+	}
+	// Source and target share one extension id: the surviving publication must
+	// be the exact target artifact, never the retired source one.
+	if publication, ok := assets.SnapshotPublication(source.ID); !ok || publication.Artifact == sourcePublication.Artifact {
+		t.Fatalf("retry kept the retired source artifact: %#v ok=%t", publication, ok)
+	}
+
+	// A publication that is neither source nor target still fails closed: the
+	// plan is prepared while the exact target is still published, then another
+	// writer replaces this owner with an unknown artifact.
+	foreignPlan, err := boundary.prepareAssetPlan(sourceMaterial, targetMaterial)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign := mustLifecycleAssetPublication(t, lifecycleAssetUpgrade(t, target, "3.0.0"), strings.Repeat("e", 64))
+	if _, err := assets.PublishIfArtifact(targetPublication.Artifact, foreign); err != nil {
+		t.Fatal(err)
+	}
+	if err := boundary.applyAssetPlanRetrying(
+		ctx, foreignPlan, LifecycleRegistryPublicationTarget, sourceMaterial, targetMaterial,
+	); !errors.Is(err, assetregistry.ErrArtifactConflict) {
+		t.Fatalf("non-exact owner publication error=%v", err)
+	}
+	if publication, ok := assets.SnapshotPublication(target.ID); !ok || publication.Artifact != foreign.Artifact {
+		t.Fatalf("fail-closed apply must keep the foreign artifact: %#v ok=%t", publication, ok)
+	}
+}
+
+func TestLifecycleItemsWithoutDropsSuppressedExtensions(t *testing.T) {
+	items := []extensions.Extension{{ID: "keep.one"}, {ID: "drop.me"}, {ID: "keep.two"}}
+	remaining := lifecycleItemsWithout(items, []string{"drop.me"})
+	if len(remaining) != 2 || remaining[0].ID != "keep.one" || remaining[1].ID != "keep.two" {
+		t.Fatalf("remaining=%v", remaining)
+	}
+	if got := lifecycleItemsWithout(items, nil); len(got) != len(items) {
+		t.Fatalf("nil suppression changed items: %v", got)
+	}
+}

@@ -12,15 +12,18 @@ import (
 )
 
 const (
-	QuerySafeUserByID                = "sforum.core.safe_user.by_id"
-	QueryPublicTopicsList            = "sforum.core.public_topics.list"
-	QueryPublicTopicByID             = "sforum.core.public_topic.by_id"
-	QueryPublicAttachmentByPublicID  = "sforum.core.public_attachment.by_public_id"
-	QuerySiteStats                   = "sforum.core.site_stats.current"
-	QueryPublicCommentsList          = "sforum.core.public_comments.list"
-	QuerySafeUserByUsername          = "sforum.core.safe_user.by_username"
-	QuerySafeUsersBatch              = "sforum.core.safe_users.batch"
-	QueryPublicCategoriesList        = "sforum.core.public_categories.list"
+	QuerySafeUserByID               = "sforum.core.safe_user.by_id"
+	QueryPublicTopicsList           = "sforum.core.public_topics.list"
+	QueryPublicTopicByID            = "sforum.core.public_topic.by_id"
+	QueryPublicAttachmentByPublicID = "sforum.core.public_attachment.by_public_id"
+	QuerySiteStats                  = "sforum.core.site_stats.current"
+	QueryPublicCommentsList         = "sforum.core.public_comments.list"
+	QuerySafeUserByUsername         = "sforum.core.safe_user.by_username"
+	QuerySafeUsersBatch             = "sforum.core.safe_users.batch"
+	QueryPublicCategoriesList       = "sforum.core.public_categories.list"
+	// QuerySelfEmail 只由 host 签发的 actor 委派驱动执行；actorless 稳定入口
+	// 一律拒绝（见 consent_query_definitions.go）。
+	QuerySelfEmail                   = "sforum.core.identity.self_email"
 	QueryStableCorePlanVersion       = "1"
 	QuerySafeUserResultSchemaID      = "sforum.core.safe_user"
 	QueryPublicTopicResultSchemaID   = "sforum.core.public_topic"
@@ -29,6 +32,7 @@ const (
 	QueryPublicCommentResultSchemaID = "sforum.core.public_comment"
 	QuerySafeUserAvatarSchemaID      = "sforum.core.safe_user_avatar"
 	QueryPublicCategorySchemaID      = "sforum.core.public_category"
+	QuerySelfEmailSchemaID           = "sforum.core.self_email"
 	QueryStableCoreResultSchemaV1    = "1"
 	QueryInt64ParameterSchemaID      = "sforum.core.query.int64"
 	QueryTextParameterSchemaID       = "sforum.core.query.text"
@@ -45,10 +49,12 @@ var ErrProtocolV2QueryRuntimeStale = errors.New("Host Query exact runtime identi
 // ProtocolV2QueryAuthority is resolved from Host-owned exact artifact and
 // trust state. CoreViews remains a separate bit so future additive grants do
 // not require trusting RequestContext.granted_authority or changing the query
-// engine.
+// engine. Capabilities is the exact artifact's effective capability key set,
+// used only by ConsentGated definitions (never by ordinary stable queries).
 type ProtocolV2QueryAuthority struct {
 	ExactArtifact bool
 	CoreViews     bool
+	Capabilities  []string
 }
 
 type ProtocolV2QueryAuthorityResolver interface {
@@ -123,7 +129,8 @@ func newProtocolV2QueryEngine(
 func isStableProtocolV2QueryID(queryID string) bool {
 	switch strings.TrimSpace(queryID) {
 	case QuerySafeUserByID, QueryPublicTopicsList, QueryPublicTopicByID, QueryPublicAttachmentByPublicID,
-		QuerySiteStats, QueryPublicCommentsList, QuerySafeUserByUsername, QuerySafeUsersBatch, QueryPublicCategoriesList:
+		QuerySiteStats, QueryPublicCommentsList, QuerySafeUserByUsername, QuerySafeUsersBatch, QueryPublicCategoriesList,
+		QuerySelfEmail:
 		return true
 	default:
 		return false
@@ -190,6 +197,17 @@ func (e *protocolV2QueryEngine) execute(
 	definition, ok := e.definitions[protocolV2QueryKey{id: strings.TrimSpace(request.GetQueryId()), version: strings.TrimSpace(request.GetPlanVersion())}]
 	if !ok {
 		response.Error = protocolV2Unsupported("host.query_unsupported", "The query id or plan version is not supported.")
+		return response
+	}
+	// consent-gated 定义不接受 actorless 执行：actor 只能来自 Host 签发的一次性
+	// query actor 委派，而那条路径是 Query Registry 的显式投影。这里不留任何
+	// 「先试执行再判权限」的窗口。
+	if definition.ConsentGated {
+		trace.Outcome = QueryTraceDenied
+		response.Error = queryError(
+			protocolv2.ErrorCode_ERROR_CODE_UNAUTHENTICATED, "host.query_actor_delegation_invalid",
+			"This Host Query requires a Host-issued actor delegation.", false,
+		)
 		return response
 	}
 	plan, detail := buildProtocolV2QueryPlan(definition, request)

@@ -94,7 +94,8 @@ func validateComponentUpgrade(previous, next extensions.Extension) error {
 		}
 		if old != component || componentReferencedContentChanged(previous, next, old) {
 			return fmt.Errorf(
-				"%w: contribution %s changed without a contract version", ErrComponentRegistryConflict, component.ID,
+				"%w: contribution %s changed without a contract version: bump %s.contractVersion in %s/sforum.extension.json whenever the contribution or the props schema / L2 artifact it references changes",
+				ErrComponentRegistryConflict, component.ID, component.ID, next.ID,
 			)
 		}
 	}

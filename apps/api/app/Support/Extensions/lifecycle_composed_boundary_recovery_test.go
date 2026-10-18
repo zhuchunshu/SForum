@@ -2,6 +2,7 @@ package extensionsruntime
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -167,5 +168,45 @@ func TestComposedLifecycleBoundaryMigrationProofDenialKeepsArtifactsClosed(t *te
 				t.Fatalf("missing migration denial evidence: error=%v calls=%#v", err, fixture.calls)
 			}
 		})
+	}
+}
+
+func TestComposedLifecycleBoundaryCompensationToleratesRetiredSourceRuntime(t *testing.T) {
+	fixture := newComposedBoundaryFixture(t, extensions.LifecycleMachineUpgrade, 8)
+	fixture.jobs.resumeErr = fmt.Errorf("%w: fixture.source", ErrRuntimeInstanceNotActive)
+	cause := errors.New("registries validate failed")
+
+	request, err := newLifecycleBoundaryRequest(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = fixture.boundary.failBeforePublication(t.Context(), request, cause)
+	if !errors.Is(err, cause) {
+		t.Fatalf("compensation must keep the real cause: %v", err)
+	}
+	if strings.Contains(err.Error(), "jobs and schedules") {
+		t.Fatalf("a retired source runtime counts as converged: %v", err)
+	}
+	if countCallPrefix(fixture.calls, "jobs.resume:") == 0 {
+		t.Fatal("expected a source resume attempt")
+	}
+}
+
+func TestComposedLifecycleBoundaryCompensationKeepsRealResumeFailures(t *testing.T) {
+	fixture := newComposedBoundaryFixture(t, extensions.LifecycleMachineUpgrade, 8)
+	fixture.jobs.resumeErr = errComposedDelegate
+	cause := errors.New("registries validate failed")
+
+	request, err := newLifecycleBoundaryRequest(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = fixture.boundary.failBeforePublication(t.Context(), request, cause)
+	if !errors.Is(err, cause) {
+		t.Fatalf("compensation must keep the real cause: %v", err)
+	}
+	if !errors.Is(err, ErrLifecycleBoundaryCompensationFailed) ||
+		!strings.Contains(err.Error(), "jobs and schedules: delegate failed") {
+		t.Fatalf("real resume failure must surface as a compensation failure: %v", err)
 	}
 }

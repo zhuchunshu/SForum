@@ -86,6 +86,11 @@ const (
 	ActionForumTopicRevisionRedact    = "forum.topic.revision_redact"
 	ActionForumCommentRevisionRedact  = "forum.comment.revision_redact"
 
+	// ActionIdentityEmailConsentRead 插件经「能力 + actor 委派」门控的同意式
+	// 查询读取了调用者本人的 email。metadata 只记 extension/query/request 标识与
+	// 行数，绝不记 email 值。
+	ActionIdentityEmailConsentRead = "identity.email.consent.read"
+
 	// RecommendedRetentionDays 审计日志推荐保留天数（清理 job 默认）。
 	RecommendedRetentionDays = 90
 )

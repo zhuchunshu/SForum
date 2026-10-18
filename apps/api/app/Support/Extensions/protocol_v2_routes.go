@@ -67,6 +67,43 @@ type ProtocolV2RouteResponseDocument struct {
 	BodyPresent bool
 }
 
+func protocolV2SchemaRef(reference string) (string, string, error) {
+	reference = strings.TrimSpace(reference)
+	index := strings.LastIndexByte(reference, '@')
+	if index <= 0 || index == len(reference)-1 {
+		return "", "", fmt.Errorf("protocol v2 schema reference %q is invalid", reference)
+	}
+	version := reference[index+1:]
+	if version[0] == '0' {
+		return "", "", fmt.Errorf("protocol v2 schema reference %q is invalid", reference)
+	}
+	for _, value := range version {
+		if value < '0' || value > '9' {
+			return "", "", fmt.Errorf("protocol v2 schema reference %q is invalid", reference)
+		}
+	}
+	return reference[:index], version, nil
+}
+
+func protocolV2PatchSchemaRef(resultSchema string) (string, error) {
+	schemaID, version, err := protocolV2SchemaRef(resultSchema)
+	if err != nil {
+		return "", err
+	}
+	return schemaID + ".patch@" + version, nil
+}
+
+func validateProtocolV2DocumentRef(document *protocolv2.TypedDocument, reference, label string) error {
+	schemaID, version, err := protocolV2SchemaRef(reference)
+	if err != nil {
+		return err
+	}
+	if document == nil || document.GetSchemaId() != schemaID || document.GetSchemaVersion() != version {
+		return fmt.Errorf("protocol v2 %s must match schema %q", label, reference)
+	}
+	return nil
+}
+
 func NewProtocolV2InvocationActor(userID int64, authenticated bool, permissions map[string]bool) *ProtocolV2InvocationActor {
 	if !authenticated || userID <= 0 {
 		return nil

@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: SForum Consented Claim Reference
+  version: 1.0.0
+paths:
+  /consented-claim/me:
+    get:
+      operationId: sforum.consented-claim-reference.identity
+      x-sforum-route-id: sforum.consented-claim-reference.route.identity
+      x-sforum-contract-version: sforum.consented-claim-reference.route.identity@1
+      x-sforum-guard: core.guard.login
+      x-sforum-response-schema: sforum.consented-claim-reference.identity@1
+      summary: The signed-in actor's own email verification state through a Host-issued consent delegation
+      description: >-
+        Requires capabilities: ["users.email.read"] and a live actor. The response never
+        contains the email value itself, only derived flags; anonymous callers and
+        artifacts without the capability receive consentAvailable=false.
+      responses:
+        "200":
+          description: Consent-gated identity claims without any email plaintext
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/sforum.consented-claim-reference.identity@1"
+components:
+  schemas:
+    "sforum.consented-claim-reference.identity@1":
+      type: object
+      required:
+        - authenticated
+        - consentAvailable
+        - emailPresent
+        - emailVerified
+        - emailUpdatedAt
+        - hostQueryOutcome
+      additionalProperties: false
+      properties:
+        authenticated:
+          type: boolean
+        consentAvailable:
+          type: boolean
+        emailPresent:
+          type: boolean
+        emailVerified:
+          type:
+            - boolean
+            - "null"
+        emailUpdatedAt:
+          type:
+            - string
+            - "null"
+        hostQueryOutcome:
+          type: string

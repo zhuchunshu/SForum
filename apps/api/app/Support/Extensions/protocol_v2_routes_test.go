@@ -11,6 +11,7 @@ import (
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	pluginwire "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/plugin/v2"
@@ -882,4 +883,140 @@ func protocolV2RouteTestResponse(request *pluginwire.RouteRequest, body map[stri
 		Headers:    []*protocolwire.Header{{Name: "X-Result", Values: []string{"one", "two"}}},
 		Body:       &protocolwire.TypedDocument{SchemaId: "demo.response", SchemaVersion: "1", Value: value},
 	}
+}
+
+// 同意式读取：只有「路由/管理端调用 + 活 actor + 精确制品声明 users.email.read」
+// 才签发 self-email 的 query 委派；匿名、后台、无能力都不签发。
+func TestProtocolV2RouteIssuesConsentQueryDelegationOnlyWithCapability(t *testing.T) {
+	var received *pluginwire.RouteRequest
+	client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+		received = request
+		return protocolV2RouteTestResponse(request, map[string]any{"ok": true}), nil
+	})
+	issuer := &recordingProtocolV2QueryDelegationIssuer{grant: hostapi.ProtocolV2QueryActorDelegationGrant{
+		QueryID: hostapi.QuerySelfEmailRegistryID, ContractVersion: hostapi.QuerySelfEmailRegistryContractVersion,
+		PlanVersion:    hostapi.QuerySelfEmailRegistryPlanVersion,
+		ResultSchemaID: hostapi.QuerySelfEmailSchemaID, ResultSchemaVersion: "1",
+		Scope: hostapi.ProtocolV2ConsentQueryScope, Token: "self-email-token",
+	}}
+	client.queryDelegations = issuer
+	client.capabilities = capabilities.NewSet([]string{capabilities.UsersEmailRead})
+	request := protocolV2RouteTestRequest()
+	request.Actor = NewProtocolV2RouteActor(42, true, nil)
+	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if issuer.calls != 1 || issuer.request.ActorUserID != 42 ||
+		issuer.request.QueryID != hostapi.QuerySelfEmailRegistryID ||
+		issuer.request.Scope != hostapi.ProtocolV2ConsentQueryScope ||
+		issuer.request.MaxCost != hostapi.ProtocolV2ConsentQueryMaxCost ||
+		issuer.request.Runtime.GetInstanceId() != client.identity.GetInstanceId() {
+		t.Fatalf("issuer request = %#v", issuer.request)
+	}
+	delegations := received.GetContext().GetHostQueryDelegations()
+	if len(delegations) != 1 || delegations[0].GetQueryId() != hostapi.QuerySelfEmailRegistryID ||
+		delegations[0].GetContractVersion() != hostapi.QuerySelfEmailRegistryContractVersion ||
+		delegations[0].GetPlanVersion() != hostapi.QuerySelfEmailRegistryPlanVersion ||
+		delegations[0].GetResultSchemaId() != hostapi.QuerySelfEmailSchemaID ||
+		delegations[0].GetResultSchemaVersion() != "1" ||
+		delegations[0].GetScope() != hostapi.ProtocolV2ConsentQueryScope ||
+		delegations[0].GetToken() != "self-email-token" {
+		t.Fatalf("route context delegations = %#v", delegations)
+	}
+
+	// 无能力：不签发，也不带任何委派。
+	issuer.calls = 0
+	client.capabilities = capabilities.NewSet([]string{capabilities.HostAPI})
+	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if issuer.calls != 0 || len(received.GetContext().GetHostQueryDelegations()) != 0 {
+		t.Fatalf("artifact without users.email.read acquired a delegation: %#v", received.GetContext().GetHostQueryDelegations())
+	}
+
+	// 匿名：没有可绑定的 actor，不签发（公开路由仍然正常工作）。
+	client.capabilities = capabilities.NewSet([]string{capabilities.UsersEmailRead})
+	request.Actor = nil
+	if _, err := client.InvokeRouteContext(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if issuer.calls != 0 || len(received.GetContext().GetHostQueryDelegations()) != 0 {
+		t.Fatal("anonymous invocation acquired a consent query delegation")
+	}
+
+	// 后台（job/schedule/queue）走 requestContext，永远拿不到委派。
+	request.Actor = NewProtocolV2RouteActor(42, true, nil)
+	background := client.requestContext(context.Background(), "background-job")
+	if len(background.GetHostQueryDelegations()) != 0 || background.GetActor() != nil {
+		t.Fatalf("background context acquired actor authority: %#v", background)
+	}
+}
+
+func TestProtocolV2RouteFailsClosedOnConsentDelegationIssuer(t *testing.T) {
+	request := protocolV2RouteTestRequest()
+	request.Actor = NewProtocolV2RouteActor(42, true, nil)
+	for _, test := range []struct {
+		name   string
+		issuer hostapi.ProtocolV2QueryActorDelegationIssuer
+		want   error
+	}{
+		{name: "issuer unavailable", want: ErrProtocolV2ActorDelegationUnavailable},
+		{name: "issuer failure", issuer: &recordingProtocolV2QueryDelegationIssuer{
+			err: errors.New("signing key unavailable"),
+		}, want: ErrProtocolV2ActorDelegationUnavailable},
+		{name: "wrong query", issuer: &recordingProtocolV2QueryDelegationIssuer{
+			grant: hostapi.ProtocolV2QueryActorDelegationGrant{
+				QueryID: "core.query.site_stats.current", ContractVersion: "core.query.site_stats.current@1",
+				PlanVersion:    "core.query.site_stats.current.plan@1",
+				ResultSchemaID: hostapi.QuerySiteStatsResultSchemaID, ResultSchemaVersion: "1",
+				Scope: "route", Token: "other-token",
+			},
+		}, want: ErrProtocolV2ActorDelegationInvalid},
+		{name: "missing token", issuer: &recordingProtocolV2QueryDelegationIssuer{
+			grant: hostapi.ProtocolV2QueryActorDelegationGrant{
+				QueryID: hostapi.QuerySelfEmailRegistryID, ContractVersion: hostapi.QuerySelfEmailRegistryContractVersion,
+				PlanVersion:    hostapi.QuerySelfEmailRegistryPlanVersion,
+				ResultSchemaID: hostapi.QuerySelfEmailSchemaID, ResultSchemaVersion: "1",
+				Scope: hostapi.ProtocolV2ConsentQueryScope,
+			},
+		}, want: ErrProtocolV2ActorDelegationInvalid},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			called := false
+			client := newProtocolV2RouteTestClient(t, "runtime-1", func(_ context.Context, request *pluginwire.RouteRequest) (*pluginwire.RouteResponse, error) {
+				called = true
+				return protocolV2RouteTestResponse(request, map[string]any{"ok": true}), nil
+			})
+			client.capabilities = capabilities.NewSet([]string{capabilities.UsersEmailRead})
+			client.queryDelegations = test.issuer
+			if _, err := client.InvokeRouteContext(context.Background(), request); !errors.Is(err, test.want) {
+				t.Fatalf("error = %v", err)
+			}
+			if called {
+				t.Fatal("malformed consent delegation reached the plugin")
+			}
+		})
+	}
+}
+
+type recordingProtocolV2QueryDelegationIssuer struct {
+	calls   int
+	request hostapi.ProtocolV2QueryActorDelegationRequest
+	grant   hostapi.ProtocolV2QueryActorDelegationGrant
+	err     error
+}
+
+func (i *recordingProtocolV2QueryDelegationIssuer) IssueProtocolV2QueryActorDelegation(
+	_ context.Context,
+	request hostapi.ProtocolV2QueryActorDelegationRequest,
+) (hostapi.ProtocolV2QueryActorDelegationGrant, error) {
+	if i == nil {
+		return hostapi.ProtocolV2QueryActorDelegationGrant{}, hostapi.ErrProtocolV2QueryDelegationInvalid
+	}
+	i.calls++
+	i.request = request
+	if i.err != nil {
+		return hostapi.ProtocolV2QueryActorDelegationGrant{}, i.err
+	}
+	return i.grant, nil
 }

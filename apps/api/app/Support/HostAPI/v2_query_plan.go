@@ -49,6 +49,11 @@ type protocolV2QueryDefinition struct {
 	// bound to an opaque Query Registry delegation. The actor never enters the
 	// plugin request, filter values, result rows, trace, or cache identity.
 	ActorScoped bool
+	// ConsentGated marks a sensitive definition that may only execute behind a
+	// Host-issued single-use actor delegation plus an exact-artifact capability
+	// grant. The actorless stable entry always refuses such a definition; the
+	// delegated Query Registry projection is the only executable outlet.
+	ConsentGated bool
 }
 
 type protocolV2QueryFilter struct {

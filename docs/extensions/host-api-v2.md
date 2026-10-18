@@ -260,6 +260,86 @@ rejects composed streaming chains and rejects terminal or streaming fields from
 request/response mutation stages, so `before`, `filter`, `wrap`, `after`, and
 global middleware cannot be composed around a stream.
 
+## Consent-gated reads (`users.email.read`)
+
+Sensitive identity fields are **not** part of the stable core views or the
+public HostQuery catalog. Reading the signed-in actor's own primary email goes
+through one capability- and actor-gated query instead.
+
+### When the Host delivers a delegation
+
+On a Host-initiated **route or admin-surface invocation** where the request has
+a live actor and the exact artifact declares the `users.email.read`
+capability, the Host mints one single-use query actor delegation and puts it on
+the invocation's `RequestContext.host_query_delegations`. The delegation:
+
+- is bound to the exact runtime identity (extension id/version, artifact
+  digest, trust grant id, runtime epoch, instance id) and to the query id,
+  contract version, plan version, and result schema;
+- carries `scope = "route"` and has a short (two-minute) lifetime;
+- is delivered for that one invocation only and is retired when the invocation
+  ends.
+
+Anonymous callers, jobs/schedules/queue calls, and artifacts that do not
+declare the capability receive no delegation at all. The Host never hands out a
+delegation "so the query can reject it later". Plugin-to-Host calls still send
+`actor: null`; there is no request field for a user id anywhere on this path.
+
+### Query contract
+
+| Field | Value |
+| --- | --- |
+| Query id | `core.query.identity.self_email` |
+| Contract version | `core.query.identity.self_email@1` |
+| Plan version | `core.query.identity.self_email.plan@1` |
+| Result schema | `sforum.core.self_email@1` |
+| Fields | `email` (string), `email_verified` (bool), `updated_at` (string, RFC3339Nano UTC) |
+| Filters / sorts | none (the actor is bound by the token, not by a parameter) |
+| Pagination | none; send `page.limit = 1` or omit `page` |
+| Cache | never cached |
+
+Rows are always the actor's own row. A disabled/inactive account or an empty
+email returns an empty row set (`rows: []`) rather than an error. The email is
+returned in its stored display form; the uniqueness/login-match column is never
+exposed.
+
+### SDK usage
+
+```go
+host, err := s.Host()
+request, err := host.SelfEmailQueryRequest(incomingContext) // matches the delivered delegation
+response, err := host.Queries.Execute(ctx, request)
+// response.rows[0] = {email, email_verified, updated_at}
+```
+
+`SelfEmailQueryRequest` fails closed with `pluginsdk.ErrHostQueryDelegationUnavailable`
+when the current invocation carries no matching delegation, so a plugin that
+also serves anonymous traffic degrades instead of fabricating data. If you need
+to attach fields or pagination yourself, `Host.DelegatedQueryRequest` selects
+the same token explicitly.
+
+### Enforcement and failure semantics
+
+Every successful read appends one `identity.email.consent.read` audit event
+(actor, extension, artifact, query id, request id, row count — never a value),
+and reads are limited to 60 per minute per (actor, extension). Traces and slow
+query logs record only the query id, plan version, shape digest, row count,
+duration, and outcome. Error reasons:
+
+| Reason | Code | Meaning |
+| --- | --- | --- |
+| `host.query_actor_delegation_invalid` | `UNAUTHENTICATED` | Missing, expired, forged, or differently bound delegation (also returned by the actorless stable query id) |
+| `host.query_actor_delegation_replayed` | `CONFLICT` | The single-use token was already consumed |
+| `host.query_capability_denied` | `PERMISSION_DENIED` | The exact artifact does not declare `users.email.read` |
+| `host.query_rate_limited` | `RATE_LIMITED` | The per-(actor, extension) consent quota was reached |
+| `host.query_runtime_stale` | `FAILED_PRECONDITION` / `STALE_RUNTIME` | The exact artifact or trust grant is no longer active |
+| `host.query_replay_ledger_unavailable` | `UNAVAILABLE` | The replay ledger reached its safe bound |
+| `host.query_consent_gate_unavailable` | `UNAVAILABLE` | Capability/audit/limiter dependencies are not configured |
+
+Calling the stable id `sforum.core.identity.self_email` directly is always
+refused with `host.query_actor_delegation_invalid`: the delegated Query
+Registry projection above is the only executable outlet for this definition.
+
 ## Limits, deadlines, and cancellation
 
 ### Notification emission command

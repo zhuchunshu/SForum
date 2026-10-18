@@ -10,6 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
+	queryregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/QueryRegistry"
 	hostv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/host/v2"
 	protocolv2 "github.com/zhuchunshu/sforum/apps/api/sdk/plugin/v2/gen/sforum/protocol/v2"
 	"google.golang.org/protobuf/proto"
@@ -305,7 +307,8 @@ func newPostgresQueryHarness(t *testing.T) *postgresQueryHarness {
 	var versionID int64
 	if err := pool.QueryRow(ctx, `
 		INSERT INTO extension_versions (extension_id, version, package_digest, manifest)
-		VALUES ($1, $2, $3, '{"database":{"authority":"core_views"}}'::jsonb) RETURNING id
+		VALUES ($1, $2, $3, '{"database":{"authority":"core_views"},"capabilities":["host.api","users.email.read"]}'::jsonb)
+		RETURNING id
 	`, extensionID, extensionVersion, digest).Scan(&versionID); err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +321,9 @@ func newPostgresQueryHarness(t *testing.T) *postgresQueryHarness {
 	var grantID int64
 	if err := pool.QueryRow(ctx, `
 		INSERT INTO extension_trust_grants (extension_id, extension_version, package_digest, action, impact_document)
-		VALUES ($1, $2, $3, 'enable', '{"database":{"authority":"core_views"}}'::jsonb) RETURNING id
+		VALUES ($1, $2, $3, 'enable',
+		        '{"database":{"authority":"core_views"},"capabilities":[{"key":"host.api"},{"key":"users.email.read"}]}'::jsonb)
+		RETURNING id
 	`, extensionID, extensionVersion, digest).Scan(&grantID); err != nil {
 		t.Fatal(err)
 	}
@@ -328,8 +333,7 @@ func newPostgresQueryHarness(t *testing.T) *postgresQueryHarness {
 	}
 	definitions := stableCoreProtocolV2QueryDefinitions()
 	for index := range definitions {
-		parts := strings.SplitN(definitions[index].From, ".", 2)
-		definitions[index].From = identifier + "." + parts[1]
+		definitions[index].From = rewritePostgresQueryFrom(definitions[index].From, identifier)
 	}
 	resolver := NewPostgresProtocolV2QueryAuthorityResolver(pool)
 	engine, err := newProtocolV2QueryEngine(&postgresProtocolV2QueryExecutor{pool: pool}, resolver, definitions...)
@@ -362,10 +366,222 @@ func installPostgresQueryFixture(t *testing.T, ctx context.Context, pool *pgxpoo
 		`INSERT INTO user_profiles VALUES (1, 1)`,
 		`CREATE VIEW safe_user_avatars AS SELECT u.id AS user_id, u.username, u.display_name, a.public_id AS avatar_public_id, a.content_type AS avatar_content_type, a.image_width AS avatar_image_width, a.image_height AS avatar_image_height FROM raw_users u LEFT JOIN user_profiles p ON p.user_id = u.id LEFT JOIN raw_attachments a ON a.id = p.avatar_attachment_id`,
 		`CREATE VIEW public_categories AS SELECT * FROM (VALUES (1::bigint, 'general'::text, 'General'::text, 'General discussion'::text, 'chat'::text, 'emerald'::text)) AS t(id, slug, name, description, icon, icon_color)`,
+		`CREATE TABLE audit_events (id BIGSERIAL PRIMARY KEY, actor_user_id BIGINT, target_user_id BIGINT, action TEXT NOT NULL, metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+		`CREATE TABLE users (id BIGINT PRIMARY KEY, username TEXT NOT NULL, display_name TEXT NOT NULL, email TEXT NOT NULL, email_lower TEXT NOT NULL UNIQUE, status TEXT NOT NULL, email_verified_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+		`INSERT INTO users VALUES
+			(42, 'consent-a', 'Consent A', 'a.consent@example.test', 'a.consent@example.test', 'active', now(), now(), now()),
+			(43, 'consent-b', 'Consent B', 'b.consent@example.test', 'b.consent@example.test', 'active', NULL, now(), now()),
+			(44, 'consent-off', 'Consent Off', 'off.consent@example.test', 'off.consent@example.test', 'disabled', now(), now(), now())`,
 	}
 	for _, statement := range statements {
 		if _, err := pool.Exec(ctx, statement); err != nil {
 			t.Fatalf("install Host Query fixture: %v\n%s", err, statement)
 		}
 	}
+}
+
+// rewritePostgresQueryFrom 把 Host 定义里的真实 schema 前缀改写到隔离 fixture
+// schema：`sforum_core_v1.*` 与 `public.*` 两种写法都要覆盖，后者用于 consent
+// 读取面（public.users）。
+func rewritePostgresQueryFrom(from string, identifier string) string {
+	if strings.Contains(from, "public.") {
+		return strings.ReplaceAll(from, "public.", identifier+".")
+	}
+	parts := strings.SplitN(from, ".", 2)
+	if len(parts) == 2 {
+		return identifier + "." + parts[1]
+	}
+	return from
+}
+
+func TestPostgresConsentSelfEmailReadsOnlyActorOwnEmail(t *testing.T) {
+	h := newPostgresQueryHarness(t)
+	catalog, err := NewQueryRegistryCoreCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, _, err := NewQueryRegistryCoreRegistry(QueryRegistryCoreOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	providers, err := NewProtocolV2QueryRegistryProviderResolver(
+		&protocolV2QueryRuntime{engine: h.engine}, catalog.Bindings(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, err := queryregistry.NewJSONResultSchemaCatalog(catalog.Schemas())
+	if err != nil {
+		t.Fatal(err)
+	}
+	execution, err := queryregistry.NewExecutionRuntime(queryregistry.ExecutionConfig{
+		Registry: registry, Providers: providers, Schemas: schemas, Timeout: 2 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	delegations, err := newProtocolV2QueryDelegationAuthority(
+		[]byte("0123456789abcdef0123456789abcdef"), time.Now, protocolV2QueryDelegationTTL,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := newProtocolV2QueryRegistryService(
+		registry, execution, consentIntegrationActors{}, consentIntegrationAdmission{}, delegations,
+		WithProtocolV2QueryConsentGate(&ProtocolV2QueryConsentGate{
+			Capabilities: consentIntegrationCapabilities{},
+			Auditor:      audit.NewPostgresWriter(h.pool),
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(actorUserID int64) *hostv2.QueryResponse {
+		grant, issueErr := service.IssueProtocolV2QueryActorDelegation(
+			context.Background(), ProtocolV2QueryActorDelegationRequest{
+				ActorUserID: actorUserID, Runtime: h.identity, QueryID: QuerySelfEmailRegistryID,
+				Locale: "zh-CN", Scope: ProtocolV2ConsentQueryScope, MaxCost: ProtocolV2ConsentQueryMaxCost,
+			},
+		)
+		if issueErr != nil {
+			t.Fatalf("issue actor %d: %v", actorUserID, issueErr)
+		}
+		request := &hostv2.QueryRequest{
+			Context: &protocolv2.RequestContext{
+				RequestId: fmt.Sprintf("consent-request-%d", actorUserID), Locale: "zh-CN",
+				Extension: cloneProtocolV2ExtensionIdentity(h.identity),
+			},
+			QueryId: grant.QueryID, ContractVersion: grant.ContractVersion, PlanVersion: grant.PlanVersion,
+			ResultSchemaId: grant.ResultSchemaID, ResultSchemaVersion: grant.ResultSchemaVersion,
+			Scope: grant.Scope, ActorDelegation: grant.Token, Page: &protocolv2.PageRequest{Limit: 1},
+		}
+		return service.execute(ContextWithProtocolV2RuntimeIdentity(context.Background(), h.identity), request)
+	}
+
+	actorA := read(42)
+	if actorA.GetError() != nil || len(actorA.GetRows()) != 1 {
+		t.Fatalf("actor A response = %#v err=%v", actorA.GetRows(), actorA.GetError())
+	}
+	rowA := actorA.GetRows()[0].GetValue().AsMap()
+	if rowA["email"] != "a.consent@example.test" || rowA["email_verified"] != true {
+		t.Fatalf("actor A row = %#v", rowA)
+	}
+	if _, leaked := rowA["email_lower"]; leaked {
+		t.Fatalf("result exposed email_lower: %#v", rowA)
+	}
+
+	// actor B 只能读到 B 自己的 email（且验证位来自 NULL email_verified_at）。
+	actorB := read(43)
+	if actorB.GetError() != nil || len(actorB.GetRows()) != 1 {
+		t.Fatalf("actor B response = %#v", actorB)
+	}
+	rowB := actorB.GetRows()[0].GetValue().AsMap()
+	if rowB["email"] != "b.consent@example.test" || rowB["email_verified"] != false {
+		t.Fatalf("actor B row = %#v", rowB)
+	}
+
+	// 非 active 账号：空行集合，不报错（SQL 侧 defense in depth）。
+	disabled := read(44)
+	if disabled.GetError() != nil || len(disabled.GetRows()) != 0 {
+		t.Fatalf("disabled account response = %#v err=%v", disabled.GetRows(), disabled.GetError())
+	}
+
+	// email_lower 不是可选字段：请求它必须被计划拒绝。
+	lowerGrant, err := service.IssueProtocolV2QueryActorDelegation(
+		context.Background(), ProtocolV2QueryActorDelegationRequest{
+			ActorUserID: 42, Runtime: h.identity, QueryID: QuerySelfEmailRegistryID,
+			Locale: "zh-CN", Scope: ProtocolV2ConsentQueryScope, MaxCost: ProtocolV2ConsentQueryMaxCost,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lowerRequest := &hostv2.QueryRequest{
+		Context: &protocolv2.RequestContext{
+			RequestId: "consent-request-lower", Locale: "zh-CN",
+			Extension: cloneProtocolV2ExtensionIdentity(h.identity),
+		},
+		QueryId: lowerGrant.QueryID, ContractVersion: lowerGrant.ContractVersion,
+		PlanVersion: lowerGrant.PlanVersion, ResultSchemaId: lowerGrant.ResultSchemaID,
+		ResultSchemaVersion: lowerGrant.ResultSchemaVersion, Scope: lowerGrant.Scope,
+		ActorDelegation: lowerGrant.Token, Fields: []string{"email_lower"},
+	}
+	lower := service.execute(ContextWithProtocolV2RuntimeIdentity(context.Background(), h.identity), lowerRequest)
+	if lower.GetError() == nil || len(lower.GetRows()) != 0 {
+		t.Fatalf("email_lower request = %#v", lower)
+	}
+
+	// actorless 稳定入口仍然拒绝。
+	stable := h.engine.execute(
+		ContextWithProtocolV2RuntimeIdentity(context.Background(), h.identity),
+		&hostv2.QueryRequest{Context: testProtocolV2RequestContext(), QueryId: QuerySelfEmail, PlanVersion: QueryStableCorePlanVersion},
+	)
+	if stable.GetError().GetCode() != protocolv2.ErrorCode_ERROR_CODE_UNAUTHENTICATED {
+		t.Fatalf("stable entry = %#v", stable.GetError())
+	}
+
+	// 真实审计行：动作正确、actor 正确、metadata 不含 email 值。
+	var audits int
+	var metadata string
+	if err := h.pool.QueryRow(context.Background(), `
+		SELECT count(*), COALESCE(max(metadata::text), '')
+		FROM audit_events WHERE action = $1
+	`, ProtocolV2ConsentQueryAuditAction).Scan(&audits, &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 3 {
+		t.Fatalf("audit rows = %d", audits)
+	}
+	for _, secret := range []string{"a.consent@example.test", "b.consent@example.test"} {
+		if strings.Contains(metadata, secret) {
+			t.Fatalf("audit metadata leaked %s: %s", secret, metadata)
+		}
+	}
+	if !strings.Contains(metadata, QuerySelfEmailRegistryID) {
+		t.Fatalf("audit metadata missing query id: %s", metadata)
+	}
+}
+
+type consentIntegrationActors struct{}
+
+func (consentIntegrationActors) projection(actorUserID int64) ProtocolV2QueryActorProjection {
+	return ProtocolV2QueryActorProjection{
+		ActorUserID: actorUserID, Authenticated: true,
+		ActorFingerprint: fmt.Sprintf("actor:%d", actorUserID), PolicyFingerprint: "policy:member",
+	}
+}
+
+func (a consentIntegrationActors) ResolveProtocolV2QueryActor(_ context.Context, actorUserID int64) (ProtocolV2QueryActorProjection, error) {
+	if actorUserID != 42 && actorUserID != 43 && actorUserID != 44 {
+		return ProtocolV2QueryActorProjection{}, ErrProtocolV2QueryActorDenied
+	}
+	return a.projection(actorUserID), nil
+}
+
+func (a consentIntegrationActors) AuthorizeProtocolV2QueryActor(
+	_ context.Context,
+	actorUserID int64,
+	claim queryregistry.PermissionClaim,
+) (ProtocolV2QueryActorProjection, error) {
+	if claim.PermissionPolicy != queryregistry.PermissionPolicyLogin ||
+		(actorUserID != 42 && actorUserID != 43 && actorUserID != 44) {
+		return ProtocolV2QueryActorProjection{}, ErrProtocolV2QueryActorDenied
+	}
+	return a.projection(actorUserID), nil
+}
+
+type consentIntegrationAdmission struct{}
+
+func (consentIntegrationAdmission) AuthorizeProtocolV2QueryCaller(context.Context, *protocolv2.ExtensionIdentity) error {
+	return nil
+}
+
+type consentIntegrationCapabilities struct{}
+
+func (consentIntegrationCapabilities) AuthorizeProtocolV2QueryCapability(
+	context.Context,
+	*protocolv2.ExtensionIdentity,
+	string,
+) error {
+	return nil
 }

@@ -278,6 +278,18 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **同意式 email 读取面（2026-10-18）**：新增高风险能力 `users.email.read` 与
+  `sforum.core.identity.self_email@1`（结果 schema `sforum.core.self_email@1`，
+  字段 `email`/`email_verified`/`updated_at`）。定义只声明一次，执行出口是它的
+  显式 Query Registry 投影 `core.query.identity.self_email`：宿主只在
+  route/admin 调用、有活 actor、精确制品声明能力时签发单次 query 委派
+  （`scope="route"`、`MaxCost=50`、`RequestContext.HostQueryDelegations`），
+  actorless 稳定入口对 `ConsentGated` 定义一律拒绝。执行侧 capability +
+  60/min/(actor,extension) 限流 + 每次成功读取一条
+  `identity.email.consent.read` 审计（无值）。`sforum_core_v1` 与公开查询零改动。
+  参考 fixture `sforum-consented-claim-reference` 通过参考包门禁 13/13。
+  详见 `sessions/2026-10-18-consented-email-surface-handoff.md`、
+  `decisions/2026-10-18-consented-email-surface.md`。
 - **扩展复用 Core 附件（2026-10-18）**：计划 `2026-10-18-core-attachment-extension-api.md` 的 Core 侧落地——三条 Host Command（`sforum.attachments.extension.claim|release|list@1`）、公开读谓词拆分（匿名可读 vs 永久 URL）、卸载自动释放、`attachment.extension_reference_limit`（默认 500）。实现落在新包 `app/Models/Attachments/ExtensionReference`（扩展级 advisory 锁 + 按引用行重算计数，10 个真实 PostgreSQL 集成用例含并发不变式）。Go 全量测试通过；架构边界与改动前同样的 8 条既有失败（唯一新增越线是 `Models/Extensions/service.go` 1001→1003 行）。插件侧接线在 `sforum-oauth2-provider` 仓库，未在本仓库内。详见 `sessions/2026-10-18-core-attachment-extension-api-handoff.md`。
 - **dev watcher 自触发重建循环与 lifecycle 恢复修复（2026-10-18）**：`BuildBackend`/`WriteDigest` 幂等写守卫（内容不变不重写）终结 ~15 秒稳态重建循环；`recoverLatestFailedUpgrade` 补认 `cancelled` 终态（与 coordinator/recovery 语义对齐）；外部 `sforum-fetch-url` 补 lifecycle V2 声明 + no-op `runLifecycle`（dev-auto 自动 promote 生效）；删除损坏的 `sforum.marketplace` dev 脚手架。详见 `sessions/2026-10-18-dev-watcher-rebuild-loop-handoff.md`。
 - **插件数据面 E10 全量交付（2026-10-18，两段）**：第一段 = 政策 ADR + 五视图 + 稳定查询 4→9 + `int64_list` RPC 通道 + **授权解析器 V3 grants 修复**；第二段 = 管理端查询目录页 `/control-panel/extensions/query-catalog`（后端窄边界 + Nuxt 页 + 四个审核矩阵 + identities/生成目录 + OpenAPI + 计数 tripwire 372）+ 消费型参考 fixture `sforum-query-surface-reference`（`core_views` 授权、三查询聚合、参考包门禁 12/12）。Go 全量零失败；Web 1238/1239（唯一失败为 HEAD 既有的 CSP 文档策略测试，与本变更无关）。剩余：fixture 的 dev 链浏览器证据（操作者侧）。详见 `sessions/2026-10-18-plugin-data-surface-e10-handoff.md`。

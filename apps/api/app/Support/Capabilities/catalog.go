@@ -18,8 +18,12 @@ const (
 	SettingsOwn      = "settings.own"
 	PermissionsCheck = "permissions.check"
 	UsersRead        = "users.read"
-	AuditAppend      = "audit.append"
-	HostAPI          = "host.api"
+	// UsersEmailRead 允许插件通过「能力 + actor 委派」门控的同意式查询读取
+	// **调用者本人**的主邮箱。它永远不进入稳定视图或公开查询，也永远不授予
+	// 读取其他用户邮箱的权力；每次读取都由宿主审计。
+	UsersEmailRead = "users.email.read"
+	AuditAppend    = "audit.append"
+	HostAPI        = "host.api"
 	// AIInvoke 允许插件经宿主 AI 网关发起补全：成本记账、限流与审计都归宿主。
 	AIInvoke = "ai.invoke"
 	// EventsEmit 允许插件向宿主事件通道发布自身命名空间下的事件。
@@ -111,6 +115,13 @@ var catalog = []Definition{
 		LabelZH:     "读取用户信息",
 		LabelEN:     "Read user profiles",
 		Description: "Read safe, non-secret user fields through the Host API.",
+	},
+	{
+		Key:         UsersEmailRead,
+		Risk:        RiskHigh,
+		LabelZH:     "读取本人邮箱地址",
+		LabelEN:     "Read own email address",
+		Description: "Read the signed-in actor's own primary email address through the capability- and delegation-gated consent query. Never grants access to other users, never enters stable views, and every read is audited.",
 	},
 	{
 		Key:         ExtensionsRead,

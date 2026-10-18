@@ -146,9 +146,9 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 		return nil
 	}
 	// 精确制品 grant：dev 直通的信任语义仍然是「逐摘要」，只是执行者是 dev 自动机。
-	// 精确制品 grant 按原始 staged 视图写入——组件契约版本的晋升已前移到构建
-	// 阶段（BuildAndDigestDevPackage 直接写进源 manifest），快照/impact/registry
-	// 三处天然同源，无需任何视图改写。
+	// 精确制品 grant 按原始 staged 视图写入，不做任何视图改写：作者在 manifest
+	// 里声明的组件契约版本必须与它引用的 L2/props 制品同步变更（见
+	// validateComponentUpgrade），dev 通道不会替作者晋升契约版本。
 	if RequiresExecutableTrust(extension) && r.grants != nil {
 		target := extension
 		if staged, ok := extension.StagedArtifact(); ok && extension.Status != StatusDisabled {
@@ -171,12 +171,9 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 			return fmt.Errorf("staged digest %s requires a manual admin restart bridge (extension does not declare lifecycle V2)",
 				extension.StagedVersion.PackageDigest)
 		}
-		// 组件契约版本的晋升在 Service.Upgrade 内完成（按 dev-auto/ 键前缀识别，
-		// 对 target 视图统一改写——grant/authority/registry 三处同源）。此处只需
-		// 提供确定性键。V2 upgrade 要求 stable Idempotency-Key（HTTP 从请求头取）。
+		// V2 upgrade 要求 stable Idempotency-Key（HTTP 从请求头取）。
 
 		// extensionID+stagedDigest 派生确定性键：同摘要重放安全，新摘要即新键。
-		// Upgrade 依据键前缀在 target 视图上晋升组件契约版本（见该函数）。
 		idempotencyKey := DevIdempotencyKey(extension.ID, extension.StagedVersion.PackageDigest)
 		_, err = r.promoter.Upgrade(ctx, actor, extension.ID, UpgradeInput{
 			IdempotencyKey: idempotencyKey,

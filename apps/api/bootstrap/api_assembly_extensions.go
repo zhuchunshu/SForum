@@ -415,6 +415,9 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		hostAPIGateway,
 		queryTraceSink,
 		queryResultCache.Cache(),
+		withProductionQueryRegistryConsentGate(
+			newProductionQueryConsentGate(queryAuthority, auditWriter, sharedRedisClient),
+		),
 	); err != nil {
 		if stopErr := supportjobs.Stop(ctx, jobClient); stopErr != nil {
 			logger.Warn("job dispatcher stop failed", "error", stopErr)

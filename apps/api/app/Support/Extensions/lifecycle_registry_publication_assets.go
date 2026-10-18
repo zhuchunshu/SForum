@@ -746,6 +746,12 @@ func (b *PostgresLifecycleBoundaryRegistries) freezeAssetMaterial(
 	return refreshLifecycleRegistryMaterialDigest(material)
 }
 
+// lifecycleAssetPlanAttempts bounds how often one apply re-derives the graph
+// after a concurrent asset registry publication moved the revision. Registering
+// (prepare) and activation (apply) are separate steps, so any other publication
+// in between would otherwise fail the whole lifecycle operation.
+const lifecycleAssetPlanAttempts = 16
+
 type lifecycleAssetPlan struct {
 	mu       sync.Mutex
 	revision uint64
@@ -759,23 +765,39 @@ func (b *PostgresLifecycleBoundaryRegistries) prepareAssetPlan(
 	if b == nil || b.assets == nil {
 		return nil, nil
 	}
+	plan := &lifecycleAssetPlan{}
+	if err := b.rebuildAssetPlan(plan, source, target); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+// rebuildAssetPlan re-derives both graphs from one live registry snapshot. The
+// caller must hold plan.mu, or own a plan that is not published yet.
+func (b *PostgresLifecycleBoundaryRegistries) rebuildAssetPlan(
+	plan *lifecycleAssetPlan,
+	source, target *lifecycleRegistryMaterial,
+) error {
 	snapshot := b.assets.Snapshot()
 	extensionID := lifecycleComponentExtensionID(source, target)
 	if extensionID == "" {
-		return nil, ErrLifecycleRegistryPublicationInvalid
+		return ErrLifecycleRegistryPublicationInvalid
 	}
 	allowed := lifecycleAssetAllowedPublications(source, target)
 	sourceDesired := admittedAssetPublication(source)
 	targetDesired := admittedAssetPublication(target)
 	sourceGraph, err := lifecycleAssetGraph(snapshot.Publications, extensionID, sourceDesired, allowed)
 	if err != nil {
-		return nil, wrapLifecycleAssetError("prepare source asset graph", err)
+		return wrapLifecycleAssetError("prepare source asset graph", err)
 	}
 	targetGraph, err := lifecycleAssetGraph(snapshot.Publications, extensionID, targetDesired, allowed)
 	if err != nil {
-		return nil, wrapLifecycleAssetError("prepare target asset graph", err)
+		return wrapLifecycleAssetError("prepare target asset graph", err)
 	}
-	return &lifecycleAssetPlan{revision: snapshot.Revision, source: sourceGraph, target: targetGraph}, nil
+	plan.revision = snapshot.Revision
+	plan.source = sourceGraph
+	plan.target = targetGraph
+	return nil
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) applyAssetPlan(
@@ -801,6 +823,47 @@ func (b *PostgresLifecycleBoundaryRegistries) applyAssetPlan(
 	}
 	plan.revision = revision
 	return nil
+}
+
+// applyAssetPlanRetrying applies one prepared plan and re-derives it from the
+// live registry snapshot whenever a concurrent publication moved the revision.
+// Registering (prepare) and activation (apply) are separate lifecycle steps, so
+// any unrelated publication in between would otherwise fail the whole exact
+// operation even though its own graph is still consistent.
+func (b *PostgresLifecycleBoundaryRegistries) applyAssetPlanRetrying(
+	ctx context.Context,
+	plan *lifecycleAssetPlan,
+	phase LifecycleRegistryPublicationPhase,
+	source, target *lifecycleRegistryMaterial,
+) error {
+	if b == nil || b.assets == nil || plan == nil {
+		return nil
+	}
+	plan.mu.Lock()
+	defer plan.mu.Unlock()
+	for attempt := 0; attempt < lifecycleAssetPlanAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		desired := plan.source
+		if phase == LifecycleRegistryPublicationTarget {
+			desired = plan.target
+		}
+		revision, err := b.assets.ReplaceAllIfRevision(plan.revision, desired)
+		if err == nil {
+			plan.revision = revision
+			return nil
+		}
+		if !errors.Is(err, assetregistry.ErrRevisionConflict) {
+			return wrapLifecycleAssetError("apply asset registry graph", err)
+		}
+		// Re-derive from the live snapshot; lifecycleAssetGraph still fails
+		// closed when this owner's publication is not the exact source/target.
+		if rebuildErr := b.rebuildAssetPlan(plan, source, target); rebuildErr != nil {
+			return rebuildErr
+		}
+	}
+	return wrapLifecycleAssetError("apply asset registry graph", assetregistry.ErrRevisionConflict)
 }
 
 func lifecycleAssetGraph(

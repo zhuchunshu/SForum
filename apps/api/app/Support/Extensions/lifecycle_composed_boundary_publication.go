@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -402,7 +403,7 @@ func (b *ComposedLifecycleHostBoundary) failDeactivation(
 	defer cancel()
 	errs := restoreLifecycleTransactions(compensationCtx, transactions)
 	if len(errs) == 0 {
-		if err := b.resumeSourceAdmissions(compensationCtx, request); err != nil {
+		if err := b.resumeSourceAdmissionsDuringCompensation(compensationCtx, request); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -434,7 +435,7 @@ func (b *ComposedLifecycleHostBoundary) failBeforePublication(ctx context.Contex
 	if b.dependencies.Runtime == nil {
 		return lifecycleBoundaryFailure(cause, []error{lifecycleBoundaryMissing("exact runtime publication", request)})
 	}
-	if err := b.resumeSourceAdmissions(compensationCtx, request); err != nil {
+	if err := b.resumeSourceAdmissionsDuringCompensation(compensationCtx, request); err != nil {
 		return lifecycleBoundaryFailure(cause, []error{err})
 	}
 	return cause
@@ -580,6 +581,30 @@ func (b *ComposedLifecycleHostBoundary) resumeSourceAdmissions(ctx context.Conte
 		return fmt.Errorf("jobs and schedules: %w", err)
 	}
 	return nil
+}
+
+// resumeSourceAdmissionsDuringCompensation reopens the source surface while a
+// failed lifecycle step unwinds. A retry can run after the exact source
+// instance was already retired (draining/starting rotated it); there is then no
+// source surface left to reopen, so that state counts as converged. Treating it
+// as a compensation failure would keep the operation half-restored and hide the
+// real cause behind a secondary error.
+func (b *ComposedLifecycleHostBoundary) resumeSourceAdmissionsDuringCompensation(
+	ctx context.Context,
+	request LifecycleBoundaryRequest,
+) error {
+	err := b.resumeSourceAdmissions(ctx, request)
+	if err == nil || !lifecycleRuntimeInstanceGone(err) {
+		return err
+	}
+	slog.WarnContext(ctx, "lifecycle compensation: source runtime already retired",
+		"extensionId", request.TargetExtension.ID,
+		"operation", request.Operation, "position", request.Position, "error", err)
+	return nil
+}
+
+func lifecycleRuntimeInstanceGone(err error) bool {
+	return errors.Is(err, ErrRuntimeInstanceNotActive) || errors.Is(err, ErrRuntimeInstanceNotFound)
 }
 
 func (b *ComposedLifecycleHostBoundary) requireLifecycleSourceResumeProof(

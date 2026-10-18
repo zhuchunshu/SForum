@@ -158,6 +158,11 @@ type PostgresLifecycleBoundaryRegistries struct {
 	entity           *entityregistry.Registry
 	assetAuthority   LifecycleAssetAuthority
 	assetAdmission   LifecycleAssetAdmission
+	// identitySuppressed lists plugins whose durable Identity publication could
+	// not be proven exact during this boot. They stay unpublished (identity,
+	// routes, assets, pages, …) until a lifecycle operation republishes them, so
+	// one stale publication cannot keep the whole Host from starting.
+	identitySuppressed []string
 }
 
 func NewPostgresLifecycleBoundaryRegistries(config LifecycleRegistryBoundaryConfig) *PostgresLifecycleBoundaryRegistries {
@@ -782,7 +787,7 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 	if err := b.reconcileEntity(ctx, request.TargetExtension.ID, source, target, desired); err != nil {
 		return fmt.Errorf("entity registry: %w", err)
 	}
-	if err := b.applyAssetPlan(ctx, assetPlan, phase); err != nil {
+	if err := b.applyAssetPlanRetrying(ctx, assetPlan, phase, source, target); err != nil {
 		return fmt.Errorf("asset registry: %w", err)
 	}
 	if err := b.reconcileServices(request.TargetExtension.ID, source, target, desired, phase); err != nil {

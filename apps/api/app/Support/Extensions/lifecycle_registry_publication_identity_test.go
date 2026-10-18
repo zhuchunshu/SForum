@@ -372,26 +372,24 @@ func TestLifecycleIdentityRootOnlyRestartRejectsOrphanActivePublication(t *testi
 
 // Mirrors the normal-dev DB startup blocker: an enabled permission-only fixture
 // (sforum.admin-surface-reference) with empty identity registry ledgers.
-// Stores without LegacyPublicationAdopter stay fail-closed on ErrNotFound.
-func TestLifecycleIdentityRestoreRejectsPermissionOnlyAdminSurfaceWithoutDurable(t *testing.T) {
+// Stores without LegacyPublicationAdopter never adopt; the owner is suppressed
+// for this boot instead of taking the whole Host down.
+func TestLifecycleIdentityRestoreSuppressesPermissionOnlyAdminSurfaceWithoutDurable(t *testing.T) {
 	extension := adminSurfaceReferencePermissionOnlyExtension(5866)
 	extension.Status = extensions.StatusEnabled
 	store := &memoryIdentityPublicationStore{}
 	boundary := &PostgresLifecycleBoundaryRegistries{
 		identity: identityregistry.New(), identityStore: store, identitySet: true,
 	}
-	err := boundary.restoreIdentityPublications(t.Context(), []extensions.Extension{extension}, false)
-	if !errors.Is(err, identityregistry.ErrNotFound) {
+	if err := boundary.restoreIdentityPublications(t.Context(), []extensions.Extension{extension}, false); err != nil {
 		t.Fatalf("missing durable restore error=%v", err)
 	}
-	if !strings.Contains(err.Error(), "sforum.admin-surface-reference") {
-		t.Fatalf("restore error must name the owner extension: %v", err)
-	}
-	if !strings.Contains(err.Error(), "validate durable identity publication for sforum.admin-surface-reference") {
-		t.Fatalf("restore error must keep the action context: %v", err)
+	if suppressed := boundary.SuppressedIdentityExtensions(); len(suppressed) != 1 ||
+		suppressed[0] != "sforum.admin-surface-reference" {
+		t.Fatalf("suppressed extensions=%v", suppressed)
 	}
 	if snapshot := boundary.identity.Snapshot(); snapshot.Revision != 0 || len(snapshot.Publications) != 0 {
-		t.Fatalf("failed restore must not publish process graph: %#v", snapshot)
+		t.Fatalf("suppressed restore must not publish process graph: %#v", snapshot)
 	}
 
 	// Allowed path: reconcile first (as lifecycle enable does), then restart restore.
@@ -469,13 +467,17 @@ func TestLifecycleIdentityRestoreAdoptsLegacyOnErrNotFoundOnly(t *testing.T) {
 	conflictBoundary := &PostgresLifecycleBoundaryRegistries{
 		identity: identityregistry.New(), identityStore: conflictStore, identitySet: true,
 	}
-	err = conflictBoundary.restoreIdentityPublications(t.Context(), []extensions.Extension{extension}, false)
-	if !errors.Is(err, ErrLifecycleRegistryPublicationConflict) ||
-		!strings.Contains(err.Error(), identityregistry.ErrArtifactConflict.Error()) {
+	if err := conflictBoundary.restoreIdentityPublications(t.Context(), []extensions.Extension{extension}, false); err != nil {
 		t.Fatalf("artifact conflict restore error=%v", err)
 	}
 	if conflictStore.adoptCalls != 0 {
 		t.Fatalf("adopter must not run on ErrArtifactConflict: calls=%d", conflictStore.adoptCalls)
+	}
+	if suppressed := conflictBoundary.SuppressedIdentityExtensions(); len(suppressed) != 1 || suppressed[0] != extension.ID {
+		t.Fatalf("artifact conflict suppressed=%v", suppressed)
+	}
+	if snapshot := conflictBoundary.identity.Snapshot(); len(snapshot.Publications) != 0 {
+		t.Fatalf("artifact conflict must not publish: %#v", snapshot)
 	}
 }
 
@@ -513,9 +515,11 @@ func TestLifecycleIdentityRestoreAdoptsLegacyBatchOnce(t *testing.T) {
 	noBoundary := &PostgresLifecycleBoundaryRegistries{
 		identity: identityregistry.New(), identityStore: noAdopter, identitySet: true,
 	}
-	err := noBoundary.restoreIdentityPublications(t.Context(), []extensions.Extension{first}, false)
-	if !errors.Is(err, identityregistry.ErrNotFound) {
+	if err := noBoundary.restoreIdentityPublications(t.Context(), []extensions.Extension{first}, false); err != nil {
 		t.Fatalf("no adopter error=%v", err)
+	}
+	if suppressed := noBoundary.SuppressedIdentityExtensions(); len(suppressed) != 1 || suppressed[0] != first.ID {
+		t.Fatalf("no adopter suppressed=%v", suppressed)
 	}
 	if snapshot := noBoundary.identity.Snapshot(); len(snapshot.Publications) != 0 {
 		t.Fatalf("no adopter must not publish: %#v", snapshot)
@@ -657,8 +661,14 @@ func TestLifecycleIdentityRestartSafeModeAndConditionalDependencies(t *testing.T
 	}
 	if err := staleBoundary.restoreIdentityPublications(
 		t.Context(), []extensions.Extension{extension}, false,
-	); !errors.Is(err, ErrLifecycleRegistryPublicationConflict) {
+	); err != nil {
 		t.Fatalf("tombstoned restart error = %v", err)
+	}
+	if suppressed := staleBoundary.SuppressedIdentityExtensions(); len(suppressed) != 1 || suppressed[0] != extension.ID {
+		t.Fatalf("tombstoned restart suppressed=%v", suppressed)
+	}
+	if snapshot := staleBoundary.identity.Snapshot(); len(snapshot.Publications) != 0 {
+		t.Fatalf("tombstoned restart must not publish: %#v", snapshot)
 	}
 	recovery := &memoryLifecycleIdentityStartupRecovery{store: store}
 	recoveredBoundary := &PostgresLifecycleBoundaryRegistries{

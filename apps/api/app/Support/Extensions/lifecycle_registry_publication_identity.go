@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 
@@ -164,6 +165,7 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreIdentityPublications(
 	if err != nil {
 		return wrapLifecycleIdentityError("load durable identity registry", err)
 	}
+	b.identitySuppressed = nil
 
 	pluginPublications := make([]identityregistry.Publication, 0, len(items))
 	validatedPublications := make([]identityregistry.Publication, 0, len(items))
@@ -251,6 +253,7 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreIdentityPublications(
 		// Collect every missing publication first, then invoke the adopter ONCE.
 		adopter, hasAdopter := b.identityStore.(identityregistry.LegacyPublicationAdopter)
 		missing := make([]identityregistry.Publication, 0)
+		suppressed := make(map[string]error)
 		for _, item := range expected {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -273,20 +276,18 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreIdentityPublications(
 			}
 			if validateErr != nil {
 				if !errors.Is(validateErr, identityregistry.ErrNotFound) {
-					action := "validate durable identity publication for " + item.extensionID
-					if item.suppressed {
-						action = "validate suppressed durable identity publication for " + item.extensionID
-					}
-					// Keep the owner id in the wrapped error so pre-upgrade enabled
-					// plugins without durable identity history are operator-actionable.
-					return wrapLifecycleIdentityError(action, validateErr)
+					// One plugin whose enabled artifact and durable publication
+					// disagree must not take the whole Host down: the enabled
+					// artifact can advance ahead of the publication when a
+					// lifecycle activation is interrupted. Keep that owner
+					// unpublished for this boot (exact-fence semantics stay
+					// closed) and let the next enable/upgrade republish it.
+					suppressed[item.extensionID] = validateErr
+					continue
 				}
 				if !hasAdopter {
-					action := "validate durable identity publication for " + item.extensionID
-					if item.suppressed {
-						action = "validate suppressed durable identity publication for " + item.extensionID
-					}
-					return wrapLifecycleIdentityError(action, validateErr)
+					suppressed[item.extensionID] = validateErr
+					continue
 				}
 				missing = append(missing, item.publication)
 			}
@@ -294,6 +295,15 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreIdentityPublications(
 			if !item.suppressed {
 				pluginPublications = append(pluginPublications, item.publication)
 			}
+		}
+		if len(suppressed) > 0 {
+			for extensionID, cause := range suppressed {
+				b.identitySuppressed = append(b.identitySuppressed, extensionID)
+				slog.ErrorContext(ctx, "extension identity publication suppressed for this boot",
+					"extensionId", extensionID, "error", cause)
+			}
+			sort.Strings(b.identitySuppressed)
+			durable = durableStateWithoutOwners(durable, suppressed)
 		}
 		if len(missing) > 0 {
 			if _, adoptErr := adopter.AdoptLegacyPublications(ctx, missing); adoptErr != nil {
@@ -311,7 +321,7 @@ func (b *PostgresLifecycleBoundaryRegistries) restoreIdentityPublications(
 			if reloadErr != nil {
 				return wrapLifecycleIdentityError("reload durable identity registry after adoption", reloadErr)
 			}
-			durable = reloaded
+			durable = durableStateWithoutOwners(reloaded, suppressed)
 			// Re-validate the full expected set before any in-memory publish.
 			if revalidateErr := identityregistry.ValidateDurablePublicationSet(durable, validatedPublications); revalidateErr != nil {
 				return wrapLifecycleIdentityError("validate adopted durable identity publication set", revalidateErr)
@@ -351,6 +361,52 @@ func lifecycleIdentityRestoreRequired(b *PostgresLifecycleBoundaryRegistries, it
 		}
 	}
 	return false
+}
+
+// durableStateWithoutOwners drops every owner in skip from the durable snapshot.
+// Startup uses it to validate the rest of the expected set after one plugin's
+// publication was suppressed, without touching the immutable durable history.
+func durableStateWithoutOwners(
+	state identityregistry.DurableState,
+	skip map[string]error,
+) identityregistry.DurableState {
+	if len(skip) == 0 {
+		return state
+	}
+	pruned := identityregistry.DurableState{
+		Owners:   make([]identityregistry.DurableOwner, 0, len(state.Owners)),
+		Tips:     make([]identityregistry.DurableDeclarationTip, 0, len(state.Tips)),
+		RootTips: make([]identityregistry.DurableRootPublicationTip, 0, len(state.RootTips)),
+	}
+	for _, owner := range state.Owners {
+		if _, dropped := skip[owner.OwnerExtensionID]; dropped {
+			continue
+		}
+		pruned.Owners = append(pruned.Owners, owner)
+	}
+	for _, tip := range state.Tips {
+		if _, dropped := skip[tip.OwnerExtensionID]; dropped {
+			continue
+		}
+		pruned.Tips = append(pruned.Tips, tip)
+	}
+	for _, tip := range state.RootTips {
+		if _, dropped := skip[tip.OwnerExtensionID]; dropped {
+			continue
+		}
+		pruned.RootTips = append(pruned.RootTips, tip)
+	}
+	return pruned
+}
+
+// SuppressedIdentityExtensions reports the plugins whose durable Identity
+// publication was suppressed during this boot. They are published nowhere until
+// a lifecycle operation republishes them.
+func (b *PostgresLifecycleBoundaryRegistries) SuppressedIdentityExtensions() []string {
+	if b == nil || len(b.identitySuppressed) == 0 {
+		return nil
+	}
+	return append([]string(nil), b.identitySuppressed...)
 }
 
 func coreLifecycleIdentityPublications(input []identityregistry.Publication) []identityregistry.Publication {

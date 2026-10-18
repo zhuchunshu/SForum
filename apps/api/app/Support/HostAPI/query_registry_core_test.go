@@ -124,6 +124,14 @@ func TestQueryRegistryCoreCatalogSealsPublicationsBindingsAndSchemas(t *testing.
 			ResultSchema:     QueryPublicCategorySchemaID + "@" + QueryStableCoreResultSchemaV1,
 			PermissionPolicy: queryregistry.PermissionPolicyPublic, Pagination: queryregistry.PaginationOffset,
 		},
+		// 同意式读取：login 策略 + 单行分页；它只经 host 签发的委派执行。
+		QuerySelfEmail: {
+			HostQueryID: QuerySelfEmail, HostPlanVersion: QueryStableCorePlanVersion,
+			QueryID: QuerySelfEmailRegistryID, ContractVersion: QuerySelfEmailRegistryContractVersion,
+			Entity: "core.query.identity.self_email", PlanVersion: QuerySelfEmailRegistryPlanVersion,
+			ResultSchema:     QuerySelfEmailSchemaID + "@" + QueryStableCoreResultSchemaV1,
+			PermissionPolicy: queryregistry.PermissionPolicyLogin, Pagination: queryregistry.PaginationNone,
+		},
 	}
 	for _, definition := range shortcodeProjectionProtocolV2QueryDefinitions() {
 		mapping, ok := shortcodeProjectionCoreMapping(definition)
@@ -532,7 +540,8 @@ func queryRegistryCoreFixtureRow(t *testing.T, definition protocolV2QueryDefinit
 	row := queryregistry.QueryRow{}
 	for _, field := range definition.Fields {
 		switch field.Name {
-		case "is_pinned", "owning_topic_public", "authenticated", "is_resource_author", "is_topic_author", "eligible":
+		case "is_pinned", "owning_topic_public", "authenticated", "is_resource_author", "is_topic_author", "eligible",
+			"email_verified":
 			row[field.Name] = false
 		case "image_width", "image_height", "avatar_image_width", "avatar_image_height":
 			row[field.Name] = nil

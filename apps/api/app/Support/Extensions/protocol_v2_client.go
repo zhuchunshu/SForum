@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
 	supportjobs "github.com/zhuchunshu/sforum/apps/api/app/Support/Jobs"
@@ -74,8 +75,10 @@ type protocolV2ClientConfig struct {
 	hostAPI            ProtocolV2HostRegistrar
 	delegations        hostapi.ProtocolV2ActorDelegationBundleIssuer
 	shortcodeQueries   hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer
+	queryDelegations   hostapi.ProtocolV2QueryActorDelegationIssuer
 	sessionDelegations hostapi.ProtocolV2SessionDelegationIssuer
 	hostCommands       bool
+	capabilities       capabilities.Set
 	hostBrokerID       uint32
 }
 
@@ -103,8 +106,10 @@ type protocolV2Client struct {
 	hostBrokerID       uint32
 	delegations        hostapi.ProtocolV2ActorDelegationBundleIssuer
 	shortcodeQueries   hostapi.ProtocolV2ShortcodeProjectionDelegationBundleIssuer
+	queryDelegations   hostapi.ProtocolV2QueryActorDelegationIssuer
 	sessionDelegations hostapi.ProtocolV2SessionDelegationIssuer
 	hostCommands       bool
+	capabilities       capabilities.Set
 	serviceMu          sync.RWMutex
 	services           []*protocolv2.ServiceDescriptor
 	sequence           atomic.Uint64
@@ -146,8 +151,10 @@ func newProtocolV2Client(client pluginv2.PluginRuntimeServiceClient, config prot
 		lifecycle:          cloneManifestLifecycle(config.lifecycle),
 		token:              append([]byte(nil), config.token...), instance: config.instance, hostBrokerID: config.hostBrokerID,
 		delegations: config.delegations, shortcodeQueries: config.shortcodeQueries,
+		queryDelegations:   config.queryDelegations,
 		sessionDelegations: config.sessionDelegations,
 		hostCommands:       config.hostCommands,
+		capabilities:       config.capabilities,
 	}
 }
 
@@ -273,8 +280,10 @@ func (s *ProtocolStarter) protocolV2ClientConfig(
 		hostAPI:            protocolV2HostRegistrarFor(s.hostAPI),
 		delegations:        protocolV2ActorDelegationBundleIssuerFor(s.hostAPI),
 		shortcodeQueries:   protocolV2ShortcodeProjectionDelegationIssuerFor(s.hostAPI),
+		queryDelegations:   protocolV2ConsentQueryDelegationIssuerFor(s.hostAPI),
 		sessionDelegations: protocolV2SessionDelegationIssuerFor(s.hostAPI),
 		hostCommands:       extensionmanifest.HasDatabaseGrant(extension.Manifest.Database, extensionmanifest.DatabaseGrantHostCommands),
+		capabilities:       protocolV2CapabilitySet(extension.CapabilityGrants),
 	}, nil
 }
 
@@ -813,43 +822,6 @@ func cloneManifestHooks(items []extensions.ManifestHook) []extensions.ManifestHo
 		result[index] = cloneManifestHook(item)
 	}
 	return result
-}
-
-func protocolV2SchemaRef(reference string) (string, string, error) {
-	reference = strings.TrimSpace(reference)
-	index := strings.LastIndexByte(reference, '@')
-	if index <= 0 || index == len(reference)-1 {
-		return "", "", fmt.Errorf("protocol v2 schema reference %q is invalid", reference)
-	}
-	version := reference[index+1:]
-	if version[0] == '0' {
-		return "", "", fmt.Errorf("protocol v2 schema reference %q is invalid", reference)
-	}
-	for _, value := range version {
-		if value < '0' || value > '9' {
-			return "", "", fmt.Errorf("protocol v2 schema reference %q is invalid", reference)
-		}
-	}
-	return reference[:index], version, nil
-}
-
-func protocolV2PatchSchemaRef(resultSchema string) (string, error) {
-	schemaID, version, err := protocolV2SchemaRef(resultSchema)
-	if err != nil {
-		return "", err
-	}
-	return schemaID + ".patch@" + version, nil
-}
-
-func validateProtocolV2DocumentRef(document *protocolv2.TypedDocument, reference, label string) error {
-	schemaID, version, err := protocolV2SchemaRef(reference)
-	if err != nil {
-		return err
-	}
-	if document == nil || document.GetSchemaId() != schemaID || document.GetSchemaVersion() != version {
-		return fmt.Errorf("protocol v2 %s must match schema %q", label, reference)
-	}
-	return nil
 }
 
 func (c *protocolV2Client) ProviderProbe(input ProviderProbeRequest) (ProviderProbeResponse, error) {

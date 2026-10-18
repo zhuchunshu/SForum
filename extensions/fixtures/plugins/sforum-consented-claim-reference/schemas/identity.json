@@ -1,0 +1,21 @@
+{
+  "$id": "sforum.consented-claim-reference.identity@1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "authenticated",
+    "consentAvailable",
+    "emailPresent",
+    "emailVerified",
+    "emailUpdatedAt",
+    "hostQueryOutcome"
+  ],
+  "properties": {
+    "authenticated": { "type": "boolean" },
+    "consentAvailable": { "type": "boolean" },
+    "emailPresent": { "type": "boolean" },
+    "emailVerified": { "type": ["boolean", "null"] },
+    "emailUpdatedAt": { "type": ["string", "null"] },
+    "hostQueryOutcome": { "type": "string" }
+  }
+}
