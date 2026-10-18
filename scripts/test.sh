@@ -27,6 +27,9 @@ echo "Running full web unit tests..."
 echo "Building production web app..."
 (cd apps/web && bun run build)
 
+echo "Validating runtime timezone data..."
+node tests/validate-runtime-tzdata.mjs
+
 echo "Building Go commands..."
 (cd apps/api && go build ./...)
 

@@ -8,6 +8,7 @@ import (
 
 	semver "github.com/Masterminds/semver/v3"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	timezone "github.com/zhuchunshu/sforum/apps/api/app/Support/Timezone"
 )
 
 var (
@@ -328,7 +329,7 @@ func (v *v3Validator) validateHooksEventsJobsAndProviders() error {
 			return ErrInvalidManifest
 		}
 		if schedule.Timezone != "" {
-			if _, err := time.LoadLocation(schedule.Timezone); err != nil {
+			if _, err := timezone.Load(schedule.Timezone); err != nil {
 				return ErrInvalidManifest
 			}
 		}

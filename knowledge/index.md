@@ -278,6 +278,7 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **站点时区保存失败修复（2026-10-18）**：容器镜像（alpine，无 `/usr/share/zoneinfo`，`CGO_ENABLED=0`，未内嵌 `time/tzdata`）里 `time.LoadLocation` 拒绝所有非 UTC 时区，后台改时区保存返回 422 `options.invalid`（发布镜像 v3.0.9 内已复现；本机 dev 正常）。新增 `app/Support/Timezone`（内嵌 tzdata + `Load`），替换 options / ExtensionManifest / Jobs 三处调用；`tests/validate-runtime-tzdata.mjs` 接入 `scripts/test.sh` 做回归门禁。修复后 CGO off 探针在 alpine:3.22 内解析非 UTC 时区全部成功。详见 `sessions/2026-10-18-site-timezone-save-fix.md`、`decisions/2026-10-18-embed-tzdata.md`。
 - **同意式 email 读取面（2026-10-18）**：新增高风险能力 `users.email.read` 与
   `sforum.core.identity.self_email@1`（结果 schema `sforum.core.self_email@1`，
   字段 `email`/`email_verified`/`updated_at`）。定义只声明一次，执行出口是它的

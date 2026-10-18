@@ -290,10 +290,19 @@ skin behavior without admin session.
 - Site datetime display options are public runtime values managed under
   Site Settings → Basic. Defaults: `site.timezone=UTC`,
   `site.date_format=Y-m-d`, `site.time_format=H:i`, `site.start_of_week=1`
-  (Monday). Timezone must be a valid IANA name (`time.LoadLocation`); date and
-  time formats are whitelist presets. Storage remains UTC; frontend
-  `useSiteDateTime()` / `utils/siteDateTime.ts` format timestamps for display.
-  Admin UI supports one-click restore of recommended datetime defaults.
+  (Monday). Timezone must be a valid IANA name resolved through
+  `app/Support/Timezone` (`timezone.Load`); date and time formats are
+  whitelist presets. Storage remains UTC; frontend `useSiteDateTime()` /
+  `utils/siteDateTime.ts` format timestamps for display. Admin UI supports
+  one-click restore of recommended datetime defaults.
+  **Runtime invariant (2026-10-18):** the `Timezone` package blank-imports
+  `time/tzdata`, so API/worker binaries keep resolving non-UTC zones inside
+  images without `/usr/share/zoneinfo` (alpine/scratch/distroless). Host-side
+  code must call `timezone.Load`, never `time.LoadLocation` directly; without
+  the embedded database every non-UTC timezone save fails with HTTP 422
+  `options.invalid` in containers. Guard:
+  `tests/validate-runtime-tzdata.mjs`. Decision:
+  `decisions/2026-10-18-embed-tzdata.md`.
 - `site.tagline` is optional public short text (max 160 runes) for navbar/auth
   branding; it is not SEO description (`seo.home.description`). Default theme
   `SFNavbar` shows it under the site name when non-empty.

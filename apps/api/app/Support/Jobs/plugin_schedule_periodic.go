@@ -9,6 +9,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 	"github.com/robfig/cron/v3"
+	timezone "github.com/zhuchunshu/sforum/apps/api/app/Support/Timezone"
 )
 
 const PluginScheduleTriggerKind = "extension.plugin_schedule_trigger"
@@ -154,7 +155,7 @@ func buildPluginPeriodicJobs(runtime PluginScheduleRuntime) ([]*river.PeriodicJo
 	return jobs, ids, nil
 }
 
-func pluginPeriodicSchedule(expression, timezone string) (river.PeriodicSchedule, error) {
+func pluginPeriodicSchedule(expression, zone string) (river.PeriodicSchedule, error) {
 	expression = strings.TrimSpace(expression)
 	if strings.HasPrefix(expression, "@every ") {
 		interval, err := time.ParseDuration(strings.TrimSpace(strings.TrimPrefix(expression, "@every ")))
@@ -163,7 +164,7 @@ func pluginPeriodicSchedule(expression, timezone string) (river.PeriodicSchedule
 		}
 		return river.PeriodicInterval(interval), nil
 	}
-	location, err := time.LoadLocation(strings.TrimSpace(timezone))
+	location, err := timezone.Load(zone)
 	if err != nil {
 		return nil, err
 	}

@@ -3,9 +3,9 @@ package options
 import (
 	"strconv"
 	"strings"
-	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
+	timezone "github.com/zhuchunshu/sforum/apps/api/app/Support/Timezone"
 )
 
 // 推荐默认：UTC 时区 + 中文社区常用的年月日与 24 小时制 + 周一为一周起始。
@@ -65,8 +65,9 @@ func normalizeSiteTimezone(value string) (string, bool) {
 	if value == "" {
 		return "", false
 	}
-	// 使用 Go 标准库加载 IANA 时区；无效名称直接拒绝。
-	if _, err := time.LoadLocation(value); err != nil {
+	// 通过 Support/Timezone 加载 IANA 时区（该包内嵌 tzdata，容器内无系统
+	// zoneinfo 时仍可用）；无效名称直接拒绝。
+	if _, err := timezone.Load(value); err != nil {
 		return "", false
 	}
 	return value, true
