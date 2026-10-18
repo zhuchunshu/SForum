@@ -394,12 +394,13 @@ func (b *PostgresLifecycleBoundaryRegistries) ValidateLifecycleRegistries(
 	if _, err := b.prepareAssetPlan(source, target); err != nil {
 		return err
 	}
-	return b.validatePreparedLifecycleRegistries(ctx, source, target)
+	return b.validatePreparedLifecycleRegistries(ctx, source, target, request.artifactLoader)
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistries(
 	ctx context.Context,
 	source, target *lifecycleRegistryMaterial,
+	loader *extensionopenapi.ArtifactLoader,
 ) error {
 	if err := b.validateNotificationTransition(target); err != nil {
 		return err
@@ -466,7 +467,7 @@ func (b *PostgresLifecycleBoundaryRegistries) validatePreparedLifecycleRegistrie
 			}
 		}
 	}
-	return b.validateLifecycleRoutePolicyStates(source, target)
+	return b.validateLifecycleRoutePolicyStates(ctx, source, target, loader)
 }
 
 func (b *PostgresLifecycleBoundaryRegistries) PrepareLifecycleRegistryPublication(
@@ -488,7 +489,7 @@ func (b *PostgresLifecycleBoundaryRegistries) PrepareLifecycleRegistryPublicatio
 	if err != nil {
 		return nil, err
 	}
-	if err := b.validatePreparedLifecycleRegistries(ctx, source, target); err != nil {
+	if err := b.validatePreparedLifecycleRegistries(ctx, source, target, request.artifactLoader); err != nil {
 		return nil, err
 	}
 	ref, err := b.repository.PrepareLifecycleRegistryPublication(ctx, PrepareLifecycleRegistryPublicationInput{
@@ -742,7 +743,7 @@ func (b *PostgresLifecycleBoundaryRegistries) reconcileLocalRegistries(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := b.validateLifecycleRoutePolicyState(request.TargetExtension.ID, desired, source, target, extensionopenapi.NewArtifactLoader()); err != nil {
+	if err := b.validateLifecycleRoutePolicyState(request.TargetExtension.ID, desired, source, target, request.artifactLoader); err != nil {
 		return fmt.Errorf("route policy registry: %w", err)
 	}
 	if phase == LifecycleRegistryPublicationTarget && desired != nil {

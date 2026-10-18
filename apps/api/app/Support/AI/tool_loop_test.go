@@ -406,3 +406,77 @@ func TestToolRegistryAvailableReportsOriginSorted(t *testing.T) {
 		t.Fatalf("empty registry must report no tools, got %#v", got)
 	}
 }
+
+// 登记表是可替换的：插件启用/停用/升级之后调用方整体换表，因此 Replace 的语义
+// 必须是「这批就是全部」，而不是「追加一批」。
+func TestToolRegistryReplaceSwapsWholeSetAndKeepsPreviousOnFailure(t *testing.T) {
+	registry := ai.NewToolRegistry()
+	if err := registry.Replace([]ai.Tool{&fakeTool{name: "first-tool"}}); err != nil {
+		t.Fatalf("replace with a single tool: %v", err)
+	}
+	if err := registry.Replace([]ai.Tool{&fakeTool{name: "second-tool"}}); err != nil {
+		t.Fatalf("replace with another single tool: %v", err)
+	}
+	if _, ok := registry.Lookup("first-tool"); ok {
+		t.Fatal("replace must drop tools outside the new set")
+	}
+	if _, ok := registry.Lookup("second-tool"); !ok {
+		t.Fatal("replace must install the new set")
+	}
+
+	for name, tools := range map[string][]ai.Tool{
+		"invalid name": {&fakeTool{name: "second.tool"}},
+		"duplicate":    {&fakeTool{name: "second-tool"}, &fakeTool{name: "second-tool"}},
+		"nil tool":     {nil},
+	} {
+		if err := registry.Replace(tools); err == nil {
+			t.Fatalf("%s must be rejected before the table changes", name)
+		}
+		if _, ok := registry.Lookup("second-tool"); !ok {
+			t.Fatalf("%s left the previous table replaced", name)
+		}
+		if got := registry.Tools(); len(got) != 1 {
+			t.Fatalf("%s changed the table size: %#v", name, got)
+		}
+	}
+}
+
+// 一次补全会多次读登记表（先取工具声明，再按名字派发），而换表发生在两次读取
+// 之间。这条测试在 -race 下钉住「读与换表不会互相撕裂」。
+func TestToolRegistryStaysConsistentWhileReplacedConcurrently(t *testing.T) {
+	registry := ai.NewToolRegistry()
+	if err := registry.Replace([]ai.Tool{&fakeTool{name: "racy-tool"}}); err != nil {
+		t.Fatalf("seed registry: %v", err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 500; i++ {
+			if _, ok := registry.Lookup("racy-tool"); !ok {
+				t.Error("lookup must never observe a half-replaced table")
+				return
+			}
+			if got := registry.Descriptors([]string{"racy-tool"}); len(got) != 1 {
+				t.Errorf("descriptors = %#v", got)
+				return
+			}
+			if got := registry.Available(); len(got) != 1 {
+				t.Errorf("available = %#v", got)
+				return
+			}
+			if got := registry.Tools(); len(got) != 1 {
+				t.Errorf("tools = %#v", got)
+				return
+			}
+		}
+	}()
+	for i := 0; i < 500; i++ {
+		if err := registry.Replace([]ai.Tool{&fakeTool{name: "racy-tool"}}); err != nil {
+			t.Fatalf("replace: %v", err)
+		}
+	}
+	<-done
+	if _, ok := registry.Lookup("racy-tool"); !ok {
+		t.Fatal("final table lost the tool")
+	}
+}

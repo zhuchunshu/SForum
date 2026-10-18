@@ -19,6 +19,7 @@ import (
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	capabilities "github.com/zhuchunshu/sforum/apps/api/app/Support/Capabilities"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
+	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
 )
 
 const DefaultTrustChallengeTTL = 5 * time.Minute
@@ -868,10 +869,15 @@ func canonicalTrustImpactDigest(impact TrustImpact) (string, error) {
 }
 
 func digestInstalledFile(extension Extension, relative string) (string, error) {
-	if _, ok := installedFilePath(extension, relative); !ok {
+	target, ok := installedFilePath(extension, relative)
+	if !ok {
 		return "", fmt.Errorf("%w: unsafe executable path %s", ErrFrontendPackageChanged, relative)
 	}
-	digest, err := digestStableExtensionFile(extension, relative, 0, false)
+	// 这里的「真实校验」仍是带 TOCTOU 防御的 digestStableExtensionFile；指纹未变
+	// 时跳过重复读取，避免每次可信身份计算都重读数十 MB 的后端二进制。
+	digest, err := extensionpackage.VerifiedFileDigestFunc(target, func() (string, error) {
+		return digestStableExtensionFile(extension, relative, 0, false)
+	})
 	if err != nil {
 		return "", fmt.Errorf("%w: executable path %s is unavailable: %v", ErrFrontendPackageChanged, relative, err)
 	}

@@ -1,18 +1,17 @@
 package extensionopenapi
 
 // ArtifactLoader memoizes loaded and digest-verified extension artifacts for the
-// duration of one synchronous caller, such as a single lifecycle registry
-// validation that compiles several candidate aggregates over the same immutable
-// artifact set.
+// duration of one lifecycle gate, which compiles several candidate aggregates
+// over the same immutable artifact set.
 //
 // A cache hit returns the exact contracts that were already parsed and verified
 // for that identity. The cost being skipped is re-reading and re-hashing a
-// package tree that cannot have changed inside one synchronous call, because
+// package tree that cannot have changed inside one synchronous gate, because
 // loading a single package artifact verifies its complete tree digest and its
 // declared package files.
 //
 // The cache deliberately carries no TTL and is never process-global: it lives
-// exactly as long as the caller that created it, so exact-artifact verification
+// exactly as long as the gate that created it, so exact-artifact verification
 // still runs at least once per validation fence. Callers that need a fresh
 // verification build a new loader. A nil *ArtifactLoader disables reuse.
 type ArtifactLoader struct {

@@ -521,13 +521,29 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	//
 	// 恢复模式与 Safe Mode 下插件运行时并未启动，此时登记只会造出「看得见、
 	// 调不动」的工具，因此直接跳过。
+	//
+	// 这张表也不再是启动期快照：Core 工具是无状态的进程内对象，这里取一份快照，
+	// 之后每次期望集应用成功都由 aiToolRefresher 用「这份 Core 快照 + 最新已启用
+	// 插件工具」重建整张表。快照必须在插件登记之前取——否则插件工具会被当成
+	// Core 的一部分固化下来，停用插件也去不掉。
+	coreAITools := aiToolRegistry.Tools()
+	aiToolInvoker := providers.NewAIToolInvoker(lifecycleRuntime)
+	if extensionPlatform != nil && extensionPlatform.aiToolRefresh != nil {
+		extensionPlatform.aiToolRefresh.Arm((&aiToolRefresher{
+			registry: aiToolRegistry,
+			core:     coreAITools,
+			invoker:  aiToolInvoker,
+			store:    extensionStore,
+			logger:   logger,
+		}).Refresh, logger)
+	}
 	if !cfg.SafeMode && !pluginRuntimeRecovery.Active() {
 		pluginItems, listErr := extensionStore.List(ctx)
 		switch {
 		case listErr != nil:
 			logger.Warn("plugin AI tool registration skipped: list extensions failed", "error", listErr)
 		default:
-			for _, failure := range registerPluginAITools(aiToolRegistry, providers.NewAIToolInvoker(lifecycleRuntime), pluginItems) {
+			for _, failure := range registerPluginAITools(aiToolRegistry, aiToolInvoker, pluginItems) {
 				logger.Warn("plugin AI tool registration skipped", "error", failure)
 			}
 		}

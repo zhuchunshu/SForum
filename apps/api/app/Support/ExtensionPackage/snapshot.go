@@ -524,7 +524,9 @@ func verifyExistingSnapshot(root string, expectedDigest string) (bool, error) {
 	if !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
 		return true, fmt.Errorf("%w: %s is not a snapshot directory", ErrSnapshotConflict, root)
 	}
-	actual, err := DigestTree(root)
+	// 快照目录名就是它自己的内容摘要（内容寻址），因此同一路径的内容不可变：
+	// 复用记忆化校验，避免每次重新读取整棵快照树。摘要不符仍然报错。
+	actual, err := VerifiedTreeDigest(root)
 	if err != nil {
 		return true, fmt.Errorf("%w: %v", ErrSnapshotConflict, err)
 	}

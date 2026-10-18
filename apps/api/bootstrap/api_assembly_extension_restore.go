@@ -27,6 +27,9 @@ type apiExtensionRestoreInput struct {
 	lifecycleRuntime       *extensionsruntime.Manager
 	lifecycleStack         *productionLifecycleStack
 	systemTierOrder        []string
+	// aiToolRefresh 在期望集应用成功后重建 AI 工具登记表。它由扩展平台装配阶段
+	// 创建、领域装配阶段 Arm，因此这里只负责把它交给协调器。
+	aiToolRefresh *aiToolRefreshHook
 }
 
 type apiExtensionRuntimeState struct {
@@ -35,6 +38,7 @@ type apiExtensionRuntimeState struct {
 	pluginRuntimeStopTimeout     time.Duration
 	stopPluginRuntimeCoordinator func()
 	closePluginRuntime           func()
+	aiToolRefresh                *aiToolRefreshHook
 }
 
 func restoreAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *slog.Logger, input apiExtensionRestoreInput) (*apiExtensionRuntimeState, error) {
@@ -147,12 +151,13 @@ func restoreAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger 
 		reconciledExtensions, err = reconcileAPIExtensionRuntime(ctx, true, extensionStore, extensionRuntime)
 	} else {
 		pluginRuntimeCoordinator, err = startPluginRuntimeCoordinator(ctx, pluginRuntimeCoordinatorBootstrapConfig{
-			ProcessRole: extensions.PluginRuntimeProcessAPI,
-			Store:       extensionStore,
-			Manager:     lifecycleRuntime,
-			Logger:      logger,
-			StopTimeout: cfg.WorkerShutdownTimeout,
-			TierOrder:   input.systemTierOrder,
+			ProcessRole:   extensions.PluginRuntimeProcessAPI,
+			Store:         extensionStore,
+			Manager:       lifecycleRuntime,
+			Logger:        logger,
+			StopTimeout:   cfg.WorkerShutdownTimeout,
+			TierOrder:     input.systemTierOrder,
+			AIToolRefresh: input.aiToolRefresh,
 		})
 		if err == nil {
 			reconciledExtensions, err = extensionStore.List(ctx)
@@ -225,6 +230,7 @@ func restoreAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger 
 		pluginRuntimeStopTimeout:     pluginRuntimeStopTimeout,
 		stopPluginRuntimeCoordinator: stopPluginRuntimeCoordinator,
 		closePluginRuntime:           closePluginRuntime,
+		aiToolRefresh:                input.aiToolRefresh,
 	}, nil
 }
 

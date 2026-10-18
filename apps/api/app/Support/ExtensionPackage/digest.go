@@ -25,6 +25,9 @@ var (
 type digestFile struct {
 	path string
 	full string
+	// info 是 WalkDir 已经取得的条目元数据。指纹判定复用它，避免为同一批
+	// 文件再 stat 一遍；hashFile 仍会自行 Lstat 以发现「哈希期间被改写」。
+	info fs.FileInfo
 }
 
 // DigestTree returns a stable SHA-256 digest for the complete regular-file tree.
@@ -56,15 +59,26 @@ func DigestAuthorTree(root string) (string, error) {
 }
 
 func digestTree(root string, skipNonArtifactDirs bool) (string, error) {
-	rootInfo, err := os.Lstat(root)
+	files, err := collectDigestFiles(root, skipNonArtifactDirs)
 	if err != nil {
 		return "", err
 	}
+	return hashDigestFiles(files)
+}
+
+// collectDigestFiles 收集受摘要约束的完整文件集合。它是 DigestTree 与
+// DigestAuthorTree 唯一的遍历实现；指纹缓存必须复用同一集合，否则指纹命中
+// 时的校验口径会与摘要不一致。
+func collectDigestFiles(root string, skipNonArtifactDirs bool) ([]digestFile, error) {
+	rootInfo, err := os.Lstat(root)
+	if err != nil {
+		return nil, err
+	}
 	if rootInfo.Mode()&fs.ModeSymlink != 0 {
-		return "", fmt.Errorf("%w: %s", ErrSymlink, root)
+		return nil, fmt.Errorf("%w: %s", ErrSymlink, root)
 	}
 	if !rootInfo.IsDir() {
-		return "", fmt.Errorf("%w: snapshot root %s", ErrNonRegular, root)
+		return nil, fmt.Errorf("%w: snapshot root %s", ErrNonRegular, root)
 	}
 
 	files := make([]digestFile, 0)
@@ -105,14 +119,19 @@ func digestTree(root string, skipNonArtifactDirs bool) (string, error) {
 			return fmt.Errorf("%w: duplicate normalized path %s", ErrInvalidPath, normalized)
 		}
 		seen[normalized] = struct{}{}
-		files = append(files, digestFile{path: normalized, full: current})
+		files = append(files, digestFile{path: normalized, full: current, info: info})
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	sort.Slice(files, func(i, j int) bool { return files[i].path < files[j].path })
+	return files, nil
+}
+
+// hashDigestFiles 计算文件集合的稳定摘要（顺序由 collectDigestFiles 固定）。
+func hashDigestFiles(files []digestFile) (string, error) {
 	digest := sha256.New()
 	for _, file := range files {
 		if err := hashFile(digest, file); err != nil {

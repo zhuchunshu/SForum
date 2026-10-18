@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
+	extensionopenapi "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionOpenAPI"
 )
 
 const lifecycleBoundaryResultSchema = "sforum.lifecycle.host-boundary@1"
@@ -39,6 +40,10 @@ type LifecycleBoundaryRequest struct {
 	ActorUserID     int64
 	AuditEventID    int64
 	actionResults   map[extensions.LifecycleMachineAction]json.RawMessage
+	// artifactLoader 让同一个 gate 内的多次 registry 校验共享同一批已加载且已
+	// 校验的制品（显式校验与发布准备读的是同一份冻结制品）。由
+	// RunLifecycleHostBoundary 创建，克隆时按值携带。
+	artifactLoader *extensionopenapi.ArtifactLoader
 }
 
 // ActionResult returns a fresh copy on every read. Delegates can inspect a
@@ -679,6 +684,7 @@ func newLifecycleBoundaryRequest(gate extensions.LifecycleCoordinatorGateRequest
 		SourceBinding: gate.SourceBinding, TargetBinding: gate.TargetBinding,
 		RemovalMode: gate.RemovalMode, Forced: gate.Forced,
 		ActorUserID: gate.ActorUserID, AuditEventID: gate.AuditEventID, actionResults: results,
+		artifactLoader: extensionopenapi.NewArtifactLoader(),
 	}, nil
 }
 

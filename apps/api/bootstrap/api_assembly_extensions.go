@@ -38,6 +38,9 @@ type apiExtensionPlatform struct {
 	hostPlatform             *productionHostPlatform
 	pluginRuntimeCoordinator *pluginRuntimeCoordinatorRuntime
 	pluginRuntimeRecovery    *health.RecoveryRequirement
+	// aiToolRefresh 是「插件运行时期望集已应用」到「AI 工具登记表重建」的槽位：
+	// 本阶段创建并装进协调器，领域阶段拿到 AI 登记表之后 Arm 它。
+	aiToolRefresh *aiToolRefreshHook
 	// commandDeferred 收集目录冻结时尚未就绪的宿主目标（事件总线、AI 网关）。
 	// 扩展平台阶段回填事件总线；AI 网关由领域阶段在拿到 Secret Store 后回填。
 	commandDeferred              *protocolV2CommandRuntimeDeferred
@@ -468,6 +471,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		return nil, fmt.Errorf("create identity user-field value store: %w", err)
 	}
 	hostAPIService.BindUsers(identityUserAdapter{store: identityStore, fields: userFieldValueStore})
+	aiToolRefresh := &aiToolRefreshHook{}
 	runtimeState, err := restoreAPIExtensionPlatform(ctx, cfg, logger, apiExtensionRestoreInput{
 		infrastructure:         infrastructure,
 		extensionService:       extensionService,
@@ -478,6 +482,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		lifecycleRuntime:       lifecycleRuntime,
 		lifecycleStack:         lifecycleStack,
 		systemTierOrder:        systemTierOrder,
+		aiToolRefresh:          aiToolRefresh,
 	})
 	if err != nil {
 		return nil, err
@@ -505,6 +510,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 		pluginRuntimeStopTimeout:     runtimeState.pluginRuntimeStopTimeout,
 		stopPluginRuntimeCoordinator: runtimeState.stopPluginRuntimeCoordinator,
 		closePluginRuntime:           runtimeState.closePluginRuntime,
+		aiToolRefresh:                runtimeState.aiToolRefresh,
 	}, nil
 }
 

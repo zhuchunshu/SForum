@@ -153,15 +153,20 @@ func startupRoutePublication(
 // lifecycle marker is prepared. This includes rollback to source and removal
 // to an absent source/target state.
 func (b *PostgresLifecycleBoundaryRegistries) validateLifecycleRoutePolicyStates(
+	ctx context.Context,
 	source, target *lifecycleRegistryMaterial,
+	loader *extensionopenapi.ArtifactLoader,
 ) error {
 	extensionID := lifecycleRoutePolicyExtensionID(source, target)
 	if extensionID == "" {
 		return ErrLifecycleRegistryPublicationInvalid
 	}
 	// 两种候选（source 相位、target 相位）读取的是同一批不可变制品：共享一次
-	// 加载与整树摘要校验，避免对同一批扩展包重复读取并重复 SHA-256。
-	loader := extensionopenapi.NewArtifactLoader()
+	// 加载与整树摘要校验。loader 由 gate 持有，因此同一 gate 内「校验 + 准备
+	// 发布」各跑一遍时也不会重复读取同一份包树。
+	if loader == nil {
+		loader = extensionopenapi.NewArtifactLoader()
+	}
 	if err := b.validateLifecycleRoutePolicyState(extensionID, source, source, target, loader); err != nil {
 		return err
 	}

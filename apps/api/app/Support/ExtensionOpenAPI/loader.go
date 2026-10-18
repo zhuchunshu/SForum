@@ -118,7 +118,7 @@ func loadArtifact(input Artifact, budget *resourceBudget, loader *ArtifactLoader
 	if err := loaded.validateReferences(); err != nil {
 		return nil, err
 	}
-	actualDigest, err := extensionpackage.DigestTree(input.Root)
+	actualDigest, err := extensionpackage.VerifiedTreeDigest(input.Root)
 	if err != nil || actualDigest != input.PackageDigest {
 		return nil, fmt.Errorf("%w: package digest mismatch after static inspection", ErrInvalidArtifact)
 	}

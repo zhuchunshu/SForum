@@ -18,7 +18,7 @@ import (
 
 // DevBuild 是「dev 自动激活」构建阶段的公共实现（host dev watcher 与
 // `sforum extension build/dev` CLI 共用）：
-//   - BuildBackend：backend/ 有 Go 源码时执行 go build -trimpath -o backend/plugin ./；
+//   - BuildBackend：backend/ 有 Go 源码时执行 go build -trimpath -buildvcs=false -o backend/plugin ./；
 //   - WriteDigest：等价于 `sforum extension digest --write`（含 assets[].integrity
 //     的 SRI 重算与 inline 声明摘要同步）。
 //
@@ -50,7 +50,7 @@ func BuildBackend(packageRoot string) error {
 	// 一致时不替换 backend/plugin——否则每次重建都会自触发 watch 事件,
 	// 形成「构建 → 写产物 → 事件 → 重建」的稳态循环。
 	staging := binary + ".tmp"
-	cmd := exec.Command("go", "build", "-trimpath", "-o", staging, "./")
+	cmd := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", staging, "./")
 	cmd.Dir = backendDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	output, err := cmd.CombinedOutput()
@@ -181,7 +181,7 @@ func WriteDigest(packageRoot string) (string, error) {
 }
 
 func extensionpackageRootDigest(packageRoot string) (string, error) {
-	tree, err := DigestTree(packageRoot)
+	tree, err := VerifiedTreeDigest(packageRoot)
 	if err != nil {
 		return "", err
 	}
@@ -290,6 +290,9 @@ func marshalManifestJSON(value any) ([]byte, error) {
 // BuildAndDigestDevPackage 是 dev watcher 的单包构建入口：
 // backend 构建（无后端源码时 no-op）→ digest 写回（含 SRI 重算）→ 返回根摘要。
 func BuildAndDigestDevPackage(packageRoot string) (string, error) {
+	// 构建会改写包内文件：先丢弃该根的记忆化校验结果，避免指纹窗口内的陈旧
+	// 复用；随后 WriteDigest 重新计算并写入新的记忆。
+	InvalidateVerification(packageRoot)
 	if err := BuildFrontend(packageRoot); err != nil {
 		return "", err
 	}

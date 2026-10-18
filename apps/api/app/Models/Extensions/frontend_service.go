@@ -403,7 +403,7 @@ func verifyInstalledPackageIdentity(extension Extension) error {
 	if expected == "" || strings.TrimSpace(extension.PackagePath) == "" {
 		return fmt.Errorf("%w: extension %s has no immutable package identity", ErrFrontendPackageChanged, extension.ID)
 	}
-	actual, err := extensionpackage.DigestTree(extension.PackagePath)
+	actual, err := extensionpackage.VerifiedTreeDigest(extension.PackagePath)
 	if err != nil {
 		return fmt.Errorf("%w: extension %s: %v", ErrFrontendPackageChanged, extension.ID, err)
 	}

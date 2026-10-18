@@ -72,6 +72,9 @@ type pluginRuntimeCoordinatorBootstrapConfig struct {
 	TierOrder         []string
 	// StartupWaitTimeout 是首轮收敛就绪的上界；<=0 用生产默认。
 	StartupWaitTimeout time.Duration
+	// AIToolRefresh 是期望集应用成功之后的 AI 工具登记表重建槽位。它可以为 nil
+	// （测试与 Safe Mode），此时协调器行为与从前完全一致。
+	AIToolRefresh *aiToolRefreshHook
 }
 
 type pluginRuntimeCoordinatorLaunchConfig struct {
@@ -199,13 +202,17 @@ func startPluginRuntimeCoordinator(
 			onError func(error),
 		) (pluginRuntimeCoordinatorRunner, error) {
 			// API 与 standalone worker 共用同一个 Protocol V2 full-set 收敛路径。
-			applier, err := newProductionPluginRuntimeFullSetApplier(
+			productionApplier, err := newProductionPluginRuntimeFullSetApplier(
 				config.Manager, config.Store,
 				config.TierOrder,
 			)
 			if err != nil {
 				return nil, fmt.Errorf("construct exact plugin runtime full-set applier: %w", err)
 			}
+			// 期望集应用成功后，顺带重建 AI 工具登记表：插件的启用/停用/升级因此
+			// 不必等一次 API 重启才被模型看见。装饰器只加一个 after-apply 动作，
+			// 收敛语义（fence、ack、失败判定）全部留在原适配器里。
+			applier := withAIToolRefreshApplier(productionApplier, config.AIToolRefresh)
 			notifications := extensions.NewPostgresPluginRuntimeNotifications(
 				config.Store,
 				extensions.DefaultPluginRuntimeReconnectDelay,
@@ -588,4 +595,40 @@ func newProductionPluginRuntimeFullSetApplier(
 	tierOrder ...[]string,
 ) (*extensionsruntime.ManagerPluginRuntimeFullSetApplier, error) {
 	return extensionsruntime.NewManagerPluginRuntimeFullSetApplier(manager, inventory, tierOrder...)
+}
+
+// aiToolRefreshApplier 在期望集应用成功之后触发 AI 工具登记表重建。
+//
+// 用装饰而不是改写适配器：应用语义（exact artifact 解析、Manager 级 transition
+// barrier、applied 证据）属于运行时收敛，AI 登记表只是它的一个下游读者。失败
+// 语义也刻意分开——应用失败原样返回，登记表重建失败只降级为「旧表 + 告警」。
+type aiToolRefreshApplier struct {
+	inner extensions.PluginRuntimeFullSetApplier
+	hook  *aiToolRefreshHook
+}
+
+var _ extensions.PluginRuntimeFullSetApplier = (*aiToolRefreshApplier)(nil)
+
+// withAIToolRefreshApplier 在 hook 为空时原样返回适配器：没有重建需求时不额外
+// 加一层间接，测试里对 applier 的类型与行为断言因此保持原状。
+func withAIToolRefreshApplier(
+	inner extensions.PluginRuntimeFullSetApplier,
+	hook *aiToolRefreshHook,
+) extensions.PluginRuntimeFullSetApplier {
+	if inner == nil || hook == nil {
+		return inner
+	}
+	return &aiToolRefreshApplier{inner: inner, hook: hook}
+}
+
+func (a *aiToolRefreshApplier) ApplyPluginRuntimeFullSet(
+	ctx context.Context,
+	publication extensions.PluginRuntimePublication,
+) ([]extensions.PluginRuntimeAppliedMember, error) {
+	applied, err := a.inner.ApplyPluginRuntimeFullSet(ctx, publication)
+	if err != nil {
+		return applied, err
+	}
+	a.hook.AfterApply(ctx, publication)
+	return applied, nil
 }
