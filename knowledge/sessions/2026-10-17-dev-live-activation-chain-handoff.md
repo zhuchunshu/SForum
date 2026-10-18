@@ -1,7 +1,18 @@
 # 2026-10-17 Session Handoff — dev 循环「保存即生效」激活链
 
 ## Changed
-## Changed
+
+- 追加（同日第九轮，移除资产重发布竞态源）：实测推翻 round 6 结论——lifecycle 的
+  AssetRegistry 与 frontendService.publicAssets 是同一实例（bindAssetRegistryConsumers），
+  升级本身经 fenced ReplaceAllIfRevision 发布公开资产；round 6 加的
+  RepublishPublicAssetsForDev（无 fence ReplaceAll）是第二写者，移动 revision 导致
+  下一次升级 "asset registry revision changed during replacement" + 补偿失败。
+  round 6 的「资产缺失」实为当时升级因 contractVersion 失败、republish 掩盖了失败。
+  已整体移除（接口/字段/方法/bootstrap 参数/测试）。实机：CSS-only touch → 13 秒
+  staged→upgraded，浏览器经 runtime 端点拿到含 clean-e2e 标记的最新内容（active
+  12528）。另：带外 disable + digest --write + 重新启用，修复了调试期反复失败升级
+  留下的身份发布归属错位（startup restore fail-closed 打死 API）；身份发布 rev 127
+  已重新归属 active 摘要。
 
 - 追加（同日第八轮，自动晋升路线撤除）：操作者确认「自动提版」语义不对（契约版本
   是作者承诺），全部移除：构建管线不再 bump contractVersion、promoteOne/Upgrade 的

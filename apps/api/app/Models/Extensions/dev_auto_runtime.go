@@ -45,13 +45,6 @@ type DevAutoPromoter interface {
 	RecoverLifecycleOperation(ctx context.Context, actor identity.Actor, extensionID string, operationID int64, input LifecycleRecoveryInput) (LifecycleOperationDetail, error)
 }
 
-// DevAssetRepublisher 是 dev 升级后的公开资产注册表重发布边界（FrontendService）。
-// Host 启动才 RestoreRoutePublications；自动 upgrade 后必须显式重发布，
-// 否则浏览器拿到的仍是启动时快照的旧 digest。
-type DevAssetRepublisher interface {
-	RepublishPublicAssetsForDev(ctx context.Context, items []Extension) error
-}
-
 // DevTrustGrantWriter 是 exact live grant 的写入边界（*ExecutableTrustService）。
 type DevTrustGrantWriter interface {
 	EnsureLiveGrantForDevAuto(ctx context.Context, actor identity.Actor, extension Extension) error
@@ -62,7 +55,6 @@ type DevAutoRuntime struct {
 	promoter   DevAutoPromoter
 	identities DevIdentityStore
 	grants     DevTrustGrantWriter
-	assets     DevAssetRepublisher
 	// sourceRoots 与 CatalogService.externalRoots 同源；用于日志与防御性过滤。
 	sourceRoots []string
 	logger      *slog.Logger
@@ -75,7 +67,6 @@ func NewDevAutoRuntime(
 	promoter DevAutoPromoter,
 	identities DevIdentityStore,
 	grants DevTrustGrantWriter,
-	assets DevAssetRepublisher,
 	sourceRoots []string,
 	logger *slog.Logger,
 ) *DevAutoRuntime {
@@ -84,7 +75,7 @@ func NewDevAutoRuntime(
 	}
 	return &DevAutoRuntime{
 		service: service, promoter: promoter, identities: identities,
-		grants: grants, assets: assets, sourceRoots: sourceRoots, logger: logger,
+		grants: grants, sourceRoots: sourceRoots, logger: logger,
 	}
 }
 
@@ -106,7 +97,6 @@ func (r *DevAutoRuntime) PromoteAll(ctx context.Context) {
 	}
 	items := append([]Extension(nil), result.Items...)
 	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
-	promotedAny := false
 	promote := func(items []Extension) []Extension {
 		var failed []Extension
 		for _, item := range items {
@@ -124,7 +114,6 @@ func (r *DevAutoRuntime) PromoteAll(ctx context.Context) {
 				failed = append(failed, item)
 				continue
 			}
-			promotedAny = true
 		}
 		return failed
 	}
@@ -137,9 +126,6 @@ func (r *DevAutoRuntime) PromoteAll(ctx context.Context) {
 		if err == nil {
 			promote(retry.Items)
 		}
-	}
-	if promotedAny {
-		r.republishAssets(ctx, items)
 	}
 }
 
@@ -217,17 +203,6 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 			return extension.PackageDigest
 		}())
 	return nil
-}
-
-// republishAssets 在任一包升级/启用后重发布公开资产注册表：Host 只在启动时
-// 重建它，不重发布则浏览器仍按启动快照的旧 digest 请求资产（404/旧内容）。
-func (r *DevAutoRuntime) republishAssets(ctx context.Context, items []Extension) {
-	if r.assets == nil {
-		return
-	}
-	if err := r.assets.RepublishPublicAssetsForDev(ctx, items); err != nil {
-		r.logger.WarnContext(ctx, "dev auto: public asset republish failed", "error", err)
-	}
 }
 
 // recoverLatestFailedUpgrade 对最近一次 terminal-failed 或 terminal-cancelled

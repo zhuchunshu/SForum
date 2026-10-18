@@ -455,7 +455,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		if len(cfg.ExternalExtensionRoots) > 0 && !cfg.SafeMode {
 			devAuto := extensions.NewDevAutoRuntime(
 				extensionService, extensionService, identityStore,
-				lifecycleStack.Trust, frontendService, cfg.ExternalExtensionRoots, logger,
+				lifecycleStack.Trust, cfg.ExternalExtensionRoots, logger,
 			)
 			// 启动对账由 watcher loop 首轮串行执行（构建与快照必须同 goroutine，
 			// 否则 SyncExternalSources 会拍到 go build 写 backend/plugin 的中间态）。

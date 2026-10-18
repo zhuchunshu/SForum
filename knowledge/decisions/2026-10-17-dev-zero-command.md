@@ -74,3 +74,24 @@ dev 装配，host 启动即自动生效，连 wrapper 本身也删除。
 （组件声明未变），正常自动升级生效；只有改接口声明（props/schema/引用换组件）
 才需手动提版——这是正确的人工介入点，不应自动化。手册已在
 `docs/zh-CN|en-US/extensions/build-and-load.md` 写明触发条件。
+
+## 更正二（2026-10-18）：移除 RepublishPublicAssetsForDev（round 6 结论被推翻）
+
+round 6 曾判断「Host 只在启动时重建公开资产注册表，升级后必须显式重发布」，并加了
+`FrontendService.RepublishPublicAssetsForDev`（无 fence 的 `ReplaceAll`）。**这个结论
+是错的**，实测推翻：
+
+- `bindAssetRegistryConsumers` 把 lifecycle 的 `AssetRegistry` 同时绑定给
+  `frontendService.publicAssets`（`WithPublicAssetRegistry`）——**二者是同一个注册表
+  实例**。
+- lifecycle 升级本身就通过 `ReplaceAllIfRevision`（fenced）发布公开资产到该注册表
+  （错误日志 "apply asset registry graph" 即此步骤）。
+- 我的 `ReplaceAll`（无 fence）是**第二个写者**：它移动 revision，使下一次升级的
+  fenced 写入读到陈旧 revision → "asset registry revision changed during
+  replacement" + 补偿失败。round 6 观察到的「资产缺失」其实是当时升级因
+  contractVersion 规则**失败**（根本没发布资产），republish 强行发布**掩盖了失败**。
+
+contractVersion 摩擦移除后（CSS 编辑不再触发组件规则），升级正常成功并自己发布资产，
+republish 成了纯竞态源。**已整体移除**（接口/字段/方法/bootstrap 参数/测试）。
+实测：CSS-only 编辑 touch → 13 秒自动 staged→upgraded，浏览器经 runtime 资产端点
+拿到含最新标记的内容（digest=active 12528）。
