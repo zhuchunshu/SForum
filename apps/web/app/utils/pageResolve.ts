@@ -211,6 +211,20 @@ export async function requestPageResolveWithRetry(
   throw lastError
 }
 
+/**
+ * 从 Page Registry 渲染出的正文里取可见标题：只保留首个 h1 的纯文本。
+ *
+ * 模板 HTML 由主题/插件提供，不能按可信标记处理：先剥掉标签，再丢弃残留的
+ * 孤立尖括号，结果中不可能再拼出标签（因此也不能闭合内联脚本块）。
+ */
+export function extractRegistryPageHeading(templateHtml: string): string {
+  const inner = templateHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]
+  if (!inner) {
+    return ''
+  }
+  return inner.replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim()
+}
+
 export function shouldDisablePageResolveSharedCache(
   payload: PageResolvePayload | null | undefined
 ) {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildSEOStructuredData } from '../../app/utils/seo/seoStructuredData'
+import { buildSEOStructuredData, serializeStructuredData } from '../../app/utils/seo/seoStructuredData'
 
 const base = {
   siteUrl: 'https://example.com', siteName: 'SForum Developers', canonicalUrl: 'https://example.com/c/general',
@@ -25,5 +25,14 @@ describe('buildSEOStructuredData', () => {
     const hidden = buildSEOStructuredData({ ...base, schemaType: 'DiscussionForumPosting', indexable: false })['@graph']
     expect(topic.some(node => node['@type'] === 'DiscussionForumPosting')).toBe(true)
     expect(hidden.some(node => node['@type'] === 'DiscussionForumPosting')).toBe(false)
+  })
+
+  test('serializes JSON-LD without letting markup close the script block', () => {
+    const graph = { '@context': 'https://schema.org', name: '</script><script>alert(1)</script>' }
+    const serialized = serializeStructuredData(graph)
+    expect(serialized).not.toContain('</script')
+    expect(serialized).toContain('\\u003c')
+    // 转义只影响 HTML 文本，解析端仍拿到原始字符。
+    expect(JSON.parse(serialized)).toEqual(graph)
   })
 })

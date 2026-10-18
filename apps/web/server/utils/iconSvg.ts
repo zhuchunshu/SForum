@@ -219,7 +219,16 @@ export function sanitizeIconBody(body: string, idPrefix: string): string {
 
   // 先整体移除 script/style 块，再判断剩余标记；否则整块检测会把合法的
   // `<script>` 嵌套串连同正常的图标体一起判死。
-  const stripped = body.replace(DROPPED_BLOCK_PATTERN, '')
+  // 剥离必须反复到不动点：嵌套构造（如 `<scr<script>a</script>ipt>`）单次替换后
+  // 会重新拼出 `<script>`，正是 js/incomplete-multi-character-sanitization 的形态。
+  let stripped = body
+  for (;;) {
+    const next = stripped.replace(DROPPED_BLOCK_PATTERN, '')
+    if (next === stripped) {
+      break
+    }
+    stripped = next
+  }
   if (UNSAFE_VALUE_PATTERN.test(stripped)) {
     return ''
   }

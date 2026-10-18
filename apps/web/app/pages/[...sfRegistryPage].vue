@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import { useRegistryPageResolve } from '~/composables/pages/useRegistryPageResolve'
+import { extractRegistryPageHeading } from '~/utils/pageResolve'
 // 子目录组件必须显式导入：Nuxt 自动导入名会带路径前缀，静态契约测试按名字匹配。
 import SFRegistryPageBody from '~/components/extensions/public/SFRegistryPageBody.vue'
 import SFRegistryPageShell from '~/components/extensions/public/SFRegistryPageShell.vue'
@@ -35,9 +36,7 @@ const templateHtml = computed(() => (data.value?.templateHtml || '').trim())
 const pageTitle = computed(() => {
   const declared = (data.value?.label || '').trim()
   if (declared) return declared
-  const heading = templateHtml.value.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]
-    ?.replace(/<[^>]*>/g, '').trim()
-  return heading || requestPath.value
+  return extractRegistryPageHeading(templateHtml.value) || requestPath.value
 })
 
 useSForumSeo({

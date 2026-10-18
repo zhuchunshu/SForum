@@ -96,6 +96,13 @@ describe('host icon sanitizer', () => {
     expect(body).not.toContain('id="c"')
   })
 
+  test('re-strips nested script blocks until the body stops changing', () => {
+    // 单次替换会把 `<script>a</script>` 挖掉，剩下的片段重新拼出 `<script>`；
+    // 剥离到不动点后必须由整块检测判死，而不是把拼出来的标签带进输出。
+    expect(sanitizeIconBody('<scr<script>a</script>ipt><path d="M0 0h4"/>', 'i-lucide-x')).toBe('')
+    expect(sanitizeIconBody('<scr<script>a</script>ipt>b</script>', 'i-lucide-x')).toBe('')
+  })
+
   test('returns an empty body when nothing survives', () => {
     expect(sanitizeIconBody('', 'i-lucide-x')).toBe('')
     expect(sanitizeIconBody('plain text', 'i-lucide-x')).toBe('')

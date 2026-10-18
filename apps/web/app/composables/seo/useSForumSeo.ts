@@ -1,7 +1,7 @@
 import type { ComputedRef, Ref } from 'vue'
 import type { SEOSettings } from '../useWebOptions'
 import { resolveSEO, type SEOPageContext } from '~/utils/seo/seoResolver'
-import { buildSEOStructuredData } from '~/utils/seo/seoStructuredData'
+import { buildSEOStructuredData, serializeStructuredData } from '~/utils/seo/seoStructuredData'
 
 type MaybeReactive<T> = T | Ref<T> | ComputedRef<T> | (() => T)
 
@@ -158,7 +158,7 @@ function structuredDataScript(input: {
     {
       key: 'sforum-schema-org',
       type: 'application/ld+json',
-      innerHTML: JSON.stringify(graph)
+      innerHTML: serializeStructuredData(graph)
     }
   ]
 }

@@ -41,6 +41,17 @@ export function buildSEOStructuredData(input: SEOStructuredDataInput) {
   return { '@context': 'https://schema.org', '@graph': graph }
 }
 
+/**
+ * 把结构化数据序列化成可内联进 `<script>` 的 JSON-LD 文本。
+ *
+ * `JSON.stringify` 不转义 `<`，而标题、描述等字段可能来自主题/插件产出的 HTML
+ * 文本；其中只要出现 `</script>` 就会提前闭合脚本块。把 `<` 写成 `\u003c`
+ * 仍是合法 JSON，消费端解析时解码回 `<`，页面文本不变。
+ */
+export function serializeStructuredData(graph: object): string {
+  return JSON.stringify(graph).replace(/</g, '\\u003c')
+}
+
 function absoluteUrl(siteUrl: string, path: string) {
   return `${siteUrl}${path.startsWith('/') ? path : `/${path}`}`
 }

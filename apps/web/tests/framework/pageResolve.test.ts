@@ -4,6 +4,7 @@ import {
   classifyPageResolveFailure,
   disableSharedPageCacheForPageResolve,
   exactThemeIdentityForPageResolve,
+  extractRegistryPageHeading,
   PAGE_RESOLVE_REASON,
   requestPageResolveWithRetry,
   shouldDisablePageResolveSharedCache,
@@ -214,5 +215,25 @@ describe('page resolve resilience', () => {
     const stale = exactThemePayload()
     stale.renderOutput = { ...stale.renderOutput!, nodeRevision: 18 }
     expect(exactThemeIdentityForPageResolve(stale)).toBeNull()
+  })
+})
+
+describe('registry page heading extraction', () => {
+  it('reads the first h1 as plain text', () => {
+    expect(extractRegistryPageHeading('<div><h1 class="hero"> OAuth <em>Providers</em> </h1><h1>second</h1></div>'))
+      .toBe('OAuth Providers')
+  })
+
+  it('never leaves angle brackets that could rebuild markup', () => {
+    // 单次剥标签会把 `<scr<b>ipt>` 拼回 `<script>`；残留尖括号必须一起丢掉。
+    expect(extractRegistryPageHeading('<h1>a</scr<b>ipt><scr<b>ipt>alert(1)</scr<b>ipt></h1>'))
+      .not.toMatch(/[<>]/)
+    expect(extractRegistryPageHeading('<h1>x</script><img src=x onerror=alert(1)></h1>')).toBe('x')
+    expect(extractRegistryPageHeading('<h1>a<scr</h1>')).toBe('ascr')
+  })
+
+  it('falls back to an empty string without an h1', () => {
+    expect(extractRegistryPageHeading('<p>no heading</p>')).toBe('')
+    expect(extractRegistryPageHeading('')).toBe('')
   })
 })
