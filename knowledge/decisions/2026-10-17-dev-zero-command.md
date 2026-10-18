@@ -59,3 +59,18 @@ dev 装配，host 启动即自动生效，连 wrapper 本身也删除。
    （requires-explicit-retry）由 dev 通道自动执行一轮 decision=retry recovery 后
    重试。promote 失败写 `extension_events` 台账（air 场景日志可能进交互终端）。
    非 V2 包（无 lifecycle 声明）如实报错指向管理端 restart bridge。
+
+## 更正（2026-10-18）：放弃「组件契约版本自动晋升」
+
+本轮发现 L2 组件改前端内容（CSS/JS）时，注册表规则「同 contractVersion 不允许
+声明变化」要求手动提版。此前两轮尝试过两条自动化的路线，均不可行：
+
+1. **宿主侧内存改写视图**（grant/authority 各层拦截，四次连环冲突后被判不可行）；
+2. **作者侧自动 bump 写入源 manifest**（构建时改写 contractVersion）——
+   技术上可行，但**语义上不对**：契约版本是「接口变了，宿主需重新审批准入」的
+   作者承诺，自动提版等于让系统替作者签这份承诺，掩盖真正的契约漂移信号。
+
+**最终结论：不做自动晋升**。规则保留；你改 CSS/JS 内容时**不触发**该规则
+（组件声明未变），正常自动升级生效；只有改接口声明（props/schema/引用换组件）
+才需手动提版——这是正确的人工介入点，不应自动化。手册已在
+`docs/zh-CN|en-US/extensions/build-and-load.md` 写明触发条件。

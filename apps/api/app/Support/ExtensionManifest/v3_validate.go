@@ -48,10 +48,10 @@ func validateV3Manifest(manifest Manifest) error {
 func (v *v3Validator) versionedID(id string, contractVersion string, family string) error {
 	if !manifestIDPattern.MatchString(id) || !strings.HasPrefix(id, v.manifest.ID+".") ||
 		!validContractVersion(contractVersion) {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: versionedID pattern/ownership failed (family=%s id=%s)", ErrInvalidManifest, family, id)
 	}
 	if _, duplicate := v.ids[id]; duplicate {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: duplicate versioned id %s (family=%s)", ErrInvalidManifest, id, family)
 	}
 	v.ids[id] = family
 	return nil
@@ -61,17 +61,17 @@ func (v *v3Validator) validateBackendAndMigrations() error {
 	backend := v.manifest.Backend
 	if backend.Entry == "" {
 		if backend.RPC != "" || backend.ProtocolVersion != 0 || backend.Digest != "" || backend.HostAPIVersion != "" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateBackendAndMigrations rule #1", ErrInvalidManifest)
 		}
 	} else {
 		if !validPackagePath(backend.Entry) || backend.RPC != "hashicorp-go-plugin" || !validDigest(backend.Digest) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateBackendAndMigrations rule #2", ErrInvalidManifest)
 		}
 		if backend.ProtocolVersion != 2 {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateBackendAndMigrations rule #3", ErrInvalidManifest)
 		}
 		if !validContractVersion(backend.HostAPIVersion) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateBackendAndMigrations rule #4", ErrInvalidManifest)
 		}
 	}
 	for _, migration := range v.manifest.Migrations {
@@ -79,12 +79,12 @@ func (v *v3Validator) validateBackendAndMigrations() error {
 			return err
 		}
 		if !validPackagePath(migration.Path) || !strings.HasSuffix(migration.Path, ".sql") || !validDigest(migration.Digest) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateBackendAndMigrations rule #5", ErrInvalidManifest)
 		}
 		switch migration.Transaction {
 		case "required", "forbidden", "auto":
 		default:
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateBackendAndMigrations rule #6", ErrInvalidManifest)
 		}
 	}
 	return nil
@@ -214,7 +214,7 @@ func (v *v3Validator) validateGuardsAndRoutes() error {
 		// validated JSON documents and therefore require these declarations.
 		if route.Mode == RouteModeHTTP && routeNeedsSchemas(route.Action) {
 			if !validSchemaRef(route.ResponseSchema) || (hasUnsafeMethod(route.Methods) && !validSchemaRef(route.RequestSchema)) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateHooksEventsJobsAndProviders rule #1", ErrInvalidManifest)
 			}
 		}
 	}

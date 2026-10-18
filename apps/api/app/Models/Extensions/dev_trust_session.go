@@ -21,21 +21,21 @@ import (
 // 仅 APP_ENV=development 且包位于 extensions/dev 时可用；其余情况一律 fail-closed
 // 回到人工 trust challenge 路径。生产镜像没有 dev 包根，会话创建被 roots 校验拒绝。
 type DevTrustSession struct {
-	ID               string    `json:"id"`
-	ExtensionID      string    `json:"extensionId"`
-	PackageSlug      string    `json:"packageSlug"`
-	RootPath         string    `json:"rootPath"`
-	ActorUserID      int64     `json:"actorUserId"`
-	GrantedAt        time.Time `json:"grantedAt"`
-	ExpiresAt        time.Time `json:"expiresAt"`
-	LastPackageDigest string   `json:"lastPackageDigest,omitempty"`
-	RevokedAt        *time.Time `json:"revokedAt,omitempty"`
-	RevokedReason    string    `json:"revokedReason,omitempty"`
+	ID                string     `json:"id"`
+	ExtensionID       string     `json:"extensionId"`
+	PackageSlug       string     `json:"packageSlug"`
+	RootPath          string     `json:"rootPath"`
+	ActorUserID       int64      `json:"actorUserId"`
+	GrantedAt         time.Time  `json:"grantedAt"`
+	ExpiresAt         time.Time  `json:"expiresAt"`
+	LastPackageDigest string     `json:"lastPackageDigest,omitempty"`
+	RevokedAt         *time.Time `json:"revokedAt,omitempty"`
+	RevokedReason     string     `json:"revokedReason,omitempty"`
 }
 
 // DevTrustSessionListInput 列表过滤；ExtensionID 为空表示全部（含已撤销）。
 type DevTrustSessionListInput struct {
-	ExtensionID string
+	ExtensionID    string
 	IncludeRevoked bool
 }
 

@@ -1,6 +1,7 @@
 package extensionmanifest
 
 import (
+	"fmt"
 	"path"
 	"regexp"
 	"sort"
@@ -100,31 +101,31 @@ func validateAdminDeclaration(manifest Manifest) error {
 	}
 	for _, page := range pages {
 		if page.Path == "" || !strings.HasPrefix(page.Path, "/") || strings.Contains(page.Path, "..") || page.Label == "" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: admin declaration rule #1 (line ~3285)", ErrInvalidManifest)
 		}
 		if page.View != "" && page.View != "about" && page.View != "settings" && page.View != "component" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: admin declaration rule #2 (line ~3288)", ErrInvalidManifest)
 		}
 		if page.View == "component" {
 			if !validAdminComponent(page.Component) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: admin declaration rule #3 (line ~3292)", ErrInvalidManifest)
 			}
 			if _, exists := componentIDs[page.Component.ID]; exists {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: admin declaration rule #4 (line ~3295)", ErrInvalidManifest)
 			}
 			componentIDs[page.Component.ID] = struct{}{}
 		} else if page.Component != nil {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: admin declaration rule #5 (line ~3299)", ErrInvalidManifest)
 		}
 		if page.Order < 0 {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: admin declaration rule #6 (line ~3302)", ErrInvalidManifest)
 		}
 	}
 	if manifest.Admin.Entry == "" {
 		return nil
 	}
 	if strings.Contains(manifest.Admin.Entry, "://") || !strings.HasPrefix(manifest.Admin.Entry, "/") || strings.Contains(manifest.Admin.Entry, "..") {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: admin declaration rule #7 (line ~3309)", ErrInvalidManifest)
 	}
 	if manifest.Admin.Entry == "/about" {
 		return nil
@@ -134,7 +135,7 @@ func validateAdminDeclaration(manifest Manifest) error {
 			return nil
 		}
 	}
-	return ErrInvalidManifest
+	return fmt.Errorf("%w: admin declaration rule #8 (line ~3319)", ErrInvalidManifest)
 }
 
 // ValidateWithContributionPoints validates a manifest against the host-owned descriptor catalog.

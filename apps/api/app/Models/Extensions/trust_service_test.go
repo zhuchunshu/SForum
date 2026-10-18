@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	audit "github.com/zhuchunshu/sforum/apps/api/app/Support/Audit"
 	extensionmanifest "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionManifest"
 	extensionpackage "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionPackage"
@@ -1355,3 +1356,43 @@ func (*countingRuntimeManager) Status(context.Context, Extension) RuntimeStatus 
 	return RuntimeStatus{State: RuntimeStopped}
 }
 func (*countingRuntimeManager) EmitHook(context.Context, string, map[string]any) {}
+
+// TestDevAutoEnsureLiveGrantIsSuperAdminOnlyAndIdempotent 覆盖 dev 自动激活通道的
+// grant 发放边界：非 super_admin 必须被拒（denied），重复发放必须幂等（allowed），
+// 因为 watcher 会对同一个包反复调用（每次文件事件）。
+func TestDevAutoEnsureLiveGrantIsSuperAdminOnlyAndIdempotent(t *testing.T) {
+	extension := exactTrustExtension(t, "demo.dev-auto-grant")
+	extensions := &fakeExtensionStore{items: map[string]Extension{extension.ID: extension}}
+	trustStore := &memoryExecutableTrustStore{}
+	service := NewExecutableTrustService(extensions, trustStore)
+	ctx := context.Background()
+
+	if err := service.EnsureLiveGrantForDevAuto(ctx, techAdminPluginManager(), extension); !errors.Is(err, identity.ErrPermissionDenied) {
+		t.Fatalf("non super_admin dev grant must be denied: %v", err)
+	}
+	if len(trustStore.grants) != 0 {
+		t.Fatalf("denied dev grant must not write a grant: %#v", trustStore.grants)
+	}
+
+	if err := service.EnsureLiveGrantForDevAuto(ctx, extensionManager(), extension); err != nil {
+		t.Fatal(err)
+	}
+	if len(trustStore.grants) != 1 {
+		t.Fatalf("first dev grant must create exactly one live grant: %#v", trustStore.grants)
+	}
+	if err := service.EnsureLiveGrantForDevAuto(ctx, extensionManager(), extension); err != nil {
+		t.Fatal(err)
+	}
+	if len(trustStore.grants) != 1 {
+		t.Fatalf("repeated dev grant must reuse the live grant: %#v", trustStore.grants)
+	}
+
+	// 不需要可执行信任的包不进入 grant 通道（无副作用）。
+	plain := installedExtension("demo.plain-grant", TypePlugin, ManifestBackend{})
+	if err := service.EnsureLiveGrantForDevAuto(ctx, extensionManager(), plain); err != nil {
+		t.Fatalf("trust-free extension must be a no-op: %v", err)
+	}
+	if len(trustStore.grants) != 1 {
+		t.Fatalf("trust-free extension must not write a grant: %#v", trustStore.grants)
+	}
+}

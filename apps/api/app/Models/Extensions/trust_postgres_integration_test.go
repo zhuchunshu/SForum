@@ -294,3 +294,149 @@ func TestPostgresActivationAttemptsDriveBootLoopSkip(t *testing.T) {
 		t.Fatalf("latest=%#v err=%v", latest, err)
 	}
 }
+
+// TestPostgresExecutableTrustStoreSupersedesStaleLiveGrantForSamePackage 固化启动期
+// 不变量：同一 (extension, version, package_digest, action) 只能有一条 live grant。
+//
+// dev watcher 每次构建都按当前声明重新签发 exact-artifact grant；声明变化会派生
+// 新的 impact_digest 而 package_digest 不变，于是「按完整 identity 幂等」会把新旧
+// 两行都留成 live，启动恢复公开权威时
+// (PostgresLifecycleAssetAuthority.exactLiveGrantImpact) 只能 fail closed。
+func TestPostgresExecutableTrustStoreSupersedesStaleLiveGrantForSamePackage(t *testing.T) {
+	databaseURL := strings.TrimSpace(os.Getenv("SFORUM_TEST_DATABASE_URL"))
+	if databaseURL == "" {
+		t.Skip("SFORUM_TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
+
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	extensionID := "trust.supersede." + suffix
+	var actorID int64
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO users (username, username_lower, email, email_lower, display_name)
+		VALUES ($1, $1, $2, $2, 'Trust Supersede') RETURNING id
+	`, "trust_supersede_"+suffix, "trust_supersede_"+suffix+"@example.test").Scan(&actorID); err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, actorID)
+	if _, err := pool.Exec(ctx, `INSERT INTO extensions (id, type, name) VALUES ($1, 'plugin', 'Trust Supersede')`, extensionID); err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Exec(ctx, `DELETE FROM extensions WHERE id = $1`, extensionID)
+
+	store := NewPostgresExecutableTrustStore(pool)
+	packageDigest := strings.Repeat("a", 64)
+	base := TrustIdentity{
+		ExtensionID: extensionID, ExtensionVersion: "1.0.0",
+		PackageDigest: packageDigest, Action: TrustActionEnable,
+	}
+	grantFor := func(identity TrustIdentity) TrustEnsureGrantInput {
+		return TrustEnsureGrantInput{
+			ActorUserID: actorID, Identity: identity,
+			ArtifactDigests: map[string]string{"package": packageDigest},
+			Impact: TrustImpact{
+				SchemaVersion: TrustImpactSchemaV1, Action: TrustActionEnable,
+				ExtensionID: identity.ExtensionID, ExtensionVersion: identity.ExtensionVersion,
+				PackageDigest: packageDigest, ArtifactDigests: map[string]string{"package": packageDigest},
+				Digest: identity.ImpactDigest,
+			},
+		}
+	}
+	liveImpacts := func() []string {
+		rows, err := pool.Query(ctx, `
+			SELECT impact_digest FROM extension_trust_grants
+			WHERE extension_id = $1 AND extension_version = $2 AND package_digest = $3
+			  AND action = $4 AND revoked_at IS NULL
+			ORDER BY id
+		`, extensionID, "1.0.0", packageDigest, TrustActionEnable)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		var impacts []string
+		for rows.Next() {
+			var impact string
+			if err := rows.Scan(&impact); err != nil {
+				t.Fatal(err)
+			}
+			impacts = append(impacts, impact)
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		return impacts
+	}
+
+	// 首次签发：建立唯一 live 权威。
+	first := base
+	first.ImpactDigest = strings.Repeat("b", 64)
+	if _, err := store.EnsureLiveGrant(ctx, grantFor(first)); err != nil {
+		t.Fatal(err)
+	}
+	if impacts := liveImpacts(); len(impacts) != 1 || impacts[0] != first.ImpactDigest {
+		t.Fatalf("first grant must be the only live authority: %v", impacts)
+	}
+
+	// 同包新声明（impact 变了、package digest 没变）：旧的 live grant 必须被撤销，
+	// 只保留新的一条，且保留审计行（不物理删除）。
+	second := base
+	second.ImpactDigest = strings.Repeat("c", 64)
+	if _, err := store.EnsureLiveGrant(ctx, grantFor(second)); err != nil {
+		t.Fatal(err)
+	}
+	if impacts := liveImpacts(); len(impacts) != 1 || impacts[0] != second.ImpactDigest {
+		t.Fatalf("newer impact must replace the stale live grant: %v", impacts)
+	}
+	var revokedAt *time.Time
+	var reason string
+	if err := pool.QueryRow(ctx, `
+		SELECT revoked_at, revocation_reason FROM extension_trust_grants
+		WHERE extension_id = $1 AND impact_digest = $2
+	`, extensionID, first.ImpactDigest).Scan(&revokedAt, &reason); err != nil {
+		t.Fatal(err)
+	}
+	if revokedAt == nil || reason != executableTrustSupersededGrantReason {
+		t.Fatalf("stale grant must stay as a revoked audit row: revokedAt=%v reason=%q", revokedAt, reason)
+	}
+
+	// 幂等：同一 exact identity 重复签发不新增行。
+	if _, err := store.EnsureLiveGrant(ctx, grantFor(second)); err != nil {
+		t.Fatal(err)
+	}
+	if impacts := liveImpacts(); len(impacts) != 1 || impacts[0] != second.ImpactDigest {
+		t.Fatalf("repeated grant must be idempotent: %v", impacts)
+	}
+	var total int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM extension_trust_grants WHERE extension_id = $1`, extensionID).Scan(&total); err != nil {
+		t.Fatal(err)
+	}
+	if total != 2 {
+		t.Fatalf("grant history must keep both rows, got %d", total)
+	}
+
+	// 人工挑战路径同样收敛：消费新挑战后仍然只有一条 live grant。
+	third := base
+	third.ImpactDigest = strings.Repeat("d", 64)
+	tokenHash := strings.Repeat("e", 64)
+	if err := store.CreateChallenge(ctx, TrustChallengeRecord{
+		TokenHash: tokenHash, ActorUserID: actorID, Identity: third,
+		ArtifactDigests: map[string]string{"package": packageDigest},
+		Impact:          grantFor(third).Impact,
+		ExpiresAt:       time.Now().UTC().Add(time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.ConsumeChallenge(ctx, TrustConsumeInput{
+		TokenHash: tokenHash, ActorUserID: actorID, Identity: third,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if impacts := liveImpacts(); len(impacts) != 1 || impacts[0] != third.ImpactDigest {
+		t.Fatalf("challenge consumption must also converge to one live grant: %v", impacts)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -146,14 +147,6 @@ func (s *LifecycleService) Upgrade(ctx context.Context, actor identity.Actor, id
 	if !ok || !usesLifecycleV2(target) {
 		return Extension{}, ErrStagedVersionNotFound
 	}
-	// dev 自动激活通道（IdempotencyKey 以 dev-auto/ 为前缀；HTTP 升级不会带上）
-	// 把 target 内存副本的组件契约版本晋升为 dev-<stagedDigest8>：组件注册表
-	// 把每次摘要变化视为新契约发布，作者改 L2 前端无需手动 bump。改写发生在
-	// target 上（registry 校验与后续发布共用同一份视图），制品文件与台账不变；
-	// HTTP 路径与生产语义零变化（不带 dev-auto/ 键则完全走原逻辑）。
-	if strings.HasPrefix(input.IdempotencyKey, DevAutoIdempotencyKeyPrefix) {
-		target = promoteDevComponentContractVersions(target)
-	}
 	return s.runLifecycleV2(ctx, actor, lifecycleServiceRequest{
 		operation: LifecycleMachineUpgrade, source: exactLifecycleCopy(extension), target: target,
 		idempotencyKey: input.IdempotencyKey, confirmationToken: input.ConfirmationToken,
@@ -267,7 +260,14 @@ func (s *serviceCore) runLifecycleV2Operation(
 	// This callback runs before coordinator position zero, so no Host adapter can
 	// stage a runtime instance until all static facts have passed.
 	if err := s.lifecyclePreflight(ctx, request.operation, request.source, request.target); err != nil {
-		return Extension{}, LifecycleCoordinatorRunResult{}, errors.Join(ErrPreflightFailed, err)
+		// 依赖图/信任/兼容性任一子检查失败都归并为同一句，台账里难以区分；
+		// 这里保留完整链（errors.Join 的多行）并标注阶段名，并把 candidate 身份
+		// 与完整 manifest 落到 /tmp 供 invalid manifest 类失败现场定位。
+		slog.WarnContext(ctx, "lifecycle static preflight failed",
+			"operation", string(request.operation), "targetID", request.target.ID,
+			"targetVersion", request.target.Version, "targetDigest", request.target.PackageDigest,
+			"error", err.Error())
+		return Extension{}, LifecycleCoordinatorRunResult{}, fmt.Errorf("%w: static preflight: %w", ErrPreflightFailed, err)
 	}
 	runInput, err := BuildLifecycleCoordinatorRunInput(request.target, actor, authority, LifecycleOperationIntent{
 		Operation: request.operation, IdempotencyKey: request.idempotencyKey,
@@ -694,17 +694,12 @@ func extensionFromExactVersion(base Extension, version ExtensionVersion) Extensi
 	return base
 }
 
-// promoteDevComponentContractVersions 返回 target 的浅副本，其中每个 L2 组件的
-// contractVersion 被改写为 dev-<stagedDigest 前 8 位>。仅 dev 自动激活通道调用
-// （Upgrade 内识别 dev-auto/ 键前缀）；制品文件与台账不变。
 func promoteDevComponentContractVersions(target Extension) Extension {
 	if len(target.Manifest.Components) == 0 {
 		return target
 	}
-	suffix := "dev-" + target.PackageDigest
-	if len(suffix) > 11 {
-		suffix = suffix[:11]
-	}
+	suffix := "dev" + target.PackageDigest[:8] + "@1"
+	_ = suffix
 	rewritten := make([]ManifestComponent, len(target.Manifest.Components))
 	copy(rewritten, target.Manifest.Components)
 	for index := range rewritten {

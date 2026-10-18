@@ -117,6 +117,13 @@ func (s *PostgresExecutableTrustStore) LiveGrant(ctx context.Context, identity T
 
 // EnsureLiveGrant 在无挑战模式下为 exact identity 幂等写入 live grant。
 // 已有 live grant 时直接返回，不重复插入。
+//
+// 写入前会撤销同一 (extension, version, package_digest, action) 下 impact 不同的
+// 现存 live grant：impact_digest 是 exact identity 的一部分，所以声明变化（manifest
+// 声明、组件契约版本、权限集合）会派生新 identity 而不复用旧行。若不撤销旧行，
+// 同一包就会同时存在两条 live grant，启动恢复公开权威时
+// （PostgresLifecycleAssetAuthority.exactLiveGrantImpact）无法判断该发布哪一份
+// 浏览器权威，只能 fail closed —— dev watcher 反复构建正是这样把启动打死的。
 func (s *PostgresExecutableTrustStore) EnsureLiveGrant(ctx context.Context, input TrustEnsureGrantInput) (TrustGrant, error) {
 	if s == nil || s.pool == nil || ctx == nil || input.ActorUserID <= 0 {
 		return TrustGrant{}, ErrTrustGrantNotFound
@@ -153,6 +160,9 @@ func (s *PostgresExecutableTrustStore) EnsureLiveGrant(ctx context.Context, inpu
 	)
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, lockIdentity); err != nil {
 		return TrustGrant{}, fmt.Errorf("lock executable trust identity: %w", err)
+	}
+	if err := supersedeLiveGrantForPackageTx(ctx, tx, identity, input.ActorUserID); err != nil {
+		return TrustGrant{}, err
 	}
 
 	var grant TrustGrant
@@ -265,6 +275,14 @@ func (s *PostgresExecutableTrustStore) ConsumeChallenge(ctx context.Context, inp
 		UPDATE extension_trust_challenges SET consumed_at = now() WHERE id = $1
 	`, challengeID); err != nil {
 		return TrustGrant{}, fmt.Errorf("consume trust challenge: %w", err)
+	}
+	// 与 EnsureLiveGrant 同一条不变量：一个包的同一 action 只能有一条 live grant，
+	// 否则启动恢复公开权威时会因为「不知道该发布哪份 impact」而 fail closed。
+	if err := supersedeLiveGrantForPackageTx(ctx, tx, TrustIdentity{
+		ExtensionID: extensionID, ExtensionVersion: version,
+		PackageDigest: packageDigest, Action: action, ImpactDigest: impactDigest,
+	}, actorUserID); err != nil {
+		return TrustGrant{}, err
 	}
 
 	var grant TrustGrant
@@ -586,6 +604,39 @@ func invalidateTrustChallenge(ctx context.Context, tx pgx.Tx, id int64, reason s
 		return fmt.Errorf("commit invalid trust challenge: %w", err)
 	}
 	return result
+}
+
+// executableTrustSupersededGrantReason 是「同包新 impact 顶替旧 live grant」的撤销原因。
+// 用固定文本而不是自由描述，让审计与回归测试可以按原因聚合。
+const executableTrustSupersededGrantReason = "superseded by newer exact-artifact grant"
+
+// supersedeLiveGrantForPackageTx 把「同一 (extension, version, package_digest,
+// action) 至多一条未撤销 grant」收敛为硬不变量。调用方必须已持有 extension 级锁
+// 与 exact identity 级 advisory lock，保证撤销 + 插入在并发下仍然原子。
+//
+// 撤销而不是删除：extension_trust_grants 是审计台账，历史 impact 必须可追溯。
+// 撤销而不是复用：impact_document 记录的是被授权的确切声明集合，新 impact 生效后
+// 旧行不再代表当前权威，保留为 live 只会让启动恢复无法选择。
+func supersedeLiveGrantForPackageTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	identity TrustIdentity,
+	actorUserID int64,
+) error {
+	if tx == nil {
+		return ErrTrustGrantNotFound
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE extension_trust_grants
+		SET revoked_at = now(), revoked_by_user_id = $6, revocation_reason = $7
+		WHERE extension_id = $1 AND extension_version = $2 AND package_digest = $3
+		  AND action = $4 AND impact_digest <> $5 AND revoked_at IS NULL
+	`, identity.ExtensionID, identity.ExtensionVersion, identity.PackageDigest,
+		identity.Action, identity.ImpactDigest, nullableTrustActor(actorUserID),
+		executableTrustSupersededGrantReason); err != nil {
+		return fmt.Errorf("supersede stale executable trust grant: %w", err)
+	}
+	return nil
 }
 
 func nullableTrustActor(actorUserID int64) any {

@@ -2,6 +2,7 @@ package extensionmanifest
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	regioncatalog "github.com/zhuchunshu/sforum/apps/api/app/Support/RegionCatalog"
@@ -45,10 +46,10 @@ func validateContributions(manifest Manifest, definitions []ContributionPointDef
 	points := make(map[string]ContributionPointDefinition, len(definitions))
 	for _, definition := range definitions {
 		if definition.ID == "" || definition.Kind != ContributionPointKindDescriptor {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: contribution rule #1", ErrInvalidManifest)
 		}
 		if _, duplicate := points[definition.ID]; duplicate {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: contribution rule #2", ErrInvalidManifest)
 		}
 		points[definition.ID] = definition
 	}
@@ -62,32 +63,32 @@ func validateContributions(manifest Manifest, definitions []ContributionPointDef
 	for _, contribution := range manifest.Contributions {
 		definition, known := points[contribution.Point]
 		if contribution.Point == "" || contribution.ID == "" || !known {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: contribution rule #3", ErrInvalidManifest)
 		}
 		key := contribution.Point + ":" + contribution.ID
 		if seen[key] {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: contribution rule #4", ErrInvalidManifest)
 		}
 		seen[key] = true
 		if contribution.Order < 0 {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: contribution rule #5", ErrInvalidManifest)
 		}
 		if contribution.Icon != "" && !allowedContributionIcon(contribution.Icon) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: contribution rule #6", ErrInvalidManifest)
 		}
 		if len(contribution.Label) == 0 {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: contribution rule #7", ErrInvalidManifest)
 		}
 		for locale, label := range contribution.Label {
 			if strings.TrimSpace(locale) == "" || strings.TrimSpace(label) == "" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: contribution rule #8", ErrInvalidManifest)
 			}
 		}
 		// enabledBySetting 必须指向本扩展声明的 boolean 设置键。
 		if gate := strings.TrimSpace(contribution.EnabledBySetting); gate != "" {
 			settingType, ok := settingTypes[gate]
 			if !ok || settingType != "boolean" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: contribution rule #9", ErrInvalidManifest)
 			}
 		}
 		if err := validateDescriptorContributionPayload(manifest, definition.PayloadType, contribution.Payload); err != nil {

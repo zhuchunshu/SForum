@@ -2,6 +2,7 @@ package extensionmanifest
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -82,52 +83,52 @@ func (v *v3Validator) validateAITools() error {
 		return nil
 	}
 	if v.manifest.Type != TypePlugin {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: v3 aitools rule #1", ErrInvalidManifest)
 	}
 	if v.manifest.Backend.Entry == "" || v.manifest.Backend.ProtocolVersion != 2 {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: v3 aitools rule #2", ErrInvalidManifest)
 	}
 	if len(v.manifest.AITools) > AIToolsMaximum {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: v3 aitools rule #3", ErrInvalidManifest)
 	}
 	names := make(map[string]struct{}, len(v.manifest.AITools))
 	for _, declaration := range v.manifest.AITools {
 		if declaration.ID == "" || declaration.ID != strings.TrimSpace(declaration.ID) ||
 			declaration.ContractVersion == "" || declaration.ContractVersion != strings.TrimSpace(declaration.ContractVersion) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 aitools rule #4", ErrInvalidManifest)
 		}
 		// 契约版本必须严格为 `<ID>@1`：声明粒度的首个契约就是 1，形状变更
 		// 通过新 ID 表达，而不是在同一声明上叠加版本。
 		if declaration.ContractVersion != declaration.ID+"@1" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 aitools rule #5", ErrInvalidManifest)
 		}
 		if err := v.versionedID(declaration.ID, declaration.ContractVersion, "ai_tool"); err != nil {
 			return err
 		}
 		if !IsOwnedID(v.manifest.ID, declaration.ID) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 aitools rule #6", ErrInvalidManifest)
 		}
 		if declaration.Name == "" || declaration.Name != strings.TrimSpace(declaration.Name) ||
 			len(declaration.Name) > AIToolNameMaximumLength || !validAIToolName(declaration.Name) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 aitools rule #7", ErrInvalidManifest)
 		}
 		if _, duplicate := names[declaration.Name]; duplicate {
 			// 模型无法区分同名工具：重复名在清单侧就拒绝。
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 aitools rule #8", ErrInvalidManifest)
 		}
 		names[declaration.Name] = struct{}{}
 		if declaration.Description == "" || declaration.Description != strings.TrimSpace(declaration.Description) ||
 			len(declaration.Description) > AIToolDescriptionMaximumBytes {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 aitools rule #9", ErrInvalidManifest)
 		}
 		if !validAIToolParameters(declaration.Parameters) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 aitools rule #10", ErrInvalidManifest)
 		}
 		if declaration.TimeoutMS <= 0 || declaration.TimeoutMS > AIToolMaximumTimeoutMS {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 aitools rule #11", ErrInvalidManifest)
 		}
 		if !IsOwnedID(v.manifest.ID, declaration.Handler) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 aitools rule #12", ErrInvalidManifest)
 		}
 	}
 	return nil

@@ -274,6 +274,12 @@ go run ./cmd/sforum extension list --json
 
 ## 排障
 
+**组件契约版本何时手动提版？** 改 CSS/JS 内容、改后端逻辑、改 settings/routes 都
+不需要——保存即自动生效。只有当你改了**组件的接口声明**（改 props/schema 形状、
+换引用的 l2Component、新增/删除组件 ID）时，才需要把 `components[].contractVersion`
+提版（如 `@3` → `@4`）。提版 = 告诉宿主「接口变了，请重新审批准入」；不提版 =
+「只改了内容，宿主无需重新审查」。
+
 | 现象 | 原因 / 处理 |
 | --- | --- |
 | `extension test` 后端失败 | `backend.entry` 处缺二进制；构建它，或脚手架阶段用 `--skip-backend-binary` |

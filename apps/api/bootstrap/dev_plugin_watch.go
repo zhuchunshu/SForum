@@ -100,6 +100,10 @@ func (w *devPluginWatcher) watchTree(root string) error {
 
 func (w *devPluginWatcher) loop(ctx context.Context) {
 	defer close(w.stopped)
+	// 启动对账与事件周期共用同一 goroutine：SyncExternalSources 快照必须与
+	// buildRoot 的构建串行，否则快照会拍到 backend/plugin 的写中间态
+	//（manifest 声明与实际字节不一致 → upgrade preflight invalid manifest）。
+	w.promoteAllLogged(ctx)
 	var timer *time.Timer
 	var timerC <-chan time.Time
 	for {

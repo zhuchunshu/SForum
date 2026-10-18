@@ -3,6 +3,15 @@
 ## Changed
 ## Changed
 
+- 追加（同日第八轮，自动晋升路线撤除）：操作者确认「自动提版」语义不对（契约版本
+  是作者承诺），全部移除：构建管线不再 bump contractVersion、promoteOne/Upgrade 的
+  视图改写全部清除、UpgradeInput.Extension 已删。保留本轮排障沉淀的永久资产：
+  ErrInvalidManifest 规则编号标注（admin/v3/ui/contribution 四处）、preflight 失败
+  台账带完整上下文（static preflight + candidate 身份）、lifecycle 升级失败自动
+  recovery retry。实机验证：touch CSS → 16 秒自动 staged→upgraded（08:13:49）。
+  版本确认规则（来自操作者 NOTES）：**改内容不提版即自动生效**；改接口声明（props/
+  schema/引用）才需手动 bump——这是正确的开发者介入点，不应自动化。
+
 - 追加（同日第六轮，前端制品补齐）：回答「前端为什么还要走生命周期切换制品」
   发现三处缺口并全部修复：① dev 构建管线不含前端构建——`BuildFrontend`
   （frontend/admin 有 package.json 时 bun run build）接入 BuildAndDigestDevPackage；

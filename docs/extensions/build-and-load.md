@@ -297,6 +297,13 @@ them as generated state.
 
 ## Troubleshooting
 
+**When do you manually bump `components[].contractVersion`?** Editing CSS/JS
+content, backend logic, or settings/routes does not require it — saving is
+auto-promoted. You only bump it when the **component's interface declaration**
+changes (props/schema shape, a different l2Component reference, added/removed
+component IDs). Bumping tells the host "the interface changed; re-review
+admission." Not bumping means "content changed only; no re-review needed."
+
 | Symptom | Cause / fix |
 | --- | --- |
 | `extension test` fails on backend | Binary missing at `backend.entry`; build it or use `--skip-backend-binary` during scaffolding |

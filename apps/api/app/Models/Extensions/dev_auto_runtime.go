@@ -107,20 +107,36 @@ func (r *DevAutoRuntime) PromoteAll(ctx context.Context) {
 	items := append([]Extension(nil), result.Items...)
 	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
 	promotedAny := false
-	for _, item := range items {
-		if err := r.promoteOne(ctx, item.ID); err != nil {
-			r.logger.WarnContext(ctx, "dev auto: promote failed",
-				"extensionId", item.ID, "error", err)
-			// 失败落台账：air 场景下 watcher 日志可能进了交互终端，
-			// 台账是作者唯一确定可见的地方。
-			_, _ = r.service.store.CreateEvent(ctx, EventInput{
-				ExtensionID: item.ID,
-				Action:      EventEnabled,
-				Message:     "dev auto promote failed: " + err.Error(),
-			})
-			continue
+	promote := func(items []Extension) []Extension {
+		var failed []Extension
+		for _, item := range items {
+			if err := r.promoteOne(ctx, item.ID); err != nil {
+				r.logger.WarnContext(ctx, "dev auto: promote failed",
+					"extensionId", item.ID, "error", err)
+				// 失败落台账：air 场景下 watcher 日志可能进了交互终端，
+				// 台账是作者唯一确定可见的地方。
+				_, _ = r.service.store.CreateEvent(ctx, EventInput{
+					ExtensionID: item.ID,
+					Action:      EventEnabled,
+					Message: fmt.Sprintf("dev auto promote failed (%s @ %s): %s",
+						item.ID, item.StagedVersionOrActiveDigestForDev(), err.Error()),
+				})
+				failed = append(failed, item)
+				continue
+			}
+			promotedAny = true
 		}
-		promotedAny = true
+		return failed
+	}
+	failed := promote(items)
+	if len(failed) > 0 {
+		// 一轮立即重试：preflight 失败常因快照竞态（构建/暂存窗口）——重跑
+		// SyncExternalSources 会重新快照一致态并产生新 staged digest，孤儿行
+		// 自然被绕开。重试仍失败才交给下一次文件事件。
+		retry, err := r.service.SyncExternalSources(ctx)
+		if err == nil {
+			promote(retry.Items)
+		}
 	}
 	if promotedAny {
 		r.republishAssets(ctx, items)
@@ -144,30 +160,13 @@ func (r *DevAutoRuntime) promoteOne(ctx context.Context, extensionID string) err
 		return nil
 	}
 	// 精确制品 grant：dev 直通的信任语义仍然是「逐摘要」，只是执行者是 dev 自动机。
-	// grant 的 impact 必须与 Service.Upgrade 的 authority 视图同源——Upgrade 会按
-	// dev-auto/ 键前缀把 target 的组件契约版本晋升为 dev-<digest8>（改变 impact），
-	// 因此这里对同一视图提前写 grant，否则 ConfirmLifecycleAuthority 校验 miss
-	// （trust challenge required）。
+	// 精确制品 grant 按原始 staged 视图写入——组件契约版本的晋升已前移到构建
+	// 阶段（BuildAndDigestDevPackage 直接写进源 manifest），快照/impact/registry
+	// 三处天然同源，无需任何视图改写。
 	if RequiresExecutableTrust(extension) && r.grants != nil {
 		target := extension
 		if staged, ok := extension.StagedArtifact(); ok && extension.Status != StatusDisabled {
 			target = staged
-		}
-		if len(target.Manifest.Components) > 0 {
-			stagedDigest := target.PackageDigest
-			if stagedDigest == "" {
-				stagedDigest = extension.PackageDigest
-			}
-			suffix := "dev-" + stagedDigest
-			if len(suffix) > 11 {
-				suffix = suffix[:11]
-			}
-			rewritten := make([]ManifestComponent, len(target.Manifest.Components))
-			copy(rewritten, target.Manifest.Components)
-			for index := range rewritten {
-				rewritten[index].ContractVersion = suffix
-			}
-			target.Manifest.Components = rewritten
 		}
 		if err := r.grants.EnsureLiveGrantForDevAuto(ctx, actor, target); err != nil {
 			return fmt.Errorf("ensure dev grant: %w", err)
@@ -317,4 +316,13 @@ const DevAutoIdempotencyKeyPrefix = "dev-auto/"
 // DevIdempotencyKey 派生一次 dev 升级的确定性幂等键。
 func DevIdempotencyKey(extensionID, stagedDigest string) string {
 	return DevAutoIdempotencyKeyPrefix + extensionID + "/" + stagedDigest
+}
+
+// StagedVersionOrActiveDigestForDev 返回 staged 摘要（无 staged 时 active），
+// 供失败事件的现场定位。
+func (e Extension) StagedVersionOrActiveDigestForDev() string {
+	if e.StagedVersion != nil && e.StagedVersion.PackageDigest != "" {
+		return e.StagedVersion.PackageDigest
+	}
+	return e.PackageDigest
 }

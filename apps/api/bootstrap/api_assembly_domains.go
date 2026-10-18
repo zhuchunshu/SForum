@@ -457,8 +457,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 				extensionService, extensionService, identityStore,
 				lifecycleStack.Trust, frontendService, cfg.ExternalExtensionRoots, logger,
 			)
-			// 启动即对账一次：上次退出后改过的包无需等下一次文件事件。
-			go devAuto.PromoteAll(ctx)
+			// 启动对账由 watcher loop 首轮串行执行（构建与快照必须同 goroutine，
+			// 否则 SyncExternalSources 会拍到 go build 写 backend/plugin 的中间态）。
 			if watcher, watchErr := newDevPluginWatcher(
 				devAuto, devAuto, cfg.ExternalExtensionRoots, logger,
 			); watchErr != nil {

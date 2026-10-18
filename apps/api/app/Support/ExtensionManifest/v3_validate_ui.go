@@ -12,7 +12,7 @@ import (
 
 func (v *v3Validator) validateUIAndPackage() error {
 	if len(v.manifest.Content) > ContentDeclarationsMaximum {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: v3 validateUIAndPackage rule #1", ErrInvalidManifest)
 	}
 	packageFiles := map[string]ManifestPackageFile{}
 	packagePaths := map[string]ManifestPackageFile{}
@@ -31,55 +31,55 @@ func (v *v3Validator) validateUIAndPackage() error {
 	for _, file := range v.manifest.PackageFiles {
 		foreignTargetedSchema := file.Kind == "schema" && targetedSchemas[file.ID] == file.Version
 		if !manifestIDPattern.MatchString(file.ID) || !strings.HasPrefix(file.ID, v.manifest.ID+".") && !foreignTargetedSchema {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #2", ErrInvalidManifest)
 		}
 		if _, duplicate := packageFiles[file.ID]; duplicate {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #3", ErrInvalidManifest)
 		}
 		if _, duplicate := packagePaths[file.Path]; duplicate {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #4", ErrInvalidManifest)
 		}
 		if file.Path == ManifestFileName || !validPackagePath(file.Path) || !validDigest(file.Digest) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #5", ErrInvalidManifest)
 		}
 		switch file.Kind {
 		case "executable", "frontend", "locale", "schema", "migration", "template", "asset", "openapi", "database_operation":
 		default:
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #6", ErrInvalidManifest)
 		}
 		if file.Kind == "locale" && file.Locale == "" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #7", ErrInvalidManifest)
 		}
 		packageFiles[file.ID] = file
 		packagePaths[file.Path] = file
 	}
 	if backend := v.manifest.Backend; backend.Entry != "" && !matchingPackageFile(packagePaths, backend.Entry, "executable", backend.Digest) {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: v3 validateUIAndPackage rule #8", ErrInvalidManifest)
 	}
 	for _, guard := range v.manifest.Guards {
 		if !matchingPackageFile(packagePaths, guard.Entry, "executable", guard.Digest) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #9", ErrInvalidManifest)
 		}
 	}
 	for _, query := range v.manifest.Queries {
 		if query.Handler != "" && validContractVersion(query.ResultSchema) && !matchingVersionedSchemaFile(packageFiles, query.ResultSchema) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #10", ErrInvalidManifest)
 		}
 	}
 	for _, declaration := range v.manifest.NotificationTypes {
 		if !matchingVersionedSchemaFile(packageFiles, declaration.PayloadSchema) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #11", ErrInvalidManifest)
 		}
 	}
 	for _, migration := range v.manifest.Migrations {
 		if !matchingPackageFile(packagePaths, migration.Path, "migration", migration.Digest) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #12", ErrInvalidManifest)
 		}
 	}
 	if database := v.manifest.Database; database != nil {
 		for _, operation := range database.Operations {
 			if !matchingPackageFile(packagePaths, operation.Path, "database_operation", operation.Digest) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #13", ErrInvalidManifest)
 			}
 		}
 	}
@@ -89,7 +89,7 @@ func (v *v3Validator) validateUIAndPackage() error {
 		}
 		if !matchingVersionedSchemaFile(packageFiles, provider.RequestSchema) ||
 			!matchingVersionedSchemaFile(packageFiles, provider.ResponseSchema) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #14", ErrInvalidManifest)
 		}
 	}
 	if identity := v.manifest.Identity; identity != nil {
@@ -97,7 +97,7 @@ func (v *v3Validator) validateUIAndPackage() error {
 			for _, operation := range provider.Operations {
 				for _, reference := range []string{operation.InputSchema, operation.OutputSchema} {
 					if validContractVersion(reference) && !matchingVersionedSchemaFile(packageFiles, reference) {
-						return ErrInvalidManifest
+						return fmt.Errorf("%w: v3 validateUIAndPackage rule #15", ErrInvalidManifest)
 					}
 				}
 			}
@@ -111,14 +111,14 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return err
 		}
 		if template.Action != "add" && template.Action != "replace" || template.Action == "replace" && template.TargetID == "" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #16", ErrInvalidManifest)
 		}
 		if !validPackagePath(template.Path) || !validDigest(template.Digest) || !validSchemaRef(template.ViewModelSchema) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #17", ErrInvalidManifest)
 		}
 		file, declared := packagePaths[template.Path]
 		if !declared || file.Kind != "template" || file.Digest != template.Digest {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #18", ErrInvalidManifest)
 		}
 		templates[template.ID] = template
 	}
@@ -130,34 +130,34 @@ func (v *v3Validator) validateUIAndPackage() error {
 		if asset.Type != "script" && asset.Type != "style" || !validPackagePath(asset.Path) || !validDigest(asset.Digest) ||
 			asset.Type == "style" && asset.Module || !validPrebuiltAssetPath(asset.Type, asset.Path) ||
 			!validAssetIntegrity(asset.Digest, asset.Integrity) || !validAssetCSP(asset.CSP) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #19", ErrInvalidManifest)
 		}
 		file, declared := packagePaths[asset.Path]
 		if !declared || file.Kind != "asset" || file.Digest != asset.Digest {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #20", ErrInvalidManifest)
 		}
 		switch asset.Loading {
 		case "", "blocking", "defer", "async", "preload", "lazy":
 		default:
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #21", ErrInvalidManifest)
 		}
 		seenDependencies := map[string]struct{}{}
 		for _, dependency := range asset.Dependencies {
 			if !manifestIDPattern.MatchString(dependency) || dependency == asset.Handle {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #22", ErrInvalidManifest)
 			}
 			if _, duplicate := seenDependencies[dependency]; duplicate {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #23", ErrInvalidManifest)
 			}
 			seenDependencies[dependency] = struct{}{}
 		}
 		seenScopes := map[string]struct{}{}
 		for _, scope := range asset.Scope {
 			if !manifestIDPattern.MatchString(scope) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #24", ErrInvalidManifest)
 			}
 			if _, duplicate := seenScopes[scope]; duplicate {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #25", ErrInvalidManifest)
 			}
 			seenScopes[scope] = struct{}{}
 		}
@@ -166,11 +166,11 @@ func (v *v3Validator) validateUIAndPackage() error {
 		for _, dependency := range asset.Dependencies {
 			family, declared := v.ids[dependency]
 			if declared && family != "asset" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #26", ErrInvalidManifest)
 			}
 			if !declared && !strings.HasPrefix(dependency, "core.asset.") &&
 				!requiredExtensionOwnsAsset(v.manifest.Dependencies, dependency) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #27", ErrInvalidManifest)
 			}
 		}
 	}
@@ -180,19 +180,19 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return err
 		}
 		if !validComponentAction(component.Action) || component.Action != ComponentActionAdd && component.TargetID == "" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #28", ErrInvalidManifest)
 		}
 		if !validComponentTarget(component.TargetID, component.TargetContractVersion, v.manifest.Type) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #29", ErrInvalidManifest)
 		}
 		if component.Permission != "" && !manifestIDPattern.MatchString(component.Permission) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #30", ErrInvalidManifest)
 		}
 		if component.Action != ComponentActionHide && !validSchemaRef(component.PropsSchema) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #31", ErrInvalidManifest)
 		}
 		if (component.Action == ComponentActionFilterResult || component.Action == ComponentActionWrap || component.Action == ComponentActionReplace) && !validSchemaRef(component.ResultSchema) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #32", ErrInvalidManifest)
 		}
 		// 组件 props/result schema 与 provider/query/notification 采用同一条精确声明
 		// 规则：引用必须在本包的 packageFiles[] 中有 id+version 对齐的 kind=schema 条目。
@@ -210,19 +210,19 @@ func (v *v3Validator) validateUIAndPackage() error {
 			}
 		}
 		if component.Action != ComponentActionHide && component.SSRTemplate == "" && component.L2Component == "" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #33", ErrInvalidManifest)
 		}
 		// 非空 ssrTemplate 必须解析到同包唯一模板，并与 props/override 契约精确一致。
 		if component.SSRTemplate != "" {
 			template, declared := templates[component.SSRTemplate]
 			if !declared || !componentSSRTemplateConsistent(component, template) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #34", ErrInvalidManifest)
 			}
 		}
 		if component.L2Component != "" {
 			file, exists := packageFiles[component.L2Component]
 			if !exists || file.Kind != "frontend" || !validPrebuiltAssetPath("script", file.Path) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #35", ErrInvalidManifest)
 			}
 		}
 	}
@@ -234,27 +234,27 @@ func (v *v3Validator) validateUIAndPackage() error {
 		switch content.Kind {
 		case "block", "shortcode", "embed", "node", "mark", "render_filter", "sanitizer":
 		default:
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #36", ErrInvalidManifest)
 		}
 		if !validSchemaRef(content.Schema) ||
 			(content.Handler != "" && !validHandler(content.Handler)) ||
 			(content.Handler != "" && v.manifest.Backend.Entry == "") ||
 			content.Handler == "" && content.Renderer == "" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #37", ErrInvalidManifest)
 		}
 		if content.Renderer != "" {
 			if _, declared := templates[content.Renderer]; !declared {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #38", ErrInvalidManifest)
 			}
 		}
 		if content.Migration != "" && v.ids[content.Migration] != "migration" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #39", ErrInvalidManifest)
 		}
 	}
 
 	// Tiptap Editor Registry 声明：node/mark 绑定 prebuilt L2；toolbar 仅引用同包 command。
 	if len(v.manifest.Editor) > 256 {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: v3 validateUIAndPackage rule #40", ErrInvalidManifest)
 	}
 	editorCommands := map[string]struct{}{}
 	for _, editor := range v.manifest.Editor {
@@ -262,7 +262,7 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return err
 		}
 		if editor.Permission != "" && !manifestIDPattern.MatchString(editor.Permission) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #41", ErrInvalidManifest)
 		}
 		switch editor.Kind {
 		case "node", "mark":
@@ -270,24 +270,24 @@ func (v *v3Validator) validateUIAndPackage() error {
 				!validPackagePath(editor.L2Module) || !validDigest(editor.L2Digest) ||
 				!validPrebuiltAssetPath("script", editor.L2Module) ||
 				editor.CommandKey != "" || editor.CommandID != "" || editor.Label != "" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #42", ErrInvalidManifest)
 			}
 			file, declared := packagePaths[editor.L2Module]
 			if !declared || file.Kind != "frontend" || file.Digest != editor.L2Digest {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #43", ErrInvalidManifest)
 			}
 		case "command":
 			if editor.CommandKey == "" || editor.Schema != "" || editor.CommandID != "" || editor.Label != "" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #44", ErrInvalidManifest)
 			}
 			if editor.L2Module != "" || editor.L2Digest != "" {
 				if !validPackagePath(editor.L2Module) || !validDigest(editor.L2Digest) ||
 					!validPrebuiltAssetPath("script", editor.L2Module) {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #45", ErrInvalidManifest)
 				}
 				file, declared := packagePaths[editor.L2Module]
 				if !declared || file.Kind != "frontend" || file.Digest != editor.L2Digest {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #46", ErrInvalidManifest)
 				}
 			}
 			editorCommands[editor.ID] = struct{}{}
@@ -295,13 +295,13 @@ func (v *v3Validator) validateUIAndPackage() error {
 			if editor.CommandID == "" || editor.Label == "" ||
 				editor.Schema != "" || editor.ExtensionName != "" ||
 				editor.L2Module != "" || editor.L2Digest != "" || editor.CommandKey != "" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #47", ErrInvalidManifest)
 			}
 			if !strings.HasPrefix(editor.CommandID, v.manifest.ID+".") {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #48", ErrInvalidManifest)
 			}
 		default:
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #49", ErrInvalidManifest)
 		}
 	}
 	for _, editor := range v.manifest.Editor {
@@ -309,13 +309,13 @@ func (v *v3Validator) validateUIAndPackage() error {
 			continue
 		}
 		if _, ok := editorCommands[editor.CommandID]; !ok {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #50", ErrInvalidManifest)
 		}
 	}
 
 	// Entity/Taxonomy/Field Schema Registry：同包交叉引用；字段/分类必须绑定本包实体。
 	if len(v.manifest.Entities) > 256 {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: v3 validateUIAndPackage rule #51", ErrInvalidManifest)
 	}
 	entityIDs := map[string]struct{}{}
 	taxonomyIDs := map[string]struct{}{}
@@ -331,31 +331,31 @@ func (v *v3Validator) validateUIAndPackage() error {
 				!manifestIDPattern.MatchString(entity.PermissionRead) ||
 				!manifestIDPattern.MatchString(entity.PermissionUpdate) ||
 				!manifestIDPattern.MatchString(entity.PermissionDelete) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #52", ErrInvalidManifest)
 			}
 			switch entity.ImportExportPolicy {
 			case "allow", "deny", "export_only", "import_only":
 			default:
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #53", ErrInvalidManifest)
 			}
 			switch entity.DeletionPolicy {
 			case "soft", "hard", "retain":
 			default:
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #54", ErrInvalidManifest)
 			}
 			if entity.ImportExportPolicy == "allow" || entity.ImportExportPolicy == "import_only" {
 				if !manifestIDPattern.MatchString(entity.PermissionImport) {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #55", ErrInvalidManifest)
 				}
 			} else if entity.PermissionImport != "" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #56", ErrInvalidManifest)
 			}
 			if entity.ImportExportPolicy == "allow" || entity.ImportExportPolicy == "export_only" {
 				if !manifestIDPattern.MatchString(entity.PermissionExport) {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #57", ErrInvalidManifest)
 				}
 			} else if entity.PermissionExport != "" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #58", ErrInvalidManifest)
 			}
 			if entity.EntityID != "" || entity.Schema != "" || entity.UIComponent != "" ||
 				entity.UIModule != "" || entity.UIDigest != "" || entity.Validation != "" ||
@@ -363,7 +363,7 @@ func (v *v3Validator) validateUIAndPackage() error {
 				entity.PermissionFieldRead != "" || entity.PermissionFieldWrite != "" ||
 				entity.IndexKind != "" || entity.Indexed || entity.Required || entity.Hierarchical ||
 				len(entity.EntityIDs) > 0 {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #59", ErrInvalidManifest)
 			}
 			entityIDs[entity.ID] = struct{}{}
 		case "taxonomy":
@@ -372,11 +372,11 @@ func (v *v3Validator) validateUIAndPackage() error {
 				!manifestIDPattern.MatchString(entity.PermissionManage) ||
 				!manifestIDPattern.MatchString(entity.PermissionAssign) ||
 				len(entity.EntityIDs) == 0 {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #60", ErrInvalidManifest)
 			}
 			for _, entityID := range entity.EntityIDs {
 				if !strings.HasPrefix(entityID, v.manifest.ID+".") {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #61", ErrInvalidManifest)
 				}
 			}
 			if entity.PermissionCreate != "" || entity.PermissionRead != "" ||
@@ -388,7 +388,7 @@ func (v *v3Validator) validateUIAndPackage() error {
 				entity.PermissionFieldRead != "" || entity.PermissionFieldWrite != "" ||
 				entity.IndexKind != "" || entity.Indexed || entity.Required ||
 				len(entity.TaxonomyIDs) > 0 {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #62", ErrInvalidManifest)
 			}
 			taxonomyIDs[entity.ID] = struct{}{}
 		case "field":
@@ -397,37 +397,37 @@ func (v *v3Validator) validateUIAndPackage() error {
 				!validSchemaRef(entity.Schema) || entity.UIComponent == "" ||
 				!manifestIDPattern.MatchString(entity.PermissionFieldRead) ||
 				!manifestIDPattern.MatchString(entity.PermissionFieldWrite) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #63", ErrInvalidManifest)
 			}
 			indexKind := entity.IndexKind
 			if indexKind == "" {
 				if entity.Indexed {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #64", ErrInvalidManifest)
 				}
 				indexKind = "none"
 			}
 			switch indexKind {
 			case "none", "keyword", "text", "numeric", "boolean":
 			default:
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #65", ErrInvalidManifest)
 			}
 			if entity.Indexed && indexKind == "none" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #66", ErrInvalidManifest)
 			}
 			if !entity.Indexed && indexKind != "none" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #67", ErrInvalidManifest)
 			}
 			if entity.UIModule != "" || entity.UIDigest != "" {
 				if !validPackagePath(entity.UIModule) || !validDigest(entity.UIDigest) {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #68", ErrInvalidManifest)
 				}
 				file, declared := packagePaths[entity.UIModule]
 				if !declared || file.Kind != "frontend" || file.Digest != entity.UIDigest {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #69", ErrInvalidManifest)
 				}
 			}
 			if entity.Validation != "" && !validSchemaRef(entity.Validation) {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #70", ErrInvalidManifest)
 			}
 			if entity.StorageKey != "" || entity.PermissionCreate != "" || entity.PermissionRead != "" ||
 				entity.PermissionUpdate != "" || entity.PermissionDelete != "" ||
@@ -435,10 +435,10 @@ func (v *v3Validator) validateUIAndPackage() error {
 				entity.ImportExportPolicy != "" || entity.DeletionPolicy != "" ||
 				entity.PermissionManage != "" || entity.PermissionAssign != "" ||
 				entity.Hierarchical || len(entity.EntityIDs) > 0 || len(entity.TaxonomyIDs) > 0 {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #71", ErrInvalidManifest)
 			}
 		default:
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #72", ErrInvalidManifest)
 		}
 	}
 	for _, entity := range v.manifest.Entities {
@@ -446,26 +446,26 @@ func (v *v3Validator) validateUIAndPackage() error {
 		case "field":
 			if strings.HasPrefix(entity.EntityID, v.manifest.ID+".") {
 				if _, ok := entityIDs[entity.EntityID]; !ok {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #73", ErrInvalidManifest)
 				}
 			} else if !manifestHasRequiredEntityOwnerDependency(v.manifest, entity.EntityID) {
 				// 跨包字段扩展必须声明 required 依赖，版本约束由 Package Graph 校验。
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #74", ErrInvalidManifest)
 			}
 		case "taxonomy":
 			for _, entityID := range entity.EntityIDs {
 				if strings.HasPrefix(entityID, v.manifest.ID+".") {
 					if _, ok := entityIDs[entityID]; !ok {
-						return ErrInvalidManifest
+						return fmt.Errorf("%w: v3 validateUIAndPackage rule #75", ErrInvalidManifest)
 					}
 				} else if !manifestHasRequiredEntityOwnerDependency(v.manifest, entityID) {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #76", ErrInvalidManifest)
 				}
 			}
 		case "entity":
 			for _, taxonomyID := range entity.TaxonomyIDs {
 				if _, ok := taxonomyIDs[taxonomyID]; !ok {
-					return ErrInvalidManifest
+					return fmt.Errorf("%w: v3 validateUIAndPackage rule #77", ErrInvalidManifest)
 				}
 			}
 		}
@@ -476,11 +476,11 @@ func (v *v3Validator) validateUIAndPackage() error {
 			return err
 		}
 		if !validPackagePath(fragment.Path) || !validDigest(fragment.Digest) || !manifestIDPattern.MatchString(fragment.Namespace) {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #78", ErrInvalidManifest)
 		}
 		file, declared := packagePaths[fragment.Path]
 		if !declared || file.Kind != "openapi" || file.Digest != fragment.Digest {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #79", ErrInvalidManifest)
 		}
 	}
 
@@ -488,17 +488,17 @@ func (v *v3Validator) validateUIAndPackage() error {
 		component := binding.Component
 		entry, declared := packagePaths[component.Entry]
 		if !declared || entry.Kind != "frontend" {
-			return ErrInvalidManifest
+			return fmt.Errorf("%w: v3 validateUIAndPackage rule #80", ErrInvalidManifest)
 		}
 		if component.CSS != "" {
 			css, declared := packagePaths[component.CSS]
 			if !declared || css.Kind != "asset" {
-				return ErrInvalidManifest
+				return fmt.Errorf("%w: v3 validateUIAndPackage rule #81", ErrInvalidManifest)
 			}
 		}
 	}
 	if !v.allLocalSchemasDeclared(packagePaths) {
-		return ErrInvalidManifest
+		return fmt.Errorf("%w: v3 validateUIAndPackage rule #82", ErrInvalidManifest)
 	}
 	return nil
 }
