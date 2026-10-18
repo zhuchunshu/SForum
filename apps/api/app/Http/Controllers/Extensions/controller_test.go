@@ -644,7 +644,7 @@ func TestControllerListsNavigationAndManagesExtensionSettings(t *testing.T) {
 		Entry: "/settings",
 		Pages: []extensions.ManifestAdminPage{
 			{Path: "/settings", Label: "Settings", View: "settings", Icon: "i-lucide-settings", Order: 10},
-			{Path: "/dashboard", Label: "Dashboard", View: "about", Icon: "i-lucide-layout-dashboard", Order: 5, Menu: true},
+			{Path: "/dashboard", Label: "Dashboard", View: "about", Icon: "i-lucide-layout-dashboard", Order: 5, Menu: true, Group: "Demo Group"},
 		},
 	}
 	plugin.Manifest.Settings = []extensions.ManifestSetting{{Key: "demo.title", Label: extensionmanifest.LocalizedText{Default: "Title"}, Type: "text", Default: "Hello"}}
@@ -664,6 +664,9 @@ func TestControllerListsNavigationAndManagesExtensionSettings(t *testing.T) {
 	}
 	if !controllerNavigationContains(navigation.Data, "demo.plugin", "/dashboard") || controllerNavigationContains(navigation.Data, "demo.plugin", "/settings") || controllerNavigationContains(navigation.Data, "demo.theme", "/about") {
 		t.Fatalf("unexpected navigation items: %#v", navigation.Data)
+	}
+	if group := controllerNavigationGroup(navigation.Data, "demo.plugin", "/dashboard"); group != "Demo Group" {
+		t.Fatalf("expected navigation item to carry declared group, got %q", group)
 	}
 
 	resp = performExtensionRequest(t, app, http.MethodGet, "/api/v1/admin/extensions/demo.plugin/settings", cookie)
@@ -1246,6 +1249,15 @@ func controllerNavigationContains(items []extensions.ExtensionAdminNavigationIte
 		}
 	}
 	return false
+}
+
+func controllerNavigationGroup(items []extensions.ExtensionAdminNavigationItem, extensionID string, pagePath string) string {
+	for _, item := range items {
+		if item.ExtensionID == extensionID && item.Path == pagePath {
+			return item.Group
+		}
+	}
+	return ""
 }
 
 func controllerSettingValue(settings extensions.ExtensionSettings, key string) string {

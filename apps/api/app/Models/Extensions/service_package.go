@@ -642,6 +642,7 @@ func normalizeAdminPageForDisplay(extensionType string, page ManifestAdminPage) 
 	page.Description = strings.TrimSpace(page.Description)
 	page.Icon = strings.TrimSpace(page.Icon)
 	page.View = strings.TrimSpace(page.View)
+	page.Group = strings.TrimSpace(page.Group)
 	page.Permission = strings.TrimSpace(page.Permission)
 	if page.Icon == "" {
 		page.Icon = defaultExtensionIcon(extensionType)

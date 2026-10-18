@@ -22,7 +22,11 @@ import {
 } from '~/config/adminModules'
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { type AdminTab, useAdminTabs } from '~/composables/admin/useAdminTabs'
-import type { AdminExtensionNavigationItem } from '~/utils/admin/adminExtensions'
+import {
+  groupExtensionNavigation,
+  ungroupedExtensionNavigation,
+  type AdminExtensionNavigationItem
+} from '~/utils/admin/adminExtensions'
 import {
   adminSurfaceKindIcon,
   adminSurfacePlacementPageId,
@@ -41,6 +45,9 @@ type SidebarNavigationItem = {
   value?: string
   children?: SidebarNavigationItem[]
 }
+
+/** 「扩展管理」分组在侧栏里的 value，扩展自带分组插在它之后。 */
+const EXTENSION_FOLDER_NAV_VALUE = 'admin.nav.extensions'
 
 const { t } = useI18n()
 const localePath = useLocalePath()
@@ -200,11 +207,62 @@ const navVisibility = computed(() => ({
 }))
 
 const navigationItems = computed(() => {
-  return adminSidebarNavigation
+  const groups = adminSidebarNavigation
     .map(group => group
       .map(entry => buildNavigationItem(entry, currentAdminPageId.value, navVisibility.value))
       .filter((item): item is SidebarNavigationItem => Boolean(item)))
     .filter(group => group.length > 0)
+
+  // 声明了 group 的扩展页签自成一级菜单：插在「扩展管理」之后，与内置分组同级。
+  const extensionGroups = extensionGroupNavigation.value
+  if (!extensionGroups.length) {
+    return groups
+  }
+  let inserted = false
+  const withExtensionGroups = groups.map((group) => {
+    const index = group.findIndex(item => item.value === EXTENSION_FOLDER_NAV_VALUE)
+    if (index < 0) {
+      return group
+    }
+    inserted = true
+    return [...group.slice(0, index + 1), ...extensionGroups, ...group.slice(index + 1)]
+  })
+  if (!inserted && withExtensionGroups.length > 0) {
+    withExtensionGroups[0] = [...withExtensionGroups[0]!, ...extensionGroups]
+  }
+  return withExtensionGroups
+})
+
+function extensionNavigationPageId(item: AdminExtensionNavigationItem) {
+  return `/extensions/${item.extensionId}/pages${item.path}`
+}
+
+/**
+ * 把同一扩展里 `group` 相同的菜单页签收进一个可展开的一级菜单。
+ * 未声明 group 的页签保持旧行为（平铺在「扩展管理」内，且仅专业模式可见）。
+ */
+const extensionGroupNavigation = computed<SidebarNavigationItem[]>(() => {
+  return groupExtensionNavigation(extensionNavigation.value || []).map((group) => {
+    const children = group.pages.map((item): SidebarNavigationItem => {
+      const pageId = extensionNavigationPageId(item)
+      return {
+        label: item.label,
+        icon: item.icon || group.icon || 'i-lucide-plug',
+        to: adminRoutes.path(pageId),
+        value: pageId,
+        active: currentAdminPageId.value === pageId
+      }
+    })
+    const active = children.some(child => child.active)
+    return {
+      label: group.label,
+      icon: group.icon || 'i-lucide-plug',
+      value: `extension-group:${group.extensionId}:${group.label}`,
+      active,
+      open: active,
+      children
+    }
+  })
 })
 
 function buildNavigationItem(
@@ -280,16 +338,18 @@ function buildAdminSurfaceNavigationItems(currentAdminPageId: string): SidebarNa
 }
 
 function buildExtensionNavigationItems(currentAdminPageId: string): SidebarNavigationItem[] {
-  return (extensionNavigation.value || []).map((item) => {
-    const pageId = `/extensions/${item.extensionId}/pages${item.path}`
-    return {
-      label: item.label,
-      icon: item.icon || (item.extensionType === 'theme' ? 'i-lucide-palette' : 'i-lucide-plug'),
-      to: adminRoutes.path(pageId),
-      value: pageId,
-      active: currentAdminPageId === pageId
-    }
-  })
+  // 声明了 group 的页签已经收进独立一级菜单，这里只平铺剩下的。
+  return ungroupedExtensionNavigation(extensionNavigation.value || [])
+    .map((item) => {
+      const pageId = extensionNavigationPageId(item)
+      return {
+        label: item.label,
+        icon: item.icon || (item.extensionType === 'theme' ? 'i-lucide-palette' : 'i-lucide-plug'),
+        to: adminRoutes.path(pageId),
+        value: pageId,
+        active: currentAdminPageId === pageId
+      }
+    })
 }
 
 function openExtensionRoutePlaceholderTab(tabId: string) {

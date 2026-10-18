@@ -124,6 +124,27 @@ func (s *PostgresStore) GetCurrentUser(ctx context.Context, userID int64) (Curre
 	return current, nil
 }
 
+// GetUserPublicContentCounts 统计用户公开发布的主题与回帖数量。
+// 供 HostAPI 的安全用户投影按需调用：这些计数是公开内容的聚合，
+// 属于 core-safe 数据面，但按需查询以免污染热路径。
+// 状态过滤与论坛域保持一致：主题 active/locked 均为可见，回帖仅 active。
+func (s *PostgresStore) GetUserPublicContentCounts(ctx context.Context, userID int64) (int64, int64, error) {
+	var topicCount, commentCount int64
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM topics
+		WHERE author_user_id = $1 AND status IN ('active', 'locked')
+	`, userID).Scan(&topicCount); err != nil {
+		return 0, 0, fmt.Errorf("count user topics: %w", err)
+	}
+	if err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM comments
+		WHERE author_user_id = $1 AND status = 'active'
+	`, userID).Scan(&commentCount); err != nil {
+		return 0, 0, fmt.Errorf("count user comments: %w", err)
+	}
+	return topicCount, commentCount, nil
+}
+
 // UpdateCurrentUserLocale persists a private account preference and returns the
 // same current-user projection used by the authenticated session endpoint.
 func (s *PostgresStore) UpdateCurrentUserLocale(ctx context.Context, userID int64, locale string) (CurrentUser, error) {

@@ -169,15 +169,18 @@ type ManifestAdmin struct {
 }
 
 type ManifestAdminPage struct {
-	Path        string          `json:"path"`
-	Label       string          `json:"label"`
-	Description string          `json:"description,omitempty"`
-	Icon        string          `json:"icon,omitempty"`
-	View        string          `json:"view,omitempty"`
-	Menu        bool            `json:"menu,omitempty"`
-	Order       int             `json:"order,omitempty"`
-	Permission  string          `json:"permission,omitempty"`
-	Component   *AdminComponent `json:"component,omitempty"`
+	Path        string `json:"path"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
+	Icon        string `json:"icon,omitempty"`
+	View        string `json:"view,omitempty"`
+	Menu        bool   `json:"menu,omitempty"`
+	// Group 把同一扩展的多个 menu 页签收进一个独立的可展开侧栏分组；
+	// 空值表示沿用旧行为（平铺在「扩展管理」文件夹内）。
+	Group      string          `json:"group,omitempty"`
+	Order      int             `json:"order,omitempty"`
+	Permission string          `json:"permission,omitempty"`
+	Component  *AdminComponent `json:"component,omitempty"`
 }
 
 type ManifestRoute struct {

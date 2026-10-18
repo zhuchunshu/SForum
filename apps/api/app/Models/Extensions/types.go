@@ -441,7 +441,9 @@ type ExtensionAdminNavigationItem struct {
 	Description     string `json:"description"`
 	Icon            string `json:"icon"`
 	View            string `json:"view"`
-	Order           int    `json:"order"`
+	// Group 非空时，前端把同组页签渲染成一个独立的可展开一级菜单。
+	Group string `json:"group,omitempty"`
+	Order int    `json:"order"`
 }
 
 type EffectiveContribution struct {

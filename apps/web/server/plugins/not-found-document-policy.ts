@@ -12,8 +12,11 @@ export default defineNitroPlugin((nitroApp) => {
       return
     }
     const accept = getRequestHeader(event, 'accept') || ''
+    // Nuxt 4.6 起渲染头直接落在 event 上，render:response 的 response.headers 会缺省；
+    // 归一化容器并从 event 兜底读取，Nitro 会在钩子后把 response.headers 回写到 event。
+    response.headers = response.headers || {}
     const headers = response.headers as Record<string, string | undefined>
-    const contentType = headers['content-type'] || headers['Content-Type'] || ''
+    const contentType = headers['content-type'] || headers['Content-Type'] || String(getResponseHeader(event, 'content-type') || '')
     const isHTML = accept.includes('text/html') || contentType.includes('text/html')
     const isPayload = contentType.includes('application/json') || path.endsWith('/_payload.json')
     if (!isHTML && !isPayload) {

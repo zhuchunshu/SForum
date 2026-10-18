@@ -2,6 +2,7 @@ package extensionmanifest
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -110,5 +111,17 @@ func TestLoadManifestV3RunsSchemaBeforeNormalization(t *testing.T) {
 	}
 	if _, err := LoadRootBytes(body, files); err == nil {
 		t.Fatal("raw unknown field must fail before Go decoding can discard it")
+	}
+}
+
+func TestManifestV3JSONSchemaAcceptsAdminPageGroup(t *testing.T) {
+	grouped := []byte(`[{"path":"/clients","label":"Clients","menu":true,"group":"OAuth2","order":30}]`)
+	if err := validateV3JSONSchemaFragment(grouped, "adminPages"); err != nil {
+		t.Fatalf("admin page with sidebar group must validate: %v", err)
+	}
+
+	tooLong := []byte(`[{"path":"/clients","label":"Clients","menu":true,"group":"` + strings.Repeat("x", 41) + `"}]`)
+	if err := validateV3JSONSchemaFragment(tooLong, "adminPages"); err == nil {
+		t.Fatal("admin page group label above the length budget must be rejected")
 	}
 }

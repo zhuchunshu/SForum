@@ -172,6 +172,29 @@ func (a identityUserAdapter) GetUserSafe(
 	if err != nil {
 		return nil, err
 	}
+	// 公开内容计数：仅当调用方显式声明 topicCount/commentCount 时才查询，
+	// 避免给这条投影路径无条件加聚合查询。
+	wantTopicCount, wantCommentCount := false, false
+	for _, field := range declaredFields {
+		switch strings.TrimSpace(field) {
+		case "topicCount":
+			wantTopicCount = true
+		case "commentCount":
+			wantCommentCount = true
+		}
+	}
+	if wantTopicCount || wantCommentCount {
+		topicCount, commentCount, err := a.store.GetUserPublicContentCounts(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if wantTopicCount {
+			projected["topicCount"] = topicCount
+		}
+		if wantCommentCount {
+			projected["commentCount"] = commentCount
+		}
+	}
 	return projected, nil
 }
 

@@ -820,6 +820,7 @@ func (s *CatalogService) Navigation(ctx context.Context, actor identity.Actor) (
 				Description:     page.Description,
 				Icon:            page.Icon,
 				View:            page.View,
+				Group:           page.Group,
 				Order:           page.Order,
 			})
 		}

@@ -634,6 +634,10 @@
           "menu": {
             "type": "boolean"
           },
+          "group": {
+            "type": "string",
+            "maxLength": 40
+          },
           "order": {
             "type": "integer"
           },

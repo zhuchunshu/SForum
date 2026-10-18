@@ -27,6 +27,7 @@ import {
   filterExtensionsByType,
   findExtensionAdminPage,
   formatPluginMemoryBytes,
+  groupExtensionNavigation,
   isExtensionArtifactAvailable,
   mergeExtensionDeliveries,
   mergeExtensionEvents,
@@ -36,10 +37,12 @@ import {
   runtimeStatusLabelKey,
   selectMissingArtifactCleanupTargets,
   themeActionState,
+  ungroupedExtensionNavigation,
   themeStatusLabelKey,
   type AdminEffectiveContribution,
   type AdminExtension,
   type AdminExtensionEvent,
+  type AdminExtensionNavigationItem,
   type AdminExtensionEventDefinition,
   type AdminExtensionEventDelivery
 } from '../../app/utils/admin/adminExtensions'
@@ -675,5 +678,54 @@ describe('version gc helpers', () => {
     expect(summary.get('publication_history')).toBe(1)
     expect(summary.get('disk_missing')).toBeUndefined()
     expect(summary.size).toBe(2)
+  })
+})
+
+function navigationItem(overrides: Partial<AdminExtensionNavigationItem> = {}): AdminExtensionNavigationItem {
+  return {
+    extensionId: 'demo.plugin',
+    extensionName: 'Demo',
+    extensionType: 'plugin',
+    extensionStatus: 'enabled',
+    path: '/settings',
+    label: 'Settings',
+    description: '',
+    icon: 'i-lucide-settings',
+    view: 'settings',
+    order: 10,
+    ...overrides
+  }
+}
+
+describe('extension navigation grouping', () => {
+  test('collects pages declaring the same group into one sidebar menu', () => {
+    const groups = groupExtensionNavigation([
+      navigationItem({ path: '/settings', label: 'Settings', order: 40, group: 'OAuth2' }),
+      navigationItem({ path: '/clients', label: 'Clients', order: 30, group: 'OAuth2', view: 'about' })
+    ])
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.label).toBe('OAuth2')
+    expect(groups[0]?.order).toBe(30)
+    expect(groups[0]?.pages.map(page => page.path)).toEqual(['/clients', '/settings'])
+  })
+
+  test('keeps groups of different extensions apart and sorts them by order', () => {
+    const groups = groupExtensionNavigation([
+      navigationItem({ extensionId: 'b.plugin', group: 'Beta', order: 50 }),
+      navigationItem({ extensionId: 'a.plugin', group: 'Alpha', order: 20 }),
+      navigationItem({ extensionId: 'a.plugin', group: 'Alpha', path: '/extra', order: 60 })
+    ])
+    expect(groups.map(group => group.label)).toEqual(['Alpha', 'Beta'])
+    expect(groups[0]?.pages.map(page => page.path)).toEqual(['/settings', '/extra'])
+  })
+
+  test('ignores pages without a declared group so legacy flat entries stay unchanged', () => {
+    const items = [
+      navigationItem({ path: '/flat' }),
+      navigationItem({ path: '/blank', group: '   ' }),
+      navigationItem({ path: '/grouped', group: 'OAuth2' })
+    ]
+    expect(groupExtensionNavigation(items).map(group => group.label)).toEqual(['OAuth2'])
+    expect(ungroupedExtensionNavigation(items).map(item => item.path)).toEqual(['/flat', '/blank'])
   })
 })

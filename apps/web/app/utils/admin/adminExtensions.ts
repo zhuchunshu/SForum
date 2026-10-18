@@ -130,7 +130,58 @@ export type AdminExtensionNavigationItem = {
   description: string
   icon: string
   view: 'about' | 'settings'
+  /** 非空时，同组的页签在侧栏合并成一个独立的可展开一级菜单。 */
+  group?: string
   order: number
+}
+
+/** 一个扩展用 `group` 声明出来的侧栏一级菜单。 */
+export type AdminExtensionNavigationGroup = {
+  extensionId: string
+  label: string
+  icon: string
+  order: number
+  pages: AdminExtensionNavigationItem[]
+}
+
+/**
+ * 按 `group` 把扩展菜单页签收成一级菜单；未声明 group 的页签不参与分组，
+ * 继续由调用方平铺到「扩展管理」里。组内顺序取 order 升序，组间同理。
+ */
+export function groupExtensionNavigation(items: AdminExtensionNavigationItem[]): AdminExtensionNavigationGroup[] {
+  const groups = new Map<string, AdminExtensionNavigationGroup>()
+  for (const item of items) {
+    const label = (item.group || '').trim()
+    if (!label) {
+      continue
+    }
+    const key = `${item.extensionId}::${label}`
+    const existing = groups.get(key)
+    if (existing) {
+      existing.pages.push(item)
+      existing.order = Math.min(existing.order, item.order || 0)
+      if (!existing.icon) {
+        existing.icon = item.icon || ''
+      }
+      continue
+    }
+    groups.set(key, {
+      extensionId: item.extensionId,
+      label,
+      icon: item.icon || '',
+      order: item.order || 0,
+      pages: [item]
+    })
+  }
+  for (const group of groups.values()) {
+    group.pages.sort((left, right) => ((left.order || 0) - (right.order || 0)) || left.path.localeCompare(right.path))
+  }
+  return [...groups.values()].sort((left, right) => (left.order - right.order) || left.label.localeCompare(right.label))
+}
+
+/** 没声明 group 的页签：保持旧的平铺行为。 */
+export function ungroupedExtensionNavigation(items: AdminExtensionNavigationItem[]): AdminExtensionNavigationItem[] {
+  return items.filter(item => !(item.group || '').trim())
 }
 
 export type AdminExtensionSettingValue = {

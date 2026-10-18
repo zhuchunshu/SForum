@@ -8,8 +8,11 @@ import (
 )
 
 // CoreSafeUserFields are the Host-owned non-secret user projections always
-// available through GetUserSafe without extension field authority.
-var CoreSafeUserFields = []string{"id", "username", "displayName", "status"}
+// available through GetUserSafe without extension field authority. All of
+// them are public-by-design: username/display/status render on posts, the
+// avatar URL is the public profile avatar, groups are the public group
+// badges, and the topic/comment counts are aggregates of public content.
+var CoreSafeUserFields = []string{"id", "username", "displayName", "status", "avatar", "groups", "topicCount", "commentCount"}
 
 // SafeUserFieldReader is the narrow read dependency for extension user fields.
 // Production uses the Host-owned IdentityUserFieldValueStore.
@@ -42,6 +45,8 @@ func ProjectSafeUser(
 		"username":    user.Username,
 		"displayName": user.DisplayName,
 		"status":      string(user.Status),
+		"avatar":      user.Avatar.URL,
+		"groups":      roleKeysOrEmpty(user.RoleKeys),
 	}
 
 	requested := normalizeDeclaredSafeUserFields(declaredFields)
@@ -55,6 +60,9 @@ func ProjectSafeUser(
 		if isCoreSafeUserField(fieldID) {
 			if value, ok := core[fieldID]; ok {
 				result[fieldID] = value
+			} else if fieldID == "topicCount" || fieldID == "commentCount" {
+				// 公开内容计数由宿主适配器按需查询后合并；未补齐时省略，
+				// 避免把「未查询」伪装成真实的 0。
 			}
 			continue
 		}
@@ -123,9 +131,23 @@ func normalizeDeclaredSafeUserFields(fields []string) []string {
 
 func isCoreSafeUserField(field string) bool {
 	switch field {
-	case "id", "username", "displayName", "status":
+	case "id", "username", "displayName", "status", "avatar", "groups", "topicCount", "commentCount":
 		return true
 	default:
 		return false
 	}
+}
+
+// roleKeysOrEmpty 保证组标识列表序列化为数组而非 null。
+//
+// 返回值必须是 []any 而不是 []string：GetUserSafe 的文档经 structpb.NewStruct
+// 编码，protobuf 的 Value 只接受 []interface{}，直接放 []string 会让整个
+// 身份投影失败（host.identity_encode_failed: proto: invalid type: []string），
+// 于是 userinfo 连 username 都读不到。
+func roleKeysOrEmpty(roleKeys []string) []any {
+	out := make([]any, 0, len(roleKeys))
+	for _, key := range roleKeys {
+		out = append(out, key)
+	}
+	return out
 }
