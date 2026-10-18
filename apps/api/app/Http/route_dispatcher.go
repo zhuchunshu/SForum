@@ -409,6 +409,11 @@ func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, hostHea
 	}
 	start, err := dispatch.Open(c.Context())
 	if err != nil {
+		// 浏览器文档导航命中登录守卫时改回跳转；其余情形仍是 401 JSON。
+		if location, ok := streamLoginRedirect(c, dispatch, err); ok {
+			c.Set(fiber.HeaderCacheControl, "no-store")
+			return c.Redirect().Status(fiber.StatusFound).To(location)
+		}
 		return mapRouteDispatchError(err)
 	}
 	if err := validateRouteStreamPreflight(dispatch.Step().Mode, start.Response); err != nil {
@@ -438,6 +443,38 @@ func serveRouteStream(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, hostHea
 	return c.SendStreamWriter(func(writer *bufio.Writer) {
 		streamRouteResponse(writer, start.Session, dispatch)
 	})
+}
+
+// streamLoginRedirect 把「浏览器访问受登录守卫保护的 HTML 流」翻译成跳转。
+// 只有 stream 模式 + 浏览器文档导航 + 登录守卫失败才成立；其余情形交回 401 JSON。
+func streamLoginRedirect(c fiber.Ctx, dispatch *routes.RouteStreamDispatch, err error) (string, bool) {
+	if dispatch == nil || !errors.Is(err, ErrRouteLoginRequired) {
+		return "", false
+	}
+	if dispatch.Step().Mode != extensionmanifest.RouteModeStream {
+		return "", false
+	}
+	if c.Method() != fiber.MethodGet && c.Method() != fiber.MethodHead {
+		return "", false
+	}
+	if !strings.Contains(c.Get(fiber.HeaderAccept), "text/html") {
+		return "", false
+	}
+	target := c.Path()
+	if query := string(c.Request().URI().QueryString()); query != "" {
+		target += "?" + query
+	}
+	if !safeLoginReturnPath(target) {
+		return "/login", true
+	}
+	return "/login?redirect=" + url.QueryEscape(target), true
+}
+
+// safeLoginReturnPath 保证回跳目标是站内绝对路径，挡住 open redirect 与 header 注入。
+func safeLoginReturnPath(target string) bool {
+	return strings.HasPrefix(target, "/") &&
+		!strings.HasPrefix(target, "//") &&
+		!strings.ContainsAny(target, "\\\r\n")
 }
 
 func validateRouteStreamPreflight(mode string, response routes.DispatchResponse) error {

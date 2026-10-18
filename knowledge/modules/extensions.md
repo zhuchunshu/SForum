@@ -967,6 +967,16 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
   declaration paths, normalized request paths, and final `Location` values
   explicitly reject a second `/` or `\\` so browser network-path
   normalization remains impossible even for restored or prebuilt plans.
+- A `core.guard.login` failure on a `stream`-mode route is translated into a
+  browser navigation (`GET`/`HEAD` plus an `Accept` containing `text/html`)
+  as `302 /login?redirect=<path+query>`; the target is built only from the
+  current request path and its raw query string (never `Referer`, `Host`, or
+  `X-Forwarded-*`), a non-site-absolute target degrades to `Location: /login`,
+  and the redirect carries `Cache-Control: no-store` because the URL may hold a
+  one-time token. API clients, SSE, WebSocket/multipart/http modes, and unsafe
+  methods keep the `401 auth.required` envelope. Guard-failure traces are still
+  published by `Open()`. See
+  `plans/archive/2026-10/2026-10-18-route-stream-login-redirect.md`.
 - Nuxt plugin-route proxy integration fixtures capture forwarded method, query,
   and body server-side and return a fixed `text/plain` + `nosniff` response;
   attacker-shaped request material is never reflected by the test HTTP server.
