@@ -9,6 +9,11 @@ docker info >/dev/null
 owner="$(od -An -N12 -tx1 /dev/urandom | tr -d ' \n')"
 container="sforum-test-api-${owner}"
 image="${SFORUM_TEST_POSTGRES_IMAGE:-postgres:17-alpine}"
+# 固定宿主端口让 DATABASE_URL 跨运行逐字节一致。Go 会把测试通过 os.Getenv
+# 读到的环境变量值算进结果缓存键，随机端口会让每个数据库包每次运行都重跑
+# （实测 45 个包、662 秒）。端口只当缓存键用：集群仍然每次新建并销毁，
+# 端口被占用时回退到临时端口，只损失缓存、不损失正确性。
+preferred_port="${SFORUM_TEST_POSTGRES_PORT:-55432}"
 cid=""
 cleanup() {
   local status=$?
@@ -34,10 +39,20 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-cid="$(docker run -d --name "$container" --label "com.sforum.test-owner=$owner" \
-  -e POSTGRES_DB=sforum_test_suite -e POSTGRES_USER=sforum -e POSTGRES_PASSWORD=sforum \
-  -e POSTGRES_HOST_AUTH_METHOD=scram-sha-256 \
-  -p 127.0.0.1::5432 "$image")"
+# 一次性集群，关掉持久化只影响这台用完即删的测试库（实测三项 GUC 均已生效）。
+start_cluster() {
+  docker run -d --name "$container" --label "com.sforum.test-owner=$owner" \
+    -e POSTGRES_DB=sforum_test_suite -e POSTGRES_USER=sforum -e POSTGRES_PASSWORD=sforum \
+    -e POSTGRES_HOST_AUTH_METHOD=scram-sha-256 \
+    -p "$1" "$image" \
+    -c fsync=off -c synchronous_commit=off -c full_page_writes=off
+}
+
+if ! cid="$(start_cluster "127.0.0.1:${preferred_port}:5432" 2>/dev/null)"; then
+  docker rm -f "$container" >/dev/null 2>&1 || true
+  echo "端口 ${preferred_port} 已被占用，回退临时端口（本轮测试缓存不会命中）。" >&2
+  cid="$(start_cluster "127.0.0.1::5432")"
+fi
 # postgres 官方镜像首次启动会跑 initdb 然后重启一次；pg_isready 在重启前的
 # 临时实例上就可能返回 0，紧接着的 psql 会撞上 shutdown。用真实认证连接做
 # 就绪判定，并要求连续两次成功，避开首次启动的重启窗口。
@@ -81,5 +96,7 @@ if [[ "${1:-}" == "--compat" ]]; then
   cd "$ROOT_DIR/tests/compat"
   go run . "$@"
 else
-  go test -p 1 "$@"
+  # 默认仍然串行：包之间共享同一个 database，靠 schema 隔离。要压墙钟时可
+  # 用 SFORUM_TEST_PARALLEL=4 试跑；想强制真跑一遍加 -count=1 即可。
+  go test -p "${SFORUM_TEST_PARALLEL:-1}" "$@"
 fi

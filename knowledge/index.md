@@ -6,6 +6,18 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 测试门禁吞吐
+
+- Status: **landed (2026-10-20)**。`scripts/test-api-isolated.sh` 用固定宿主端口
+  让 Go 测试结果缓存对数据库包生效（随机端口让 45 个包每次重跑 662 秒），
+  一次性集群关掉持久化，`go test -p` 可配置。基线 21m31s，其中 Go 阶段 14m45s。
+- 同轮把 `TestCoreMigratorRejectsKernelAuthorityDrift` 的 21 个子用例并行化，
+  73.8s → 14–16s；`database/migrator` 整包 174.0s → 114.7s。模板库克隆方案
+  因 owner 角色由 `current_database()` 派生而否决。
+- Handoff: `sessions/2026-10-20-test-gate-throughput.md`
+- 下一步热点：`Models/Extensions` 87–114s、`Models/Identity` 72–90s；
+  Nuxt build 内存充裕时约 36s，swap 打满时会以 EPIPE/ENOENT 假失败。
+
 ### AI 观测层与能力层（A 批 + G + B 批）
 
 - Status: **completed (2026-10-19)**。十项任务全部落地；同日把仓库门禁从「HEAD 多处红」推到 `./scripts/test.sh` 全绿（架构闸门 9→0、typecheck 0 错、1321 web 用例全过、Go 与 compat farm 全绿、两个 CI gate 脚本 EXIT=0）。：ToolTrace / run correlation id /

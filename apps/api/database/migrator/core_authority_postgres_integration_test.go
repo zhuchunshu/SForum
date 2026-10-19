@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -229,6 +230,13 @@ type coreAuthorityTestDatabase struct {
 	dropSession  bool
 }
 
+// 并行子用例会同时建库，时间戳后缀在并发下可能撞名；进程内自增序号保证唯一。
+var coreAuthorityFixtureSequence atomic.Uint64
+
+func newCoreAuthorityFixtureNonce() string {
+	return fmt.Sprintf("%d_%d", os.Getpid(), coreAuthorityFixtureSequence.Add(1))
+}
+
 func newCoreAuthorityTestDatabase(t *testing.T) *coreAuthorityTestDatabase {
 	return newCoreAuthorityTestDatabaseWithSession(t, false)
 }
@@ -258,9 +266,9 @@ func newCoreAuthorityTestDatabaseWithSession(t *testing.T, nonSuperSession bool)
 		t.Fatalf("connect Core authority test administrator: %v", err)
 	}
 	defer admin.Close(context.Background())
-	nonce := time.Now().UnixNano()
+	nonce := newCoreAuthorityFixtureNonce()
 	fixture := &coreAuthorityTestDatabase{
-		databaseName: fmt.Sprintf("sforum_p5_core_%d", nonce),
+		databaseName: fmt.Sprintf("sforum_p5_core_%s", nonce),
 		adminConfig:  adminConfig,
 	}
 	if err := admin.QueryRow(ctx, `SELECT current_user`).Scan(&fixture.sessionRole); err != nil {
@@ -273,7 +281,7 @@ func newCoreAuthorityTestDatabaseWithSession(t *testing.T, nonSuperSession bool)
 	t.Cleanup(func() { fixture.cleanup(t) })
 	const sessionPassword = "sforum_core_authority_test"
 	if nonSuperSession {
-		fixture.sessionRole = fmt.Sprintf("sforum_p5_core_login_%d", nonce)
+		fixture.sessionRole = fmt.Sprintf("sforum_p5_core_login_%s", nonce)
 		fixture.dropSession = true
 		session := pgx.Identifier{fixture.sessionRole}.Sanitize()
 		if _, err := admin.Exec(ctx, `CREATE ROLE `+session+` LOGIN INHERIT NOSUPERUSER NOCREATEDB CREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '`+sessionPassword+`'`); err != nil {

@@ -650,6 +650,9 @@ func TestCoreMigratorRejectsKernelAuthorityDrift(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
+			// 每个子用例自建数据库，物理权威锁按 current_database() 分键，
+			// 彼此不共享状态；串行重放 152 条迁移是纯重复劳动。
+			t.Parallel()
 			fixture := newCoreAuthorityTestDatabase(t)
 			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 			defer cancel()
