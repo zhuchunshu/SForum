@@ -67,9 +67,13 @@ CREATE TABLE ai_executions (
   cached_tokens INTEGER NOT NULL DEFAULT 0,
   spend_micros BIGINT NOT NULL DEFAULT 0,
   cache_hit BOOLEAN NOT NULL DEFAULT FALSE,
-  error_summary TEXT NOT NULL DEFAULT ''
+  error_summary TEXT NOT NULL DEFAULT '',
+  resource_type TEXT NOT NULL DEFAULT '',
+  resource_id TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX ai_executions_created_idx ON ai_executions (created_at DESC);
+CREATE INDEX ai_executions_resource_idx
+  ON ai_executions (resource_type, resource_id, created_at DESC, id DESC);
 CREATE TABLE secret_store (
   namespace TEXT NOT NULL,
   secret_id TEXT NOT NULL,
@@ -409,4 +413,126 @@ func (c *memoryCache) Get(_ context.Context, key string) (ai.CompletionResult, b
 
 func (c *memoryCache) Put(_ context.Context, key string, result ai.CompletionResult, _ time.Duration) {
 	c.items[key] = result
+}
+
+// A3 的 L2 用例：真实 PostgreSQL 下按归属聚合同一次 run 的全部记录。
+// 它验证的是索引与排序真的按预期工作，而不是 fake 的过滤逻辑。
+func TestPostgresAggregatesExecutionsByRun(t *testing.T) {
+	pool := newAIFixturePool(t)
+	provider := newMockProvider(t)
+	gateway := newIntegrationGateway(t, pool, provider)
+	enableProvider(t, pool, provider)
+	ctx := context.Background()
+	store := ai.NewPostgresStore(pool)
+
+	first := validRequest()
+	first.Metadata.ResourceType = ai.ResourceTypeRun
+	first.Metadata.ResourceID = "run-alpha"
+	if _, err := gateway.Execute(ctx, first); err != nil {
+		t.Fatalf("first execute: %v", err)
+	}
+
+	// 第二条属于同一个 run，但正文不同（避开结果缓存）。
+	second := validRequest()
+	second.System = "第二段系统指令"
+	second.Metadata.ResourceType = ai.ResourceTypeRun
+	second.Metadata.ResourceID = "run-alpha"
+	if _, err := gateway.Execute(ctx, second); err != nil {
+		t.Fatalf("second execute: %v", err)
+	}
+
+	// 第三条属于另一个 run：它不得出现在 run-alpha 的时间线里。
+	other := validRequest()
+	other.System = "第三段系统指令"
+	other.Metadata.ResourceType = ai.ResourceTypeRun
+	other.Metadata.ResourceID = "run-beta"
+	if _, err := gateway.Execute(ctx, other); err != nil {
+		t.Fatalf("third execute: %v", err)
+	}
+
+	timeline, err := store.ListRunExecutions(ctx, ai.ResourceTypeRun, "run-alpha", 50)
+	if err != nil {
+		t.Fatalf("list run executions: %v", err)
+	}
+	if len(timeline) != 2 {
+		t.Fatalf("timeline = %+v", timeline)
+	}
+	for _, record := range timeline {
+		if record.ResourceID != "run-alpha" || record.ResourceType != ai.ResourceTypeRun {
+			t.Fatalf("timeline leaked another run: %+v", record)
+		}
+		if record.Status != ai.ExecutionStatusSucceeded {
+			t.Fatalf("status = %q", record.Status)
+		}
+	}
+	// 时间正序：created_at 相同（同一事务窗口内）时靠 id 兜底。
+	if timeline[0].ID > timeline[1].ID {
+		t.Fatalf("timeline must be ordered ascending: %+v", timeline)
+	}
+
+	// 未知 run 返回空列表（不是错误）。
+	missing, err := store.ListRunExecutions(ctx, ai.ResourceTypeRun, "run-missing", 50)
+	if err != nil {
+		t.Fatalf("unknown run must not error: %v", err)
+	}
+	if len(missing) != 0 {
+		t.Fatalf("missing = %+v", missing)
+	}
+
+	// 空 runId 直接返回空列表：A3 之前的历史行没有归属，拿空串查询不得变成全表扫描。
+	empty, err := store.ListRunExecutions(ctx, ai.ResourceTypeRun, "", 50)
+	if err != nil {
+		t.Fatalf("empty run id must not error: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("empty = %+v", empty)
+	}
+}
+
+// A3 的 L2 用例：历史行（A3 之前的记录）resource_id 为空串，列表页照常可读，
+// 时间线查询不会把它们捞出来。
+func TestPostgresTimelineIgnoresLegacyRowsWithoutRunID(t *testing.T) {
+	pool := newAIFixturePool(t)
+	provider := newMockProvider(t)
+	gateway := newIntegrationGateway(t, pool, provider)
+	enableProvider(t, pool, provider)
+	ctx := context.Background()
+	store := ai.NewPostgresStore(pool)
+
+	legacy := validRequest()
+	if _, err := gateway.Execute(ctx, legacy); err != nil {
+		t.Fatalf("legacy execute: %v", err)
+	}
+	traced := validRequest()
+	traced.System = "带归属的那一次"
+	traced.Metadata.ResourceType = ai.ResourceTypeRun
+	traced.Metadata.ResourceID = "run-with-id"
+	if _, err := gateway.Execute(ctx, traced); err != nil {
+		t.Fatalf("traced execute: %v", err)
+	}
+
+	all, err := store.ListExecutions(ctx, 10)
+	if err != nil {
+		t.Fatalf("list executions: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("list executions = %+v", all)
+	}
+	legacyRows := 0
+	for _, record := range all {
+		if record.ResourceID == "" {
+			legacyRows++
+		}
+	}
+	if legacyRows != 1 {
+		t.Fatalf("legacy row must keep an empty resource id: %+v", all)
+	}
+
+	timeline, err := store.ListRunExecutions(ctx, ai.ResourceTypeRun, "run-with-id", 50)
+	if err != nil {
+		t.Fatalf("list run executions: %v", err)
+	}
+	if len(timeline) != 1 || timeline[0].ResourceID != "run-with-id" {
+		t.Fatalf("timeline = %+v", timeline)
+	}
 }

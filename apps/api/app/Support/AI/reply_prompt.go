@@ -4,6 +4,11 @@ import "strings"
 
 // CoreReplyPromptVersion 是回复用途提示词的版本。它参与缓存键与执行记录：改动
 // 提示词时必须递增，否则历史记录无法对应到产出它的那版提示词。
+// forum-reply@8：工具集扩三个（forum-comment-thread / forum-attachment-read /
+// ai-self-history），同时 B4 在 user 侧追加了引用格式段。两者都改变了模型读到的
+// 内容；它们已同处一份提示词，合成一次升版比拆成 @7/@8 两次更能说明产出它的
+// 到底是哪一版（拆开会让 @7 只对应一个从未单独上线的中间态）。
+// forum-reply@7：保留未用（B2 与 B4 合并为 @8，见上）。
 // forum-reply@6：网关不再向 system 追加任何宿主文本（此前追加的是自我身份声明
 // identity@1）。提示词正文没动，但模型读到的内容不同，版本必须跟上。
 // forum-reply@5：网关开始注入自我身份声明（identity@1），回复用途实际生效的
@@ -11,7 +16,7 @@ import "strings"
 // forum-reply@4：发言标签改为「显示名（@用户名）」并声明成员检索工具。
 // forum-reply@3：默认提示词不再包含字面量尖括号标签（富文本编辑器会剥离它）。
 // forum-reply@2：主楼正文进入上下文、站内工具与引用要求写进系统指令。
-const CoreReplyPromptVersion = "forum-reply@6"
+const CoreReplyPromptVersion = "forum-reply@8"
 
 // CoreReplyToolAllowlist 是回复用途声明的默认模型可见工具。
 //
@@ -21,10 +26,18 @@ const CoreReplyPromptVersion = "forum-reply@6"
 // 登记也不会出现在请求里，因此审核类工具不会因为一次提示词注入而被回复机器人
 // 拿到。user-search 与 user-profile-read 是一对：前者按昵称找到 @用户名，后者
 // 读公开资料。
+//
+// 三个只读工具各自补一个具体断点：forum-comment-thread 补「围绕某一楼的对话」
+// （平铺分页读不到），forum-attachment-read 补「楼里的附件正文」，ai-self-history
+// 补「上下文窗口之外我自己说过什么」。名字写在这里不等于部署里一定存在——登记
+// 表在依赖缺失时不会注册对应工具，那时它只会得到一句「不可用」。
 var CoreReplyToolAllowlist = []string{
 	"forum-search",
 	"forum-topic-read",
 	"forum-topic-list",
+	"forum-comment-thread",
+	"forum-attachment-read",
+	"ai-self-history",
 	"user-search",
 	"user-profile-read",
 	"time-now",

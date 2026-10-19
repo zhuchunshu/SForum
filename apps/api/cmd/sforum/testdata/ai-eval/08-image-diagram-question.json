@@ -1,0 +1,33 @@
+{
+  "id": "image-diagram-question",
+  "note": "带图 ×2：问题依赖一张架构图（正文只描述图的位置，不复述内容）。检验模型是否在只有图片信息时给出针对架构的回答，而不是泛泛而谈。",
+  "topicTitle": "这个架构里缓存该放在哪一层",
+  "topicBody": "画了一下现在的部署结构，图在回复里。\n\n现在的疑问是：Redis 应该放在 API 前面做页面缓存，还是只做会话和热点数据？后端是无状态 Go 服务，两个实例。",
+  "topicAuthor": {"username": "bob", "displayName": "Bob"},
+  "comments": [
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "架构图在这里，@helper 帮我判断下。", "isBot": false,
+     "images": [
+       {"publicId": "eval-diagram-1", "contentType": "image/png", "description": "架构图：用户 → CDN → nginx → 两个 Go API 实例 → PostgreSQL；Redis 单实例被两个 API 共用；无消息队列"}
+     ]}
+  ],
+  "triggerCommentIndex": 0,
+  "triggerUserID": 900008,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 601,
+        "title": "无状态 API 下 Redis 的三种角色，别混着用",
+        "body": "Redis 在同一套系统里通常同时承担三种角色，混用是问题的主要来源：\n\n1. 会话与令牌——必须强一致、不能丢，挂了就得降级为「要求重新登录」。\n2. 热点数据缓存——可重建，允许丢，设置合理 TTL 即可。\n3. 页面/响应缓存——可重建但失效复杂，涉及写路径的主动失效。\n\n建议按角色分实例或至少分 DB 并分 key 前缀：一次误清页面缓存不应该让所有人掉登录。\n\n页面缓存放在 CDN 或 nginx 层通常比放 Redis 更划算：省一次网络往返，且不需要应用层参与失效判断。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 11,
+        "viewCount": 3900,
+        "author": {"username": "alice", "displayName": "Alice"}
+      }
+    ],
+    "users": [
+      {"username": "alice", "displayName": "Alice", "bio": "后端与基础设施。", "topicCount": 210, "commentCount": 1500}
+    ]
+  }
+}

@@ -579,9 +579,27 @@ AIExecutionRecord:
       type: boolean
     errorSummary:
       type: string
+    resourceType:
+      type: string
+      description: 归属对象类型。AI 的一次 run 为 `ai.run`；A3 之前的历史记录为空。
+    resourceId:
+      type: string
+      description: |
+        归属对象 id。同一 run 的每一次模型调用共享它，用于把一条执行记录展开成
+        时间线（`GET /admin/ai/runs/{runId}`）。历史记录为空串，此时界面不显示
+        展开入口。
 
 AIExecutionsPayload:
   type: object
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/AIExecutionRecord"
+
+AIRunTimelinePayload:
+  type: object
+  description: 一次 AI run 的全部执行记录，按时间正序（同毫秒内按 id 兜底）。
   properties:
     items:
       type: array
@@ -772,3 +790,17 @@ ApiResponseAIExecutions:
       type: string
     data:
       "$ref": "#/AIExecutionsPayload"
+
+ApiResponseAIRunTimeline:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AIRunTimelinePayload"

@@ -491,7 +491,9 @@ func TestCoreRouteCatalogHasExactReviewedGuardParity(t *testing.T) {
 	// 370 = 367 + 3 条版本 GC 管理端路由（candidates/confirmations/execute，阶段 5）。
 	// 371 = 370 + core.route.extensions.route_catalog（路由注册表只读目录）。
 	// 372 = 371 + core.route.extensions.query_catalog（密封 Core 查询目录）。
-	if len(catalog) != 372 {
+	// 373 = 372 + core.route.ai.get_run_timeline（A4 观测：按 run 回放执行记录）。
+	// 374 = 373 + core.route.forum.list_comment_citations（B4 公开读：评论的 AI 依据）。
+	if len(catalog) != 374 {
 		t.Fatalf("generated core route count = %d", len(catalog))
 	}
 	kinds := make(map[CoreGuardKind]int)

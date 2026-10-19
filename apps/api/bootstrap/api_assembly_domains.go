@@ -359,7 +359,11 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		}).WithSearchProviderAdmin(searchProviderAdminAdapter{registry: searchProviders}).
 		WithEmailVerificationGate(emailVerificationService).
 		WithViewRecorder(topicViewCounter).
-		WithCommentLive(commentLive)
+		WithCommentLive(commentLive).
+		// B4 的公开读面（D12/D17）：不接这一行时 GET /comments/{id}/citations
+		// 恒返回空列表（仍过可见性判定，不成为枚举豁免口）。适配器在
+		// providers.NewForumCitationReader，此处只做装配。
+		WithCitationReader(providers.NewForumCitationReader(pool))
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
 	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(
@@ -497,12 +501,18 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	// AI 只读工具：登记表归 Core，白名单归用途（forum.reply 自己声明）。工具只
 	// 复用上面这些公开读取路径，因此「机器人能读到什么」与访客一致。
 	aiToolRegistry, err := aitools.NewBuiltinRegistry(aitools.Deps{
-		Search:   searchService,
-		Topics:   forumProvider.Service(),
-		Comments: forumProvider.Service(),
-		Lister:   forumProvider.Service(),
-		Profiles: pageProfileService,
-		Users:    pageProfileService,
+		Search:      searchService,
+		Topics:      forumProvider.Service(),
+		Comments:    forumProvider.Service(),
+		Lister:      forumProvider.Service(),
+		Profiles:    pageProfileService,
+		Users:       pageProfileService,
+		Replies:     forumProvider.Service(),
+		Attachments: attachmentService,
+		// 历史发言读的是公开评论列表（flat 末页回溯），因此与访客同源；
+		// 机器人 id 只用来认出「我自己的发言」，不放宽可见性。
+		BotHistory: aitools.NewBotHistoryReader(forumProvider.Service()),
+		Actors:     identityStore,
 		SiteURL: func(ctx context.Context) string {
 			value, _ := optionsService.WebOption(ctx, "site.url")
 			return value

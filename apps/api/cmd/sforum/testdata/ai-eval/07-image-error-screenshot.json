@@ -1,0 +1,31 @@
+{
+  "id": "image-error-screenshot",
+  "note": "带图 ×1：被回复的评论贴了一张报错截图，正文只说「就这个错」。检验模型是否结合图片内容作答（多模态开关关闭时退化为要求文字描述——同一 fixture 在两种配置下产出不同基线，这是预期）。",
+  "topicTitle": "启动时报这个错，完全看不懂",
+  "topicBody": "本地跑起来就报错，服务直接退出。日志里只有这一屏，我截图了。\n\n系统是 macOS 15，Go 版本是 1.24.2。",
+  "topicAuthor": {"username": "alice", "displayName": "Alice"},
+  "comments": [
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "就这个错，@helper 能看出来是什么问题吗？", "isBot": false,
+     "images": [
+       {"publicId": "eval-shot-1", "contentType": "image/png", "description": "终端截图：底部一行是 bind: address already in use，上一行显示监听 :8080"}
+     ]}
+  ],
+  "triggerCommentIndex": 0,
+  "triggerUserID": 900007,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 512,
+        "title": "端口被占用：address already in use 的排查步骤",
+        "body": "macOS / Linux 上用 lsof -nP -iTCP:8080 -sTCP:LISTEN 找到占用进程；Windows 用 netstat -ano | findstr :8080。\n\n常见原因：上一次的进程没退干净（尤其是 air / 热重载工具留下的子进程），或者 Docker 端口映射占用了同一个端口。\n\n如果确认是自己的残留进程，kill 掉即可；Docker 情况下改映射端口比 kill 容器更省事。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 9,
+        "viewCount": 2600,
+        "author": {"username": "bob", "displayName": "Bob"}
+      }
+    ],
+    "users": []
+  }
+}

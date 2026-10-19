@@ -276,6 +276,8 @@ const TOP_LEVEL_COMMANDS = {
   'newRevisionsCommand': 'revisions',
   'newExtensionCommand': 'extension',
   'newDevCleanupOrphanPluginsCommand': 'dev:cleanup-orphan-plugins',
+  'newAIEvalCommand': 'ai:eval',
+  'newAIDerivedCommand': 'ai:derived',
 }
 
 // File -> command path prefix for commands that belong to `extension`.
@@ -348,7 +350,11 @@ function collectCliExpectedCommands() {
   // the command's Use token, skipping the parent's own name.
   for (const [file, base] of Object.entries(EXTENSION_COMMAND_FILES)) {
     const parent = base[base.length - 1]
-    for (const token of collectUseTokens(`apps/api/cmd/sforum/${file}`)) {
+    // 文件不存在 = 这个文件没有注册任何子命令（最小 fixture 树里就是这种情况）。
+    // 硬读会让「缺一个可选命令文件」变成一条 ENOENT 崩溃，而不是一条可读的校验结论。
+    const commandFile = `apps/api/cmd/sforum/${file}`
+    if (!existsSync(repoPath(commandFile))) continue
+    for (const token of collectUseTokens(commandFile)) {
       if (token === parent) continue
       commands.add([...base, token].join(' '))
     }

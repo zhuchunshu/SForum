@@ -1,0 +1,207 @@
+package ai
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"sync"
+)
+
+// ToolRegistry 是 Host 持有的工具登记表。插件贡献的工具同样登记在这里，
+// 因此「站内有哪些工具」永远有一个可枚举、可审计的答案。
+//
+// 登记表是可替换的：插件启用/停用/升级之后，调用方用 Replace 把「Core 工具 +
+// 当前已启用插件工具」的新集合整体换进来，正在进行的补全继续用旧表跑完，新的
+// 补全看到新表。读写因此必须过锁——单次补全会多次读取登记表（每一步的工具声明
+// 与派发都要查名字），替换发生在两次读取之间。
+//
+// ToolOrigin 标识一个工具来自哪里。控制台用它把 Core 工具与插件工具分开呈现，
+// 运营者因此能看出「这个名字是谁提供的」。
+type ToolOrigin struct {
+	// Kind 是 core 或 plugin。
+	Kind string `json:"kind"`
+	// ExtensionID / Version 只在 Kind=plugin 时有值。
+	ExtensionID string `json:"extensionId,omitempty"`
+	Version     string `json:"version,omitempty"`
+}
+
+// ToolAvailability 是「站内有哪些 AI 工具」的可枚举条目。它比 ToolDefinition
+// 多一个来源：模型只需要名字与描述，运营者还需要知道谁提供的。
+type ToolAvailability struct {
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Origin      ToolOrigin `json:"origin"`
+}
+
+// ToolCatalog 是登记表的只读枚举面。服务层与控制器只依赖它，因此不需要知道
+// 工具是进程内函数还是插件 RPC。
+type ToolCatalog interface {
+	Available() []ToolAvailability
+}
+
+// ToolOriginProvider 是工具可选实现的来源声明。没有实现它的工具一律视为 Core
+// 内置：插件工具必须主动说出自己的扩展身份。
+type ToolOriginProvider interface {
+	Origin() ToolOrigin
+}
+
+type ToolRegistry struct {
+	mu    sync.RWMutex
+	tools map[string]Tool
+}
+
+func NewToolRegistry() *ToolRegistry {
+	return &ToolRegistry{tools: map[string]Tool{}}
+}
+
+func (r *ToolRegistry) Register(tool Tool) error {
+	if r == nil || tool == nil {
+		return ErrToolLoopUnavailable
+	}
+	definition := tool.Definition()
+	if !ValidToolName(definition.Name) {
+		return fmt.Errorf("%w: invalid tool name %q", ErrToolLoopUnavailable, definition.Name)
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.tools == nil {
+		r.tools = map[string]Tool{}
+	}
+	if _, exists := r.tools[definition.Name]; exists {
+		return fmt.Errorf("%w: duplicate tool %s", ErrToolLoopUnavailable, definition.Name)
+	}
+	r.tools[definition.Name] = tool
+	return nil
+}
+
+// Tools 返回当前登记表的工具快照，按名字排序以保证枚举顺序稳定。
+//
+// 它是为了让调用方能拿住「Core 工具集」这一份不变的底子，随后用 Replace 反复
+// 重建「底子 + 当前插件工具」：Core 工具是进程内对象、无状态，重建时原样复用。
+func (r *ToolRegistry) Tools() []Tool {
+	if r == nil {
+		return nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return sortedTools(r.tools)
+}
+
+// Replace 用一批工具整体替换登记表，语义是「这批就是现在的全部工具」。
+//
+// 全部校验在替换之前完成：任何一条名字非法或重名都不会改动现有登记表，调用方
+// 可以在失败后继续用旧表服务请求——「换表失败」与「站内没有工具」是两回事，
+// 后者会让每一次回复都退化成纯文本。成功替换是原子的；已经开始的那次补全继续
+// 用旧表，因为它拿的是先前那几份 Tool 值，而不是登记表本身。
+func (r *ToolRegistry) Replace(tools []Tool) error {
+	if r == nil {
+		return ErrToolLoopUnavailable
+	}
+	next := make(map[string]Tool, len(tools))
+	for _, tool := range tools {
+		if tool == nil {
+			return fmt.Errorf("%w: nil tool", ErrToolLoopUnavailable)
+		}
+		definition := tool.Definition()
+		if !ValidToolName(definition.Name) {
+			return fmt.Errorf("%w: invalid tool name %q", ErrToolLoopUnavailable, definition.Name)
+		}
+		if _, exists := next[definition.Name]; exists {
+			return fmt.Errorf("%w: duplicate tool %s", ErrToolLoopUnavailable, definition.Name)
+		}
+		next[definition.Name] = tool
+	}
+	r.mu.Lock()
+	r.tools = next
+	r.mu.Unlock()
+	return nil
+}
+
+// Lookup 按名字取工具；未注册时返回 ok=false。
+func (r *ToolRegistry) Lookup(name string) (Tool, bool) {
+	if r == nil {
+		return nil, false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	tool, ok := r.tools[strings.TrimSpace(name)]
+	return tool, ok
+}
+
+// Descriptors 返回白名单内已登记工具的声明，顺序与白名单一致，并受
+// MaxToolsPerRequest 约束。未登记的名字被跳过而不是报错：插件卸载后，
+// 历史白名单仍应该能跑，而不是把整个用途拖死。
+func (r *ToolRegistry) Descriptors(names []string) []ToolDefinition {
+	if r == nil || len(names) == 0 {
+		return nil
+	}
+	descriptors := make([]ToolDefinition, 0, len(names))
+	for _, name := range names {
+		if len(descriptors) >= MaxToolsPerRequest {
+			break
+		}
+		tool, ok := r.Lookup(name)
+		if !ok {
+			continue
+		}
+		descriptors = append(descriptors, tool.Definition())
+	}
+	return descriptors
+}
+
+// Available 返回全部已登记工具的枚举视图，按名字排序以保证控制台顺序稳定。
+//
+// 它只回答「站内有哪些工具」，不回答「模型能不能用」：可见性由用途白名单决定
+// （RunInput.ToolNames）。两者刻意分开——否则运营者在控制台看到的清单会随着
+// 每个用途的覆盖配置变化，而「站内有哪些工具」本该是一个全局事实。
+func (r *ToolRegistry) Available() []ToolAvailability {
+	if r == nil {
+		return nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if len(r.tools) == 0 {
+		return nil
+	}
+	names := sortedToolNames(r.tools)
+	out := make([]ToolAvailability, 0, len(names))
+	for _, name := range names {
+		tool := r.tools[name]
+		definition := tool.Definition()
+		origin := ToolOrigin{Kind: "core"}
+		if provider, ok := tool.(ToolOriginProvider); ok {
+			if declared := provider.Origin(); declared.Kind != "" {
+				origin = declared
+			}
+		}
+		out = append(out, ToolAvailability{
+			Name:        definition.Name,
+			Description: definition.Description,
+			Origin:      origin,
+		})
+	}
+	return out
+}
+
+// sortedToolNames 返回登记表里工具名的稳定顺序（按名字升序）。
+func sortedToolNames(tools map[string]Tool) []string {
+	names := make([]string, 0, len(tools))
+	for name := range tools {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// sortedTools 按名字升序返回工具值，供 Replace 的调用方重建集合。
+func sortedTools(tools map[string]Tool) []Tool {
+	if len(tools) == 0 {
+		return nil
+	}
+	names := sortedToolNames(tools)
+	out := make([]Tool, 0, len(names))
+	for _, name := range names {
+		out = append(out, tools[name])
+	}
+	return out
+}

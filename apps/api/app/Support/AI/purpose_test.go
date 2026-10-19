@@ -64,6 +64,106 @@ func TestBuiltinPurposesDeclareTheReplyUseCase(t *testing.T) {
 	}
 }
 
+// B3：两条派生用途的声明逐格对照任务书那张表。
+//
+// 它同时是「能过 PurposeRegistry.Register 校验」的证据：DefaultPurposeRegistry
+// 在构造时逐条调用 Register，任何一条不合法都会让 MustBuiltinPurposeRegistry
+// panic——而 prodUpdate 的调用点遍布装配路径，那会是启动失败。这里按字段断言，
+// 是因为「注册成功」只证明声明合法，不证明声明**正确**。
+func TestBuiltinPurposesDeclareDerivedContentPurposes(t *testing.T) {
+	registry := ai.DefaultPurposeRegistry()
+
+	cases := []struct {
+		id            string
+		label         string
+		labelEn       string
+		tools         []string
+		promptVersion string
+	}{
+		{
+			id:            "forum.digest",
+			label:         "话题蒸馏",
+			labelEn:       "Topic digest",
+			tools:         []string{"forum-topic-read", "forum-search"},
+			promptVersion: "forum-digest@1",
+		},
+		{
+			id:            "forum.tour",
+			label:         "长楼导览",
+			labelEn:       "Long-thread tour",
+			tools:         []string{"forum-topic-read", "forum-topic-list"},
+			promptVersion: "forum-tour@1",
+		},
+	}
+	for _, want := range cases {
+		declaration, ok := registry.Lookup(want.id)
+		if !ok {
+			t.Fatalf("%s must be declared (B3 needs a second outlet for compute)", want.id)
+		}
+		// 成本等级：两条都是 economy（任务书那张表）。
+		if declaration.CostClass != ai.CostClassEconomy {
+			t.Fatalf("%s cost class = %q, want economy", want.id, declaration.CostClass)
+		}
+		// 失败姿态：与 forum.reply 相同，不发明新的降级语义（易错点 3）。
+		reply, ok := registry.Lookup(ai.CorePurposeForumReply)
+		if !ok {
+			t.Fatal("forum.reply must be declared")
+		}
+		if declaration.FailurePosture != reply.FailurePosture {
+			t.Fatalf("%s failure posture = %q, want the same as forum.reply (%q)",
+				want.id, declaration.FailurePosture, reply.FailurePosture)
+		}
+		// 工具白名单：逐项相同，且顺序一致（顺序会进请求，稳定顺序让 diff 可读）。
+		if len(declaration.ToolAllowlist) != len(want.tools) {
+			t.Fatalf("%s tools = %+v, want %+v", want.id, declaration.ToolAllowlist, want.tools)
+		}
+		for index, name := range want.tools {
+			if declaration.ToolAllowlist[index] != name {
+				t.Fatalf("%s tools = %+v, want %+v", want.id, declaration.ToolAllowlist, want.tools)
+			}
+			// 白名单里的每个名字都必须是 Host 工具登记表里真实存在的工具：
+			// 声明一个不存在的工具，模型会把它当成可用能力反复尝试。
+			if !ai.ValidToolName(name) {
+				t.Fatalf("%s declares an invalid tool name %q", want.id, name)
+			}
+		}
+		if declaration.ResourceType != "topic" {
+			t.Fatalf("%s resource type = %q, want topic", want.id, declaration.ResourceType)
+		}
+		if declaration.PromptVersion != want.promptVersion {
+			t.Fatalf("%s prompt version = %q, want %q", want.id, declaration.PromptVersion, want.promptVersion)
+		}
+		if declaration.BlastRadius != ai.PurposesBlastRadiusSingle {
+			t.Fatalf("%s blast radius = %q, want single", want.id, declaration.BlastRadius)
+		}
+		// 双语标签都必须非空：Register 的校验要求 Default 非空，EnUS 缺失会让
+		// 英文控制台显示中文（回退），运营者看不出是两个不同用途之外的别的信号。
+		if declaration.Label.Default != want.label || declaration.Label.EnUS != want.labelEn {
+			t.Fatalf("%s label = %+v", want.id, declaration.Label)
+		}
+		if declaration.Description.Default == "" || declaration.Description.EnUS == "" {
+			t.Fatalf("%s description must be bilingual: %+v", want.id, declaration.Description)
+		}
+	}
+
+	// 两条派生用途的 id 是常量导出的，且与登记表里的键一致。
+	if ai.CorePurposeForumDigest != "forum.digest" || ai.CorePurposeForumTour != "forum.tour" {
+		t.Fatalf("purpose constants drifted: %q %q", ai.CorePurposeForumDigest, ai.CorePurposeForumTour)
+	}
+	// 提示词版本常量与声明一致：分成两处写死就是漂移的开始。
+	if ai.CoreDigestPromptVersion != "forum-digest@1" || ai.CoreTourPromptVersion != "forum-tour@1" {
+		t.Fatalf("prompt version constants drifted: %q %q", ai.CoreDigestPromptVersion, ai.CoreTourPromptVersion)
+	}
+
+	// 枚举顺序稳定（按 id 排序），控制台清单不会每次刷新换序。
+	purposes := registry.Purposes()
+	for index := 1; index < len(purposes); index++ {
+		if purposes[index-1].ID >= purposes[index].ID {
+			t.Fatalf("purposes must be sorted by id: %q then %q", purposes[index-1].ID, purposes[index].ID)
+		}
+	}
+}
+
 func TestPurposeResolverAppliesSiteOverridesOverDeclarations(t *testing.T) {
 	registry, err := ai.NewPurposeRegistry(ai.PurposeDeclaration{
 		ID: "core.probe", Label: ai.LocalizedPurposeLabel{Default: "探针"},

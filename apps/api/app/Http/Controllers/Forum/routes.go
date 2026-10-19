@@ -55,6 +55,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 		api.Post("/topics/:topicID/comments", h.createComment)
 	}
 	api.Get("/comments/:commentID/replies", h.replies)
+	// AI 产物评论的证据链：按产出评论读取它引用过的楼层。零引用返回空列表。
+	api.Get("/comments/:commentID/citations", h.commentCitations)
 	api.Get("/comments/:commentID/revisions", h.commentRevisions)
 	api.Get("/comments/:commentID/revisions/:revisionNo", h.commentRevision)
 	api.Post("/comments/:commentID/revisions/:revisionNo/restore", h.restoreCommentRevision)

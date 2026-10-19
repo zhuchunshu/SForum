@@ -110,6 +110,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sf_admin_ai_run_timeline",
+    "contractVersion": "sforum.component.admin.sf_admin_ai_run_timeline@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIRunTimeline.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sf_admin_ai_trigger_mode_block",
     "contractVersion": "sforum.component.admin.sf_admin_ai_trigger_mode_block@1",
     "kind": "component",
@@ -2145,6 +2155,16 @@
     "contractVersion": "sforum.component.shared.sfcomment@1",
     "kind": "component",
     "source": "apps/web/app/components/forum/SFComment.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfcomment_citations",
+    "contractVersion": "sforum.component.shared.sfcomment_citations@1",
+    "kind": "component",
+    "source": "apps/web/app/components/forum/SFCommentCitations.vue",
     "owners": [
       "public"
     ],

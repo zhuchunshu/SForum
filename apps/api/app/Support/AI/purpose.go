@@ -33,6 +33,12 @@ const (
 	// 工具（判定不需要查站内资料），失败时按 closed 丢弃——判定失败的含义
 	// 是「这次不回复」，fail_open 会把每次网关故障放大成一轮意外刷屏。
 	CorePurposeForumReplyTriage = "forum.reply.triage"
+	// CorePurposeForumDigest 是答案蒸馏：把一个话题的讨论收敛成一段可预览的
+	// 摘要。产物不直接发布——运营者预览后才决定它是否落到用户可见的位置。
+	CorePurposeForumDigest = "forum.digest"
+	// CorePurposeForumTour 是长楼导览：给超长话题生成一条阅读路线（主线、
+	// 争论点、可以跳过的楼层）。它只读楼层结构，不判断谁对谁错。
+	CorePurposeForumTour = "forum.tour"
 	// 同值；保留两个名字是因为 diagnose.go 的常量先存在，登记表这里按
 	// 用途命名空间的习惯再暴露一次。
 	CorePurposeDiagnose = "admin.connectivity_test"
@@ -41,6 +47,19 @@ const (
 // CorePurposes 是 Core 内置用途声明所在的命名空间。插件贡献的用途使用自己的
 // 扩展 id 作为前缀，两个命名空间不得互相占用。
 const CorePurposeNamespace = "core"
+
+// 派生内容（蒸馏 / 导览）的提示词版本。它们与回复的版本一样参与缓存键与执行
+// 记录：改动模型读到的内容就必须递增，否则历史记录无法对应到产出它的那版提示词。
+//
+// 它们定义在这里而不是提示词正文旁边，是因为用途声明在 Support 层、提示词正文在
+// Models 层：声明不能反向 import 领域包，而「声明里写死版本号、正文另处升级」才是
+// 真正的漂移风险。正文与版本因此同处一个可审阅的地方（这里）。
+const (
+	// CoreDigestPromptVersion 是话题蒸馏提示词的版本。
+	CoreDigestPromptVersion = "forum-digest@1"
+	// CoreTourPromptVersion 是长楼导览提示词的版本。
+	CoreTourPromptVersion = "forum-tour@1"
+)
 
 // PurposeBlastRadius 描述一次用途调用失败时影响的范围。它出现在登记表与执行
 // 记录里，让运营者能从「谁会被这次失败影响」的角度判断风险，而不是只看成本。
@@ -210,8 +229,15 @@ func validPurposeID(id string) bool {
 	return true
 }
 
-// BuiltinPurposes 返回 Core 内置用途。回复是第一个也是当前唯一的消费方；
-// 内容用途（摘要/翻译/摘要信）落地时在这里增加条目，而不是在各调用方加特例。
+// BuiltinPurposes 返回 Core 内置用途。回复是第一个消费方；派生内容（蒸馏与
+// 导览）随后加入。内容用途落地时在这里增加条目，而不是在各调用方加特例。
+//
+// 三条派生/判定的失败姿态与回复并列写在这里，因为「AI 不可用时抛错还是静默」
+// 是产品决定，不是各调用方的实现细节：
+//   - forum.reply / forum.digest / forum.tour 都是 fail_open：产物只在运营者
+//     预览时才被看见，一次网关故障的后果是一次「没有产物」，不是一次错误发布；
+//   - forum.reply.triage / admin.connectivity_test 是 fail_closed：判定的失败
+//     含义是「这次不回复」，探测的失败含义是「供应商不可用」，都必须浮出来。
 func BuiltinPurposes() []PurposeDeclaration {
 	return []PurposeDeclaration{
 		{
@@ -245,6 +271,44 @@ func BuiltinPurposes() []PurposeDeclaration {
 			ResourceType:   "topic",
 			PromptVersion:  CoreTriagePromptVersion,
 			BlastRadius:    PurposesBlastRadiusSingle,
+		},
+		{
+			ID: CorePurposeForumDigest,
+			Label: LocalizedPurposeLabel{
+				Default: "话题蒸馏", EnUS: "Topic digest",
+			},
+			Description: LocalizedPurposeLabel{
+				Default: "把一条话题的讨论收敛成可预览的摘要草稿；由运营者手动触发，不自动发布。",
+				EnUS:    "Condense one topic's discussion into a reviewable digest draft; operator-triggered, never auto-published.",
+			},
+			// 成本与失败姿态照抄回复：蒸馏是同类内容任务，且它的产物同样要人工
+			// 预览，失败的正确含义是「这次没有草稿」而不是一次错误可见的内容。
+			CostClass:      CostClassEconomy,
+			FailurePosture: FailurePostureOpen,
+			// 只需要「读这一楼」与「翻站内检索」：蒸馏的依据必须来自被蒸馏的
+			// 话题本身，列表类工具会让它把别处的话题也算进这一楼的结论里。
+			ToolAllowlist: []string{"forum-topic-read", "forum-search"},
+			ResourceType:  "topic",
+			PromptVersion: CoreDigestPromptVersion,
+			BlastRadius:   PurposesBlastRadiusSingle,
+		},
+		{
+			ID: CorePurposeForumTour,
+			Label: LocalizedPurposeLabel{
+				Default: "长楼导览", EnUS: "Long-thread tour",
+			},
+			Description: LocalizedPurposeLabel{
+				Default: "为超长话题生成一条阅读路线（主线、争论点、可跳过的楼层）；由运营者手动触发，不自动发布。",
+				EnUS:    "Build a reading route through an overlong topic (main line, disputes, skippable floors); operator-triggered, never auto-published.",
+			},
+			CostClass:      CostClassEconomy,
+			FailurePosture: FailurePostureOpen,
+			// 导览面对的是「这一楼有多长」：读楼 + 列楼即可，不需要站内检索
+			// （跨话题检索会把导览变成推荐，那是另一种产物）。
+			ToolAllowlist: []string{"forum-topic-read", "forum-topic-list"},
+			ResourceType:  "topic",
+			PromptVersion: CoreTourPromptVersion,
+			BlastRadius:   PurposesBlastRadiusSingle,
 		},
 		{
 			ID: CorePurposeDiagnose,

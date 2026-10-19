@@ -1,0 +1,28 @@
+{
+  "id": "crosslang-zh-asks-english",
+  "note": "跨语言 ×2：中文提问但明确要求英文答案，且语料是英文。检验「提问者的显式语言要求」是否优先于默认跟随规则。",
+  "topicTitle": "想用英文写文档，但不确定术语对不对",
+  "topicBody": "我要把这个项目的 README 翻译成英文，给国外同事看。\n\n原文里有「幂等」「最终一致性」「背压」这几个词，我不确定英文里最地道的说法是什么。你直接用英文给我解释一下这几个词在该语境下该怎么写，别用中文回答，我要直接复制进文档。",
+  "topicAuthor": {"username": "bob", "displayName": "Bob"},
+  "comments": [
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "@helper please answer in English only — I need to paste it into the README.", "isBot": false}
+  ],
+  "triggerCommentIndex": 0,
+  "triggerUserID": 900010,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 800,
+        "title": "Distributed systems glossary: terms we keep mistranslating",
+        "body": "idempotent — an operation that produces the same result whether applied once or many times. In HTTP: PUT and DELETE are idempotent, POST is not.\n\neventual consistency — replicas may diverge temporarily but converge given no new writes. Always state the convergence window; \"eventually\" without a bound is not a specification.\n\nbackpressure — a mechanism that lets a slow consumer signal a fast producer to slow down. Without it, an unbounded queue converts a latency problem into an out-of-memory problem.\n\nNote: \"幂等\" is frequently mistranslated as \"idempotence\" in noun position when the sentence needs the adjective \"idempotent\". Prefer the adjective: \"an idempotent endpoint\", not \"an endpoint with idempotence\".",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 4,
+        "viewCount": 1500,
+        "author": {"username": "alice", "displayName": "Alice"}
+      }
+    ],
+    "users": []
+  }
+}

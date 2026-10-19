@@ -6,6 +6,20 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### AI 观测层与能力层（A 批 + G + B 批）
+
+- Status: **completed (2026-10-19)**。十项任务全部落地；同日把仓库门禁从「HEAD 多处红」推到 `./scripts/test.sh` 全绿（架构闸门 9→0、typecheck 0 错、1321 web 用例全过、Go 与 compat farm 全绿、两个 CI gate 脚本 EXIT=0）。：ToolTrace / run correlation id /
+  轨迹回放 / `sforum ai:eval` 基线 / 预算默认步数 3→5 / 三个新只读工具 / 两条派生用途 /
+  证据链溯源 / 会话状态。验证矩阵 L1–L5 通过（L3 的 9 条是 HEAD 既有告警），L6/L7
+  有运行时与浏览器证据。
+- 残留（非门禁）：真实模型产出 `[[cite:]]` 是概率性观测（写入/渲染路径均已确定性覆盖）；
+  `bun run dev` 需重启一次让新增 i18n 客户端文案生效（D22）；派生用途的控制台按钮
+  需要时再加 HTTP 端点（D16）。
+- Plan: `plans/archive/2026-10/2026-10-19-ai-observability-and-capabilities.md`（含 D1–D24）
+- Handoff: `sessions/2026-10-19-ai-observability-and-capabilities.md`
+- Modules: `modules/ai.md`
+- Decision: `decisions/2026-10-19-ai-topic-state-invalidates-storage-not-just-injection.md`
+
 ### Control-panel AI 保存 422 与上限放宽
 
 - Status: **landed (2026-10-19)**。422 根因（空串/小数数字字段、无上界钳制、
@@ -301,6 +315,7 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **AI 观测层与能力层（2026-10-19，最新）**：让 AI 工具循环对运营者第一次可见，并在这个基础上扩容能力。A 批：`ToolTraceEntry`（参数脱敏 + 结果摘要 + 五种失败结局，工具明细只进日志不进 `ai_executions`）、run 级关联 id（`RunResult.RunID` 复合字面量一次写入，7 处 `g.record` 全透传，迁移 001）、`GET /admin/ai/runs/:runId` 回放（服务层判 `ai.manage`，缓存命中单条记录必须标注）、`CompletionOutput` 四项透出 + 结构化 `tool_trace` 日志。G：`sforum ai:eval` 基线门禁（10 条 fixture、真实装配、只跑不发布、`--diff`/`--only`、成本保护；两条纪律：`TriggerUserID=0` 防配额自噬、带 `error` 的快照必须补跑）。B 批：预算默认步数 3→5、三个新只读工具（`forum-comment-thread` / `forum-attachment-read` / `ai-self-history`，提示词版本 `forum-reply@8`）、两条派生用途 （`forum.digest`/`forum.tour`，落新表 `ai_derived_artifacts`，只 CLI 手动触发）、证据链（`[[cite:]]` 解析隔离 + 逐条校验 + 发布后落 `ai_citations` + 公开读端点）、会话状态（`ai_topic_state`，三重失效 + 四条防丢失）。验证：L1/L2/L4/L5 绿、L3 仍为 9 条既有告警、L6/L7 有运行时与浏览器证据。详见 `sessions/2026-10-19-ai-observability-and-capabilities.md`、`plans/archive/2026-10/2026-10-19-ai-observability-and-capabilities.md`（含 D1–D24 偏离登记）、`modules/ai.md`。
 - **扩展设置保存提速（2026-10-19）**：保存设置不是纯写库（实测 `put_ms=5`），耗时全在「重启插件」；80% 以上的 CPU 花在对同一份不可变扩展包反复做整树 SHA-256。根因是 `bootstrap` 里每 5 秒一轮的 `GuardPolicyCatalog.RunRefresh`（16 个 uploaded 扩展 × 2 次可信身份 = 约 32 次整树哈希 / 5 秒，独占 27.39 s / 40 s 窗口）。修复为包校验指纹记忆化（`app/Support/ExtensionPackage/verification_cache.go`，只读元数据、共用同一文件集合、TTL 5 分钟、dev 构建显式失效）＋同一 gate 内共享 `ArtifactLoader` 消除重复 registry 校验。实测单次保存 **24.5–39 s → ≈3.0 s**，后台循环 **27.39 s → 0.18 s**。详见 `sessions/2026-10-19-extension-settings-save-latency.md`、`decisions/2026-10-19-package-verification-memoization.md`。
 - **控制台 AI 保存 422 与上限放宽（2026-10-19）**：定位到六条触发路径（`v-model.number` 清空产生空串、闸门/预算无上界、供应商「非空但不合法」、自动裁决空动作、数值入口分散、错误不可诊断）。修复方向是「前端永不产出非法形状 + 服务端说清哪个字段」：新增 `Settings.Issues()` 与字段级 422（`ai.settings_malformed` / `ai.settings_invalid` + `data.fields`），控制台改走 `coerceInteger`/`profileIssue` 并在保存前拦截；同时把 `Support/AI` 天花板按模型能力重定标（输出 128k、输入总预算 12 MiB、工具步数 12、月度预算 1000 万元，默认值不变），经 `limits` 下发前端；同步 SDK 镜像常量、gRPC 16 MiB 与插件 `GOMEMLIMIT` 96 MiB。详见 `sessions/2026-10-19-admin-ai-save-422-and-limits.md`、`decisions/2026-10-19-ai-context-and-budget-ceilings.md`。
 - **dev 制品自愈 + lifecycle 终态一致（2026-10-19）**：stage 幂等改为「记录路径 == 本次 DigestTree 校验过的快照根」，`ensureExtensionVersion` 冲突时只修 `package_path`，删目录/换根不再永久 missing；dev auto 在自动恢复前先判冻结制品可装载，并按摘要 + attempt 上限（3）放弃，不再把 operation 推到 attempt=98；lifecycle 汇总新增 `closed`（`completed_at` 唯一判据），CLI already-closed 报错带 `state/terminal/completedAt`。详见 `sessions/2026-10-19-dev-artifact-self-heal.md`。

@@ -1,0 +1,30 @@
+{
+  "id": "crosslang-en-question",
+  "note": "跨语言 ×1：提问是英文，站内答案是中文。检验「语言与提问者保持一致」这条规则是否被遵守（应当用英文回答，但仍能读懂中文语料）。",
+  "topicTitle": "Why does my context get cancelled as soon as the handler returns?",
+  "topicBody": "I'm using Fiber with a database call inside a goroutine that outlives the request.\n\n```go\ngo func() {\n    rows, err := db.Query(c.RequestCtx(), query)\n}()\nreturn c.JSON(response)\n```\n\nSometimes the query fails with `context canceled` and sometimes it works. Is this a race condition in my code or something about the framework?",
+  "topicAuthor": {"username": "alice", "displayName": "Alice"},
+  "comments": [
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "It fails maybe 30% of the time. @helper any idea what's going on here?", "isBot": false}
+  ],
+  "triggerCommentIndex": 0,
+  "triggerUserID": 900009,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 700,
+        "title": "请求生命周期与 context 取消：为什么后台任务会失败",
+        "body": "问题的根源是把请求的 context 传给了生命周期比请求更长的 goroutine。\n\n请求结束时框架会取消该 context，此时任何还在使用它的下游调用（数据库、HTTP 客户端）都会立即返回 context canceled。\n\n两种正确做法：\n\n1. 如果后台任务应该在请求结束后继续，用 context.WithoutCancel(ctx)（Go 1.21+）保留值但去掉取消信号，或干脆用 context.Background() 并自己控制超时。\n2. 如果任务必须与请求同生共死，就不要放到独立 goroutine 里，而是同步等待它完成。\n\n不要用「先复制一份 context」来绕：取消信号是 context 的核心语义，只能显式地剥离（WithoutCancel），不能靠拷贝规避。\n\n「有时候成功」的解释：请求处理足够快时，goroutine 里的查询可能在取消发生前就已经完成，因此表现为概率性失败。这不是数据竞争，是生命周期竞争。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 6,
+        "viewCount": 5100,
+        "author": {"username": "bob", "displayName": "Bob"}
+      }
+    ],
+    "users": [
+      {"username": "bob", "displayName": "Bob", "bio": "Go and databases. Writes debugging notes.", "topicCount": 128, "commentCount": 940}
+    ]
+  }
+}

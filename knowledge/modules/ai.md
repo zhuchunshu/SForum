@@ -99,10 +99,13 @@ live in configuration, not in Core code.
   become a reply storm). Unknown/missing mode values normalize to mention at
   runtime; mode read failures also fall back to mention.
   snapshot (`ReplyContext`), the prompt assembly and the generator;
-  `app/Models/AITools` owns the six Core built-in tools
-  (`forum-search`, `forum-topic-read`, `forum-topic-list`, `user-profile-read`,
-  `user-search`, `time-now`). The step budget, gates, accounting and truncation
-  live in `Support/AI.Orchestrator`, not in the tools.
+  `app/Models/AITools` owns the nine Core built-in tools
+  (`forum-search`, `forum-topic-read`, `forum-topic-list`, `forum-comment-thread`,
+  `forum-attachment-read`, `ai-self-history`, `user-profile-read`, `user-search`,
+  `time-now`). The step budget, gates, accounting and truncation
+  live in `Support/AI.Orchestrator`, not in the tools. A tool whose dependency is
+  nil is **not registered**: a tool that exists but always fails burns model steps
+  more than a missing one does.
 - **Identity, not just nicknames, reaches the prompt.** Every quoted utterance
   carries `AuthorRef{Username, DisplayName}` and renders as
   `显示名（@用户名）`. Without the handle the model could name the member it was
@@ -194,9 +197,10 @@ live in configuration, not in Core code.
 - **用途是声明，不是调用点的细节。** `app/Support/AI/purpose.go` 的
   `PurposeDeclaration` 记录 id、双语名称/说明、成本等级、失败姿态、默认工具白名单、
   资源类型、提示词版本与影响范围（single/batch/site）；`PurposeRegistry` 拒绝重复 id
-  与任何不合规声明，装配期构造后只读。`forum.reply` 是当前唯一条目；
-  `DefaultPurposeRegistry()` 是进程单例，保证「回复用途声明了什么」在一个进程里
-  只有一个答案。
+  与任何不合规声明，装配期构造后只读。`DefaultPurposeRegistry()` 是进程单例，保证
+  「某个用途声明了什么」在一个进程里只有一个答案。
+- **当前登记表有 5 条**（2026-10-19）：`forum.reply`、`forum.reply.triage`、
+  `forum.digest`、`forum.tour`、`admin.connectivity_test`。后两条派生用途见下节。
 - **解析优先级固定为「站点按用途覆盖 > 用途声明默认值」**，且不可反转：声明是 Core
   （后续是插件）写下的能力边界，运营者只能在已声明的用途上做选择。
   `PurposeResolver` 由网关（拒绝未声明用途）、服务层（回复参数）与控制台（用途清单）
@@ -221,6 +225,42 @@ live in configuration, not in Core code.
   SSR 渲染前完成，否则服务端按空兜底渲染、客户端按真实载荷水合，hydration 必然
   mismatch（2026-10-12 修复）。**窄屏渲染 QA 待做**（390x844）。决策：
   `decisions/2026-10-12-ai-purpose-registry.md`。
+
+## 派生内容用途 `forum.digest` / `forum.tour`（B3，2026-10-19）
+
+- **只读 + 手动触发 + 不发布。** 两条用途都声明 `economy`、失败姿态与 `forum.reply`
+  相同（`fail_open`）、`ResourceType=topic`、`BlastRadius=single`，提示词版本分别是
+  `forum-digest@1` / `forum-tour@1`。工具白名单：digest 是
+  `forum-topic-read`+`forum-search`，tour 是 `forum-topic-read`+`forum-topic-list`
+  （导览要的是楼层结构，跨话题检索会把导览变成推荐）。
+- **产物落在 `ai_derived_artifacts`，不写 `comments` / `topics`。** 表来自迁移
+  `202610190004`，列：`id / purpose / topic_id / run_id / prompt_version /
+  status(draft|published|discarded) / content / created_by_user_id / created_at`。
+  本包**只写 `status=draft`**：默认不自动发布是代码级事实（`NormalizeArtifact` 在
+  缺省时补 `draft`），不是靠调用方自觉。`content` 是模型文本（用户内容），
+  **不进 `ai_executions`**。为什么不用 `comments.status='pending'` 当草稿：那是审核
+  专用（审核台 `WHERE status='pending'` 计数并发待审通知），混进去审核员无法与垃圾
+  内容区分，而且会把 `SubmitDecision` 变成 AI 发布器。详见任务书 D15。
+- **触发面只有运营者手动**：`sforum ai:derived run|list`。不入定时、不入事件驱动、
+  没有「产物再触发 AI」。CLI 只入队 + 读自己的表，**不需要网关与密钥**（执行在
+  worker 侧），只要 `DATABASE_URL`；权限复用 `ai.manage`（未新增权限键）。
+  HTTP 端点本轮不做（D16），服务层 `Enqueuer/List/Get` 已冻结且内部先判 `ai.manage`。
+- **job kind 是 `ai.forum_digest` / `ai.forum_tour`**，`QueueAI`、`MaxAttempts: 3`、
+  `Unique.ByArgs`（唯一键含一次性 `requestId`：同一次触发重复投递去重，重新生成不
+  被挡）。**一个 args 类型对应一个 kind 是 River 的硬约束**，见过两种失败形态
+  （注册覆盖率 / payload 形状错配），见任务书 D20 与
+  `app/Jobs/AIDerived/derive_internal_test.go` 的守卫。
+- **`forum.digest` 需要该成本档 profile 的 `maxTokens ≥ 8192`，或绑定非推理模型。**
+  这是**运营前提，不是代码缺陷**（2026-10-19 归因，每次只改一个变量的受控实验）：
+  `custom` profile 的 `glm-5.3-flash` 是推理模型，蒸馏的系统指令会诱导它先输出
+  3700+ 字思考；2048 的默认预算装不下，表现为 `ErrEmptyArtifact`（错误文本已带
+  可执行建议）。实测：短提示+短 user 5.0s 出正文；蒸馏提示+短 user 18.8s、思考
+  3778 字、output 1050；短提示+长 user 4.3s 出正文。抬到 8192 后同一模型正常产出。
+  **在 2048 下它是边际通过（偶有成功），比稳定失败更危险**——运维若发现「蒸馏偶尔
+  不好用」，先看 profile 预算与模型类型，不要先怀疑提示词。
+- 生成侧**当前不接 Orchestrator**（单次补全）：用途声明的工具白名单因此不进请求。
+  声明仍然必须存在（它是能力边界的权威档案）；要让它真正生效需把 worker 侧改成
+  工具循环，属后续任务。
 
 ## Defaults semantics
 
@@ -315,6 +355,105 @@ live in configuration, not in Core code.
   没有站点级闸门（运营者决策）：唯一的上界就是各插件声明的 `timeoutMs`，所以
   「一次回复最多等多久」由插件作者决定，控制台看不到也改不了。正因为没有第二道
   闸门，上限本身不能太大——30 秒与模型 profile 的默认请求超时同量级。
+
+## 可观测性（2026-10-19，A 批）
+
+- **`ToolTraceEntry` 是运营者可见面的数据源**（`Support/AI/tool_trace.go`）。
+  `Orchestrator.Run` 的每次工具调用产出一条：`Step` 取 `RunResult.ModelCalls`（不另设
+  计数器）、`LatencyMS` 用 `time.Since`（**不用可注入 clock**，那是窗口对齐语义）、
+  `Arguments` 经 `RedactText` 主动脱敏后截 `MaxToolTraceArgumentsBytes`(1 KiB)、
+  `ResultBytes`/`ResultDigest` 取**最终回填给模型的文本**（含 `IsError` 前缀与
+  「结果过长已截断」标记——那正是模型看到的东西）。五种结局：
+  `unknown_tool` / `not_allowed` / `step_exhausted` / `result_budget_exhausted` /
+  `internal_error`；工具自己报的 `IsError` **不**记为编排失败（`Failure` 留空）。
+  `tool_loop.go` 因此拆出 `tool_registry.go`（`ToolRegistry` 一族原样位移）与
+  `tool_trace.go`，主文件回到 ~350 行，远离 500 闸门。
+- **`ExecutionRecord` 仍不含用户内容**：trace 与引用都只进日志与新表。
+- **run 级关联**：`newRunID()`（16 字节随机 hex，随机源失败退时间戳）在 `Run` 开头
+  生成并写进**每次** `CompletionRequest.Metadata`（`ResourceType="ai.run"`），
+  `RunResult.RunID` 用复合字面量在建 `result` 时一次写入——两条早返回（网关失败、
+  `ErrToolLoopStuck`）因此天然带上 id，不需要在每个 return 点补赋值（补法漏一个丢一个）。
+  `Gateway.record` 的 **7 处**调用点（不是任务书写的 8 处，见 D1）全部透传；
+  迁移 `202610190001` 给 `ai_executions` 加 `resource_type`/`resource_id` + 复合索引。
+  **绝不把 run id 写进 `CacheKey`**（会让缓存永久失效且不报错）。
+- **回放**：`GET /admin/ai/runs/:runId`（`ai.manage`，权限判定在服务层
+  `Models/AI.Service.RunTimeline`，与 `Executions` 同形）→ `{items: [...]}`，
+  `created_at ASC, id ASC`，limit 默认 50 / 上限 200，空 `runId` 短路成空列表
+  （历史记录没有 run 归属，界面据此不显示展开入口）。前端 `useAdminAIRunTimeline`
+  + `SFAdminAIRunTimeline.vue`；**缓存命中只有一条记录是正确行为，界面必须标注**，
+  `status=denied` 要标「未出站」并显示 `gateReason`。**工具调用明细不在执行记录里**
+  （在日志里），界面不得伪造。
+- **`CompletionOutput` 透出四项**（此前被逐层丢弃）：`ToolTrace` / `Usage` /
+  `ModelCalls` / `ToolCalls`。错误路径经 `partialOutput` 带回部分结果，`Generate`
+  在错误文本里附 `tool_calls=N usage=I/O`——重试的一方能知道上次做到哪
+  （**不做断点续跑**：River 重试是整任务重跑）。
+
+## 能力面（2026-10-19，B 批）
+
+- **预算（B1）**：`DefaultToolCallsPerReply` 3 → **5**；`MaxToolCallsPerReply` 保持 12、
+  两个结果预算保持 64 KiB / 256 KiB（任务书 D2：它给的 `was` 值早于天花板重定标，
+  照抄会反向收紧，见「偏离登记」D2）。
+- **三个新只读工具（B2）**：`forum-comment-thread`（围绕某一楼的对话，`depth<=2`、
+  `limit<=30`，自己递归一层）、`forum-attachment-read`（附件 publicID，文本类返回
+  截断正文、二进制只返回元数据，走 `OpenContent` 同一条授权链 + `io.LimitReader`）、
+  `ai-self-history`（按 `(topicID, botUserID)` 读自己在本话题的历史发言，`limit<=10`）。
+  三条纪律：可见性一律 `ToolContext.ViewerUserID`（**不是 bot 身份**，与硬约束 4 同一
+  理由）、依赖为 nil 时不注册、参数解析失败返回给模型看的说明而不是 `error`。
+  `ToolContext` 新增 `BotUserID`（**仅用于识别自身发言**，绝不用它放宽权限，D19）。
+  工具集变化同时把 `CoreReplyPromptVersion` 升到 **`forum-reply@8`**（B2 工具 + B4
+  引用格式段一次到位，D8）。
+- **两条派生用途（B3）**：`forum.digest` / `forum.tour`，都是 economy + `fail_open`
+  + `single`，`forum-digest@1` / `forum-tour@1`；产物落**新表
+  `ai_derived_artifacts`**（`status` 只有 `draft|published|discarded`），
+  **绝不写 `comments`/`topics`，也不进 `ai_executions`**。触发面只有运营者手动
+  `sforum ai:derived run|list`；没有定时、没有事件驱动。
+  **运营前提**：`forum.digest` 要求该成本档 profile 的 `maxTokens ≥ 8192` 或绑定
+  非推理模型——2048 下蒸馏提示会诱导 3778 字思考并吃光预算（`ErrEmptyArtifact`
+  会带诊断；实测属**边际通过**，不是必然失败）。
+  **River 硬约束**：一个 args 类型只能对应一个 kind（`AddWorkerSafely[T]` 取类型零值
+  决定 kind）。`DigestArgs`/`TourArgs` 两个类型 + `AddWorkers` 统一注册；把
+  `deriveRequest` 降级为包内载体，避免「payload 形状错配」这一第二形态（D20）。
+- **证据链（B4）**：模型在正文里写 `[[cite:topic:42]]` / `[[cite:comment:913]]`，
+  生成器解析 → 从正文剥离 → 逐条校验可见性（不可见的整条丢弃并记 `Warn`）→
+  把剥离后的正文交 `Content`、引用交 `Citations` → **发布成功之后**才写
+  `ai_citations`。`Excerpt` **从被引用资源取，不从模型输出取**（模型会编造引文）。
+  正文只剩标记时走 `ErrEmptyReply`。**格式遵守率是概率性的**：一次不遵守降级为
+  「无引用」，不该让回复失败。
+  公开读面 `GET /api/v1/comments/:commentID/citations` → `{items:[{topicId,commentId,excerpt}]}`，
+  无分页（写入侧硬限 20）、零引用空列表、**404 不区分「不存在」与「不可见」**
+  （否则 `message` 文本本身就是枚举探测面），可见性复用 `GetCommentSummary → GetTopic`。
+- **会话状态（B5）**：`ai_topic_state(topic_id, bot_user_id)` 存 `TopicState`
+  （`VerifiedFacts` 只存**通过 B4 校验**的引用事实，`ReplyRef` 不存正文）。
+  注入上限 20 条 / 2 KiB，超出按时间倒序保留最近。三重失效：`PromptVersion` 不符
+  整份失效、`UpdatedAt` 超 14 天整份失效、被引用楼层不可见时**逐条**剔除。
+  四条防丢失（记忆连续性 · 层 2）：`revision` 乐观锁（影响行数 0 即放弃本次写入，
+  **不覆盖后写者**）、`document` 解析失败按无状态处理（记 `Warn`、不 panic）、
+  **发布成功之后才写**、每次注入记 `facts=/dropped=/reason=`。
+  **失效必须落到存储，不只是注入**——只从提示词里剔除会让被删楼层的依据永远留在
+  JSONB 里，日志每轮都记 `dropped` 却永不消失
+  （`decisions/2026-10-19-ai-topic-state-invalidates-storage-not-just-injection.md`）。
+- **四张 ai_* 表刻意不提供 `sforum_core_v1` 读面**（`ai_executions` / `ai_citations` /
+  `ai_topic_state` / `ai_derived_artifacts`）：它们是**运营者观测与模型产出**，不是可被
+  插件直接 SQL 读的公共核心数据。理由是内容性质与授权模型：`ai_citations.excerpt` 与
+  `ai_derived_artifacts.content` 含**用户内容与 AI 正文**，做成视图等于给 `core_views`
+  授权开一条绕过评论/主题可见性谓词的正文分发通道（视图无法在不重写整套谓词的前提下
+  复现 `forum_comments` 的裁决）；`ai_executions` 是 `ai.manage` 运营面（控制台与
+  `GET /admin/ai/*`），`ai_topic_state` 是机器人的内部记忆。插件侧的 AI 需求走**命令**
+  （`sforum.ai.complete@1`），不是读表。这符合 AGENTS.md「刻意关闭的数据面必须在模块
+  注记写明理由」。
+  **可追溯性口径**：回复的 run 归属是 `resource_type='ai.run'`（A3，`RunResult.RunID`
+  一次写入、7 处 `g.record` 全透传）；派生的归属是 `resource_type='ai.derived'`，
+  `resource_id` 就是 `ai_derived_artifacts.run_id`——两者逐字相同，运营者据此把一份草稿
+  与它那几次模型调用对上（派生是单次补全，因此按 id 而非按 run 聚合）。
+- **eval 基线（G）**：`sforum ai:eval --fixture-dir <dir> [--baseline-dir] [--diff] [--confirm] [--only ids]`。
+  真实 Gateway + Orchestrator + Generator，只有两处替换：线程读取换 fixture、发布换
+  内存捕获（**不发布任何评论**）。`--confirm` 缺失时只打印预估（成本保护）；
+  `DATABASE_URL` / `APP_OPTION_ENC_KEY` 缺失是硬失败。快照字段
+  `id/text/stopReason/toolTrace/modelCalls/usage/error`。
+  **两条纪律**：①`TriggerUserID` 固定 0（D18：用 fixture 的用户 id 会打满 per-user
+  日额度，让该用例永久 `quota_exceeded`，失败外观像「模型不可用」）；②基线里带
+  `error` 的快照必须补跑干净（D19：供应商会间歇性 30s/120s 无响应头，用 `--only`
+  补跑，**不许**调大超时或步数来换通过率）。
 
 ## Limits and validation
 

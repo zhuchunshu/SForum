@@ -723,6 +723,25 @@
         "observability": "Usage & executions",
         "purposes": "AI purposes"
       },
+      "runTimeline": {
+        "expand": "Expand the timeline of this run",
+        "collapse": "Collapse the timeline",
+        "title": "Timeline of this run",
+        "intro": "Every model call of one run, in time order. Each record explains, from its own attribution, why that call happened and how it ended.",
+        "runIdLabel": "Run id",
+        "loading": "Reading the timeline…",
+        "loadFailed": "The timeline could not be read. The execution records themselves are still available.",
+        "empty": "This run has no execution records to replay.",
+        "close": "Close the timeline",
+        "step": "Step {n}",
+        "latency": "{ms} ms latency",
+        "tokens": "{input} input / {output} output tokens",
+        "cacheHitRecord": "Cache hit",
+        "cacheHitOnly": "This run was served from the result cache and never entered the tool loop. A single record is the correct outcome here, not a lost tool call.",
+        "deniedBadge": "Never left the server",
+        "deniedHint": "A gate stopped this record, so the request never reached the provider; it therefore has no latency and no token usage.",
+        "traceHonesty": "Tool call detail is not part of the execution record (it is written to the runtime log). This view replays the model calls only and never invents tool steps."
+      },
       "replyPrompt": {
         "title": "Reply prompt",
         "intro": "The system instructions the AI follows when posting in your community. Blank uses the built-in default; restoring clears your custom text.",
@@ -5434,6 +5453,15 @@
       "previous": "Previous image",
       "next": "Next image",
       "loadFailed": "The image could not be loaded."
+    },
+    "citations": {
+      "title": "Sources ({count})",
+      "commentLabel": "Floor {id}",
+      "topicLabel": "Original post",
+      "jumpToComment": "Jump to floor {id}",
+      "jumpToTopic": "Jump to the original post",
+      "summary": "Sources",
+      "loading": "Reading sources…"
     },
     "commentLink": "Link",
     "copyShortcode": "Quote",

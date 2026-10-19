@@ -24,6 +24,10 @@ const (
 	UsageWindowMonth  = "month"
 )
 
+// ResourceTypeRun 是「一次 AI run」的归属类型。它不是运营者可填字段：控制器
+// 用常量固定它，避免查询面接受用户输入的资源类型去扫别的归属对象。
+const ResourceTypeRun = "ai.run"
+
 var (
 	// ErrSettingsNotFound 表示配置行缺失，调用方应回落到 RecommendedSettings。
 	ErrSettingsNotFound = errors.New("ai: settings row is not found")
@@ -82,12 +86,24 @@ type ExecutionRecord struct {
 	SpendMicros       int64     `json:"spendMicros,omitempty"`
 	CacheHit          bool      `json:"cacheHit,omitempty"`
 	ErrorSummary      string    `json:"errorSummary,omitempty"`
+	// ResourceType / ResourceID 是归属对象。AI 的一次 run 用它把所有模型调用
+	// 串成一条时间线（type="ai.run"，id=runID）。
+	//
+	// 它是归属而不是内容：`ExecutionRecord` 依旧不含提示词与响应正文，run id 只是
+	// 一个随机标识，无法从中还原任何用户内容。
+	ResourceType string `json:"resourceType,omitempty"`
+	ResourceID   string `json:"resourceId,omitempty"`
 }
 
 // ExecutionStore 写入与读取执行 trace。
 type ExecutionStore interface {
 	RecordExecution(ctx context.Context, entry ExecutionRecord) error
 	ListExecutions(ctx context.Context, limit int) ([]ExecutionRecord, error)
+	// ListRunExecutions 按归属对象读取一次 run 的全部记录，按时间正序。
+	// 它是 A4 的唯一新查询面：不新增表，只按 (resource_type, resource_id) 索引查。
+	// resourceID 为空时返回空列表——一条「没有归属」的记录不属于任何 run，
+	// 拿它去查应当得到「什么都没有」，而不是全表扫描。
+	ListRunExecutions(ctx context.Context, resourceType, resourceID string, limit int) ([]ExecutionRecord, error)
 }
 
 // TruncateDay 与 TruncateMonth 按 UTC 对齐窗口起点。闸门窗口使用 UTC 是刻意

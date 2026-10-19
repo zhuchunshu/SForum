@@ -23,6 +23,7 @@ import (
 	queryregistryjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/QueryRegistry"
 	searchjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Search"
 	webhookjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Webhooks"
+	aiderived "github.com/zhuchunshu/sforum/apps/api/app/Models/AIDerived"
 	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
 	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	extensionreference "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments/ExtensionReference"
@@ -126,6 +127,10 @@ type workerRuntimeDeps struct {
 	AIReplyThreadReader aireply.ThreadReader
 	// AIReplyEnqueuer 供判定判 REPLY 后入队正式生成。
 	AIReplyEnqueuer *aireplyjobs.Enqueuer
+	// AIDerivedGenerator 由 embed 路径注入，承载 B3 的派生生成（话题蒸馏与
+	// 长楼导览）。它同样只在 embed 模式可用：独立 worker 没有论坛装配。
+	// 为 nil 时该能力整体关闭，不注册执行器。
+	AIDerivedGenerator *aiderived.Generator
 	// OwnsRuntime 为 true 时 Worker.Close 关闭 runtime（及自建的 Host API gateway）。
 	// 注入共享 runtime 时必须为 false，由 API shutdown 负责 Close。
 	OwnsRuntime bool
@@ -726,6 +731,9 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 	registerForumFlushViewCountsWorker(registry, pool, deps.HostCacheRedis, logger)
 	// AI 回复：只有 embed 路径会注入生成器，独立 worker 拿不到等价装配。
 	registerAIReplyWorker(registry, deps.AIReplyGenerator, deps.AIReplyTriageDecider, deps.AIReplyThreadReader, deps.AIReplyEnqueuer)
+	// AI 派生（话题蒸馏 / 长楼导览）：同样只有 embed 路径注入生成器。注册逻辑
+	// 在独立文件里，因为这个文件的 1000 行闸门已经逼近。
+	registerAIDerivedWorker(registry, deps.AIDerivedGenerator)
 	// F2.2：插件经 Host API 入队的 extension.plugin_job。
 	pluginJobEnqueuer := &hostapi.RiverJobEnqueuer{}
 	registry.Add(func(workers *river.Workers) error {

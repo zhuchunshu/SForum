@@ -44,6 +44,8 @@ go run ./cmd/sforum --version
 | `extension dev` | Development edit loop: watch package source inputs and rebuild (requires `APP_ENV=development`) |
 | `extension builtins` | Discover the built-in package list from the manifest tree (single source for the build script) |
 | `dev:cleanup-orphan-plugins` | Stop reparented extension backend plugin processes (safe for live `sforum-api` children) |
+| `ai:eval` | Run one real AI reply generation over fixed fixtures and emit diffable baseline snapshots (`--diff` / `--only` / `--confirm`; never publishes a comment) |
+| `ai:derived` | Manually trigger AI-derived content (`run --topic-id --purpose digest\|tour`, artifact lands as a draft in `ai_derived_artifacts`; `list` to inspect) |
 
 > This table is the authoritative command list; adding or removing commands must
 > update this table and `docs/zh-CN/development/cli.md`

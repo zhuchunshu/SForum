@@ -1,0 +1,42 @@
+{
+  "id": "longthread-migration-review",
+  "note": "长楼 ×2：13 条评论的代码评审，结论分散在中后段（有 3 条已掉出窗口），检验模型是否补读而非重复已说过的意见。",
+  "topicTitle": "帮忙看下这段迁移脚本有没有锁表风险",
+  "topicBody": "要在一个 800 万行的表上加一列并回填，脚本如下：\n\n```sql\nALTER TABLE orders ADD COLUMN region TEXT NOT NULL DEFAULT '';\nUPDATE orders SET region = 'cn' WHERE region = '';\nCREATE INDEX orders_region_idx ON orders (region);\n```\n\nPostgreSQL 14。窗口期只有 5 分钟，想确认这样能不能过。",
+  "topicAuthor": {"username": "bob", "displayName": "Bob"},
+  "comments": [
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "第一个问题：ADD COLUMN 带 NOT NULL DEFAULT 在 PG 11 之后是不重写表的，这点没问题。但你这个默认值是空串，回填又依赖它，逻辑上就混了。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "空串是想表示「未知」。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "那应该用 NULL，别用空串造一个不存在的状态。空串在业务里会被当成合法值，查询条件会漏。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "有道理，改成 nullable 更干净。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "第二个问题是真正的锁表风险：那条 UPDATE 是一次性回填 800 万行，长事务持锁，而且会撑爆 WAL。必须分批。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "分批是指按 id 区间吗？", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "对，每批 5000 行，每批一个事务，批间 sleep 一下让 autovacuum 跟上。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "那 CREATE INDEX 呢？普通 create index 会阻塞写吧。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "会。要 CREATE INDEX CONCURRENTLY，而且它不能在事务块里跑，goose 的默认事务包装会让它直接报错。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "那就是说迁移脚本还得声明成非事务的。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "对。还有一个容易漏的：CONCURRENTLY 建索引失败会留下一个 invalid 索引，必须显式清理再重试，否则下次建同名索引直接冲突。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "这些坑我都记下了。那我最后确认一遍顺序是不是对的？", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "顺序我再写一遍省得你翻：先加 nullable 列，再分批回填，再 CONCURRENTLY 建索引，最后才考虑加 NOT NULL 约束（加约束前要先用 NOT VALID 再 validate）。", "isBot": false}
+  ],
+  "triggerCommentIndex": 12,
+  "triggerUserID": 900006,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 301,
+        "title": "在线迁移清单：加列、回填、建索引、加约束",
+        "body": "四步，顺序不能换：\n\n1. ADD COLUMN，nullable、无默认值（带默认值在 PG 11+ 不重写表，但 nullable 更干净）。\n2. 分批回填，每批 5000 行、独立事务、批间 sleep，避免长事务与 WAL 峰值。\n3. CREATE INDEX CONCURRENTLY（迁移必须声明为非事务）。失败会留下 invalid 索引，需 DROP INDEX 后重试。\n4. ADD CONSTRAINT ... NOT VALID，再 VALIDATE CONSTRAINT：前者只取短暂的 ACCESS EXCLUSIVE 锁，后者是 ShareUpdateExclusive，不阻塞读写。\n\n锁级别速查：ADD COLUMN 默认值 = ACCESS EXCLUSIVE（瞬时）、CREATE INDEX = SHARE、CREATE INDEX CONCURRENTLY = ShareUpdateExclusive、VALIDATE CONSTRAINT = ShareUpdateExclusive。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 15,
+        "viewCount": 4400,
+        "author": {"username": "alice", "displayName": "Alice"}
+      }
+    ],
+    "users": [
+      {"username": "alice", "displayName": "Alice", "bio": "数据库与后端，写过几年运维。", "topicCount": 210, "commentCount": 1500}
+    ]
+  }
+}

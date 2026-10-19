@@ -130,3 +130,37 @@ adminAIExecutions:
       '200': {description: Execution trace records., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAIExecutions"}}}}
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
       '403': {$ref: "../components/responses.yaml#/Forbidden"}
+
+adminAIRunTimeline:
+  get:
+    summary: Read every execution record of one AI run in time order (requires ai.manage)
+    description: |
+      轨迹回放：按归属对象（`resourceType=ai.run`, `resourceId=<runId>`）取回同一
+      run 的全部执行记录，按 `created_at ASC, id ASC` 排序。
+
+      - `runId` 为空或长度超过 128 返回 422 `ai.run_id_invalid`。
+      - 未知 `runId` 返回 200 与空 `items`，不是 404：历史记录（没有 run 归属）
+        与「查不到」对运营者是同一个事实，界面据此不显示展开入口。
+      - `limit` 上限 200、默认 50。
+      - 记录里没有工具调用明细：工具轨迹在日志与新表，不在执行记录里。
+    operationId: getAIRunTimeline
+    security: [{cookieAuth: []}]
+    parameters:
+    - name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+        maxLength: 128
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    responses:
+      '200': {description: Every record of this run in time order., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAIRunTimeline"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+      '422': {$ref: "../components/responses.yaml#/UnprocessableEntity"}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -213,13 +214,14 @@ func (s *PostgresStore) RecordExecution(ctx context.Context, entry ExecutionReco
 		  purpose, cost_class, caller_extension_id, profile_id, protocol, model,
 		  status, gate_reason, gate_scope, prompt_version, config_revision,
 		  latency_ms, input_tokens, output_tokens, cached_tokens, spend_micros,
-		  cache_hit, error_summary
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+		  cache_hit, error_summary, resource_type, resource_id
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
 	`,
 		entry.Purpose, entry.CostClass, entry.CallerExtensionID, entry.ProfileID, entry.Protocol, entry.Model,
 		entry.Status, entry.GateReason, entry.GateScope, entry.PromptVersion, entry.ConfigRevision,
 		entry.LatencyMS, entry.InputTokens, entry.OutputTokens, entry.CachedTokens, entry.SpendMicros,
 		entry.CacheHit, TruncateBytes(entry.ErrorSummary, 500),
+		entry.ResourceType, entry.ResourceID,
 	)
 	return err
 }
@@ -232,7 +234,7 @@ func (s *PostgresStore) ListExecutions(ctx context.Context, limit int) ([]Execut
 		SELECT id, created_at, purpose, cost_class, caller_extension_id, profile_id,
 		  protocol, model, status, gate_reason, gate_scope, prompt_version,
 		  config_revision, latency_ms, input_tokens, output_tokens, cached_tokens,
-		  spend_micros, cache_hit, error_summary
+		  spend_micros, cache_hit, error_summary, resource_type, resource_id
 		FROM ai_executions
 		ORDER BY created_at DESC, id DESC
 		LIMIT $1
@@ -249,7 +251,65 @@ func (s *PostgresStore) ListExecutions(ctx context.Context, limit int) ([]Execut
 			&item.ProfileID, &item.Protocol, &item.Model, &item.Status, &item.GateReason,
 			&item.GateScope, &item.PromptVersion, &item.ConfigRevision, &item.LatencyMS,
 			&item.InputTokens, &item.OutputTokens, &item.CachedTokens, &item.SpendMicros,
-			&item.CacheHit, &item.ErrorSummary,
+			&item.CacheHit, &item.ErrorSummary, &item.ResourceType, &item.ResourceID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+// MaxRunTimelineLimit 是一次 run 回放能取回的记录数上限。同一 run 的记录数随
+// 工具步数增长（每一步一次模型调用），因此界面不能假设固定条数；这个上限只是
+// 防止一次查询把整张表拉回来。
+const MaxRunTimelineLimit = 200
+
+// DefaultRunTimelineLimit 是未指定上限时回放的默认条数。
+const DefaultRunTimelineLimit = 50
+
+// ListRunExecutions 按归属对象读取一次 run 的全部记录，按时间正序（同毫秒内
+// 靠 id 兜底）。
+//
+// 两条边界刻意写死在这里，而不是留给调用方记住：
+//   - resourceID 为空串直接返回空列表。A3 之前的历史行 resource_id 为空串，不属于
+//     任何 run，拿它查询应当得到「什么都没有」，而不是一次全表扫描。
+//   - limit 落在 [1, MaxRunTimelineLimit]，非正值取默认值。
+//
+// 查询全参数化：resourceID 来自 URL，绝不进入任何拼接 SQL。
+func (s *PostgresStore) ListRunExecutions(ctx context.Context, resourceType, resourceID string, limit int) ([]ExecutionRecord, error) {
+	if strings.TrimSpace(resourceID) == "" {
+		return []ExecutionRecord{}, nil
+	}
+	if limit <= 0 {
+		limit = DefaultRunTimelineLimit
+	}
+	if limit > MaxRunTimelineLimit {
+		limit = MaxRunTimelineLimit
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, created_at, purpose, cost_class, caller_extension_id, profile_id,
+		  protocol, model, status, gate_reason, gate_scope, prompt_version,
+		  config_revision, latency_ms, input_tokens, output_tokens, cached_tokens,
+		  spend_micros, cache_hit, error_summary, resource_type, resource_id
+		FROM ai_executions
+		WHERE resource_type = $1 AND resource_id = $2
+		ORDER BY created_at ASC, id ASC
+		LIMIT $3
+	`, resourceType, resourceID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := make([]ExecutionRecord, 0, limit)
+	for rows.Next() {
+		var item ExecutionRecord
+		if err := rows.Scan(
+			&item.ID, &item.CreatedAt, &item.Purpose, &item.CostClass, &item.CallerExtensionID,
+			&item.ProfileID, &item.Protocol, &item.Model, &item.Status, &item.GateReason,
+			&item.GateScope, &item.PromptVersion, &item.ConfigRevision, &item.LatencyMS,
+			&item.InputTokens, &item.OutputTokens, &item.CachedTokens, &item.SpendMicros,
+			&item.CacheHit, &item.ErrorSummary, &item.ResourceType, &item.ResourceID,
 		); err != nil {
 			return nil, err
 		}

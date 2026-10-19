@@ -503,3 +503,21 @@ func (s *Service) Executions(ctx context.Context, actor identity.Actor, limit in
 	}
 	return s.traces.ListExecutions(ctx, limit)
 }
+
+// RunTimeline 返回一次 AI run 的全部执行记录，按时间正序。
+//
+// 它是 A4 的唯一新查询面，形状与 Executions 一致：权限判定留在服务层（控制器
+// 只做解码/编码），因此「谁能读回放」与「谁能读执行记录」不可能是两个答案。
+//
+// 空 runId 返回空列表而不是错误：历史记录（A3 之前）没有 run 归属，界面据此
+// 不显示展开入口——那是正常状态，不是失败。查询不会退化成全表扫描，判定在
+// 存储层（ListRunExecutions 对空 id 直接短路）。
+func (s *Service) RunTimeline(ctx context.Context, actor identity.Actor, runID string, limit int) ([]supportai.ExecutionRecord, error) {
+	if !actor.Can(identity.PermissionAIManage) {
+		return nil, identity.ErrPermissionDenied
+	}
+	if s == nil || s.traces == nil {
+		return []supportai.ExecutionRecord{}, nil
+	}
+	return s.traces.ListRunExecutions(ctx, supportai.ResourceTypeRun, runID, limit)
+}

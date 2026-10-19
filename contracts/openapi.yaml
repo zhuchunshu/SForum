@@ -127,6 +127,8 @@ paths:
     "$ref": "./openapi/paths/forum.yaml#/topicCommentPage"
   "/comments/{commentID}/replies":
     "$ref": "./openapi/paths/forum.yaml#/commentReplies"
+  "/comments/{commentID}/citations":
+    "$ref": "./openapi/paths/forum.yaml#/commentCitations"
   "/comments/{commentID}/revisions":
     "$ref": "./openapi/paths/forum.yaml#/commentRevisions"
   "/comments/{commentID}/revisions/{revisionNo}":
@@ -291,6 +293,8 @@ paths:
     "$ref": "./openapi/paths/ai.yaml#/adminAIUsage"
   "/admin/ai/executions":
     "$ref": "./openapi/paths/ai.yaml#/adminAIExecutions"
+  "/admin/ai/runs/{runId}":
+    "$ref": "./openapi/paths/ai.yaml#/adminAIRunTimeline"
   "/admin/ai/profiles/{profileId}/credential":
     "$ref": "./openapi/paths/ai.yaml#/adminAIProfileCredential"
   "/admin/ai/profiles/{profileId}/models":

@@ -143,6 +143,15 @@ export type AdminAIExecution = {
   spendMicros: number
   cacheHit: boolean
   errorSummary: string
+  // 归属对象。一次 AI run 的每一次模型调用共享同一个 (type="ai.run", id=runId)，
+  // 回放据此把执行记录聚成一条时间线。
+  //
+  // 两者在 Go 侧都是 `omitempty`：值为空串时字段**不会出现**在 JSON 里，因此这里
+  // 必须是可选而不是 `string`——否则类型会声称「一定存在」，而 A3 之前的历史记录
+  // 恰恰没有它。`''` 与 `undefined` 都表示「不属于任何 run」，判定统一走
+  // `executionExpandable`。
+  resourceType?: string
+  resourceId?: string
 }
 
 // AdminAIModelList 是一次只读的模型列表探测结论。供应商层面的失败以 reason + error
@@ -402,5 +411,50 @@ export function useAdminAI() {
     saveSettings,
     resetSettings,
     saveCredential
+  }
+}
+
+// ADMIN_AI_RUN_NONE 是「没有选中任何 run」时的键后缀。它让「没选」与「选了一个
+// 空串 runId」共用一个缓存槽，而不是各自开一个永远不会再用的槽。
+const ADMIN_AI_RUN_NONE = 'none'
+
+/**
+ * useAdminAIRunTimeline 读取一次 AI run 的全部执行记录，按时间正序。
+ *
+ * 它是 A4 的读面：`GET /admin/ai/runs/:runId` 返回 `{ items: AIExecution[] }`，与
+ * `listExecutions` 同形。回放是查询的组合，不是新的持久化面——执行记录里没有工具
+ * 调用明细（那些在日志里），所以这里也只返回执行记录，界面不得补造。
+ *
+ * `runId` 为空时不发请求。A3 之前的历史记录没有 run 归属，服务端对空 runId 也只会
+ * 返回空列表；与其让一次必然为空的往返出现在网络面板里，不如在这里就地短路。
+ */
+export function useAdminAIRunTimeline(runId: Ref<string | null> | ComputedRef<string | null>) {
+  const { request } = useApiClient()
+
+  const normalizedRunId = computed(() => (runId.value ?? '').trim())
+
+  const payload = useAsyncData<{ items: AdminAIExecution[] }>(
+    () => `admin-ai-run-timeline:${normalizedRunId.value || ADMIN_AI_RUN_NONE}`,
+    async () => {
+      const id = normalizedRunId.value
+      if (!id) return { items: [] }
+      // runId 来自 URL/界面状态，只作为路径段参与请求（服务端参数化查询），
+      // 这里做一次编码以免 id 里的字符改变路径结构。
+      return await request<{ items: AdminAIExecution[] }>(`/admin/ai/runs/${encodeURIComponent(id)}`)
+    },
+    { watch: [normalizedRunId], default: () => ({ items: [] }) }
+  )
+
+  // 请求失败时 data 是 undefined：下游一律经由这个受保护的 computed 读取，
+  // 一次 401/500 不会让页签渲染抛错。
+  const items = computed<AdminAIExecution[]>(() => payload.data.value?.items ?? [])
+  const pending = computed(() => payload.pending.value)
+  const loadFailed = computed(() => Boolean(payload.error.value))
+
+  return {
+    items,
+    pending,
+    loadFailed,
+    refresh: payload.refresh
   }
 }

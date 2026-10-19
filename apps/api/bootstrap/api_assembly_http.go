@@ -153,6 +153,9 @@ func finishAPIHTTP(ctx context.Context, cfg config.Config, logger *slog.Logger, 
 			AIReplyTriageDecider: newEmbeddedAITriageDecider(core),
 			AIReplyThreadReader:  newEmbeddedAIThreadReader(core),
 			AIReplyEnqueuer:      aireplyjobs.NewEnqueuer(supportjobs.NewDispatcher(core.jobClient)),
+			// AI 派生（话题蒸馏 / 长楼导览）复用同一份网关与论坛读取路径；
+			// 产物只写 ai_derived_artifacts，不发布、不写评论。
+			AIDerivedGenerator: newAIDerivedGenerator(core),
 		})
 		if err != nil {
 			core.closeRouteFailureRecorder()

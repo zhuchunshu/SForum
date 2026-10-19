@@ -2193,6 +2193,39 @@ ApiResponseCommentPage:
     code: {type: integer}
     message: {type: string}
     data: {$ref: "#/CommentPage"}
+# AI 产物评论的一条依据。字段名与 Go 的 aireply.Citation / forum.Citation 一致：
+# topicId 用于拼 /t/{topicId}，commentId 非零时再拼 #comment-{commentId}。
+# excerpt 取自被引用楼层的正文，不是模型生成的引文。
+CommentCitation:
+  type: object
+  properties:
+    topicId:
+      type: integer
+      format: int64
+      description: 被引用楼层所属主题。评论级引用同样带它，前端据此拼可点地址。
+    commentId:
+      type: integer
+      format: int64
+      description: 被引用的评论 id。主题级引用省略或为 0（此时链接不带锚点）。
+    excerpt:
+      type: string
+      description: 被引用楼层的正文片段（截断）。来自数据库，不是模型输出。
+CommentCitationList:
+  type: object
+  required: [items]
+  properties:
+    items:
+      type: array
+      description: 依据列表，顺序即生成时标注的顺序。零引用时为空数组。
+      items:
+        $ref: "#/CommentCitation"
+ApiResponseCommentCitationList:
+  type: object
+  required: [code, message, data]
+  properties:
+    code: {type: integer}
+    message: {type: string}
+    data: {$ref: "#/CommentCitationList"}
 CommentRevisionState:
   type: object
   description: |

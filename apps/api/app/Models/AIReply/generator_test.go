@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	aireply "github.com/zhuchunshu/sforum/apps/api/app/Models/AIReply"
+	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 )
 
 type fakeThreads struct {
@@ -33,10 +34,10 @@ type fakeCompleter struct {
 func (f *fakeCompleter) Complete(_ context.Context, input aireply.CompletionInput) (aireply.CompletionOutput, error) {
 	f.calls++
 	f.inputs = append(f.inputs, input)
-	if f.err != nil {
-		return aireply.CompletionOutput{}, f.err
-	}
-	return f.output, nil
+	// 错误路径同样返回已填充的输出：真实的 GatewayCompleter 在编排器失败时
+	// 会带回部分轨迹与用量（A2 的「记忆连续性 · 层 1」）。fake 若把它丢掉，
+	// 测试就无法表达那条契约。
+	return f.output, f.err
 }
 
 type fakePoster struct {
@@ -283,5 +284,62 @@ func TestPromptTruncatesOverlongComments(t *testing.T) {
 	}
 	if len([]rune(user)) > 3000 {
 		t.Fatalf("prompt grew past its bound: %d runes", len([]rune(user)))
+	}
+}
+
+// A2：轨迹与用量透传到生成器后，Generate 的行为契约不变——它仍然只发布正文，
+// 仍然在空回复时返回 ErrEmptyReply。这些断言刻意不耦合日志格式：日志是诊断面，
+// 不是契约面；耦合日志文本的测试会在文案调整时误报失败。
+func TestGenerateKeepsContractWhenCompleterReportsToolTrace(t *testing.T) {
+	threads := &fakeThreads{thread: sampleThread()}
+	completer := &fakeCompleter{output: aireply.CompletionOutput{
+		Text:       "  先用 forum-search 查过再答。  ",
+		StopReason: "end",
+		ToolTrace: []supportai.ToolTraceEntry{
+			{Step: 1, Tool: "forum-search", Arguments: `{"query":"连接池"}`, ResultBytes: 120, LatencyMS: 8},
+			// 一条失败的轨迹：它必须让日志升到 Warn，但不影响发布。
+			{Step: 2, Tool: "user-search", Failure: supportai.ToolFailureNotAllowed, LatencyMS: 0},
+		},
+		Usage:      supportai.Usage{InputTokens: 1_200, OutputTokens: 300},
+		ModelCalls: 3,
+		ToolCalls:  1,
+	}}
+	poster := &fakePoster{}
+
+	if err := aireply.NewGenerator(threads, completer, poster, nil).Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	if len(poster.inputs) != 1 {
+		t.Fatalf("posted = %+v", poster.inputs)
+	}
+	if poster.inputs[0].Content != "先用 forum-search 查过再答。" {
+		t.Fatalf("content = %q", poster.inputs[0].Content)
+	}
+}
+
+// A2：错误路径必须让重试的一方看见「上次做到哪」。轨迹与用量进入错误包装文本，
+// 而不是被静默丢弃。
+func TestGenerateSurfacesPartialResultOnCompleterFailure(t *testing.T) {
+	threads := &fakeThreads{thread: sampleThread()}
+	partial := aireply.CompletionOutput{
+		Usage:      supportai.Usage{InputTokens: 900, OutputTokens: 40},
+		ModelCalls: 2,
+		ToolCalls:  2,
+		ToolTrace:  []supportai.ToolTraceEntry{{Step: 1, Tool: "forum-search", ResultBytes: 10}},
+	}
+	completer := &fakeCompleter{output: partial, err: errors.New("provider unavailable")}
+	poster := &fakePoster{}
+
+	err := aireply.NewGenerator(threads, completer, poster, nil).Generate(context.Background(), jobInput())
+	if err == nil {
+		t.Fatal("a completer failure must be returned")
+	}
+	if len(poster.inputs) != 0 {
+		t.Fatalf("nothing may be posted on failure: %+v", poster.inputs)
+	}
+	for _, want := range []string{"tool_calls=2", "usage=900/40", "provider unavailable"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error %q is missing %q", err, want)
+		}
 	}
 }

@@ -155,6 +155,8 @@ func TestProductionForumReadGuardPartitionsCatalogByProvablePolicy(t *testing.T)
 		"core.route.forum.topic_contribution_timeline": {method: "GET"},
 		"core.route.forum.topic_by_slug":               {method: "GET"},
 		"core.route.forum.comment_page":                {method: "GET"},
+		// AI 依据读取面：评论的附属事实，与回复列表同 guest-read 策略。
+		"core.route.forum.list_comment_citations": {method: "GET"},
 		// 评论区实时信号：修订端点与 SSE 都按评论列表的 guest-read 策略裁决。
 		"core.route.forum.topic_comment_revision": {method: "GET"},
 		"core.route.forum.topic_comment_stream":   {method: "GET"},
@@ -258,8 +260,8 @@ func TestProductionForumReadPolicyClosesDynamicCatalogRoutes(t *testing.T) {
 		}
 		policy.guestRead = "public"
 	}
-	if covered != 13 {
-		t.Fatalf("dynamic forum read routes = %d, want 13", covered)
+	if covered != 14 {
+		t.Fatalf("dynamic forum read routes = %d, want 14", covered)
 	}
 }
 
@@ -536,15 +538,15 @@ func TestProductionExtensionsMutationGuardPartitionsCatalogByProvablePolicy(t *t
 		"core.route.extensions.revoke_executable_trust":          {method: "DELETE", supported: true, permissions: superAdmin},
 		"core.route.extensions.issue_executable_trust_challenge": {method: "POST", supported: true, permissions: superAdmin},
 		// 开发期信任会话：创建/撤销/自动写入均为 super_admin only。
-		"core.route.extensions.create_dev_trust_session": {method: "POST", supported: true, permissions: superAdmin},
-		"core.route.extensions.revoke_dev_trust_session": {method: "DELETE", supported: true, permissions: superAdmin},
-		"core.route.extensions.dev_trust_refresh":        {method: "POST", supported: true, permissions: superAdmin},
-		"core.route.extensions.cleanup_missing_artifacts":        {method: "POST", supported: true, permissions: superAdmin},
-		"core.route.extensions.probe_provider_slot":              {method: "POST", supported: true, permissions: superAdmin},
-		"core.route.extensions.select_provider_slot":             {method: "POST", supported: true, permissions: superAdmin},
-		"core.route.extensions.reset_provider_slot":              {method: "POST", supported: true, permissions: superAdmin},
-		"core.route.extensions.select_route_provider":            {method: "POST", supported: true, permissions: superAdmin},
-		"core.route.extensions.reset_route_provider":             {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.create_dev_trust_session":  {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.revoke_dev_trust_session":  {method: "DELETE", supported: true, permissions: superAdmin},
+		"core.route.extensions.dev_trust_refresh":         {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.cleanup_missing_artifacts": {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.probe_provider_slot":       {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.select_provider_slot":      {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.reset_provider_slot":       {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.select_route_provider":     {method: "POST", supported: true, permissions: superAdmin},
+		"core.route.extensions.reset_route_provider":      {method: "POST", supported: true, permissions: superAdmin},
 
 		"core.route.extensions.install":                 {method: "POST"},
 		"core.route.extensions.uninstall":               {method: "DELETE"},
@@ -704,9 +706,9 @@ func TestProductionExtensionsReadGuardPartitionsCatalogByProvablePolicy(t *testi
 		"core.route.extensions.inspect_cache":           {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_route":           {method: "GET", supported: true, permissions: viewer},
 		// 路由注册表目录：与其它检视器同一条已审核策略（extension.view 或 manage）。
-		"core.route.extensions.route_catalog":           {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.route_catalog": {method: "GET", supported: true, permissions: viewer},
 		// 密封 Core 查询目录：同一条已审核读取策略（extension.view 或 manage）。
-		"core.route.extensions.query_catalog":           {method: "GET", supported: true, permissions: viewer},
+		"core.route.extensions.query_catalog": {method: "GET", supported: true, permissions: viewer},
 		// M5 隔离账本读取：与其它检视器同一条已审核策略（extension.view 或 manage）。
 		"core.route.extensions.inspect_route_incidents":      {method: "GET", supported: true, permissions: viewer},
 		"core.route.extensions.inspect_templates":            {method: "GET", supported: true, permissions: viewer},

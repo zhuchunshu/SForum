@@ -1376,6 +1376,31 @@ commentReplies:
               "$ref": "../schemas/forum.yaml#/ApiResponseCommentArray"
       '404':
         "$ref": "../components/responses.yaml#/NotFound"
+commentCitations:
+  get:
+    summary: List an AI reply's citations
+    operationId: listCommentCitations
+    description: |
+      返回一条评论作为 AI 产物时引用的站内楼层（依据）。引用由 AI 回复生成器在
+      发布成功之后写入，因此只有 AI 产出的评论会有非空结果。
+
+      可见性与评论回复列表完全一致：评论存在且其所属主题对访客公开可见。
+      不可见时返回 404，且不区分「不存在」与「不可见」——否则 commentID 枚举
+      会成为探测隐藏主题的手段。
+
+      **零引用返回空列表而不是 404**：一条普通评论没有任何依据是正常结论。
+      每条引用的 `excerpt` 取自被引用楼层的正文（不是模型生成的引文）。
+    parameters:
+    - "$ref": "../components/parameters.yaml#/CommentID"
+    responses:
+      '200':
+        description: 该评论的全部依据，顺序即生成时的标注顺序。
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/forum.yaml#/ApiResponseCommentCitationList"
+      '404':
+        "$ref": "../components/responses.yaml#/NotFound"
 commentRevisions:
   get:
     summary: List comment revision summaries

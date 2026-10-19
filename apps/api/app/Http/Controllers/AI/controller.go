@@ -3,6 +3,7 @@ package aicontroller
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -350,6 +351,49 @@ func (h *Controller) listExecutions(c fiber.Ctx) error {
 		return mapAIError(err)
 	}
 	return apphttp.OK(c, executionsResponse{Items: items})
+}
+
+// MaxRunIDLen 是回放路径参数的长度上限。与 MaxToolCallIDLen 同量级：run id 是
+// 32 位 hex，上限只是挡住明显不是 id 的输入，不进任何拼接。
+const MaxRunIDLen = 128
+
+// getRunTimeline 返回一次 AI run 的全部执行记录，按时间正序。
+//
+// 回放是查询能力的组合，不是新的持久化面：不新增表，只按 (resource_type,
+// resource_id) 索引查。资源类型由常量固定，绝不接受用户输入——否则这个端点就成
+// 了「按任意归属对象扫库」的入口。
+//
+// 未知 runId 返回 200 + 空列表而不是 404：A3 之前的历史记录没有 run 归属，
+// 「查不到」与「本来就没有」对运营者是同一个事实，界面据此不显示展开入口。
+func (h *Controller) getRunTimeline(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	runID := strings.TrimSpace(c.Params("runId"))
+	if runID == "" || len(runID) > MaxRunIDLen {
+		return fiber.NewError(fiber.StatusUnprocessableEntity, "ai.run_id_invalid")
+	}
+	items, err := h.service.RunTimeline(c.Context(), actor, runID, runTimelineLimit(c))
+	if err != nil {
+		return mapAIError(err)
+	}
+	return apphttp.OK(c, executionsResponse{Items: items})
+}
+
+// runTimelineLimit 把 limit 收进 [1, MaxRunTimelineLimit]。
+//
+// 上限在这里也裁一次，而不是只依赖存储层：回放的条数上限是接口语义的一部分，
+// 「换一个存储实现就变成 500 条」不是可接受的行为差异。
+func runTimelineLimit(c fiber.Ctx) int {
+	limit := queryInt(c, "limit")
+	if limit <= 0 {
+		return supportai.DefaultRunTimelineLimit
+	}
+	if limit > supportai.MaxRunTimelineLimit {
+		return supportai.MaxRunTimelineLimit
+	}
+	return limit
 }
 
 func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {

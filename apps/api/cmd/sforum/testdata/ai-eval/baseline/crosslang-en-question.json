@@ -1,0 +1,31 @@
+{
+  "id": "crosslang-en-question",
+  "text": "不是你的代码有竞态 bug，而是 Fiber/fasthttp 的设计问题：`c.RequestCtx()` 返回的对象**生命周期只覆盖 handler**。handler 一返回，fasthttp 就会取消该 context、重置并复用这个对象给下一个请求。所以你的 goroutine 是在和连接池/下一个请求赛跑，30% 失败率就是典型的时序性竞态。\n\n对会活得比请求久的 goroutine，别用请求的 context：\n\n```go\ngo func() {\n    // 后台工作与请求解耦\n    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)\n    defer cancel()\n\n    rows, err := db.QueryContext(ctx, query)\n    // ...\n}()\nreturn c.JSON(response)\n```\n\n要点：\n\n- `context.Background()` + 显式 timeout，需要取消时自己控制。\n- 如果要保留请求相关的值（trace ID 之类），在返回前**复制**出来，不要直接传 `c`。\n- 对比：标准库 `net/http` 的 request context 在响应写完前一直有效，但即使在那里，客户端断开也会触发取消——所以「goroutine 活得比 handler 久」时用 Background 是通用规则。\n\n站内我搜了一下没有相关主题可引用，但 fasthttp 的 `RequestCtx` 复用是官方文档里明确警告过的行为，可以翻一下它的 `AcquireRequestCtx`/`ReleaseRequestCtx` 说明确认。",
+  "stopReason": "end",
+  "toolTrace": [
+    {
+      "step": 1,
+      "tool": "forum-search",
+      "arguments": "{\"query\":\"context canceled goroutine Fiber fasthttp\"}",
+      "argumentsBytes": 53,
+      "resultBytes": 66,
+      "resultDigest": "没有找到相关主题。可以换关键词，或直接回答。",
+      "latencyMs": 0
+    },
+    {
+      "step": 1,
+      "tool": "forum-search",
+      "arguments": "{\"query\":\"RequestCtx escapes handler background job\"}",
+      "argumentsBytes": 53,
+      "resultBytes": 66,
+      "resultDigest": "没有找到相关主题。可以换关键词，或直接回答。",
+      "latencyMs": 0
+    }
+  ],
+  "modelCalls": 2,
+  "usage": {
+    "inputTokens": 3067,
+    "outputTokens": 1339
+  },
+  "promptDigest": "ebe46de9d2e7ab3f"
+}

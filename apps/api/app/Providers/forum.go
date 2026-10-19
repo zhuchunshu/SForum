@@ -164,6 +164,18 @@ func (p *ForumProvider) WithCommentLive(live *forum.CommentLiveService) *ForumPr
 	return p
 }
 
+// WithCitationReader 注入 AI 依据（B4）的读取面。nil 安全：未注入时
+// GET /comments/{id}/citations 仍然过可见性判定，只是恒返回空列表。
+//
+// 名字是 WithCitationReader 而不是 WithCitations：forum.CitationService 上已有
+// WithReader，两个名字同时存在时「谁注入谁」会变成需要查代码才能回答的问题。
+func (p *ForumProvider) WithCitationReader(reader forum.CitationReader) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithCitationReader(reader)
+	}
+	return p
+}
+
 // TrustPolicyAdapter 把 options.TrustPolicy 适配为 forum.TrustPolicyResolver。
 type TrustPolicyAdapter struct {
 	options *options.Service

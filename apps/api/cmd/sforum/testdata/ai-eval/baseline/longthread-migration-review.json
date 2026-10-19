@@ -1,0 +1,12 @@
+{
+  "id": "longthread-migration-review",
+  "text": "顺序没问题。补三点实操细节：\n\n1. 每条 DDL 前先 `SET lock_timeout = '2s'`，拿不到锁就失败重试，避免业务在锁队列里被排队堵死。\n2. 5 分钟窗口只够装 DDL 那几秒的操作；800 万行按 5000 一批是 1600 批，回填根本塞不进去，也不需要——分批回填本来就是可以在线跑的，批间 sleep 让 autovacuum 跟上即可。\n3. 最后一步 `ALTER COLUMN ... SET NOT NULL` 在 PG 12+ 会利用已 validate 的 CHECK 约束跳过全表扫描，瞬时完成（你 PG 14 适用）。",
+  "stopReason": "end",
+  "toolTrace": [],
+  "modelCalls": 1,
+  "usage": {
+    "inputTokens": 1795,
+    "outputTokens": 1266
+  },
+  "promptDigest": "88a157b8b7bbbdf5"
+}

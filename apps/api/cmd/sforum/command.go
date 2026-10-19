@@ -53,6 +53,8 @@ func newRootCommand() *cobra.Command {
 		newMakeCommand("theme"),
 		newSeedCommand(),
 		newSeedPerfCommand(),
+		newAIEvalCommand(),
+		newAIDerivedCommand(),
 		newUsersResetPasswordCommand(),
 		newPrivacyEraseUserCommand(),
 		newRevisionsCommand(),

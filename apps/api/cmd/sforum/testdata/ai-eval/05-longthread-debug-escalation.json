@@ -1,0 +1,43 @@
+{
+  "id": "longthread-debug-escalation",
+  "note": "长楼 ×1：14 条评论，超出 RecentCommentWindow(10)，且答案在前半段（已掉出窗口）——检验模型是凭窗口瞎猜，还是用 forum-topic-read 补读。",
+  "topicTitle": "线上接口偶发 502，重启后才恢复，查了两天了",
+  "topicBody": "环境：Go 1.24 + Fiber，前面一层 nginx，数据库 PostgreSQL，Redis 做会话。\n\n现象：每天不定时出现 502，持续几十秒到几分钟，API 进程本身没崩（日志还在打），重启 API 之后恢复。nginx 日志里是 upstream prematurely closed connection。\n\n已经排除过：数据库连接数（远没打满）、内存（稳定在 400MB）、CPU（峰值 30%）。请问还能往哪里查？",
+  "topicAuthor": {"username": "alice", "displayName": "Alice"},
+  "comments": [
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "upstream prematurely closed 一般是后端主动关了连接。先确认 nginx 的 keepalive_timeout 和 Go 侧的 ReadTimeout/WriteTimeout 谁更短。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "nginx keepalive_timeout 是 65s，Go 的 IdleTimeout 是 60s。所以是 Go 先关？", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "对，这就对上了。连接空闲到 60s 时 Go 关掉它，而 nginx 还认为连接可用，复用时立刻失败。这是最经典的一对不匹配。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "但我改过 IdleTimeout 到 120s，502 还是出现，只是频率低了点。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "那说明还有第二个来源。看有没有反代之外的东西：健康检查、监控探测、或者容器编排的探针，它们也会占连接。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "有个 k8s readinessProbe 每 5 秒一次 HTTP 探测。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "探针用 HTTP/1.1 且不 keep-alive 的话会频繁建立短连接，但通常不致命。更值得查的是 graceful shutdown：部署时的 SIGTERM 处理。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "我们的 SIGTERM 处理是直接 os.Exit(0)，没有等待在途请求。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "那就是两个独立原因叠加：空闲连接超时不匹配 + 退出不优雅。但你说是「不定时且不重启部署」，所以主因还是第一个。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "我再翻一下你之前写的排障记录，好像有一条讲 nginx + Go 的连接复用的。", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "有，标题里有「连接复用」。核心结论是：反代的 keepalive_timeout 必须显著小于后端的 IdleTimeout，让反代先关。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "那具体数值怎么定？", "isBot": false},
+    {"author": {"username": "bob", "displayName": "Bob"}, "content": "经验值是反代 55s、后端 75s，留 20s 余量。同时后端要发 Keep-Alive 响应头声明自己的超时。", "isBot": false},
+    {"author": {"username": "alice", "displayName": "Alice"}, "content": "明白了，我先按这个改，再观察两天。@helper 你能把那份排障记录找出来给我吗？", "isBot": false}
+  ],
+  "triggerCommentIndex": 13,
+  "triggerUserID": 900005,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 200,
+        "title": "排障记录：nginx 与 Go 后端连接复用导致的偶发 502",
+        "body": "症状：不定时 502，nginx 日志 upstream prematurely closed connection，重启后端即恢复。\n\n根因：nginx 侧 keepalive_timeout 大于 Go 侧 IdleTimeout。空闲连接由 Go 先关闭，而 nginx 的连接池仍持有它，下一次复用时请求写到已关闭的 socket 上，直接失败。\n\n为什么「重启才恢复」：重启后连接池被清空，短时间内全是新连接，所以症状消失；等连接再次空闲到超时点，问题重来。这也解释了为什么它看起来像「偶发」。\n\n修复：\n1. nginx keepalive_timeout 55s，Go IdleTimeout 75s，让反代先关。\n2. 后端在响应里发 Keep-Alive: timeout=75，与自身设置一致。\n3. 检查容器探针是否使用短连接（每 5s 一次 HTTP 探测会放大现象，但不是根因）。\n4. 顺带修 graceful shutdown：SIGTERM 后先停止接受新连接，等待在途请求完成再退出。\n\n验证方式：改完后用 ss -tan state established 观察 ESTAB 数在空闲期是否平滑下降，不再出现 CLOSE_WAIT 堆积。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 23,
+        "viewCount": 7700,
+        "author": {"username": "bob", "displayName": "Bob"}
+      }
+    ],
+    "users": [
+      {"username": "bob", "displayName": "Bob", "bio": "写 Go 和数据库，喜欢记录排障过程。", "topicCount": 128, "commentCount": 940}
+    ]
+  }
+}

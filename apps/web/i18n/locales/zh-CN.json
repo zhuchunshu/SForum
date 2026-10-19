@@ -763,6 +763,25 @@
         "observability": "用量与执行记录",
         "purposes": "AI 用途"
       },
+      "runTimeline": {
+        "expand": "展开这次 run 的时间线",
+        "collapse": "收起时间线",
+        "title": "本次 run 的时间线",
+        "intro": "同一次 run 的全部模型调用，按时间正序。每条记录用自己的归因说明这一次调用为什么发生、结果如何。",
+        "runIdLabel": "归属 id",
+        "loading": "正在读取时间线…",
+        "loadFailed": "时间线读取失败。执行记录本身仍然可用。",
+        "empty": "这一次 run 没有可回放的执行记录。",
+        "close": "关闭时间线",
+        "step": "第 {n} 步",
+        "latency": "延迟 {ms} ms",
+        "tokens": "输入 {input} / 输出 {output} token",
+        "cacheHitRecord": "缓存命中",
+        "cacheHitOnly": "本次命中结果缓存，未进入工具循环。只有一条记录是正确行为，不是工具调用丢失。",
+        "deniedBadge": "未出站",
+        "deniedHint": "这条记录被闸门拦下，请求没有发往供应商，因此没有延迟与 token 消耗。",
+        "traceHonesty": "工具调用明细不在执行记录里（它写在运行日志中），这里只回放模型调用本身，不补造工具步。"
+      },
       "replyPrompt": {
         "title": "回复提示词",
         "intro": "AI 在社区里发言时遵循的系统指令。留空即使用内置默认；一键恢复会清空你的自定义内容。",
@@ -5474,6 +5493,15 @@
       "previous": "上一张图片",
       "next": "下一张图片",
       "loadFailed": "图片加载失败。"
+    },
+    "citations": {
+      "title": "依据（{count}）",
+      "commentLabel": "{id} 楼",
+      "topicLabel": "主题主楼",
+      "jumpToComment": "跳到 {id} 楼",
+      "jumpToTopic": "跳到主题主楼",
+      "summary": "依据",
+      "loading": "正在读取依据…"
     },
     "commentLink": "链接",
     "copyShortcode": "引用",

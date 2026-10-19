@@ -28,11 +28,13 @@ type Controller struct {
 	editableSources   *forum.EditableSourceService
 	referenceSelector *forum.ReferenceSelector
 	taxonomy          *forum.TaxonomyService
-	searchService     SearchService
-	reindexer         ReindexService
-	searchProviders   SearchProviderAdmin
-	users             identity.ActorStore
-	sessions          *authsession.Manager
+	// citations 是 AI 依据读取的聚焦协作者（D11：不往 forum.Service 上加方法）。
+	citations       *forum.CitationService
+	searchService   SearchService
+	reindexer       ReindexService
+	searchProviders SearchProviderAdmin
+	users           identity.ActorStore
+	sessions        *authsession.Manager
 	// idempotency 可选：注入后对发帖/评论写路径启用 Idempotency-Key（F3.2）。
 	idempotency       *idempotency.Store
 	emailVerification EmailVerificationGate
@@ -97,8 +99,8 @@ func NewController(service *forum.Service, users identity.ActorStore, sessions *
 	return &Controller{
 		service: service, publicReads: forum.NewPublicReadService(service),
 		editableSources: forum.NewEditableSourceService(service), referenceSelector: forum.ReferenceSelectorFromService(service),
-		taxonomy: forum.NewTaxonomyService(service),
-		users:    users, sessions: sessions,
+		taxonomy: forum.NewTaxonomyService(service), citations: forum.NewCitationService(service),
+		users: users, sessions: sessions,
 	}
 }
 
@@ -107,7 +109,7 @@ func NewControllerWithSearch(service *forum.Service, searchSvc SearchService, re
 	return &Controller{
 		service: service, publicReads: forum.NewPublicReadService(service), editableSources: forum.NewEditableSourceService(service),
 		referenceSelector: forum.ReferenceSelectorFromService(service), searchService: searchSvc,
-		taxonomy:  forum.NewTaxonomyService(service),
+		taxonomy: forum.NewTaxonomyService(service), citations: forum.NewCitationService(service),
 		reindexer: reindexer, users: users, sessions: sessions,
 	}
 }
@@ -205,6 +207,18 @@ func (h *Controller) WithEmailVerificationGate(gate EmailVerificationGate) *Cont
 func (h *Controller) WithCommentLive(live *forum.CommentLiveService) *Controller {
 	if h != nil {
 		h.commentLive = live
+	}
+	return h
+}
+
+// WithCitationReader 注入 AI 依据（B4）的读取面。
+//
+// 两个构造器都会建出 citations 协作者，所以 nil 分支防的是有人手工拼一个零值
+// Controller——那种情况下 quietly 跳过注入比 panic 更合适（端点仍然过可见性判定，
+// 只是恒返回空列表）。
+func (h *Controller) WithCitationReader(reader forum.CitationReader) *Controller {
+	if h != nil && h.citations != nil {
+		h.citations.WithReader(reader)
 	}
 	return h
 }

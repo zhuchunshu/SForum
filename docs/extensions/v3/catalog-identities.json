@@ -26,6 +26,12 @@
       "path": "/api/v1/admin/ai/executions"
     },
     {
+      "id": "core.route.ai.get_run_timeline",
+      "contractVersion": "sforum.route.ai.get_run_timeline@1",
+      "method": "GET",
+      "path": "/api/v1/admin/ai/runs/:runId"
+    },
+    {
       "id": "core.route.ai.get_settings",
       "contractVersion": "sforum.route.ai.get_settings@1",
       "method": "GET",
@@ -1548,6 +1554,12 @@
       "contractVersion": "sforum.route.forum.replies@1",
       "method": "GET",
       "path": "/api/v1/comments/:commentID/replies"
+    },
+    {
+      "id": "core.route.forum.list_comment_citations",
+      "contractVersion": "sforum.route.forum.list_comment_citations@1",
+      "method": "GET",
+      "path": "/api/v1/comments/:commentID/citations"
     },
     {
       "id": "core.route.forum.comment_revisions",
@@ -5659,6 +5671,26 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/admin/SFAdminQueryCatalogTable.vue"
+    },
+    {
+      "id": "core.component.admin.sf_admin_ai_run_timeline",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_run_timeline@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIRunTimeline.vue"
+    },
+    {
+      "id": "core.component.shared.sfcomment_citations",
+      "contractVersion": "sforum.component.shared.sfcomment_citations@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/forum/SFCommentCitations.vue"
     }
   ]
 }

@@ -32,6 +32,16 @@ func NewBotCommentPoster(users identity.ActorStore, creator CommentCreator) *Bot
 	return &BotCommentPoster{users: users, forum: creator}
 }
 
+// PostBotComment 以机器人身份发布回复。
+//
+// input.Citations 由生成器在**发布成功之后**另行落库，不由本类型写入。原因有两条：
+//   - 证据必须后于评论存在，否则一次失败的发布会在 ai_citations 里留下指向一条
+//     从未出现的评论的依据（外键会先拦下它，但那说明写入时机已经错了）；
+//   - run_id 是生成侧的事实（A3 的 run 关联 id 只出现在 CompletionOutput 里），
+//     本类型拿不到它，写出来的依据会缺失归因。
+//
+// 因此本类型对 Citations 的处理是「不处理」：它只保证评论本身按普通用户路径
+// 创建成功并返回评论 id，证据由调用方用这个 id 去写。
 func (p *BotCommentPoster) PostBotComment(ctx context.Context, botUserID int64, input BotCommentInput) (int64, error) {
 	if p == nil || p.users == nil || p.forum == nil {
 		return 0, ErrGeneratorUnavailable

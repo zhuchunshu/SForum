@@ -196,8 +196,38 @@ assertIdentityMutationRejected('UI source drift', changed => {
   changed.ui[changed.ui.findIndex(item => item.state === 'active')].source = 'apps/web/app/components/Moved.vue'
 }, 'new or moved UI surface')
 
-assert(routes.length === 370, `route inventory must contain exactly 370 reviewed routes: ${routes.length}`)
+// 路由清单的规模判据：与稳定身份账本双向一致，且不少于上次审阅值。
+//
+// 这里原本写死 `=== 370`。该断言落地当天（44c7c255d）routes.json 已经是 371 条，
+// 之后 GROW 到 372、373——也就是说它从落地起就是红的，而「把数字往上抬一次」只是
+// 把同一笔债推给下一个改路由的人，判据本身仍然不成立。真正要守的不变量有两条：
+//   1. 生成器产出的每一条路由都有审阅过的稳定身份，且反向也成立（双向、逐条）；
+//   2. 清单规模不减少（路由被删=能力消失，必须由人显式下调下面的下限）。
+// 具体条数不再是判据；`generate.mjs --check` 在上方已经保证了清单与源码一致。
+const REVIEWED_ROUTE_COUNT_FLOOR = 373
+assert(
+  routes.length >= REVIEWED_ROUTE_COUNT_FLOOR,
+  `route inventory shrank below the last reviewed count ${REVIEWED_ROUTE_COUNT_FLOOR}: ${routes.length}`
+)
 assert(identities.routes.length === routes.length, 'reviewed route identity map must cover every current route')
+const reviewedRoutes = new Map(identities.routes.map(item => [`${item.method} ${item.path}`, item]))
+for (const route of routes) {
+  const key = `${route.method} ${route.path}`
+  const identity = reviewedRoutes.get(key)
+  assert(identity, `${route.id} has no reviewed stable identity for ${key}`)
+  assert(identity.id === route.id, `${key} stable identity id drifted: reviewed ${identity.id}, generated ${route.id}`)
+  assert(
+    identity.contractVersion === route.contractVersion,
+    `${key} stable identity contract drifted: reviewed ${identity.contractVersion}, generated ${route.contractVersion}`
+  )
+}
+const generatedRouteKeys = new Set(routes.map(route => `${route.method} ${route.path}`))
+for (const identity of identities.routes) {
+  assert(
+    generatedRouteKeys.has(`${identity.method} ${identity.path}`),
+    `reviewed stable identity ${identity.id} has no generated route (${identity.method} ${identity.path}); retire it instead of leaving a stale entry`
+  )
+}
 unique(routes, item => item.id, 'route inventory ids')
 unique(routes, item => `${item.method} ${item.path}`, 'route inventory method/path pairs')
 for (const route of routes) {
@@ -232,10 +262,29 @@ const retiredUI = load('docs/extensions/v3/catalogs/ui-retired-identities.json')
 // ownership semantics. The two outbound-link surfaces (`site.outbound` page and
 // `core.component.shared.sfoutbound_interstitial`) were reviewed and mapped in
 // docs/extensions/v3/catalog-identities.json in the same change.
-assert(ui.length === 322, `UI inventory must contain exactly 322 reviewed surfaces: ${ui.length}`)
+//
+// 规模判据与路由清单同一套（见上方 REVIEWED_ROUTE_COUNT_FLOOR）：这里原本写死
+// `=== 322`，而该断言落地时 ui-surfaces.json 已经是 327 条，之后 GROW 到 329——
+// 与路由那条一样，从落地起就是红的。要守的不变量是两条：每一条 UI 面都有审阅过的
+// 稳定身份（反向也成立），且规模不减少。具体条数不再是判据。
+const REVIEWED_UI_SURFACE_COUNT_FLOOR = 329
+assert(
+  ui.length >= REVIEWED_UI_SURFACE_COUNT_FLOOR,
+  `UI inventory shrank below the last reviewed count ${REVIEWED_UI_SURFACE_COUNT_FLOOR}: ${ui.length}`
+)
 assert(JSON.stringify(retiredUI) === JSON.stringify(retiredIdentities), 'generated retired UI reservation catalog drifted from its reviewed ledger')
 const activeUIIdentities = identities.ui.filter(item => item.state === 'active')
 assert(activeUIIdentities.length === ui.length, 'active reviewed UI identity map must cover every current UI surface')
+// 反向：账本里每一条 active 身份都必须有对应的现存 UI 面。等数 + 唯一 source 其实
+// 已经蕴含这一点，但显式写出来才能在「删了一个组件、忘了退账本」时给出可读的原因，
+// 而不是一条「数量对不上」。
+const generatedUISources = new Set(ui.map(item => item.source))
+for (const identity of activeUIIdentities) {
+  assert(
+    generatedUISources.has(identity.source),
+    `reviewed UI identity ${identity.id} has no generated surface (${identity.source}); move it to the retired ledger instead of leaving a stale entry`
+  )
+}
 unique(ui, item => item.id, 'UI surface ids')
 unique(ui, item => item.contractVersion, 'UI surface contracts')
 unique(ui, item => item.source, 'UI surface sources')

@@ -2,6 +2,7 @@ package aireply
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -77,10 +78,62 @@ type Generator struct {
 	poster    CommentPoster
 	// parameters 可为 nil：那时使用内置默认提示词与用途声明的默认参数。
 	parameters ReplyParameterSource
+	// citations 可为 nil：那时引用能力整体关闭（不写格式要求、不校验、不落库）。
+	// 它是 B4 的全部后端能力（校验 + 落库 + 事实复校验），由
+	// PostgresCitationStore 实现。
+	citations CitationStore
+	// state 可为 nil：那时没有会话记忆，每次回复都从零开始（与引入前一致）。
+	state TopicStateStore
+}
+
+// CitationStore 是 B4 需要的全部引用能力。它把任务书里分开描述的三件事收进
+// 一个接口，因为它们的实现必须是同一个可见性谓词（见 PostgresCitationStore）：
+// 校验「这条依据可见吗」、写入「这条回复引用了什么」、复校验「上次的依据还在
+// 吗」（B5 三重失效第 3 条）。
+type CitationStore interface {
+	CitationVerifier
+	CitationRecorder
+	FactVerifier
+}
+
+// TopicStateStore 是 B5 需要的全部状态能力。
+//
+// Load 的第二个返回值表示「有没有读到状态」：读到但内容无效（提示词版本不符、
+// 超期）由 Effective 判，读不出来由 Load 判——把两者压成一个 bool 会让日志里
+// 分不清「从没存过」与「存了但读不出来」。
+type TopicStateStore interface {
+	Load(ctx context.Context, topicID, botUserID int64) (TopicState, bool)
+	Save(ctx context.Context, topicID, botUserID int64, state TopicState) error
 }
 
 func NewGenerator(threads ThreadReader, completer Completer, poster CommentPoster, parameters ReplyParameterSource) *Generator {
 	return &Generator{threads: threads, completer: completer, poster: poster, parameters: parameters}
+}
+
+// WithCitations 装配 B4 的引用能力。返回同一生成器以便链式装配。
+func (g *Generator) WithCitations(store CitationStore) *Generator {
+	if g == nil {
+		return g
+	}
+	g.citations = store
+	return g
+}
+
+// WithTopicState 装配 B5 的会话状态。返回同一生成器以便链式装配。
+//
+// 引用能力与会话状态必须成对装配：状态里的 VerifiedFacts 只能来自 B4 校验过的
+// 引用，没有 citations 时状态永远采集不到任何事实（装配了也只是空转）。因此
+// 缺 citations 时这里不装配——「配了状态却永远不记得任何事」比「没有状态」
+// 更难排查。
+func (g *Generator) WithTopicState(store TopicStateStore) *Generator {
+	if g == nil {
+		return g
+	}
+	if g.citations == nil {
+		return g
+	}
+	g.state = store
+	return g
 }
 
 // defaultReplyParameters 是没有任何配置来源时生效的参数：用途声明的成本等级与
@@ -177,14 +230,26 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 		return fmt.Errorf("load reply context: %w", err)
 	}
 	parameters, systemOverride := g.resolveParameters(ctx)
-	system, user := buildReplyPrompt(thread, systemOverride)
+	// B5：先读状态、按三重失效裁决、渲染成提示词片段。任何一步失败都降级为
+	// 「没有状态」——记忆缺失不该让回复失败（任务书易错点 3）。
+	previousState, hadState := g.loadTopicState(ctx, input)
+	stateFacts, invalidation := g.effectiveState(ctx, previousState, hadState, parameters.PromptVersion)
+	stateBlock, _ := RenderTopicState(stateFacts)
+	logStateInjection(ctx, input, invalidation)
+	system, user := buildReplyPrompt(thread, systemOverride, replyPromptExtras{
+		stateBlock:       stateBlock,
+		citationsEnabled: g.citations != nil,
+	})
 	// 工具以提问者视角取数：可见性判定用触发者身份，位置信息用于限定
 	// 「当前这栋楼」。语言来自站点默认值——读失败留空，工具按「不知道语言」
 	// 工作，不因为一句可选事实而让整次回复失败。
 	toolContext := supportai.ToolContext{
 		ViewerUserID: input.TriggerUserID,
-		TopicID:      input.TopicID,
-		CommentID:    input.TriggerCommentID,
+		// BotUserID 只让工具认出「机器人自己说过什么」（ai-self-history）；
+		// 可见性仍然逐字用 ViewerUserID，不得拿它放宽任何读取范围。
+		BotUserID: input.BotUserID,
+		TopicID:   input.TopicID,
+		CommentID: input.TriggerCommentID,
 	}
 	if source, ok := g.parameters.(LocaleSource); ok {
 		if locale, err := source.DefaultLocale(ctx); err == nil {
@@ -205,23 +270,157 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 		ToolContext:   toolContext,
 	})
 	if err != nil {
-		return fmt.Errorf("complete reply: %w", err)
+		// 部分结果必须可观察：这次 run 已经执行过的工具与花掉的 token 是事实，
+		// 重试的一方需要知道上次做到哪。断点续跑不做（River 的重试是整任务重跑），
+		// 但「被丢弃」与「被观察到」是两回事。
+		annotated := fmt.Errorf("complete reply (tool_calls=%d usage=%d/%d): %w",
+			completion.ToolCalls, completion.Usage.InputTokens, completion.Usage.OutputTokens, err)
+		logGeneratedReply(ctx, input, completion, parameters.PromptVersion, annotated)
+		return annotated
 	}
-	content := strings.TrimSpace(completion.Text)
+	// B4：先解析标记、剥离正文，再判空。顺序不能反——「整段正文只有标记」在剥离
+	// 之前是非空的，剥离之后才是空回复。颠倒顺序会发出一条正文里只剩噪声的评论
+	// （任务书易错点 2）。
+	raw := completion.Text
+	body, refs := parseCitationMarkers(raw)
+	content := strings.TrimSpace(body)
+	if len(refs) > 0 {
+		content = normalizeCitationBody(body)
+	}
 	if content == "" {
 		// 空回复不发布：一条空评论比没有回复更糟。
 		//
 		// 错误里带上停止原因与「模型是否产出了思考」：这是同一句话的唯一可诊断
 		// 形态——finish_reason=length + 有思考＝预算被思考吃光（该调 profile 的
 		// 最大输出 token），没有思考＝模型确实什么都没说。
-		return fmt.Errorf("%w: stop_reason=%s reasoning=%t", ErrEmptyReply, completion.StopReason, strings.TrimSpace(completion.Reasoning) != "")
+		empty := fmt.Errorf("%w: stop_reason=%s reasoning=%t", ErrEmptyReply, completion.StopReason, strings.TrimSpace(completion.Reasoning) != "")
+		logGeneratedReply(ctx, input, completion, parameters.PromptVersion, empty)
+		return empty
 	}
-	if _, err := g.poster.PostBotComment(ctx, input.BotUserID, BotCommentInput{
-		TopicID:  input.TopicID,
-		ParentID: input.ParentCommentID,
-		Content:  content,
-	}); err != nil {
-		return fmt.Errorf("post bot comment: %w", err)
+	// B4：逐条校验引用。校验失败的单条丢弃、零引用是正常结果，都不阻断发布；
+	// 校验整体失败（存储不可用）同样降级为「无引用」——依据缺失不该让一条有用
+	// 的回答发不出去。
+	citations := g.verifyCitations(ctx, refs)
+	commentID, err := g.poster.PostBotComment(ctx, input.BotUserID, BotCommentInput{
+		TopicID:   input.TopicID,
+		ParentID:  input.ParentCommentID,
+		Content:   content,
+		Citations: citations,
+	})
+	if err != nil {
+		postErr := fmt.Errorf("post bot comment: %w", err)
+		logGeneratedReply(ctx, input, completion, parameters.PromptVersion, postErr)
+		return postErr
 	}
+	// 发布成功之后才落库引用、才写会话状态（记忆连续性 · 层 2 第 3 条）。
+	// 发布失败却写状态，下一轮会引用一段没人看过的结论。
+	runID := completion.RunID
+	g.recordCitations(ctx, commentID, runID, citations)
+	g.saveTopicState(ctx, input, parameters.PromptVersion, runID, commentID, citations, previousState, stateFacts, hadState, invalidation)
+	logGeneratedReply(ctx, input, completion, parameters.PromptVersion, nil)
 	return nil
+}
+
+// verifyCitations 把解析出的指向变成已校验的引用。
+//
+// 三种情况都返回 nil 而不是错误：
+//   - 没有装配引用能力（部署缺能力，记 Info 一次）；
+//   - 模型一个标记都没写（最常见，不是异常）；
+//   - 校验整体失败（存储不可用——回复本身可能仍然有用）。
+//
+// 逐条丢弃发生在存储层的 Verify 里，并自带 Warn 日志；这里只补一条汇总，
+// 因为「模型在编引用」是一个需要运营者看见的行为模式。
+func (g *Generator) verifyCitations(ctx context.Context, refs []CitationRef) []Citation {
+	if len(refs) == 0 {
+		return nil
+	}
+	if g.citations == nil {
+		// 解析出了标记但没装配校验：正文已被剥离，标记不会泄漏到评论里，
+		// 但运营者需要知道「这台部署丢弃了模型给出的依据」。
+		slog.InfoContext(ctx, "aireply: citation markers stripped without a verifier",
+			"markers", len(refs), "reason", "citations_unavailable")
+		return nil
+	}
+	verified, err := g.citations.Verify(ctx, refs)
+	if err != nil {
+		slog.WarnContext(ctx, "aireply: citation verification failed; publishing without citations",
+			"markers", len(refs), "err", err)
+		return nil
+	}
+	verified = dedupeCitations(verified)
+	if len(verified) > MaxCitationsPerReply {
+		// 超出渲染上限：保留前 N 条（模型标注的顺序＝它在正文里提到的顺序）。
+		slog.WarnContext(ctx, "aireply: citations truncated to the rendering limit",
+			"verified", len(verified), "kept", MaxCitationsPerReply)
+		verified = verified[:MaxCitationsPerReply]
+	}
+	if len(verified) < len(refs) {
+		slog.WarnContext(ctx, "aireply: some citations were dropped as unverifiable",
+			"markers", len(refs), "verified", len(verified))
+	}
+	return verified
+}
+
+// recordCitations 把已校验的引用落库。它只在发布成功之后被调用。
+//
+// 失败只记 Warn：引用是展示层的增强，一次落库失败不该让一条已发布的评论变成
+// 失败的重试任务（那会重复发布）。
+func (g *Generator) recordCitations(ctx context.Context, commentID int64, runID string, citations []Citation) {
+	if g.citations == nil || len(citations) == 0 || commentID <= 0 {
+		return
+	}
+	if err := g.citations.Record(ctx, commentID, runID, citations); err != nil {
+		slog.WarnContext(ctx, "aireply: record citations failed",
+			"commentId", commentID, "citations", len(citations), "err", err)
+	}
+}
+
+// logGeneratedReply 把一次回复的规模事实写进结构化日志：花了多少次模型调用、
+// 多少次工具调用、多少 token，以及逐次工具轨迹。
+//
+// 级别规则：成功且无异常为 Info；发布失败、空回复、或轨迹里出现任何 Failure
+// 一律 Warn——让「配置漂移导致模型在撞工具预算」自己浮出来，而不是等运营者
+// 去猜为什么回答变差了。
+//
+// toolCalls 是真正执行的次数，toolCallsPerRun 是本次 run 记录到的调用次数
+// （含被拒绝的）。两者不等本身就是结论：模型在要求它拿不到的工具。
+func logGeneratedReply(ctx context.Context, input ReplyJobInput, output CompletionOutput, promptVersion string, failure error) {
+	level := slog.LevelInfo
+	if failure != nil {
+		level = slog.LevelWarn
+	}
+	for _, entry := range output.ToolTrace {
+		if entry.Failure != "" {
+			level = slog.LevelWarn
+			break
+		}
+	}
+	attrs := []any{
+		"topicId", input.TopicID,
+		"purpose", ReplyPurpose,
+		"modelCalls", output.ModelCalls,
+		"toolCalls", output.ToolCalls,
+		"toolCallsPerRun", len(output.ToolTrace),
+		"inputTokens", output.Usage.InputTokens,
+		"outputTokens", output.Usage.OutputTokens,
+		"promptVersion", promptVersion,
+		"tool_trace", toolTraceJSON(output.ToolTrace),
+	}
+	if failure != nil {
+		attrs = append(attrs, "err", failure)
+	}
+	slog.Log(ctx, level, "aireply: reply generated", attrs...)
+}
+
+// toolTraceJSON 序列化轨迹供日志阅读。序列化失败不阻断任何路径：这是诊断信息，
+// 不是回复的一部分。
+func toolTraceJSON(trace []supportai.ToolTraceEntry) string {
+	if len(trace) == 0 {
+		return ""
+	}
+	encoded, err := json.Marshal(trace)
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
 }

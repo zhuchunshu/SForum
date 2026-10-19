@@ -44,6 +44,25 @@ func (f *fakeTraces) ListExecutions(context.Context, int) ([]ai.ExecutionRecord,
 	return f.records, nil
 }
 
+// ListRunExecutions 按归属过滤：A3 的验收只看「同一次 run 的记录能聚在一起」，
+// fake 因此必须真按 (resource_type, resource_id) 过滤，否则 T-A3-1/T-A3-4 会
+// 因为 fake 永远返回全量而失去意义。
+func (f *fakeTraces) ListRunExecutions(_ context.Context, resourceType, resourceID string, limit int) ([]ai.ExecutionRecord, error) {
+	if resourceID == "" {
+		return []ai.ExecutionRecord{}, nil
+	}
+	out := []ai.ExecutionRecord{}
+	for _, record := range f.records {
+		if record.ResourceType == resourceType && record.ResourceID == resourceID {
+			out = append(out, record)
+		}
+	}
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
 type fakeCreds struct {
 	value string
 	err   error

@@ -94,9 +94,22 @@ func (c *GatewayCompleter) Complete(ctx context.Context, input CompletionInput) 
 			ToolContext:   input.ToolContext,
 		})
 		if err != nil {
-			return CompletionOutput{}, err
+			// 部分结果照样透出：已经完成的工具调用与 token 用量属于这次 run 的
+			// 事实，丢掉它们会让「上次做到哪」无法观察，重试只能从零开始。
+			return partialOutput(result), err
 		}
-		return CompletionOutput{Text: result.Text, StopReason: result.StopReason, Reasoning: result.Reasoning}, nil
+		return CompletionOutput{
+			Text:       result.Text,
+			StopReason: result.StopReason,
+			Reasoning:  result.Reasoning,
+			ToolTrace:  result.ToolTrace,
+			Usage:      result.Usage,
+			ModelCalls: result.ModelCalls,
+			ToolCalls:  result.ToolCalls,
+			// run id 由编排器生成，与每一步写进 ai_executions 的归属相同：
+			// 调用方据此把回复与执行记录（以及 B4 的引用、B5 的状态）串起来。
+			RunID: result.RunID,
+		}, nil
 	}
 	result, err := c.gateway.Execute(ctx, supportai.CompletionRequest{
 		Purpose:       input.Purpose,
@@ -111,5 +124,32 @@ func (c *GatewayCompleter) Complete(ctx context.Context, input CompletionInput) 
 	if err != nil {
 		return CompletionOutput{}, err
 	}
-	return CompletionOutput{Text: result.Text, StopReason: result.StopReason, Reasoning: result.Reasoning}, nil
+	return CompletionOutput{
+		Text:       result.Text,
+		StopReason: result.StopReason,
+		Reasoning:  result.Reasoning,
+		Usage:      result.Usage,
+		// 非工具分支只有一次模型调用：这个 1 是事实，不是兜底值。
+		ModelCalls: 1,
+		// RunID 刻意留空。单次 gateway.Execute 不生成 run id（没有「run」这个
+		// 概念，也没有内层调用要聚合），编一个出来就是第二个真相：消费方会以为
+		// 它对应某组执行记录，而 ai_executions 里根本没有那一行。
+	}, nil
+}
+
+// partialOutput 把编排器的部分结果转成补全输出。它只在错误路径使用：调用方
+// 拿到 error 的同时能看见这次 run 已经走过的工具与花掉的 token。
+func partialOutput(result supportai.RunResult) CompletionOutput {
+	return CompletionOutput{
+		Text:       result.Text,
+		StopReason: result.StopReason,
+		Reasoning:  result.Reasoning,
+		ToolTrace:  result.ToolTrace,
+		Usage:      result.Usage,
+		ModelCalls: result.ModelCalls,
+		ToolCalls:  result.ToolCalls,
+		// 失败路径同样要带回 run id：这次 run 已经产生了真实调用与执行记录，
+		// 「失败了所以没有 id」会让那些记录变成查不回来的孤立行。
+		RunID: result.RunID,
+	}
 }

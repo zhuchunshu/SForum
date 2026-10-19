@@ -719,6 +719,9 @@ func forumReadPolicyRoute(routeID string) bool {
 		"core.route.forum.topic_contribution_timeline",
 		// 评论页码反查与评论列表同 guest-read 策略。
 		"core.route.forum.comment_page",
+		// AI 依据是评论的附属事实（零引用时是空列表），与回复列表同 guest-read
+		// 策略：主体仍是那条评论，可见性由评论所在主题裁决。
+		"core.route.forum.list_comment_citations",
 		// 评论区实时信号（修订状态 + SSE）与评论列表同 guest-read 策略；
 		// 载荷只有修订事实，正文与权限仍由 comments 路由裁决。
 		"core.route.forum.topic_comment_revision",

@@ -39,7 +39,7 @@ func TestGeneratePassesToolAllowlistAndToolContext(t *testing.T) {
 // TestReplyPromptVersionTracksPromptChanges 是一条提醒式断言：提示词语义变化时
 // 必须递增版本号，否则历史执行记录无法对应到产出它的那版提示词。
 func TestReplyPromptVersionTracksPromptChanges(t *testing.T) {
-	if aireply.ReplyPromptVersion != "forum-reply@6" {
+	if aireply.ReplyPromptVersion != "forum-reply@8" {
 		t.Fatalf("prompt version = %q；改动提示词请递增并同步本断言", aireply.ReplyPromptVersion)
 	}
 }

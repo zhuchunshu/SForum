@@ -1,0 +1,70 @@
+{
+  "id": "answer-searchable-channel",
+  "note": "可检索答案 ×1：答案在站内另一帖里，模型应当用 forum-search 找到并引用它。",
+  "topicTitle": "Go 并发里 channel 和 mutex 到底怎么选",
+  "topicBody": "写并发代码时一直在纠结：什么时候该用 channel，什么时候该用 sync.Mutex？\n\n看到两种说法：一种说 channel 是 Go 的哲学应该优先用，另一种说 channel 有额外开销、共享内存加锁更直接。到底该怎么判断？",
+  "topicAuthor": {
+    "username": "alice",
+    "displayName": "Alice"
+  },
+  "comments": [
+    {
+      "author": {
+        "username": "alice",
+        "displayName": "Alice"
+      },
+      "content": "@helper 这个问题有标准答案吗？我记得之前有人总结过。",
+      "isBot": false
+    },
+    {
+      "author": {
+        "username": "bob",
+        "displayName": "Bob"
+      },
+      "content": "我也想知道，之前看到过一篇讲这个的帖子但是找不到了。",
+      "isBot": false
+    }
+  ],
+  "triggerCommentIndex": 0,
+  "triggerUserID": 900001,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 42,
+        "title": "channel 还是 mutex：一条可操作的判断规则",
+        "body": "Go 并发编程里最常被问的一个选择就是：channel 还是 mutex？\n\n判断规则只有一条：谁拥有数据。\n\n如果数据的所有权会随着流程转移（生产者算完交给消费者，两者不同时持有），用 channel——这让「同一时刻只有一方能碰这块数据」成为类型与结构上的事实。\n\n如果数据由多个 goroutine 共同读改，且没有明确的交接点（计数器、缓存、连接池状态），用 sync.Mutex 或 sync.RWMutex——channel 在这里只是把锁写得更贵、更难读。\n\n反例警报：为了让一个共享 map 安全而套一层 channel 请求-应答，实质是用 channel 实现了一把锁，开销更大、死锁面更宽。\n\n补充：channel 的关闭语义是「不再发送」，不是「不再使用」。由发送方关闭，接收方永不关闭。\n\n所以这类并发同步问题的选择依据不是「哪个更 Go」，而是「数据有没有交接点」。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 7,
+        "viewCount": 1832,
+        "author": {
+          "username": "bob",
+          "displayName": "Bob"
+        }
+      },
+      {
+        "id": 43,
+        "title": "sync.Pool 在什么场景下真的有收益",
+        "body": "对象复用只有在分配开销显著大于池操作开销时才有意义。多数业务代码里 sync.Pool 是负优化，先 profile 再决定。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 3,
+        "viewCount": 402,
+        "author": {
+          "username": "alice",
+          "displayName": "Alice"
+        }
+      }
+    ],
+    "users": [
+      {
+        "username": "bob",
+        "displayName": "Bob",
+        "bio": "写 Go 和数据库，偶尔写点性能分析。",
+        "topicCount": 128,
+        "commentCount": 940
+      }
+    ]
+  }
+}

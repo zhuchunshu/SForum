@@ -2,12 +2,14 @@ package ai
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
-	"sort"
+	"strconv"
 	"strings"
-	"sync"
+	"time"
 )
 
 var (
@@ -33,6 +35,13 @@ type ToolResult struct {
 type ToolContext struct {
 	// ViewerUserID 是提问者（触发本次回复的用户）。
 	ViewerUserID int64
+	// BotUserID 是本次回复的机器人账号 id，0 表示未知。
+	//
+	// 它只有一个用途：识别「机器人自己的历史发言」（ai-self-history）。可见性
+	// 判定必须继续用 ViewerUserID——用机器人身份取数等于给系统账号开一份比提问者
+	// 更宽的视野，那正是写动作面被否决的同一个理由。任何工具都不得因为它而放宽
+	// 可见范围；它只用来把结果里的某一行认成「我说的」。
+	BotUserID int64
 	// TopicID / CommentID 是本次对话发生的位置；0 表示不限定位置。
 	TopicID   int64
 	CommentID int64
@@ -44,205 +53,6 @@ type ToolContext struct {
 type Tool interface {
 	Definition() ToolDefinition
 	Invoke(ctx context.Context, call ToolCall, env ToolContext) (ToolResult, error)
-}
-
-// ToolRegistry 是 Host 持有的工具登记表。插件贡献的工具同样登记在这里，
-// 因此「站内有哪些工具」永远有一个可枚举、可审计的答案。
-//
-// 登记表是可替换的：插件启用/停用/升级之后，调用方用 Replace 把「Core 工具 +
-// 当前已启用插件工具」的新集合整体换进来，正在进行的补全继续用旧表跑完，新的
-// 补全看到新表。读写因此必须过锁——单次补全会多次读取登记表（每一步的工具声明
-// 与派发都要查名字），替换发生在两次读取之间。
-//
-// ToolOrigin 标识一个工具来自哪里。控制台用它把 Core 工具与插件工具分开呈现，
-// 运营者因此能看出「这个名字是谁提供的」。
-type ToolOrigin struct {
-	// Kind 是 core 或 plugin。
-	Kind string `json:"kind"`
-	// ExtensionID / Version 只在 Kind=plugin 时有值。
-	ExtensionID string `json:"extensionId,omitempty"`
-	Version     string `json:"version,omitempty"`
-}
-
-// ToolAvailability 是「站内有哪些 AI 工具」的可枚举条目。它比 ToolDefinition
-// 多一个来源：模型只需要名字与描述，运营者还需要知道谁提供的。
-type ToolAvailability struct {
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Origin      ToolOrigin `json:"origin"`
-}
-
-// ToolCatalog 是登记表的只读枚举面。服务层与控制器只依赖它，因此不需要知道
-// 工具是进程内函数还是插件 RPC。
-type ToolCatalog interface {
-	Available() []ToolAvailability
-}
-
-// ToolOriginProvider 是工具可选实现的来源声明。没有实现它的工具一律视为 Core
-// 内置：插件工具必须主动说出自己的扩展身份。
-type ToolOriginProvider interface {
-	Origin() ToolOrigin
-}
-
-type ToolRegistry struct {
-	mu    sync.RWMutex
-	tools map[string]Tool
-}
-
-func NewToolRegistry() *ToolRegistry {
-	return &ToolRegistry{tools: map[string]Tool{}}
-}
-
-func (r *ToolRegistry) Register(tool Tool) error {
-	if r == nil || tool == nil {
-		return ErrToolLoopUnavailable
-	}
-	definition := tool.Definition()
-	if !ValidToolName(definition.Name) {
-		return fmt.Errorf("%w: invalid tool name %q", ErrToolLoopUnavailable, definition.Name)
-	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.tools == nil {
-		r.tools = map[string]Tool{}
-	}
-	if _, exists := r.tools[definition.Name]; exists {
-		return fmt.Errorf("%w: duplicate tool %s", ErrToolLoopUnavailable, definition.Name)
-	}
-	r.tools[definition.Name] = tool
-	return nil
-}
-
-// Tools 返回当前登记表的工具快照，按名字排序以保证枚举顺序稳定。
-//
-// 它是为了让调用方能拿住「Core 工具集」这一份不变的底子，随后用 Replace 反复
-// 重建「底子 + 当前插件工具」：Core 工具是进程内对象、无状态，重建时原样复用。
-func (r *ToolRegistry) Tools() []Tool {
-	if r == nil {
-		return nil
-	}
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return sortedTools(r.tools)
-}
-
-// Replace 用一批工具整体替换登记表，语义是「这批就是现在的全部工具」。
-//
-// 全部校验在替换之前完成：任何一条名字非法或重名都不会改动现有登记表，调用方
-// 可以在失败后继续用旧表服务请求——「换表失败」与「站内没有工具」是两回事，
-// 后者会让每一次回复都退化成纯文本。成功替换是原子的；已经开始的那次补全继续
-// 用旧表，因为它拿的是先前那几份 Tool 值，而不是登记表本身。
-func (r *ToolRegistry) Replace(tools []Tool) error {
-	if r == nil {
-		return ErrToolLoopUnavailable
-	}
-	next := make(map[string]Tool, len(tools))
-	for _, tool := range tools {
-		if tool == nil {
-			return fmt.Errorf("%w: nil tool", ErrToolLoopUnavailable)
-		}
-		definition := tool.Definition()
-		if !ValidToolName(definition.Name) {
-			return fmt.Errorf("%w: invalid tool name %q", ErrToolLoopUnavailable, definition.Name)
-		}
-		if _, exists := next[definition.Name]; exists {
-			return fmt.Errorf("%w: duplicate tool %s", ErrToolLoopUnavailable, definition.Name)
-		}
-		next[definition.Name] = tool
-	}
-	r.mu.Lock()
-	r.tools = next
-	r.mu.Unlock()
-	return nil
-}
-
-// Lookup 按名字取工具；未注册时返回 ok=false。
-func (r *ToolRegistry) Lookup(name string) (Tool, bool) {
-	if r == nil {
-		return nil, false
-	}
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	tool, ok := r.tools[strings.TrimSpace(name)]
-	return tool, ok
-}
-
-// Descriptors 返回白名单内已登记工具的声明，顺序与白名单一致，并受
-// MaxToolsPerRequest 约束。未登记的名字被跳过而不是报错：插件卸载后，
-// 历史白名单仍应该能跑，而不是把整个用途拖死。
-func (r *ToolRegistry) Descriptors(names []string) []ToolDefinition {
-	if r == nil || len(names) == 0 {
-		return nil
-	}
-	descriptors := make([]ToolDefinition, 0, len(names))
-	for _, name := range names {
-		if len(descriptors) >= MaxToolsPerRequest {
-			break
-		}
-		tool, ok := r.Lookup(name)
-		if !ok {
-			continue
-		}
-		descriptors = append(descriptors, tool.Definition())
-	}
-	return descriptors
-}
-
-// Available 返回全部已登记工具的枚举视图，按名字排序以保证控制台顺序稳定。
-//
-// 它只回答「站内有哪些工具」，不回答「模型能不能用」：可见性由用途白名单决定
-// （RunInput.ToolNames）。两者刻意分开——否则运营者在控制台看到的清单会随着
-// 每个用途的覆盖配置变化，而「站内有哪些工具」本该是一个全局事实。
-func (r *ToolRegistry) Available() []ToolAvailability {
-	if r == nil {
-		return nil
-	}
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	if len(r.tools) == 0 {
-		return nil
-	}
-	names := sortedToolNames(r.tools)
-	out := make([]ToolAvailability, 0, len(names))
-	for _, name := range names {
-		tool := r.tools[name]
-		definition := tool.Definition()
-		origin := ToolOrigin{Kind: "core"}
-		if provider, ok := tool.(ToolOriginProvider); ok {
-			if declared := provider.Origin(); declared.Kind != "" {
-				origin = declared
-			}
-		}
-		out = append(out, ToolAvailability{
-			Name:        definition.Name,
-			Description: definition.Description,
-			Origin:      origin,
-		})
-	}
-	return out
-}
-
-// sortedToolNames 返回登记表里工具名的稳定顺序（按名字升序）。
-func sortedToolNames(tools map[string]Tool) []string {
-	names := make([]string, 0, len(tools))
-	for name := range tools {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
-}
-
-// sortedTools 按名字升序返回工具值，供 Replace 的调用方重建集合。
-func sortedTools(tools map[string]Tool) []Tool {
-	if len(tools) == 0 {
-		return nil
-	}
-	names := sortedToolNames(tools)
-	out := make([]Tool, 0, len(names))
-	for _, name := range names {
-		out = append(out, tools[name])
-	}
-	return out
 }
 
 // Orchestrator 在网关之上执行「模型 ↔ 工具」的循环。它归 Host 所有：步数预算、
@@ -302,6 +112,16 @@ type RunResult struct {
 	ToolCalls      int
 	PromptVersion  string
 	ConfigRevision int64
+	// ToolTrace 是本次 run 每一次工具调用的明细（含被拒绝的调用）。它是运营者
+	// 可见面的数据源，也是 B4 证据链的输入端；不含工具正文原文。
+	ToolTrace []ToolTraceEntry `json:"toolTrace,omitempty"`
+	// RunID 是本次 run 的关联 id，与每一步写进 ai_executions 的
+	// (resource_type='ai.run', resource_id) 相同。
+	//
+	// 它必须回填到结果里，而不是只存在于内部 metadata：调用方要拿它把回复与
+	// 执行记录串起来（B4 的引用、B5 的状态都以此为键）。纯追加字段，不改既有
+	// 字段语义。
+	RunID string `json:"runId,omitempty"`
 }
 
 // Run 执行循环：调用模型 → 若要求工具则执行并把结果回填 → 直到得到最终回答。
@@ -342,7 +162,17 @@ func (o *Orchestrator) Run(ctx context.Context, input RunInput) (RunResult, erro
 	firstParts = append(firstParts, Part{Type: PartText, Text: userText})
 	firstParts = append(firstParts, input.Images...)
 	messages := []Message{{Role: RoleUser, Parts: firstParts}}
-	result := RunResult{PromptVersion: input.PromptVersion}
+	// 本次 run 的关联 id：同一次 run 的每一次模型调用都带同一个 id，A4 的轨迹
+	// 回放因此能把它们聚成一条时间线。它是值类型 Metadata 的拷贝，不改调用方。
+	//
+	// 生成在 result 构造之前，并立刻写进 result：Run 有若干条早返回路径
+	// （网关失败、工具循环卡死），它们都 `return result, err`。若把回填留到循环
+	// 之后，错误路径的 run id 又会变成空串——那正是「记忆连续性 · 层 1」要防的
+	// 那类丢失：已经产生的事实不该因为走了失败分支而消失。
+	metadata := input.Metadata
+	metadata.ResourceType = ResourceTypeRun
+	metadata.ResourceID = newRunID()
+	result := RunResult{PromptVersion: input.PromptVersion, RunID: metadata.ResourceID}
 	budget := MaxToolResultRunBytes
 	firstCall := true
 	for {
@@ -353,7 +183,7 @@ func (o *Orchestrator) Run(ctx context.Context, input RunInput) (RunResult, erro
 			Messages:      messages,
 			MaxTokens:     input.MaxTokens,
 			PromptVersion: input.PromptVersion,
-			Metadata:      input.Metadata,
+			Metadata:      metadata,
 			Tools:         descriptors,
 		}
 		if descriptors != nil {
@@ -397,17 +227,25 @@ func (o *Orchestrator) Run(ctx context.Context, input RunInput) (RunResult, erro
 			if remaining <= 0 {
 				// 超出预算的调用也必须给出一条结果，否则 assistant 消息里的
 				// tool_calls 没有配对，供应商会直接拒绝下一次请求。
+				content := "超出本次回复的工具调用上限，未执行。"
 				messages = append(messages, Message{
 					Role:       RoleTool,
 					ToolCallID: call.ID,
-					Parts:      []Part{{Type: PartText, Text: "超出本次回复的工具调用上限，未执行。"}},
+					Parts:      []Part{{Type: PartText, Text: content}},
 				})
+				// 这是第 5 种结局，且它不经过 execute()：漏掉它，轨迹就解释不了
+				// 「模型在预算用完后仍在乱撞」。
+				exhausted := newToolTraceEntry(result.ModelCalls, call, settings.Redaction)
+				exhausted.Failure = ToolFailureStepExhausted
+				exhausted.recordResult(content, settings.Redaction)
+				result.ToolTrace = append(result.ToolTrace, exhausted)
 				continue
 			}
 			remaining--
 			result.ToolCalls++
-			content, used := o.execute(ctx, call, input.ToolContext, input.ToolNames, budget)
+			content, used, trace := o.execute(ctx, call, input.ToolContext, input.ToolNames, budget, settings.Redaction, result.ModelCalls)
 			budget -= used
+			result.ToolTrace = append(result.ToolTrace, trace)
 			messages = append(messages, Message{
 				Role:       RoleTool,
 				ToolCallID: call.ID,
@@ -425,20 +263,42 @@ func (o *Orchestrator) Run(ctx context.Context, input RunInput) (RunResult, erro
 	}
 }
 
-// execute 运行一次工具调用并返回给模型看的正文，以及它消耗的结果预算。
+// execute 运行一次工具调用并返回给模型看的正文、它消耗的结果预算，以及这条
+// 调用轨迹。
 //
 // 「工具不存在」与「不在白名单」都不返回错误：那是模型自己的越界，应当被如实
 // 告知并继续回答，而不是让整次回复失败。
-func (o *Orchestrator) execute(ctx context.Context, call ToolCall, env ToolContext, allowlist []string, budget int) (string, int) {
-	name := strings.TrimSpace(call.Name)
+func (o *Orchestrator) execute(
+	ctx context.Context,
+	call ToolCall,
+	env ToolContext,
+	allowlist []string,
+	budget int,
+	redaction RedactionSettings,
+	step int,
+) (content string, used int, trace ToolTraceEntry) {
+	// 耗时不用 o.gateway.clock：那个 clock 的语义是窗口对齐，被固定住时延迟恒为 0。
+	started := time.Now()
+	trace = newToolTraceEntry(step, call, redaction)
+	name := trace.Tool
 	tool, ok := o.registry.Lookup(name)
 	if !ok || !toolAllowed(allowlist, name) {
+		// 未登记与不在白名单此前被压成同一句给模型的文本，运营者因此分不清
+		// 「模型编了一个工具名」和「工具存在但用途没点名」。轨迹里两者分开。
 		content := "工具 " + name + " 不可用。"
-		return content, len(content)
+		failure := ToolFailureNotAllowed
+		if !ok {
+			failure = ToolFailureUnknownTool
+		}
+		slog.WarnContext(ctx, "ai: tool call refused", "tool", name, "reason", failure, "allowlist", allowlist)
+		trace.finish(started, content, failure, redaction)
+		return content, len(content), trace
 	}
 	if budget <= 0 {
 		content := "本次回复的工具结果预算已用尽，请基于已有信息直接回答。"
-		return content, len(content)
+		slog.WarnContext(ctx, "ai: tool result budget exhausted", "tool", name, "reason", ToolFailureBudgetExhausted, "budget", budget)
+		trace.finish(started, content, ToolFailureBudgetExhausted, redaction)
+		return content, len(content), trace
 	}
 	limit := o.maxResultBytes
 	if budget < limit {
@@ -447,11 +307,12 @@ func (o *Orchestrator) execute(ctx context.Context, call ToolCall, env ToolConte
 	result, err := tool.Invoke(ctx, call, env)
 	if err != nil {
 		// 内部故障：日志留全貌，模型只拿到一句不含实现细节的说明。
-		slog.WarnContext(ctx, "ai: tool invocation failed", "tool", name, "err", err)
+		slog.WarnContext(ctx, "ai: tool invocation failed", "tool", name, "reason", ToolFailureInternal, "err", err)
 		content := "工具 " + name + " 执行失败，请基于已有信息继续，不要重复同样的调用。"
-		return content, len(content)
+		trace.finish(started, content, ToolFailureInternal, redaction)
+		return content, len(content), trace
 	}
-	content := strings.TrimSpace(result.Content)
+	content = strings.TrimSpace(result.Content)
 	if content == "" {
 		content = "（" + name + " 没有返回内容）"
 	}
@@ -462,7 +323,10 @@ func (o *Orchestrator) execute(ctx context.Context, call ToolCall, env ToolConte
 	if truncated != content {
 		truncated += "\n…（结果过长，已截断）"
 	}
-	return truncated, len(truncated)
+	// 工具自己判定「输入有问题」不是编排层的失败：Failure 留空，IsError 记录事实。
+	trace.IsError = result.IsError
+	trace.finish(started, truncated, "", redaction)
+	return truncated, len(truncated), trace
 }
 
 // toolsSupported 判断当前成本等级解析出的 profile 是否支持工具调用。
@@ -491,4 +355,15 @@ func addUsage(a, b Usage) Usage {
 		OutputTokens: a.OutputTokens + b.OutputTokens,
 		CachedTokens: a.CachedTokens + b.CachedTokens,
 	}
+}
+
+// newRunID 生成一次 run 的关联 id。16 字节随机 hex：同一次 run 的所有模型调用
+// 共享它，不同 run 之间不会碰撞。
+func newRunID() string {
+	var buf [16]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		// 随机源不可用时退回时间戳：可回放性是观测能力，不该让回复失败。
+		return strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return hex.EncodeToString(buf[:])
 }

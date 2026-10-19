@@ -14,12 +14,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	attachments "github.com/zhuchunshu/sforum/apps/api/app/Models/Attachments"
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	profile "github.com/zhuchunshu/sforum/apps/api/app/Models/Profile"
 	supportai "github.com/zhuchunshu/sforum/apps/api/app/Support/AI"
 	search "github.com/zhuchunshu/sforum/apps/api/app/Support/Search"
@@ -38,6 +41,35 @@ type TopicReader interface {
 // CommentReader 读取公开评论列表，由 forum.Service 实现。
 type CommentReader interface {
 	ListComments(ctx context.Context, input forum.CommentListInput) (forum.CommentList, error)
+}
+
+// CommentThreadReader 读取某条评论的直接子回复，由 forum.Service 实现。
+//
+// 它刻意复用既有的 ListCommentRepliesForViewer，而不是在工具侧另写一套「按
+// parent_comment_id 过滤」：回复的可见性兜底（评论不存在、所属主题不可见，两者
+// 统一答「不存在」）已经在那里实现过一次，第二份就是第二套可见性判定。该方法
+// 返回的正是直接子回复（WHERE comments.parent_comment_id = $1），多层展开由
+// forum-comment-thread 自己递归，工具因此不会把「深度」的语义交给存储层。
+type CommentThreadReader interface {
+	ListCommentRepliesForViewer(ctx context.Context, commentID int64, viewer identity.Actor) ([]forum.Comment, error)
+}
+
+// AttachmentReader 以某个身份打开附件内容，由 attachments.Service 实现。
+//
+// 签名直接引用 attachments 的类型，而不是在工具侧另造一个「附件」结构：读附件
+// 必须走与公开下载完全相同的授权链（引用快照 + 主题可见性 + 访客登录策略），
+// 在工具里重新描述一遍只会得到一份会走偏的副本。
+type AttachmentReader interface {
+	OpenContent(ctx context.Context, actor identity.Actor, publicID string) (attachments.Attachment, io.ReadCloser, error)
+}
+
+// BotHistoryReader 读取某个机器人账号在指定话题里的历史发言。
+//
+// 它回答的是「我在这个话题里已经说过什么」：提示词只带最近
+// RecentCommentWindow 条发言，超窗即丢，机器人因此会重复回答、甚至推翻自己
+// 刚给出的结论。
+type BotHistoryReader interface {
+	ListBotComments(ctx context.Context, topicID, botUserID int64, limit int) ([]forum.Comment, error)
 }
 
 // TopicLister 读取公开主题列表，由 forum.Service 实现。
@@ -73,6 +105,16 @@ func (l SiteLinks) User(ctx context.Context, username string) string {
 	return l.base(ctx) + "/u/" + url.PathEscape(name)
 }
 
+// Comment 把评论锚点拼到所属主题的链接后面。锚点格式与公开详情页一致
+// （`#comment-{id}`），模型复述出来的链接因此能直接落到那一楼；拿不到主题 id
+// 时返回空串，而不是拼一个指向 `/t/0` 的假链接。
+func (l SiteLinks) Comment(ctx context.Context, topicID, commentID int64) string {
+	if topicID <= 0 || commentID <= 0 {
+		return ""
+	}
+	return l.Topic(ctx, topicID) + "#comment-" + strconv.FormatInt(commentID, 10)
+}
+
 func (l SiteLinks) base(ctx context.Context) string {
 	if l.SiteURL == nil {
 		return ""
@@ -89,11 +131,20 @@ type Deps struct {
 	Lister   TopicLister
 	Profiles ProfileReader
 	Users    UserSearcher
-	SiteURL  func(ctx context.Context) string
-	Clock    func() time.Time
+	// Replies 读取评论的直接子回复（forum-comment-thread）。
+	Replies CommentThreadReader
+	// Attachments 打开附件内容（forum-attachment-read）。
+	Attachments AttachmentReader
+	// BotHistory 读取机器人自己的历史发言（ai-self-history）。
+	BotHistory BotHistoryReader
+	// Actors 把提问者 id 换成 Actor。为 nil 时按匿名身份取数——匿名是比任何
+	// 登录用户都窄的一档，因此缺它只会少给内容，不会多给。
+	Actors  identity.ActorStore
+	SiteURL func(ctx context.Context) string
+	Clock   func() time.Time
 }
 
-// NewBuiltinRegistry 注册 Core 内置的六个只读工具。
+// NewBuiltinRegistry 注册 Core 内置的九个只读工具。
 func NewBuiltinRegistry(deps Deps) (*supportai.ToolRegistry, error) {
 	registry := supportai.NewToolRegistry()
 	links := SiteLinks{SiteURL: deps.SiteURL}
@@ -116,6 +167,15 @@ func NewBuiltinRegistry(deps Deps) (*supportai.ToolRegistry, error) {
 		return nil, err
 	}
 	if err := register(NewUserSearchTool(deps.Users, links), deps.Users != nil); err != nil {
+		return nil, err
+	}
+	if err := register(NewCommentThreadTool(deps.Replies, deps.Actors, links), deps.Replies != nil); err != nil {
+		return nil, err
+	}
+	if err := register(NewAttachmentReadTool(deps.Attachments, deps.Actors), deps.Attachments != nil); err != nil {
+		return nil, err
+	}
+	if err := register(NewSelfHistoryTool(deps.BotHistory, links), deps.BotHistory != nil); err != nil {
 		return nil, err
 	}
 	if err := register(NewTimeTool(deps.Clock), true); err != nil {
@@ -156,6 +216,26 @@ func authorName(username, displayName string) string {
 		return name
 	}
 	return strings.TrimSpace(username)
+}
+
+// viewerActor 把「谁在提问」换成领域层认的 Actor。
+//
+// 可见性判定只认 ToolContext.ViewerUserID（硬约束 4）：机器人是系统账号，用它的
+// 身份取数等于给机器人开一份比提问者更宽的视野。ViewerUserID 为零表示匿名，与
+// 公开读走同一档；账号已被删除同样回落到匿名（比任何登录身份都窄），而其它加载
+// 失败一律向上抛——静默降级会把一次基础设施故障变成一次「看起来读到空」的回复。
+func viewerActor(ctx context.Context, actors identity.ActorStore, env supportai.ToolContext) (identity.Actor, error) {
+	if env.ViewerUserID <= 0 || actors == nil {
+		return identity.Actor{}, nil
+	}
+	actor, err := actors.LoadActor(ctx, env.ViewerUserID)
+	if err != nil {
+		if errors.Is(err, identity.ErrUserNotFound) {
+			return identity.Actor{}, nil
+		}
+		return identity.Actor{}, err
+	}
+	return actor, nil
 }
 
 // pageDefaults 归一化页码与每页条数：页码至少 1，每页条数落在 1..max 内。

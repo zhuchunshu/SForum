@@ -1,0 +1,49 @@
+{
+  "id": "answer-searchable-pg-index",
+  "note": "可检索答案 ×2：答案是站内一篇具体的排障记录，需要检索并用链接指着它回答。2026-10-19 两次调整（见任务书账本 G 行与 D18/D19）：(1) 原触发评论「再补一句：ANALYZE 跑过，统计信息是新的。@helper 帮忙看看？」会让 a2api/glm-5.3-flash 稳定挂起（≥6 次、30s 与 120s 均无响应头），换成现在的等价问法；(2) 语料正文重写为「把问题原话写进来」的排障记录——站内搜索是 AND 语义（每个词项都必须命中），旧正文只写结论、不含提问词汇，模型用自然问法检索必然落空，于是既不引用也不作答。覆盖目标不变：模型必须检索到那篇帖子并给出链接。",
+  "topicTitle": "PostgreSQL 复合索引为什么没被用上",
+  "topicBody": "表上建了 (tenant_id, created_at DESC) 的复合索引，查询条件是：\n\n```sql\nSELECT * FROM events WHERE tenant_id = 42 ORDER BY created_at DESC LIMIT 20;\n```\n\nEXPLAIN 显示走的是 primary key 的索引扫描 + Sort，而不是这个复合索引。表大概两千万行。\n\n是我建索引的方式不对吗？",
+  "topicAuthor": {
+    "username": "bob",
+    "displayName": "Bob"
+  },
+  "comments": [
+    {
+      "author": {
+        "username": "bob",
+        "displayName": "Bob"
+      },
+      "content": "@helper 这个问题站内有标准答案吗？我记得之前有人总结过。",
+      "isBot": false
+    }
+  ],
+  "triggerCommentIndex": 0,
+  "triggerUserID": 900002,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 88,
+        "title": "排障记录：PostgreSQL 复合索引没被使用，走 primary key 索引扫描 + Sort",
+        "body": "线上一个两千万行的事件表，复合索引 (tenant_id, created_at DESC) 明明建了，EXPLAIN 里显示的却是 primary key 的索引扫描 + Sort。查询就是 SELECT * FROM events WHERE tenant_id = 42 ORDER BY created_at DESC LIMIT 20;\n\n「索引明明存在却没被使用」这类问题，我按代价从小到大排查了三步：\n\n1. 排序方向与 NULLS 位置对不上。PostgreSQL 里 DESC 默认等价于 DESC NULLS FIRST。如果 ORDER BY 与索引定义在 NULLS 上不一致，索引无法提供有序输出，规划器会改判成「索引扫描 + Sort」。两者必须逐字对应。\n\n2. 隐式类型转换。tenant_id 是 bigint，参数被驱动或 ORM 传成 text 时会多一次隐式 cast，索引可用性直接丢失。EXPLAIN 里出现 Filter 而不是 Index Cond，就是这个信号。\n\n3. 索引状态是 INVALID。用 CREATE INDEX CONCURRENTLY 建索引中途失败会留下一个 invalid 索引：\\d 里能看到它，但任何查询都不会使用，必须 DROP 之后重建。\n\n这次命中的是第 1 条：把索引改成 (tenant_id, created_at DESC NULLS LAST)，查询里显式写出 NULLS LAST，改完走 Index Only Scan，耗时从 1.8s 掉到 4ms。\n\n补充一句：统计信息是不是新的（有没有跑过 ANALYZE）不影响这个判断——NULLS 语义不一致时，规划器再准也不会用这条索引。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 12,
+        "viewCount": 3110,
+        "author": {
+          "username": "alice",
+          "displayName": "Alice"
+        }
+      }
+    ],
+    "users": [
+      {
+        "username": "alice",
+        "displayName": "Alice",
+        "bio": "数据库与后端。喜欢写排障记录。",
+        "topicCount": 210,
+        "commentCount": 1500
+      }
+    ]
+  }
+}

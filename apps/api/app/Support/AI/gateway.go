@@ -141,7 +141,9 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 	if !settings.Enabled {
 		g.record(ctx, ExecutionRecord{
 			Purpose: request.Purpose, CostClass: request.CostClass,
-			CallerExtensionID: request.Metadata.CallerExtensionID, Status: ExecutionStatusDenied,
+			CallerExtensionID: request.Metadata.CallerExtensionID,
+			ResourceType:      request.Metadata.ResourceType, ResourceID: request.Metadata.ResourceID,
+			Status:     ExecutionStatusDenied,
 			GateReason: GateReasonDisabled, GateScope: GateScopeSite,
 			PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
 			ErrorSummary: ErrGatewayDisabled.Error(),
@@ -155,7 +157,9 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 	if purposeErr := g.ValidatePurpose(request.Purpose); purposeErr != nil {
 		g.record(ctx, ExecutionRecord{
 			Purpose: request.Purpose, CostClass: request.CostClass,
-			CallerExtensionID: request.Metadata.CallerExtensionID, Status: ExecutionStatusDenied,
+			CallerExtensionID: request.Metadata.CallerExtensionID,
+			ResourceType:      request.Metadata.ResourceType, ResourceID: request.Metadata.ResourceID,
+			Status:     ExecutionStatusDenied,
 			GateReason: GateReasonPurposeUnknown, GateScope: GateScopeSite,
 			PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
 			ErrorSummary: purposeErr.Error(),
@@ -173,7 +177,9 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 	if !decision.Allowed {
 		g.record(ctx, ExecutionRecord{
 			Purpose: request.Purpose, CostClass: request.CostClass,
-			CallerExtensionID: request.Metadata.CallerExtensionID, Status: ExecutionStatusDenied,
+			CallerExtensionID: request.Metadata.CallerExtensionID,
+			ResourceType:      request.Metadata.ResourceType, ResourceID: request.Metadata.ResourceID,
+			Status:     ExecutionStatusDenied,
 			GateReason: decision.Reason, GateScope: decision.Scope,
 			PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
 		})
@@ -187,7 +193,9 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 	if err != nil {
 		g.record(ctx, ExecutionRecord{
 			Purpose: request.Purpose, CostClass: request.CostClass,
-			CallerExtensionID: request.Metadata.CallerExtensionID, Status: ExecutionStatusFailed,
+			CallerExtensionID: request.Metadata.CallerExtensionID,
+			ResourceType:      request.Metadata.ResourceType, ResourceID: request.Metadata.ResourceID,
+			Status:        ExecutionStatusFailed,
 			PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
 			ErrorSummary: ErrProfileUnavailable.Error(),
 		})
@@ -209,8 +217,10 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 		cached.CacheHit = true
 		g.record(ctx, ExecutionRecord{
 			Purpose: request.Purpose, CostClass: request.CostClass,
-			CallerExtensionID: request.Metadata.CallerExtensionID, ProfileID: profile.ID,
-			Protocol: profile.Protocol, Model: profile.Model, Status: ExecutionStatusSucceeded,
+			CallerExtensionID: request.Metadata.CallerExtensionID,
+			ResourceType:      request.Metadata.ResourceType, ResourceID: request.Metadata.ResourceID,
+			ProfileID: profile.ID, Protocol: profile.Protocol, Model: profile.Model,
+			Status:        ExecutionStatusSucceeded,
 			PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
 			CacheHit: true,
 		})
@@ -229,8 +239,10 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 		g.recordUsage(ctx, now, request, 0, 0)
 		g.record(ctx, ExecutionRecord{
 			Purpose: request.Purpose, CostClass: request.CostClass,
-			CallerExtensionID: request.Metadata.CallerExtensionID, ProfileID: profile.ID,
-			Protocol: profile.Protocol, Model: profile.Model, Status: ExecutionStatusFailed,
+			CallerExtensionID: request.Metadata.CallerExtensionID,
+			ResourceType:      request.Metadata.ResourceType, ResourceID: request.Metadata.ResourceID,
+			ProfileID: profile.ID, Protocol: profile.Protocol, Model: profile.Model,
+			Status:        ExecutionStatusFailed,
 			PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
 			LatencyMS: int(latency), ErrorSummary: err.Error(),
 		})
@@ -319,8 +331,10 @@ func (g *Gateway) account(ctx context.Context, settings Settings, request Comple
 	}
 	g.record(ctx, ExecutionRecord{
 		Purpose: request.Purpose, CostClass: request.CostClass,
-		CallerExtensionID: request.Metadata.CallerExtensionID, ProfileID: profile.ID,
-		Protocol: profile.Protocol, Model: profile.Model, Status: ExecutionStatusSucceeded,
+		CallerExtensionID: request.Metadata.CallerExtensionID,
+		ResourceType:      request.Metadata.ResourceType, ResourceID: request.Metadata.ResourceID,
+		ProfileID: profile.ID, Protocol: profile.Protocol, Model: profile.Model,
+		Status:        ExecutionStatusSucceeded,
 		PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
 		LatencyMS: int(result.LatencyMS), InputTokens: result.Usage.InputTokens,
 		OutputTokens: result.Usage.OutputTokens, CachedTokens: result.Usage.CachedTokens,
