@@ -76,6 +76,15 @@ Run from the repo root unless noted. Before any `go get`/`go mod tidy`/
 `bun install`/`bun add` network command, set the local proxy:
 `export https_proxy=http://127.0.0.1:7897 http_proxy=http://127.0.0.1:7897 all_proxy=socks5://127.0.0.1:7897`
 
+`apps/web` uses bun only (`bun.lock`; Docker and CI run
+`bun install --frozen-lockfile`). Do not run `pnpm install` there: a second
+package manager rewrites `node_modules` links and leaves two copies of `vue` /
+`vue-i18n` on disk. If a package-manager switch or a reinstall happened while a
+dev server was running, delete `apps/web/.nuxt` and
+`apps/web/node_modules/.vite` and restart it — a live process keeps the modules
+it already loaded while newly resolved ones come from the new tree, which
+surfaces as unrelated runtime errors (for example a plugin that never installs).
+
 Development (the user runs `apps/web` dev server manually on port 3000 — do
 not kill it):
 

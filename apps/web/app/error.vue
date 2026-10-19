@@ -2,7 +2,9 @@
 import { useActiveThemeSkin } from '~/composables/themes/useActiveThemeSkin'
 import { useAppliedAppearance } from '~/composables/appearance/useAppliedAppearance'
 import { useSystemErrorPagePresentation } from '~/composables/errors/useSystemErrorPagePresentation'
+import { useErrorPageShell } from '~/composables/errors/useErrorPageShell'
 import SFSystemErrorPage from '~/components/errors/SFSystemErrorPage.vue'
+import SFSystemErrorBootstrapFallback from '~/components/errors/SFSystemErrorBootstrapFallback.vue'
 import SFErrorPageContent from '~/components/errors/SFErrorPageContent.vue'
 import type { NuxtError } from '#app'
 import {
@@ -18,8 +20,9 @@ const nuxtError = computed(() => props.error)
 const systemPage = computed(() => resolveErrorPageContent(nuxtError.value?.statusCode))
 const isThemeableSystemError = computed(() => isThemeableSystemErrorStatus(nuxtError.value?.statusCode))
 const systemPageId = computed(() => systemErrorPageIdForStatus(nuxtError.value?.statusCode))
-const { t } = useI18n()
-const localeHead = useLocaleHead({ dir: true, lang: true, seo: false })
+// 错误页不能假设 i18n 插件跑完了：它一旦失败，useI18n 会抛 NOT_INSTALLED 并
+// 把错误页变成二次故障，掩盖真正的原始错误。未就绪时整页降级为零依赖兜底。
+const { i18nReady, t, localeHead } = useErrorPageShell()
 const {
   siteName
 } = useWebOptions()
@@ -33,7 +36,7 @@ const themeSkin = useActiveThemeSkin()
 const systemTitle = computed(() => t(systemPage.value.titleKey, { siteName: siteName.value }))
 const systemDescription = computed(() => t(systemPage.value.descriptionKey, { siteName: siteName.value }))
 
-if (isThemeableSystemError.value) {
+if (i18nReady && isThemeableSystemError.value) {
   useSeoMeta({
     title: systemTitle,
     description: systemDescription,
@@ -74,9 +77,9 @@ if (isThemeableSystemError.value) {
 }
 
 // 服务端错误插件和资源路由在进入 error.vue 前准备最终快照；这里保持同步消费。
-const systemPresentation = isThemeableSystemError.value ? useSystemErrorPagePresentation(systemPageId) : null
+const systemPresentation = i18nReady && isThemeableSystemError.value ? useSystemErrorPagePresentation(systemPageId) : null
 const resolvedSystemPage = shallowRef(systemPresentation?.resolvedPage.value || null)
-if (import.meta.client && isThemeableSystemError.value && !resolvedSystemPage.value) {
+if (import.meta.client && i18nReady && isThemeableSystemError.value && !resolvedSystemPage.value) {
   void systemPresentation!.prepare().then((resolved) => {
     resolvedSystemPage.value = resolved
   })
@@ -84,8 +87,9 @@ if (import.meta.client && isThemeableSystemError.value && !resolvedSystemPage.va
 </script>
 
 <template>
+  <SFSystemErrorBootstrapFallback v-if="!i18nReady" :error="nuxtError" />
   <SFSystemErrorPage
-    v-if="isThemeableSystemError"
+    v-else-if="isThemeableSystemError"
     :error="nuxtError"
     :resolved-page="resolvedSystemPage"
   />
