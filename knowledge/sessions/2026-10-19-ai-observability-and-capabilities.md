@@ -125,6 +125,26 @@
 三处 legacy cap 按棘轮规则在同一改动里下调：`registry.go 999→905`、`manifest.go 916→778`、
 `lifecycle_registry_publication.go 1018→979`、`service_package.go 840→826`。
 
+**已提交并推送（2026-10-19）**，7 个提交，main 上 GitHub Actions 全绿：
+
+| 提交 | 内容 |
+|---|---|
+| `b5a5df174` | feat(ai)：观测层 + eval 基线 + 能力面（A/G/B 批） |
+| `8d7b6f703` | refactor：9 条架构闸门违规清零（纯位移 + 同批下调 baseline） |
+| `e0843b6ee` | test(ci)：修 HEAD 上本就红的门禁（compat go.mod、附件守卫 fixture、lifecycle 清理、version-GC 退休语义、host-api 文档、staged 契约、admin framework、release 工作流断言、内置插件基线、go.mod tidy） |
+| `7c8ab69d4` | ci(release)：release-tooling 工作流先装 web 依赖（gate 末步真要起离线构建） |
+| `94466785a` | test(release)：内置插件摘要只哈希 git 跟踪文件（`backend/backend` 是 gitignore 的编译产物，曾导致本地绿、CI 红） |
+| `df6dbeadc` | fix(web)：`bun run build` 给 4 GiB 默认堆 |
+| `0c1077d70` | fix(web)：堆默认抬到 6 GiB（4 GiB 在 4 vCPU runner 上仍撞顶，本地 12 核能过——峰值随核数放大） |
+
+CI 结论（run 39236321029 之后的 `0c1077d70`）：Go gate（含 compat farm）、Web gate
+（typecheck + 1321 用例 + 生产构建 + 生成物漂移检查）、Contracts、Container api/web、
+CodeQL go/js、Govulncheck 全部 success；`Dependency review` 在 push 上按设计 skipped。
+
+**两个环境坑（不是代码问题，但会误导判断）**：本机 `/etc/hosts` 把 `api.github.com`
+钉到会 301 的 IP，查询 Actions API 需显式 `--resolve api.github.com:443:140.82.112.6`；
+`gh` CLI 的 keyring token 已失效，用 `git credential fill` 取到的 token 可查 API。
+
 **验证（最终一轮，全部实跑）**：`./scripts/test-api-isolated.sh` EXIT=0（0 失败）、
 `--compat` `compat farm: OK`、`./scripts/ci/contracts-gate.sh` EXIT=0、
 `./scripts/ci/release-tooling-gate.sh` EXIT=0、`bun run typecheck` 0 错、
