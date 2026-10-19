@@ -3016,6 +3016,16 @@
     "targetRegistry": "P9 Component Registry"
   },
   {
+    "id": "core.component.shared.sfsystem_error_bootstrap_fallback",
+    "contractVersion": "sforum.component.shared.sfsystem_error_bootstrap_fallback@1",
+    "kind": "component",
+    "source": "apps/web/app/components/errors/SFSystemErrorBootstrapFallback.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
     "id": "core.component.shared.sfsystem_error_details",
     "contractVersion": "sforum.component.shared.sfsystem_error_details@1",
     "kind": "component",

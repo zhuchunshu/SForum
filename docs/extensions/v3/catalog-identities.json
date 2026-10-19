@@ -4810,6 +4810,16 @@
       "source": "apps/web/app/components/SFSkeleton.vue"
     },
     {
+      "id": "core.component.shared.sfsystem_error_bootstrap_fallback",
+      "contractVersion": "sforum.component.shared.sfsystem_error_bootstrap_fallback@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/errors/SFSystemErrorBootstrapFallback.vue"
+    },
+    {
       "id": "core.component.shared.sfsystem_error_actions",
       "contractVersion": "sforum.component.shared.sfsystem_error_actions@1",
       "kind": "component",
