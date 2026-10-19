@@ -253,3 +253,34 @@ describe('SFComment responsive CSS contract', () => {
     expect(source).toContain('background-size: 40% 100%')
   })
 })
+
+describe('SFComment identity layout contract', () => {
+  test('stacks @username under the display name', () => {
+    const source = commentComponent()
+    const styles = commentCss()
+    const identityTag = source.match(/<SFUserIdentityName\b[\s\S]*?>/)?.[0]
+
+    expect(identityTag).toBeDefined()
+    expect(identityTag).not.toContain('inline')
+    // 双行身份常驻：身份组件的窄屏隐藏规则只服务卡片场景，评论区要显式放开。
+    expect(styles).toContain('.sf-comment__header .sf-comment__author .sf-user-identity-name__handle')
+    // 楼主徽标与时间/楼层跟随昵称基线，不落到 @username 行。
+    expect(styles).toMatch(/\.sf-comment__header\s*\{[^}]*align-items: baseline/)
+  })
+
+  test('keeps the OP badge on the name line instead of after the wider handle', () => {
+    const source = commentComponent()
+
+    // 徽标经 name-suffix 插槽渲染在昵称行；否则它会被更长的 @username 顶到远处。
+    expect(source).toContain('#name-suffix')
+    expect(source).toContain('isOpAuthor && !canPreviewUser')
+  })
+
+  test('left aligns the two-line identity inside the trigger button', () => {
+    const authorRule = commentCss().match(/\.sf-comment__author\s*\{([^}]*)\}/)?.[1]
+
+    // 触发按钮的 UA 默认 text-align:center 会把较短的名字居中在较长的 @username 上方。
+    expect(authorRule).toBeDefined()
+    expect(authorRule).toContain('text-align: start')
+  })
+})

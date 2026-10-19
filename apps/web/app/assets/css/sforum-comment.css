@@ -71,7 +71,8 @@
 .sf-comment__header {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  /* 身份双行时，楼主徽标与时间/楼层仍与昵称基线对齐，不落到 @username 行 */
+  align-items: baseline;
   gap: 0.45rem;
 }
 
@@ -80,12 +81,25 @@
   font-size: 0.86rem;
   font-weight: 800;
   text-decoration: none;
+  /* 触发按钮的 UA 默认 text-align:center 会让双行身份的名字居中，按阅读方向左对齐 */
+  text-align: start;
   min-width: 0;
+  max-width: 100%;
 }
 
-/* inline 身份（昵称 @username 单行）：昵称继承 author 字重，整块限宽截断，头部保持单行 */
-.sf-comment__author .sf-user-identity-name--inline .sf-user-identity-name__name {
-  font-weight: 800;
+/* 评论区身份双行：昵称在上、@username 在下，整块限宽截断 */
+.sf-comment__author .sf-user-identity-name {
+  max-width: 100%;
+}
+
+.sf-comment__author .sf-user-identity-name__handle {
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* 评论区要求 @username 常驻：身份组件的窄屏隐藏规则只服务空间紧张的卡片场景 */
+.sf-comment__header .sf-comment__author .sf-user-identity-name__handle {
+  display: block;
 }
 
 .sf-comment__author-trigger:hover,

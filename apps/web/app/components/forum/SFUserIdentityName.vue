@@ -6,6 +6,7 @@ import { userDisplayName, type ForumUserRef } from '~/utils/forum/userDisplay'
  *
  * 展示名负责"认人"，@username 负责"唯一身份"；两者同指向资料页（调用方传 to）。
  * 窄屏经 CSS 隐藏 handle；不需要链接的场景（纯文本上下文）传 linked=false。
+ * `name-suffix` 插槽渲染在昵称同一行（如「楼主」徽标），不会落到 handle 行。
  */
 const props = withDefaults(defineProps<{
   user: ForumUserRef
@@ -17,7 +18,7 @@ const props = withDefaults(defineProps<{
   linked?: boolean
   /** user 为空时的回退文案。 */
   fallback?: string
-  /** 单行模式：昵称与 @username 横排（评论区头部等紧凑场景）；默认双行。 */
+  /** 单行模式：昵称与 @username 横排（宿主确实需要单行紧凑时）；默认双行。 */
   inline?: boolean
 }>(), {
   to: undefined,
@@ -37,12 +38,18 @@ const asLink = computed(() => props.linked && Boolean(props.to))
   <span class="sf-user-identity-name" :class="{ 'sf-user-identity-name--inline': inline }">
     <template v-if="asLink">
       <NuxtLink :to="to" class="sf-user-identity-name__link">
-        <span class="sf-user-identity-name__name">{{ name }}</span>
+        <span class="sf-user-identity-name__name-line">
+          <span class="sf-user-identity-name__name">{{ name }}</span>
+          <slot name="name-suffix" />
+        </span>
         <span v-if="showHandleLine" class="sf-user-identity-name__handle">@{{ handle }}</span>
       </NuxtLink>
     </template>
     <template v-else>
-      <span class="sf-user-identity-name__name">{{ name }}</span>
+      <span class="sf-user-identity-name__name-line">
+        <span class="sf-user-identity-name__name">{{ name }}</span>
+        <slot name="name-suffix" />
+      </span>
       <span v-if="showHandleLine" class="sf-user-identity-name__handle">@{{ handle }}</span>
     </template>
   </span>
@@ -71,6 +78,15 @@ const asLink = computed(() => props.linked && Boolean(props.to))
   text-decoration: none;
 }
 
+/* 昵称行：昵称与同行后缀（如楼主徽标）一起限宽，handle 仍在下一行 */
+.sf-user-identity-name__name-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* 单行模式下 link 也保持横排，昵称与 handle 同一行 */
 .sf-user-identity-name--inline .sf-user-identity-name__link {
   flex-direction: row;
@@ -81,6 +97,8 @@ const asLink = computed(() => props.linked && Boolean(props.to))
 
 /* 字号/配色交给宿主上下文：默认值只保证独立使用时可读。 */
 .sf-user-identity-name__name {
+  flex: 0 1 auto;
+  min-width: 0;
   font-weight: inherit;
   color: inherit;
   overflow: hidden;

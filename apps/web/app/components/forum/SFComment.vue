@@ -331,14 +331,17 @@ const InlineEditorHost = () => {
               :user="{ username: previewUsername, displayName: comment?.author?.displayName }"
               :to="authorLink"
               :fallback="author"
-              inline
-            />
+            >
+              <template v-if="isOpAuthor" #name-suffix>
+                <span class="sf-comment__op-badge">{{ t('topicDetail.opBadge') }}</span>
+              </template>
+            </SFUserIdentityName>
           </button>
           <NuxtLink v-else-if="authorLink" :to="authorLink" class="sf-comment__author">
             {{ author }}
           </NuxtLink>
           <span v-else class="sf-comment__author">{{ author }}</span>
-          <span v-if="isOpAuthor" class="sf-comment__op-badge">{{ t('topicDetail.opBadge') }}</span>
+          <span v-if="isOpAuthor && !canPreviewUser" class="sf-comment__op-badge">{{ t('topicDetail.opBadge') }}</span>
           <!-- 时间与楼层合并为头部右侧的 meta 组；楼层保留 .sf-comment__floor 类与 #N 文本供进度条读取 -->
           <span v-if="meta || (comment && displayFloorLabel) || secondaryActions.length" class="sf-comment__meta-group">
             <span v-if="meta" class="sf-comment__meta">{{ meta }}</span>
