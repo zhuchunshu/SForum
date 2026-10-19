@@ -20,6 +20,7 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
+| `2026-10-19-editor-tables.md` | **landed** -- 修复"编辑含 GFM 表格的帖子即整表丢失"；四层打通（编辑器节点/UI、Host Schema+规范化、Host 渲染+Markdown 投影、goldmark 短代码兼容路径）；v1 不做合并单元格与列宽持久化（见 `decisions/2026-10-19-editor-tables.md`） |
 | `archive/2026-10/2026-10-19-ai-observability-and-capabilities.md` | **completed** -- A 批（ToolTrace / run correlation id / 轨迹回放）+ G（`sforum ai:eval` 基线）+ B 批（预算、3 个新只读工具、2 条派生用途、证据链溯源、会话状态）十项全部落地；六轨道并行 + 写作用域矩阵 + 进度账本 + 24 条偏离登记（D1–D24，无重号）；验证矩阵 L1–L5 通过，L6/L7 有运行时/浏览器证据；同日把仓库门禁从 HEAD 多处红推到 `./scripts/test.sh` 全绿（架构闸门 9→0） |
 | `2026-10-18-core-attachment-extension-api.md` | **landed** -- 扩展认领 Core 附件：`sforum.attachments.extension.claim/release/list@1` 三条 Host 命令 + 公开读谓词拆分 + 卸载自动释放 + `attachment.extension_reference_limit` 已落地（实现放在 `Models/Attachments/ExtensionReference`，含 advisory 锁与按引用行重算计数）；插件侧接线在 `sforum-oauth2-provider` 仓库 |
 | `2026-10-11-ai-plugin-host-api-m1.md` | **landed** -- 插件 Host AI 命令（`sforum.ai.complete` + `ai.invoke`）、事件发布命令（`sforum.events.emit`）与 `ai.tool` 贡献路径（`aiTools[]`、保留 slot、装配登记、SDK 路由）已落地并端到端验证；M4 `ai.purpose` registry 也已落地（见 `sessions/2026-10-12-ai-purpose-registry-m4-handoff.md`）；剩余 M3/M5、按用途覆盖的控制台 UI 与缓存开关 |

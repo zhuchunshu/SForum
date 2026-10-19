@@ -295,7 +295,27 @@ V1 boundaries:
   fractional and string values fall back to the default. The sanitizer allows
   only a signed decimal integer on `ol[start]`.
 - Markdown renders with `goldmark` plus GFM extensions; display HTML is
-  sanitized with `bluemonday`.
+  sanitized with `bluemonday`. Since 2026-10-19 the Forum markdown path uses an
+  explicit GFM extender whose table renderer emits `align` attributes
+  (`extension.WithTableCellAlignMethod(extension.TableCellAlignAttribute)`),
+  because `bluemonday` strips inline `style` — so GFM column alignment now
+  survives sanitization on both the markdown and editor-document paths.
+- `editor-document` accepts Host-owned table nodes `table` / `tableRow` /
+  `tableHeader` / `tableCell`. Cell attributes are limited to
+  `colspan`/`rowspan`/`align` (`colwidth` is deliberately not stored);
+  `normalizeTableStructure` repairs hostile shapes instead of rejecting the
+  post: non-row children are dropped, rows keep only cells, inline cell content
+  is wrapped in a paragraph, empty cells get an empty paragraph, nested tables
+  are flattened to text, spans clamp to `[1,20]`, `align` accepts only
+  `left|center|right`, and tables cap at 200 rows / 50 effective columns.
+  Repairs append `table` / `tableRow` to `Accepted.Fallbacks`. Rendered HTML is
+  `<table><thead>/<tbody>` with no `style` or `colgroup`; `RenderMarkdown`
+  projects GFM pipe tables (alignment separators, `\|` escaping, `<br>` for
+  cell line breaks, `colspan` padded with empty cells). Protected shortcode
+  blocks admit tables (`shortcodeBlockChildType`), and goldmark `Table` AST
+  nodes convert to the same native shape on the markdown compatibility path.
+  Column merges are out of scope: GFM cannot express them and comment drafts
+  round-trip through Markdown.
 - Sanitized `<pre><code>` content is progressively enhanced in the browser with
   a language label, line numbers, syntax highlighting, and copy feedback. A
   declared supported language selects its grammar; an unknown declared

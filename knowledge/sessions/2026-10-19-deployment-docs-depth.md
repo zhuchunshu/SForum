@@ -53,20 +53,19 @@
 - `./scripts/ci/release_assets_test.sh`
 - `./scripts/ci/release-tooling-gate.sh`
 - `./scripts/ci/contracts-gate.sh`
+- `./scripts/test.sh` (full repository gate, exit 0)
 - `node tests/validate-architecture-boundaries.mjs`
 - `bash -n` on all deployment scripts
 
 The first contracts-gate run stopped at `validate-v3-p0-catalogs.mjs` because
 `apps/web/app/components/errors/SFSystemErrorBootstrapFallback.vue` briefly had
 no reviewed identity. The concurrent frontend workstream landed that identity
-during this session; the gate then passed with 374 routes, 330 UI surfaces, and
-99 traceability rows. No residual.
+as `949a1f69b` during this session; the gate then passed with 374 routes, 330 UI
+surfaces, and 99 traceability rows, and the full `./scripts/test.sh` finished
+with exit 0.
 
 ## Next
 
-- Run `./scripts/test.sh` after the V3 catalog identity for
-  `SFSystemErrorBootstrapFallback.vue` is reviewed and updated in its own
-  workstream.
 - Optional: perform a real host dry-run of the manual Compose path. This change
   verified Compose expansion and command shape, not a live production stack.
 

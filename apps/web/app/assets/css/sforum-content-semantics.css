@@ -188,3 +188,85 @@
   border: 0;
   border-top: 1px solid var(--border-default);
 }
+
+/*
+ * GFM 表格：撰写区（contenteditable）与预览区（getHTML + sanitizeHtml）对齐正式
+ * 正文（.sf-prose，规则在 main.css）。对齐只读 align 属性 —— 前端 DOMPurify 与
+ * 服务端 bluemonday 都会剥掉内联 style，align 属性才能穿过两端净化。
+ *
+ * 刻意不在这里给 .sf-prose 加规则：正式正文的表格排版由 main.css 拥有，重复定义
+ * 只会让两处漂移。预览区复刻 main.css 的取值（nowrap + 横向滚动 + 斑马纹），
+ * 撰写区改用换行 + 最小列宽，因为编辑时需要看到完整单元格内容。
+ */
+.sf-editor__content table,
+.sf-editor__preview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+
+.sf-editor__preview table {
+  display: block;
+  overflow-x: auto;
+}
+
+.sf-editor__preview th,
+.sf-editor__preview td {
+  padding: 0.55em 0.8em;
+  border: 1px solid var(--border-default);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sf-editor__preview th {
+  background: color-mix(in srgb, var(--text-main) 4%, transparent);
+  font-weight: 600;
+}
+
+.sf-editor__preview tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--text-main) 2%, transparent);
+}
+
+.sf-editor__content th,
+.sf-editor__content td {
+  position: relative;
+  min-width: 72px;
+  padding: 0.55em 0.8em;
+  border: 1px solid var(--border-default);
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+}
+
+.sf-editor__content th {
+  background: color-mix(in srgb, var(--text-main) 4%, transparent);
+  font-weight: 600;
+}
+
+.sf-editor__content tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--text-main) 2%, transparent);
+}
+
+.sf-editor__content [align="center"],
+.sf-editor__preview [align="center"] {
+  text-align: center;
+}
+
+.sf-editor__content [align="right"],
+.sf-editor__preview [align="right"] {
+  text-align: right;
+}
+
+/* 撰写区：横向滚动容器由 ProseMirror TableView 生成。 */
+.sf-editor__content .tableWrapper {
+  overflow-x: auto;
+}
+
+.sf-editor__content .selectedCell::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background: color-mix(in srgb, var(--sf-accent) 12%, transparent);
+  content: '';
+  pointer-events: none;
+}

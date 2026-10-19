@@ -9,6 +9,7 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	extensionast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
@@ -376,6 +377,8 @@ func goldmarkBlockNode(node ast.Node, source []byte) []Node {
 		return []Node{{Type: "horizontalRule"}}
 	case *ast.HTMLBlock:
 		return literalMarkdownBlock(goldmarkLinesValue(node.Lines(), source))
+	case *extensionast.Table:
+		return []Node{goldmarkTableNode(typed, source)}
 	default:
 		if node.Kind().String() == "Table" {
 			return literalMarkdownBlock(goldmarkLinesValue(node.Lines(), source))

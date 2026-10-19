@@ -817,6 +817,23 @@ Architecture sources:
 
 - `SFEditor` uses Tiptap while preserving Markdown `v-model` integration. It
   emits HTML, Markdown, native JSON, plain text, counts, and empty state.
+- 2026-10-19 tables: `app/utils/editor/table.ts` registers
+  `@tiptap/extension-table@3.31.3` (`Table`/`TableRow`/`TableHeader`/`TableCell`)
+  in the `full` preset only. `SForumTable`/`SForumTableCell`/`SForumTableHeader`
+  replace the vendor defaults so serialized HTML carries `align` instead of
+  inline `style` (both DOMPurify and bluemonday strip `style`), emits no
+  `colgroup`, and drops `colwidth` (`resizable: false`; column widths are not
+  persisted). `insertSForumTable` refuses nested tables and appends a trailing
+  paragraph when the table becomes the last block. Toolbar exposes a 6×6
+  `SFEditorTablePicker` (hover preview, keyboard arrows/Home/End) and
+  `SFEditorTableMenu` is a BubbleMenu mounted on `document.body` because the
+  editor shell is `overflow: hidden`; it is hidden in preview mode and offers
+  row/column insert+delete, header-row toggle, per-cell alignment, delete table.
+  Cell merge/split is deliberately absent (GFM cannot express it and comment
+  drafts round-trip through Markdown). Table typography lives in
+  `sforum-content-semantics.css` (editor wraps, preview mirrors `.sf-prose`
+  nowrap + horizontal scroll); `.sf-prose` table rules stay in `main.css`.
+  Copy lives under `composer.table.*` in both locales.
 - Built-in Shortcodes M2 adds the Host-owned `sforumShortcodeRef` and
   `sforumShortcodeBlock` Tiptap nodes through
   `app/utils/editor/shortcodes.ts`. Initial Markdown and plain-text paste use

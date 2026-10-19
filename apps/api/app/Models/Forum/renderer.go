@@ -22,6 +22,17 @@ import (
 
 const defaultExcerptRuneLimit = RecommendedExcerptRuneLimit
 
+// gfmExtender 与 extension.GFM 等价，但表格对齐输出 align 属性而不是 style：
+// sanitizeHTML 使用 bluemonday，会剥掉 style，只有 align 能在净化后保留。
+type gfmExtender struct{}
+
+func (gfmExtender) Extend(markdown goldmark.Markdown) {
+	extension.Linkify.Extend(markdown)
+	extension.NewTable(extension.WithTableCellAlignMethod(extension.TableCellAlignAttribute)).Extend(markdown)
+	extension.Strikethrough.Extend(markdown)
+	extension.TaskList.Extend(markdown)
+}
+
 // plainTextSelectPrefixChars 列表/摘要查询从 plain_text 取的字符上限。
 // 大于 HardExcerptMaxRunes，保证按 rune 截断前有足够源文本（含 CJK）。
 const plainTextSelectPrefixChars = 2000
@@ -102,9 +113,9 @@ func RenderContentWithExcerptLimitAndSchemaForResource(input ContentInput, excer
 			return renderedEditorDocument(accepted, input, EditorTypeTiptap, excerptLimit)
 		}
 		var buffer bytes.Buffer
-		// 启用 GFM 扩展：表格、删除线、自动链接、任务列表。
+		// 启用与 extension.GFM 等价的扩展：表格、删除线、自动链接、任务列表。
 		// 与前端 Tiptap 编辑器的 gfm:true 保持一致，避免"编辑器预览 ≠ 发布结果"。
-		md := goldmark.New(goldmark.WithExtensions(extension.GFM))
+		md := goldmark.New(goldmark.WithExtensions(gfmExtender{}))
 		if err := md.Convert([]byte(safeRaw), &buffer); err != nil {
 			return RenderedContent{}, err
 		}

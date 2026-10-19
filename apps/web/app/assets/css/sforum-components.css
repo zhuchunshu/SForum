@@ -1730,6 +1730,117 @@
   }
 }
 
+.sf-editor-table-menu {
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid var(--sf-border);
+  border-radius: 6px;
+  background: var(--sf-card);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.16);
+}
+
+.sf-editor-table-menu__group {
+  display: inline-flex;
+  gap: 1px;
+  padding: 2px;
+  border: 1px solid var(--sf-border-light);
+  border-radius: 4px;
+  background: var(--sf-muted);
+}
+
+.sf-editor-table-menu__divider {
+  width: 1px;
+  height: 20px;
+  background: var(--sf-border-light);
+}
+
+.sf-editor-table-menu__button {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--sf-fg-secondary);
+  cursor: pointer;
+}
+
+.sf-editor-table-menu__button:hover,
+.sf-editor-table-menu__button--active {
+  background: var(--sf-card);
+  color: var(--sf-accent);
+}
+
+.sf-editor-table-menu__button:focus-visible {
+  outline: 2px solid var(--sf-accent);
+  outline-offset: 1px;
+}
+
+.sf-editor-table-menu__button--danger {
+  color: var(--sf-error, #dc2626);
+}
+
+.sf-editor-table-menu__button--danger:hover {
+  background: color-mix(in srgb, var(--sf-error, #dc2626) 12%, transparent);
+  color: var(--sf-error, #dc2626);
+}
+
+@media (max-width: 640px) {
+  .sf-editor-table-menu {
+    flex-wrap: wrap;
+    max-width: calc(100vw - 24px);
+  }
+}
+
+/* 工具栏表格尺寸选择器（6x6 网格，悬停预览到当前行列）。 */
+.sf-editor-table-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.sf-editor-table-picker__status {
+  margin: 0;
+  color: var(--sf-fg-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sf-editor-table-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(var(--sf-table-picker-cols, 6), 18px);
+  gap: 2px;
+}
+
+.sf-editor-table-picker__cell {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--sf-border-light);
+  border-radius: 3px;
+  background: var(--sf-muted);
+  cursor: pointer;
+}
+
+.sf-editor-table-picker__cell:hover,
+.sf-editor-table-picker__cell--active {
+  border-color: var(--sf-accent);
+  background: color-mix(in srgb, var(--sf-accent) 18%, transparent);
+}
+
+.sf-editor-table-picker__cell:focus-visible {
+  outline: 2px solid var(--sf-accent);
+  outline-offset: 1px;
+}
+
 .sf-editor-image-upload-dialog {
   padding: 24px;
 }

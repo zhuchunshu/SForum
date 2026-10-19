@@ -88,8 +88,14 @@ const toolbarPath = fileURLToPath(new URL('../../app/components/editor/SFEditorT
 const nodeViewPath = fileURLToPath(new URL(
   '../../app/components/editor/shortcodes/SFShortcodeReferenceNodeView.vue', import.meta.url
 ))
+// 工具栏组合了表格尺寸选择器（UPopover + 网格）；SFC 编译会剥掉 import，
+// 因此把该子组件作为 setup 绑定注入，避免工具栏用例解析到未定义组件。
+const tablePickerStub = testVue.defineComponent({
+  emits: ['select'],
+  template: '<button type="button" class="sf-editor__tool" aria-label="Insert table" />'
+})
 const Dialog = await compileVueSfc(dialogPath, 'shortcode-reference-dialog')
-const Toolbar = await compileVueSfc(toolbarPath, 'shortcode-toolbar')
+const Toolbar = await compileVueSfc(toolbarPath, 'shortcode-toolbar', { SFEditorTablePicker: tablePickerStub })
 
 describe('shortcode editor UI', () => {
   test('renders the admitted shortcode action inside the existing toolbar', async () => {

@@ -315,6 +315,19 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **编辑器表格（2026-10-19，最新）**：`SFEditor` 现在能画、能渲染、能存表格。
+  修复的真实缺陷是"编辑含 GFM 表格的帖子即整表丢失"——`@tiptap/markdown` 对无
+  handler 的 `table` token 返回 null，而渲染端早就支持表格。四层同时打通：
+  ① Web 用 `@tiptap/extension-table@3.31.3`（full 预设）+ 6×6 插入网格 +
+  BubbleMenu 上下文菜单；② Host `CoreSchema` 增 `table/tableRow/tableHeader/
+  tableCell`（attrs 仅 `colspan/rowspan/align`）并做结构修复（非法形状修复 + fallback，
+  不整篇 400）；③ 渲染输出 `<thead>/<tbody>` 无 style/colgroup，Markdown 投影 GFM
+  管道表；④ goldmark `*ast.Table` 兼容解析 + 保护块放行表格。对齐统一走 `align`
+  属性（两端净化器都剥 style），legacy markdown 路径也切到 `align`。
+  v1 不做合并单元格与列宽持久化（GFM 无法表达，草稿 Markdown 往返会静默损坏）。
+  验证：Go 两包 + `./app/Support/...`、web 1349 用例、typecheck、架构闸门全绿；
+  浏览器实测插入/对齐/预览/发布/重进编辑往返，1633 与 390 宽均无横向溢出。
+  详见 `sessions/2026-10-19-editor-tables.md`、`decisions/2026-10-19-editor-tables.md`。
 - **公开三栏独立滚动（2026-10-19，最新）**：桌面三栏壳的左/中/右列各自
   `position: sticky` + `height: calc(100vh - topbar)` + `overflow-y: auto` +
   `overscroll-behavior: contain`，滚动一栏不再带动另外两栏；document 在
@@ -335,7 +348,8 @@ load archived sessions or completed plans as current context.
   env key 覆盖、Compose 透传、操作命令标记、旧计数防回归）。验证：
   `validate-docs`、`validate-docs_test`、compose/deploy/upgrade/release-assets
   测试、`contracts-gate`（374 routes / 330 UI surfaces / 99 traceability rows）
-  与架构闸门全绿。详见 `sessions/2026-10-19-deployment-docs-depth.md`。
+  与架构闸门全绿；全量 `./scripts/test.sh` exit 0。详见
+  `sessions/2026-10-19-deployment-docs-depth.md`。
 - **错误页 i18n 崩溃修复（2026-10-19）**：`error.vue` 报
   `Need to install with 'app.use' function` 是二次故障而非根因——`@nuxtjs/i18n`
   把 `vueApp.use(i18n)` 放在插件 setup 最后一步，提前失败就会留下"没有 i18n 的

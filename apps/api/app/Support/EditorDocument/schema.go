@@ -36,6 +36,12 @@ func CoreSchema() Schema {
 				},
 				FallbackHTML: `<span class="sf-editor-fallback" data-fallback="emoji">[emoji]</span>`,
 			},
+			// 表格节点与 Web 端 Tiptap 契约一致；colwidth 是客户端列宽提示，
+			// 刻意不进入 Host 白名单，避免把布局数据写进存储。
+			"table":       {},
+			"tableRow":    {},
+			"tableHeader": {AllowAttrs: map[string]bool{"colspan": true, "rowspan": true, "align": true}},
+			"tableCell":   {AllowAttrs: map[string]bool{"colspan": true, "rowspan": true, "align": true}},
 			ShortcodeRefNode: {
 				Atom: true, StrictAttrs: true, BlockOnly: true,
 				AllowAttrs: shortcodeNodeAttrs(),

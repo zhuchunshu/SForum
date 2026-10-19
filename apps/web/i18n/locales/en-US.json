@@ -5668,6 +5668,21 @@
       "sizeWide": "Wide",
       "wait": "Wait for image uploads to finish before submitting."
     },
+    "table": {
+      "insert": "Insert table",
+      "pickerLabel": "Choose table size",
+      "addRowBefore": "Insert row above",
+      "addRowAfter": "Insert row below",
+      "deleteRow": "Delete row",
+      "addColumnBefore": "Insert column left",
+      "addColumnAfter": "Insert column right",
+      "deleteColumn": "Delete column",
+      "toggleHeaderRow": "Toggle header row",
+      "alignLeft": "Align left",
+      "alignCenter": "Align center",
+      "alignRight": "Align right",
+      "delete": "Delete table"
+    },
     "shortcodes": {
       "title": "Insert shortcode",
       "toolbar": "Insert shortcode",

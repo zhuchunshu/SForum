@@ -178,6 +178,11 @@ func renderNode(builder *strings.Builder, node Node, schema Schema, plan *shortc
 		builder.WriteString("<hr>")
 	case "hardBreak":
 		builder.WriteString("<br>")
+	case "table":
+		renderTable(builder, node, schema, plan, shortcodeDepth, locale)
+	case "tableRow", "tableHeader", "tableCell":
+		// 表外游离的表格子节点直接丢弃，不产出段落。
+		return
 	case "image":
 		src, _ := node.Attrs["src"].(string)
 		alt, _ := node.Attrs["alt"].(string)
@@ -467,6 +472,11 @@ func renderMarkdownNode(builder *strings.Builder, node Node) {
 		}
 	case "horizontalRule":
 		builder.WriteString("---")
+	case "table":
+		renderMarkdownTable(builder, node)
+	case "tableRow", "tableHeader", "tableCell":
+		// 表外游离的表格子节点直接丢弃，不产出段落。
+		return
 	case "image":
 		src, _ := node.Attrs["src"].(string)
 		alt, _ := node.Attrs["alt"].(string)
@@ -488,7 +498,13 @@ func renderMarkdownNode(builder *strings.Builder, node Node) {
 		builder.WriteString(canonical)
 		builder.WriteByte('\n')
 		builder.WriteString(RenderMarkdown(Document{Type: "doc", Content: node.Content}))
-		builder.WriteString("\n[/")
+		// GFM 表格会把紧随其后的非空行当作表格行，表格结尾的短代码块必须
+		// 留一个空行，闭合标记才能被重新解析出来。
+		if shortcodeBodyEndsWithTable(node.Content) {
+			builder.WriteString("\n\n[/")
+		} else {
+			builder.WriteString("\n[/")
+		}
 		builder.WriteString(name)
 		builder.WriteByte(']')
 	default:

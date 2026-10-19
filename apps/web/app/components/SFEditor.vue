@@ -8,6 +8,7 @@ import SFEditorToolbar, {
 } from '~/components/editor/SFEditorToolbar.vue'
 import SFEditorImageUploadModal from '~/components/editor/SFEditorImageUploadModal.vue'
 import SFEditorImageMenu from '~/components/editor/SFEditorImageMenu.vue'
+import SFEditorTableMenu from '~/components/editor/SFEditorTableMenu.vue'
 import SFShortcodeReferenceDialog from '~/components/editor/shortcodes/SFShortcodeReferenceDialog.vue'
 import SFShortcodeReferenceNodeView from '~/components/editor/shortcodes/SFShortcodeReferenceNodeView.vue'
 import SFShortcodeProtectedNodeView from '~/components/editor/shortcodes/SFShortcodeProtectedNodeView.vue'
@@ -49,6 +50,7 @@ import {
   sforumReferenceNodeAttributes,
   type SFShortcodeNodeViewHost
 } from '~/utils/editor/shortcodes'
+import { insertSForumTable, type SFEditorTableSize } from '~/utils/editor/table'
 
 const props = withDefaults(defineProps<{
   modelValue?: string
@@ -154,7 +156,8 @@ const toolbarActive = computed<Partial<Record<SFEditorToolbarAction, boolean>>>(
   orderedList: isActive('orderedList'),
   blockquote: isActive('blockquote'),
   codeBlock: isActive('codeBlock'),
-  link: isActive('link')
+  link: isActive('link'),
+  table: isActive('table')
 }))
 
 const currentPayload = computed<SFEditorContentPayload>(() => {
@@ -477,8 +480,12 @@ function runToolbarAction(action: SFEditorToolbarAction) {
     openImageDialog()
     return
   }
+  // 表格尺寸由 SFEditorTablePicker 经 'insert-table' 单独上报，不经过通用 action。
+  if (action === 'table') {
+    return
+  }
 
-  const commands: Record<Exclude<SFEditorToolbarAction, 'link' | 'image'>, (currentEditor: Editor) => boolean> = {
+  const commands: Record<Exclude<SFEditorToolbarAction, 'link' | 'image' | 'table'>, (currentEditor: Editor) => boolean> = {
     undo: currentEditor => currentEditor.chain().focus().undo().run(),
     redo: currentEditor => currentEditor.chain().focus().redo().run(),
     bold: currentEditor => currentEditor.chain().focus().toggleBold().run(),
@@ -491,6 +498,10 @@ function runToolbarAction(action: SFEditorToolbarAction) {
     codeBlock: currentEditor => currentEditor.chain().focus().toggleCodeBlock().run()
   }
   runEditorCommand(commands[action])
+}
+
+function onInsertTable(size: SFEditorTableSize) {
+  runEditorCommand(currentEditor => insertSForumTable(currentEditor, size))
 }
 
 function createShortcodeNodeViewHost(): SFShortcodeNodeViewHost {
@@ -748,6 +759,7 @@ function submitContent() {
       :extension-tools="extensionTools"
       @action="runToolbarAction"
       @extension-action="runExtensionAction"
+      @insert-table="onInsertTable"
       @block-format="setBlockFormat"
       @view-mode="viewMode = $event"
     />
@@ -772,6 +784,13 @@ function submitContent() {
       v-if="editor && preset === 'full'"
       :editor="editor"
       :disabled="disabled"
+    />
+
+    <SFEditorTableMenu
+      v-if="editor && preset === 'full'"
+      :editor="editor"
+      :disabled="disabled"
+      :enabled="viewMode === 'write'"
     />
 
     <div

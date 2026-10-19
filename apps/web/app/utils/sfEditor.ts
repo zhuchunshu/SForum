@@ -29,6 +29,7 @@ import {
   type SFShortcodeNodeViewHost,
   type SFShortcodeResourceKind
 } from '~/utils/editor/shortcodes'
+import { createSForumTableExtensions } from '~/utils/editor/table'
 
 export type SForumEmojiItem = {
   name: string
@@ -268,7 +269,9 @@ export function createSFEditorExtensions(options: {
         onDrop: options.onImageDrop
       }),
       createEditorImageUploadPlaceholderExtension(),
-      SForumEmoji
+      SForumEmoji,
+      // 表格只在完整撰写场景注册；basic-field 保持纯文本 schema。
+      ...createSForumTableExtensions()
     ] : []),
     Placeholder.configure({
       placeholder: options.placeholder

@@ -234,6 +234,16 @@ html.dark {
   background: color-mix(in srgb, var(--text-main) 2%, transparent);
 }
 
+/* 单元格对齐走 align 属性（两端净化器都会剥 style）；必须排在 text-align:left 之后覆盖。 */
+.sf-prose :where(th[align="center"]),
+.sf-prose :where(td[align="center"]) {
+  text-align: center;
+}
+.sf-prose :where(th[align="right"]),
+.sf-prose :where(td[align="right"]) {
+  text-align: right;
+}
+
 /* 正文图片；文本、列表、引用、代码和分隔线由 sforum-content-semantics.css 统一。 */
 .sf-prose .sf-content-image-link {
   display: block;

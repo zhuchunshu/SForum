@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import SFEditorTablePicker from '~/components/editor/SFEditorTablePicker.vue'
+import type { SFEditorTableSize } from '~/utils/editor/table'
+
 export type SFEditorToolbarAction =
   | 'undo'
   | 'redo'
@@ -12,6 +15,7 @@ export type SFEditorToolbarAction =
   | 'codeBlock'
   | 'link'
   | 'image'
+  | 'table'
 
 export type SFEditorBlockFormat = 'paragraph' | 'heading-2' | 'heading-3'
 export type SFEditorViewMode = 'write' | 'preview'
@@ -38,6 +42,7 @@ const emit = defineEmits<{
   'block-format': [format: SFEditorBlockFormat]
   'view-mode': [mode: SFEditorViewMode]
   'extension-action': [id: string]
+  'insert-table': [size: SFEditorTableSize]
 }>()
 
 const full = computed(() => props.preset === 'full')
@@ -63,9 +68,13 @@ const blockActions = computed(() => [
 const insertActions = computed(() => [
   { action: 'link' as const, label: '链接', icon: 'i-lucide-link-2' },
   ...(full.value ? [
-    { action: 'image' as const, label: '插入图片', icon: 'i-lucide-image' }
+    { action: 'image' as const, label: '插入图片', icon: 'i-lucide-image' },
+    { action: 'table' as const, label: '插入表格', icon: 'i-lucide-table' }
   ] : [])
 ])
+
+// 表格按钮由 SFEditorTablePicker 自己渲染（触发器 + 尺寸网格），这里排除通用按钮。
+const insertButtonActions = computed(() => insertActions.value.filter(item => item.action !== 'table'))
 
 const modeItems: Array<{ value: SFEditorViewMode, label: string }> = [
   { value: 'write', label: '撰写' },
@@ -162,7 +171,7 @@ function selectBlockFormat(event: Event) {
 
       <div class="sf-editor__tool-group">
         <button
-          v-for="item in insertActions"
+          v-for="item in insertButtonActions"
           :key="item.action"
           type="button"
           class="sf-editor__tool"
@@ -176,6 +185,11 @@ function selectBlockFormat(event: Event) {
         >
           <UIcon :name="item.icon" class="sf-editor__tool-icon" />
         </button>
+        <SFEditorTablePicker
+          v-if="full"
+          :disabled="disabled || Boolean(active.table)"
+          @select="emit('insert-table', $event)"
+        />
         <button
           v-for="item in extensionTools || []"
           :key="item.id"

@@ -20,7 +20,10 @@ export const SF_PURIFY_CONFIG = {
     'href', 'title', 'alt', 'src', 'width', 'height', 'class', 'id',
     'target', 'rel', 'colspan', 'rowspan', 'start', 'type', 'checked',
     'disabled', 'open', 'data-sforum-image-viewer', 'data-sforum-image-size',
-    'data-sforum-image-long'
+    'data-sforum-image-long',
+    // 表格单元格对齐：服务端 bluemonday 与前端 DOMPurify 都保留 align 属性，
+    // 内联 style 会被两端剥掉，因此对齐只能走属性。
+    'align'
   ],
   // 禁止任何脚本/样式/表单提交相关内容。
   FORBID_TAGS: ['script', 'style', 'form', 'iframe', 'object', 'embed'],

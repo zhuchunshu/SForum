@@ -5708,6 +5708,21 @@
       "sizeWide": "通栏",
       "wait": "请等待图片上传完成后再提交。"
     },
+    "table": {
+      "insert": "插入表格",
+      "pickerLabel": "选择表格大小",
+      "addRowBefore": "在上方插入行",
+      "addRowAfter": "在下方插入行",
+      "deleteRow": "删除行",
+      "addColumnBefore": "在左侧插入列",
+      "addColumnAfter": "在右侧插入列",
+      "deleteColumn": "删除列",
+      "toggleHeaderRow": "切换表头行",
+      "alignLeft": "左对齐",
+      "alignCenter": "居中对齐",
+      "alignRight": "右对齐",
+      "delete": "删除表格"
+    },
     "shortcodes": {
       "title": "插入短代码",
       "toolbar": "插入短代码",

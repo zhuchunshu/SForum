@@ -252,6 +252,15 @@ func normalizeNodes(nodes []Node, schema Schema, parentType string, depth, short
 		} else {
 			normalized.Marks = marks
 		}
+		// 表格结构修复复用本次递归产出的子节点，不另起一套 allowlist 递归。
+		switch node.Type {
+		case "table":
+			normalized = normalizeTableStructure(normalized, fallbacks)
+		case "tableRow":
+			normalized = normalizeTableRow(normalized, fallbacks)
+		case "tableHeader", "tableCell":
+			normalized = normalizeTableCell(normalized, fallbacks)
+		}
 		result = append(result, normalized)
 	}
 	return result, nil
@@ -269,7 +278,7 @@ func hasUndeclaredAttrs(attrs map[string]any, allow map[string]bool) bool {
 func shortcodeBlockChildType(nodeType string) bool {
 	switch nodeType {
 	case "paragraph", "heading", "blockquote", "codeBlock", "bulletList", "orderedList",
-		"horizontalRule", "image", ShortcodeRefNode, ShortcodeBlockNode:
+		"horizontalRule", "image", "table", ShortcodeRefNode, ShortcodeBlockNode:
 		return true
 	default:
 		return false
