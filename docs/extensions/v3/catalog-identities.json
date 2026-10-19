@@ -5243,6 +5243,26 @@
       "source": "apps/web/app/components/editor/SFEditorImageMenu.vue"
     },
     {
+      "id": "core.component.shared.sfeditor_table_menu",
+      "contractVersion": "sforum.component.shared.sfeditor_table_menu@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/editor/SFEditorTableMenu.vue"
+    },
+    {
+      "id": "core.component.shared.sfeditor_table_picker",
+      "contractVersion": "sforum.component.shared.sfeditor_table_picker@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/editor/SFEditorTablePicker.vue"
+    },
+    {
       "id": "core.component.shared.sfeditor_image_upload_modal",
       "contractVersion": "sforum.component.shared.sfeditor_image_upload_modal@1",
       "kind": "component",
@@ -5700,7 +5720,7 @@
         "public"
       ],
       "state": "active",
-      "source": "apps/web/app/components/forum/SFCommentCitations.vue"
+      "source": "apps/web/app/components/forum/SFCommentAIActivity.vue"
     }
   ]
 }

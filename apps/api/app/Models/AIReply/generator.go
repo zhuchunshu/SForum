@@ -84,6 +84,23 @@ type Generator struct {
 	citations CitationStore
 	// state 可为 nil：那时没有会话记忆，每次回复都从零开始（与引入前一致）。
 	state TopicStateStore
+	// toolCalls 可为 nil：那时工具轨迹只进日志（与引入前一致）。它只写不读——
+	// 公开读走 Forum 侧的 ToolCallService，两边的可见性谓词不同源，不能合并。
+	toolCalls ToolCallRecorder
+	// toolSectioner 可为 nil：那时提示词里不出现「本次可调用的工具」段。
+	// 它由 Host 的编排器实现，因为只有它同时知道用途白名单、登记表与本次是否
+	// 真的会带上工具（步数预算、profile 是否支持 tools）。
+	toolSectioner ToolSectioner
+}
+
+// ToolSectioner 把「本次真的会发给模型的工具」渲染成提示词里的一段。
+//
+// 它必须是编排器的能力而不是登记表的：登记表只回答「站内有哪些工具」，而
+// 提示词要说的是「这次你能调哪些」。两者在「用途白名单为空」「步数预算为 0」
+// 「profile 不支持工具」这三种情况下不同，而恰恰是这三种情况最容易写出
+// 「提示词说有、模型一调就是不可用」。
+type ToolSectioner interface {
+	ToolSection(ctx context.Context, costClass string, names []string) string
 }
 
 // CitationStore 是 B4 需要的全部引用能力。它把任务书里分开描述的三件事收进
@@ -119,8 +136,32 @@ func (g *Generator) WithCitations(store CitationStore) *Generator {
 	return g
 }
 
-// WithTopicState 装配 B5 的会话状态。返回同一生成器以便链式装配。
+// WithToolCalls 装配工具轨迹的落库能力。返回同一生成器以便链式装配。
 //
+// 它不参与任何生成决策：装配了只是「多写一张表」，没装配回复照旧。这正是它与
+// WithCitations 的区别——引用会改变提示词（要求模型写标记），轨迹只是记录。
+func (g *Generator) WithToolCalls(store ToolCallRecorder) *Generator {
+	if g == nil {
+		return g
+	}
+	g.toolCalls = store
+	return g
+}
+
+// WithToolSectioner 装配「本次可调用工具」的提示词段来源。
+//
+// 与 WithToolCalls 相反，它会改变模型读到的内容（system 多一段工具清单），
+// 因此提示词版本必须与它一起演进：同一版号下出现两种 system 会让历史执行记录
+// 无法解释产出它的到底是哪一种。
+func (g *Generator) WithToolSectioner(sectioner ToolSectioner) *Generator {
+	if g == nil {
+		return g
+	}
+	g.toolSectioner = sectioner
+	return g
+}
+
+// WithTopicState 装配 B5 的会话状态。返回同一生成器以便链式装配。
 // 引用能力与会话状态必须成对装配：状态里的 VerifiedFacts 只能来自 B4 校验过的
 // 引用，没有 citations 时状态永远采集不到任何事实（装配了也只是空转）。因此
 // 缺 citations 时这里不装配——「配了状态却永远不记得任何事」比「没有状态」
@@ -239,6 +280,7 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 	system, user := buildReplyPrompt(thread, systemOverride, replyPromptExtras{
 		stateBlock:       stateBlock,
 		citationsEnabled: g.citations != nil,
+		toolSection:      g.resolveToolSection(ctx, parameters),
 	})
 	// 工具以提问者视角取数：可见性判定用触发者身份，位置信息用于限定
 	// 「当前这栋楼」。语言来自站点默认值——读失败留空，工具按「不知道语言」
@@ -316,6 +358,8 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 	// 发布失败却写状态，下一轮会引用一段没人看过的结论。
 	runID := completion.RunID
 	g.recordCitations(ctx, commentID, runID, citations)
+	// 工具轨迹与引用同一时机：发布成功之后。失败不阻断（见 recordToolCalls）。
+	g.recordToolCalls(ctx, commentID, input.TopicID, runID, completion.ToolTrace)
 	g.saveTopicState(ctx, input, parameters.PromptVersion, runID, commentID, citations, previousState, stateFacts, hadState, invalidation)
 	logGeneratedReply(ctx, input, completion, parameters.PromptVersion, nil)
 	return nil
@@ -373,6 +417,50 @@ func (g *Generator) recordCitations(ctx context.Context, commentID int64, runID 
 		slog.WarnContext(ctx, "aireply: record citations failed",
 			"commentId", commentID, "citations", len(citations), "err", err)
 	}
+}
+
+// recordToolCalls 把本次 run 的工具轨迹落到产出评论名下。
+//
+// 失败只记 Warn：轨迹是展示层的增强，一次落库失败不该让一条已发布的评论变成
+// 失败的重试任务（那会重复发布）。这与 recordCitations 是同一条纪律。
+//
+// 被拒绝的调用（unknown_tool / not_allowed / step_exhausted /
+// budget_exhausted）一并写入：它们是运营者判断「模型在撞配置」的唯一证据，
+// 公开面会在读取时过滤掉（见 Forum 的 ToolCallService）。
+func (g *Generator) recordToolCalls(ctx context.Context, commentID, topicID int64, runID string, trace []supportai.ToolTraceEntry) {
+	if g.toolCalls == nil || len(trace) == 0 || commentID <= 0 {
+		return
+	}
+	calls := make([]ToolCall, 0, len(trace))
+	for index, entry := range trace {
+		calls = append(calls, ToolCall{
+			// Seq 是切片下标而不是 entry.Step：并行调用共享同一个 Step。
+			Seq:            index,
+			Step:           entry.Step,
+			Tool:           entry.Tool,
+			Arguments:      entry.Arguments,
+			ArgumentsBytes: entry.ArgumentsBytes,
+			ResultBytes:    entry.ResultBytes,
+			ResultDigest:   entry.ResultDigest,
+			IsError:        entry.IsError,
+			Failure:        entry.Failure,
+			LatencyMS:      entry.LatencyMS,
+		})
+	}
+	if err := g.toolCalls.Record(ctx, commentID, topicID, runID, calls); err != nil {
+		slog.WarnContext(ctx, "aireply: record tool calls failed",
+			"commentId", commentID, "calls", len(calls), "err", err)
+	}
+}
+
+// resolveToolSection 取「本次真的会发给模型的工具」的提示词段。
+//
+// 读失败一律降级为空段：工具清单缺失只会让模型保守作答，而不该让整次回复失败。
+func (g *Generator) resolveToolSection(ctx context.Context, parameters ReplyPurposeParameters) string {
+	if g.toolSectioner == nil || len(parameters.ToolsAllowed) == 0 {
+		return ""
+	}
+	return g.toolSectioner.ToolSection(ctx, parameters.CostClass, parameters.ToolsAllowed)
 }
 
 // logGeneratedReply 把一次回复的规模事实写进结构化日志：花了多少次模型调用、

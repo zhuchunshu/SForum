@@ -2164,7 +2164,7 @@
     "id": "core.component.shared.sfcomment_citations",
     "contractVersion": "sforum.component.shared.sfcomment_citations@1",
     "kind": "component",
-    "source": "apps/web/app/components/forum/SFCommentCitations.vue",
+    "source": "apps/web/app/components/forum/SFCommentAIActivity.vue",
     "owners": [
       "public"
     ],
@@ -2235,6 +2235,26 @@
     "contractVersion": "sforum.component.shared.sfeditor_image_upload_modal@1",
     "kind": "component",
     "source": "apps/web/app/components/editor/SFEditorImageUploadModal.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfeditor_table_menu",
+    "contractVersion": "sforum.component.shared.sfeditor_table_menu@1",
+    "kind": "component",
+    "source": "apps/web/app/components/editor/SFEditorTableMenu.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfeditor_table_picker",
+    "contractVersion": "sforum.component.shared.sfeditor_table_picker@1",
+    "kind": "component",
+    "source": "apps/web/app/components/editor/SFEditorTablePicker.vue",
     "owners": [
       "public"
     ],

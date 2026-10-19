@@ -223,6 +223,18 @@ func (h *Controller) WithCitationReader(reader forum.CitationReader) *Controller
 	return h
 }
 
+// WithToolCallReader 注入 AI 工具调用记录的读取面。
+//
+// 它与 WithCitationReader 挂在同一个 CitationService 上：两个分区共用一次可见性
+// 判定（见 forum.CitationService.CommentCitations）。未注入时「工具调用」分区整体
+// 缺席，`items` 照旧返回。
+func (h *Controller) WithToolCallReader(reader forum.ToolCallReader) *Controller {
+	if h != nil && h.citations != nil {
+		h.citations.WithToolCalls(reader)
+	}
+	return h
+}
+
 type createTopicRequest struct {
 	CategorySlug string             `json:"categorySlug"`
 	Title        string             `json:"title"`

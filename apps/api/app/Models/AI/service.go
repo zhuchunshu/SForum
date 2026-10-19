@@ -343,8 +343,13 @@ func (s *Service) Purposes() []supportai.PurposeDeclaration {
 	return s.purposes.Purposes()
 }
 
-// ReplySystemPrompt 返回当前生效的回复系统指令（自定义或内置默认，含固定安全尾注）。
-// 它实现 aireply.ReplyParameterSource：生成器在每次回复时读取，配置改完立即生效。
+// ReplySystemPrompt 返回运营者配置的回复系统指令（自定义或内置默认），**不含**
+// 固定安全尾注。它实现 aireply.ReplyParameterSource：生成器在每次回复时读取，
+// 配置改完立即生效。
+//
+// 尾注与「本次可调用工具」段由生成器用 supportai.ComposeReplySystemPrompt 组装：
+// 工具清单只有运行期才知道（用途白名单 ∩ 登记表 ∩ 本次真的会带工具），而尾注
+// 必须永远排在它之后。把两段分开，是这个顺序唯一可靠的实现方式。
 func (s *Service) ReplySystemPrompt(ctx context.Context) (string, error) {
 	if s == nil || s.settings == nil {
 		return "", nil
@@ -353,7 +358,7 @@ func (s *Service) ReplySystemPrompt(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return settings.Reply.EffectiveSystemPrompt(), nil
+	return settings.Reply.BaseSystemPrompt(), nil
 }
 
 // ReplyPurposeParameters 返回回复用途当前生效的参数（成本等级、工具白名单、提示词

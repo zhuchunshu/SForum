@@ -419,9 +419,23 @@ live in configuration, not in Core code.
   `ai_citations`。`Excerpt` **从被引用资源取，不从模型输出取**（模型会编造引文）。
   正文只剩标记时走 `ErrEmptyReply`。**格式遵守率是概率性的**：一次不遵守降级为
   「无引用」，不该让回复失败。
-  公开读面 `GET /api/v1/comments/:commentID/citations` → `{items:[{topicId,commentId,excerpt}]}`，
+  公开读面 `GET /api/v1/comments/:commentID/citations` → `{items:[{topicId,commentId,excerpt}], toolCalls?:[...]}`，
   无分页（写入侧硬限 20）、零引用空列表、**404 不区分「不存在」与「不可见」**
   （否则 `message` 文本本身就是枚举探测面），可见性复用 `GetCommentSummary → GetTopic`。
+- **工具调用记录（W2）**：`ai_tool_calls` 存一次 run 的每次工具调用（`seq/step/tool/
+  arguments/result_digest/is_error/failure/latency_ms`），**发布成功之后**才写，
+  `UNIQUE (comment_id, seq)` 让 River 重试幂等（`seq` 是 trace 切片下标——并行调用
+  共享 `step`，不能用它做键）。公开投影挂在上面那条 `/citations` 端点的 `toolCalls`
+  字段（**不新增路由**：一页 20 条评论已经要发 20 个请求），服务层过滤掉四种「模型
+  撞到配置」的结局（`unknown_tool` / `not_allowed` / `step_exhausted` /
+  `result_budget_exhausted`），且**永不投影 `result_digest`**（工具按提问者身份取数，
+  读者不一定看得见同样的内容）。前端 `SFCommentAIActivity.vue` 一个折叠块两个分区。
+  决策与代价见 `decisions/2026-10-19-ai-tool-call-visibility-and-prompt-tool-section.md`。
+- **提示词工具段**：system 的顺序固定为「基础提示词 → 本次可调用的工具 → 安全尾注」，
+  由 `supportai.ComposeReplySystemPrompt` 一处组装；工具段由 **Orchestrator.ToolSection**
+  生成（只有它同时知道用途白名单、登记表与「本次是否真的会带工具」），因此
+  「提示词宣称有」与「请求真的带上」是同一个判断。`ReplySystemPrompt` 只返回基础
+  提示词（不含尾注）。`forum-reply@9` 起生效。
 - **会话状态（B5）**：`ai_topic_state(topic_id, bot_user_id)` 存 `TopicState`
   （`VerifiedFacts` 只存**通过 B4 校验**的引用事实，`ReplyRef` 不存正文）。
   注入上限 20 条 / 2 KiB，超出按时间倒序保留最近。三重失效：`PromptVersion` 不符
@@ -432,8 +446,8 @@ live in configuration, not in Core code.
   **失效必须落到存储，不只是注入**——只从提示词里剔除会让被删楼层的依据永远留在
   JSONB 里，日志每轮都记 `dropped` 却永不消失
   （`decisions/2026-10-19-ai-topic-state-invalidates-storage-not-just-injection.md`）。
-- **四张 ai_* 表刻意不提供 `sforum_core_v1` 读面**（`ai_executions` / `ai_citations` /
-  `ai_topic_state` / `ai_derived_artifacts`）：它们是**运营者观测与模型产出**，不是可被
+- **五张 ai_* 表刻意不提供 `sforum_core_v1` 读面**（`ai_executions` / `ai_citations` /
+  `ai_tool_calls` / `ai_topic_state` / `ai_derived_artifacts`）：它们是**运营者观测与模型产出**，不是可被
   插件直接 SQL 读的公共核心数据。理由是内容性质与授权模型：`ai_citations.excerpt` 与
   `ai_derived_artifacts.content` 含**用户内容与 AI 正文**，做成视图等于给 `core_views`
   授权开一条绕过评论/主题可见性谓词的正文分发通道（视图无法在不重写整套谓词的前提下

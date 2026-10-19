@@ -363,7 +363,10 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		// B4 的公开读面（D12/D17）：不接这一行时 GET /comments/{id}/citations
 		// 恒返回空列表（仍过可见性判定，不成为枚举豁免口）。适配器在
 		// providers.NewForumCitationReader，此处只做装配。
-		WithCitationReader(providers.NewForumCitationReader(pool))
+		WithCitationReader(providers.NewForumCitationReader(pool)).
+		// 工具调用记录与依据共用同一个端点与同一次可见性判定；公开投影在适配器
+		// 里就已经丢掉 resultDigest（工具结果片段可能包含读者不可见的内容）。
+		WithToolCallReader(providers.NewForumToolCallReader(pool))
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
 	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(

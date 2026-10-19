@@ -167,3 +167,93 @@ func (s stubCitationStore) GetTopic(_ context.Context, topicID int64) (TopicDeta
 	summary.ID = topicID
 	return TopicDetail{TopicSummary: summary}, nil
 }
+
+// fakeToolCallReader 只实现工具轨迹读取。与 fakeCitationReader 一样不参与可见性：
+// 可见性权威始终在 s.service.store。
+type fakeToolCallReader struct {
+	items  []ToolCallEntry
+	err    error
+	called int
+}
+
+func (f *fakeToolCallReader) ListBySourceComment(_ context.Context, _ int64) ([]ToolCallEntry, error) {
+	f.called++
+	return f.items, f.err
+}
+
+// 公开投影的边界：四种「模型撞了配置」的结局必须消失，真实尝试必须留下。
+func TestPublicToolCallsFiltersConfigurationMisses(t *testing.T) {
+	items := []ToolCallEntry{
+		{Tool: "web-search", Arguments: `{"query":"SForum"}`, LatencyMS: 120},
+		{Tool: "forum-search", Failure: toolFailureNotAllowed},
+		{Tool: "made-up", Failure: toolFailureUnknownTool},
+		{Tool: "web-search", Failure: toolFailureStepExhausted},
+		{Tool: "fetch-url", Failure: toolFailureBudgetExhausted},
+		{Tool: "web-search", IsError: true, Failure: "internal_error"},
+		{Tool: "  "},
+	}
+	visible := publicToolCalls(items)
+	if len(visible) != 2 {
+		t.Fatalf("visible = %+v", visible)
+	}
+	if visible[0].Tool != "web-search" || visible[0].IsError {
+		t.Fatalf("第一次调用应保留：%+v", visible[0])
+	}
+	if visible[1].Tool != "web-search" || !visible[1].IsError {
+		t.Fatalf("真实失败的尝试必须保留：%+v", visible[1])
+	}
+}
+
+// 工具调用是 omitempty 分区：零调用时字段不出现，与「这个能力没装配」同形。
+func TestCitationServiceOmitsToolCallsWhenThereAreNone(t *testing.T) {
+	service := &CitationService{
+		service:   &Service{store: stubCitationStore{}},
+		reader:    &fakeCitationReader{},
+		toolCalls: &fakeToolCallReader{},
+	}
+	list, err := service.CommentCitations(context.Background(), 501)
+	if err != nil {
+		t.Fatalf("CommentCitations: %v", err)
+	}
+	encoded, err := json.Marshal(list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded) != `{"items":[]}` {
+		t.Fatalf("零工具调用时不得出现 toolCalls 字段：%s", encoded)
+	}
+}
+
+// 工具轨迹读失败只丢那个分区：依据一直是这个端点的主体，不该被一起拖垮。
+func TestCitationServiceKeepsCitationsWhenToolCallsFail(t *testing.T) {
+	service := &CitationService{
+		service:   &Service{store: stubCitationStore{}},
+		reader:    &fakeCitationReader{items: []Citation{{TopicID: 9, CommentID: 913, Excerpt: "内容"}}},
+		toolCalls: &fakeToolCallReader{err: errors.New("db down")},
+	}
+	list, err := service.CommentCitations(context.Background(), 501)
+	if err != nil {
+		t.Fatalf("CommentCitations: %v", err)
+	}
+	if len(list.Items) != 1 {
+		t.Fatalf("items = %+v", list.Items)
+	}
+	if list.ToolCalls != nil {
+		t.Fatalf("toolCalls = %+v", list.ToolCalls)
+	}
+}
+
+// 可见性仍然先于两个读取：不可见主题一次都不该触达工具轨迹存储。
+func TestCitationServiceChecksVisibilityBeforeReadingToolCalls(t *testing.T) {
+	tools := &fakeToolCallReader{items: []ToolCallEntry{{Tool: "web-search"}}}
+	service := &CitationService{
+		service:   &Service{store: stubCitationStore{invisibleTopic: true}},
+		toolCalls: tools,
+	}
+	if _, err := service.CommentCitations(context.Background(), 501); err == nil {
+		t.Fatal("invisible topic must not return citations")
+	}
+	if tools.called != 0 {
+		t.Fatalf("工具轨迹在可见性判定之前被读取了 %d 次", tools.called)
+	}
+}

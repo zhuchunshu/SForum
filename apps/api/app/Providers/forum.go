@@ -176,6 +176,15 @@ func (p *ForumProvider) WithCitationReader(reader forum.CitationReader) *ForumPr
 	return p
 }
 
+// WithToolCallReader 注入 AI 工具调用记录的读取面。nil 安全：未注入时
+// GET /comments/{id}/citations 仍然返回 `items`，只是没有 `toolCalls` 分区。
+func (p *ForumProvider) WithToolCallReader(reader forum.ToolCallReader) *ForumProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithToolCallReader(reader)
+	}
+	return p
+}
+
 // TrustPolicyAdapter 把 options.TrustPolicy 适配为 forum.TrustPolicyResolver。
 type TrustPolicyAdapter struct {
 	options *options.Service

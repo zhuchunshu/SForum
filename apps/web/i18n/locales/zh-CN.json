@@ -5494,6 +5494,14 @@
       "next": "下一张图片",
       "loadFailed": "图片加载失败。"
     },
+    "aiActivity": {
+      "summary": "AI 活动",
+      "loading": "正在读取 AI 活动…",
+      "toolCallsTitle": "工具调用（{count}）",
+      "both": "AI 活动（{tools} 次工具 · {citations} 条依据）",
+      "failed": "失败",
+      "latency": "{ms} ms"
+    },
     "citations": {
       "title": "依据（{count}）",
       "commentLabel": "{id} 楼",

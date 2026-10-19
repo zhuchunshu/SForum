@@ -4,12 +4,17 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import {
+  activityVisible,
   citationTarget,
   citationsVisible,
   commentCitationsPath,
+  toolArgumentSummary,
+  toolCallsVisible,
   visibleCitations,
-  type ForumCitation
-} from '../../app/components/forum/citations'
+  visibleToolCalls,
+  type ForumCitation,
+  type ForumToolCall
+} from '../../app/components/forum/aiActivity'
 import { stripHtmlComments } from '../helpers/sourceText'
 
 function source(relative: string): string {
@@ -40,7 +45,8 @@ function lookup(catalog: Record<string, unknown>, key: string): unknown {
   }, catalog)
 }
 
-const citationBlock = source('../../app/components/forum/SFCommentCitations.vue')
+const activityBlock = source('../../app/components/forum/SFCommentAIActivity.vue')
+const helperSource = source('../../app/components/forum/aiActivity.ts')
 
 describe('citation anchors', () => {
   test('a comment citation jumps to that floor', () => {
@@ -131,11 +137,69 @@ describe('citation rendering shape', () => {
   })
 })
 
+describe('tool call projection', () => {
+  test('zero tool calls are not visible', () => {
+    expect(toolCallsVisible([])).toBe(false)
+    expect(toolCallsVisible(undefined)).toBe(false)
+    expect(toolCallsVisible(null)).toBe(false)
+    expect(visibleToolCalls([])).toEqual([])
+  })
+
+  test('unnamed entries are dropped: a call with no tool explains nothing', () => {
+    expect(visibleToolCalls([{ arguments: '{"query":"x"}' } as ForumToolCall])).toEqual([])
+    expect(visibleToolCalls([{ tool: '   ' }])).toEqual([])
+  })
+
+  test('keeps the payload order and numbers from 1', () => {
+    const visible = visibleToolCalls([
+      { tool: 'web-search', arguments: '{"query":"SForum"}', latencyMs: 120 },
+      { tool: 'forum-search', arguments: '{"query":"SForum"}', isError: true }
+    ])
+    expect(visible.map(entry => entry.tool)).toEqual(['web-search', 'forum-search'])
+    expect(visible.map(entry => entry.index)).toEqual([1, 2])
+    expect(visible[1]?.isError).toBe(true)
+  })
+
+  test('negative or missing latency degrades to 0 instead of rendering garbage', () => {
+    const visible = visibleToolCalls([{ tool: 'web-search', latencyMs: -5 }, { tool: 'x' }])
+    expect(visible.map(entry => entry.latencyMs)).toEqual([0, 0])
+  })
+
+  test('the summary prefers the query field of a JSON argument payload', () => {
+    expect(toolArgumentSummary('{"query":"SForum 是什么"}')).toBe('SForum 是什么')
+    expect(toolArgumentSummary('{"query":"  "}')).toBe('{"query":"  "}')
+  })
+
+  test('non-JSON arguments are shown as-is, never swallowed', () => {
+    expect(toolArgumentSummary('SForum 是什么论坛程序')).toBe('SForum 是什么论坛程序')
+    expect(toolArgumentSummary('')).toBe('')
+    expect(toolArgumentSummary(undefined)).toBe('')
+  })
+
+  test('a long argument summary is clipped without splitting characters', () => {
+    const summary = toolArgumentSummary('检'.repeat(200))
+    expect(summary.endsWith('…')).toBe(true)
+    expect(Array.from(summary)).toHaveLength(81)
+    expect(summary).not.toContain('\uFFFD')
+  })
+})
+
+describe('the block appears only when there is something to show', () => {
+  test('either partition makes the block visible', () => {
+    expect(activityVisible([], [])).toBe(false)
+    expect(activityVisible([{ topicId: 1, commentId: 2 }], [])).toBe(true)
+    expect(activityVisible([], [{ tool: 'web-search' }])).toBe(true)
+    expect(activityVisible(undefined, undefined)).toBe(false)
+  })
+})
+
 describe('citation block contract discipline', () => {
   test('the skeleton reads the three documented fields and nothing invented', () => {
-    // 契约来源是任务书 B4「产物结构」。T5 定稿后若形状变化，先改 citations.ts。
-    const helper = source('../../app/components/forum/citations.ts')
-    const typeBlock = helper.slice(helper.indexOf('export type ForumCitation'), helper.indexOf('}', helper.indexOf('export type ForumCitation')))
+    // 契约来源是 OpenAPI CommentCitation。形状变化时先改 aiActivity.ts。
+    const typeBlock = helperSource.slice(
+      helperSource.indexOf('export type ForumCitation'),
+      helperSource.indexOf('}', helperSource.indexOf('export type ForumCitation'))
+    )
     expect(typeBlock).toContain('topicId')
     expect(typeBlock).toContain('commentId')
     expect(typeBlock).toContain('excerpt')
@@ -143,68 +207,82 @@ describe('citation block contract discipline', () => {
     expect(typeBlock.match(/^\s{2}\w+\??:/gm)?.length).toBe(3)
   })
 
-  test('the block renders only once a fetch proves there are citations', () => {
-    // 零引用不渲染，且**未知也不渲染**：浏览器 QA 实测过旧写法（未取数时先渲染
+  test('the tool call projection carries no result digest', () => {
+    // resultDigest 是工具返回给模型的正文片段：服务端不投影它，前端也不能自己造。
+    const typeBlock = helperSource.slice(
+      helperSource.indexOf('export type ForumToolCall'),
+      helperSource.indexOf('}', helperSource.indexOf('export type ForumToolCall'))
+    )
+    expect(typeBlock).not.toContain('resultDigest')
+    expect(typeBlock).not.toContain('result')
+    expect(typeBlock.match(/^\s{2}\w+\??:/gm)?.length).toBe(4)
+  })
+
+  test('the block renders only once a fetch proves there is activity', () => {
+    // 零结果不渲染，且**未知也不渲染**：浏览器 QA 实测过旧写法（未取数时先渲染
     // 收起入口）的真实后果——一页 5 条普通评论就挂了 5 个「依据」标记，暗示
     // 人人都有出处。判据只能是「取回非空」。
-    expect(citationBlock).toContain('const showBlock = computed(() => hasCitations.value)')
-    expect(citationBlock).toContain('v-if="showBlock"')
-    expect(citationBlock).toContain('citationsVisible(items.value)')
+    expect(activityBlock).toContain('const showBlock = computed(() => activityVisible(items.value, toolCalls.value))')
+    expect(activityBlock).toContain('v-if="showBlock"')
+    expect(activityBlock).toContain('activityVisible(items.value, toolCalls.value)')
     // 反向控制：不允许再出现「未取数就渲染」的判据。
-    expect(citationBlock).not.toContain('!settled.value ||')
+    expect(activityBlock).not.toContain('!settled.value ||')
   })
 
-  test('one request per comment, bounded by a shared concurrency limiter', () => {
+  test('one request per comment serves both partitions', () => {
     // 契约是单条评论粒度、无批量端点：请求数必然等于评论数，所以真正能控的是
-    // 并发而不是次数——共享 limiter 让一页 20 条最多 4 个在飞。
-    expect(citationBlock).toContain('createCitationFetcher()')
-    expect(citationBlock).toContain('fetcher.run(loadOnce)')
-    expect(citationBlock).toContain('if (settled.value || pending.value) return')
-    expect(citationBlock).toContain('commentCitationsPath(id)')
+    // 并发而不是次数——共享 limiter 让一页 20 条最多 4 个在飞。工具调用与依据
+    // 共用同一个请求，这也正是不新增 /tool-calls 路由的理由。
+    expect(activityBlock).toContain('createCitationFetcher()')
+    expect(activityBlock).toContain('fetcher.run(loadOnce)')
+    expect(activityBlock).toContain('if (settled.value || pending.value) return')
+    expect(activityBlock).toContain('commentCitationsPath(id)')
+    expect(activityBlock.match(/commentCitationsPath\(id\)/g)?.length).toBe(1)
     // 只取一次：settled 之后不再重复请求（展开/收起不再触发取数）。
-    const helper = source('../../app/components/forum/citations.ts')
-    expect(helper).toContain('export const citationsConcurrency = 4')
-    expect(helper).toContain('createCitationFetcher')
+    expect(helperSource).toContain('export const citationsConcurrency = 4')
+    expect(helperSource).toContain('createCitationFetcher')
   })
 
-  test('a 404 or network failure is just "no citations", never an error surface', () => {
+  test('a 404 or network failure is just "no activity", never an error surface', () => {
     // 契约刻意让「不存在」与「不可见」不可区分（防 commentID 枚举）。
-    expect(citationBlock).toContain('} catch {')
-    const body = code('../../app/components/forum/SFCommentCitations.vue')
+    expect(activityBlock).toContain('} catch {')
+    const body = code('../../app/components/forum/SFCommentAIActivity.vue')
     expect(body).not.toContain('无权限')
     expect(body).not.toMatch(/forbidden/i)
   })
 
-  test('excerpt is rendered as text, never as HTML', () => {
-    // excerpt 是任意用户写下的原始正文：v-html 等于在「依据」块里开一个存储型 XSS 面。
-    expect(citationBlock).toContain('{{ entry.excerpt }}')
-    const body = code('../../app/components/forum/SFCommentCitations.vue')
+  test('excerpt and arguments are rendered as text, never as HTML', () => {
+    // excerpt 是任意用户写下的原始正文、arguments 是模型输出：
+    // v-html 等于在这个块里开一个存储型 XSS 面。
+    expect(activityBlock).toContain('{{ entry.excerpt }}')
+    expect(activityBlock).toContain('{{ entry.argumentSummary }}')
+    const body = code('../../app/components/forum/SFCommentAIActivity.vue')
     expect(body).not.toContain('v-html')
     expect(body).not.toContain('innerHTML')
     // 保留换行用 pre-wrap，而不是退回 HTML 渲染。
-    expect(citationBlock).toContain('white-space: pre-wrap')
+    expect(activityBlock).toContain('white-space: pre-wrap')
   })
 
   test('links to a real floor or shows plain text, never a fake link', () => {
-    expect(citationBlock).toContain('v-if="entry.href"')
-    expect(citationBlock).toContain(':to="entry.href"')
-    expect(citationBlock).toContain('sf-comment-citations__target--plain')
+    expect(activityBlock).toContain('v-if="entry.href"')
+    expect(activityBlock).toContain(':to="entry.href"')
+    expect(activityBlock).toContain('sf-comment-ai-activity__target--plain')
   })
 
   test('is a disclosure, not a headline: collapsed by default', () => {
-    expect(citationBlock).toContain('<details')
-    expect(citationBlock).toContain(':open="open"')
-    expect(citationBlock).toContain('open: false')
-    // 新控件必须有 aria-label 与 title。
-    expect(citationBlock).toMatch(/:aria-label="t\('topicDetail\.citations\.summary'\)"/)
-    expect(citationBlock).toMatch(/:title="t\('topicDetail\.citations\.summary'\)"/)
+    expect(activityBlock).toContain('<details')
+    expect(activityBlock).toContain(':open="open"')
+    expect(activityBlock).toContain('open: false')
+    // 新控件必须有可读的折叠标题（aria-label 与 title 同源，避免两者分叉）。
+    expect(activityBlock).toContain(':aria-label="summaryLabel"')
+    expect(activityBlock).toContain(':title="summaryLabel"')
   })
 
   test('is mounted on the comment renderer so it can actually be reached', () => {
-    // 组件 + 逻辑 + 测试齐全但零调用点 = 端到端不成立，用户永远看不到依据块。
+    // 组件 + 逻辑 + 测试齐全但零调用点 = 端到端不成立，用户永远看不到活动块。
     const comment = source('../../app/components/forum/SFComment.vue')
-    expect(comment).toContain("import SFCommentCitations from '~/components/forum/SFCommentCitations.vue'")
-    expect(comment).toContain('<SFCommentCitations')
+    expect(comment).toContain("import SFCommentAIActivity from '~/components/forum/SFCommentAIActivity.vue'")
+    expect(comment).toContain('<SFCommentAIActivity')
     expect(comment).toContain(':comment-id="commentNode.id"')
     // 删除态没有正文可依据，不显示。
     expect(comment).toContain('v-if="commentNode && !isDeletedComment"')
@@ -218,7 +296,7 @@ describe('citation block contract discipline', () => {
   })
 })
 
-describe('citation bilingual copy', () => {
+describe('bilingual copy', () => {
   test('ships every key in both locales under the same names', () => {
     const zh = locale('zh-CN')
     const en = locale('en-US')
@@ -227,7 +305,13 @@ describe('citation bilingual copy', () => {
       'topicDetail.citations.commentLabel',
       'topicDetail.citations.topicLabel',
       'topicDetail.citations.jumpToComment',
-      'topicDetail.citations.jumpToTopic'
+      'topicDetail.citations.jumpToTopic',
+      'topicDetail.aiActivity.summary',
+      'topicDetail.aiActivity.loading',
+      'topicDetail.aiActivity.toolCallsTitle',
+      'topicDetail.aiActivity.both',
+      'topicDetail.aiActivity.failed',
+      'topicDetail.aiActivity.latency'
     ]
     for (const key of keys) {
       const zhValue = lookup(zh, key)
@@ -243,7 +327,9 @@ describe('citation bilingual copy', () => {
     const emoji = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u
     for (const name of ['zh-CN', 'en-US']) {
       const block = JSON.stringify(lookup(locale(name), 'topicDetail.citations'))
+      const activity = JSON.stringify(lookup(locale(name), 'topicDetail.aiActivity'))
       expect(emoji.test(block)).toBe(false)
+      expect(emoji.test(activity)).toBe(false)
     }
   })
 })

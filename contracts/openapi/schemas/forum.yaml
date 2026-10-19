@@ -2219,6 +2219,37 @@ CommentCitationList:
       description: 依据列表，顺序即生成时标注的顺序。零引用时为空数组。
       items:
         $ref: "#/CommentCitation"
+    toolCalls:
+      type: array
+      description: |
+        这条评论作为 AI 产物时调用过的工具，顺序即调用顺序。
+
+        只包含公开可投影的条目：四种「模型撞到配置」的结局（unknown_tool /
+        not_allowed / step_exhausted / result_budget_exhausted）已被服务端过滤，
+        工具返回给模型的正文片段不在此暴露（`arguments` 已按站点脱敏规则处理并
+        截断）。零工具调用时该字段整体省略，与「这个能力未装配」同形。
+      items:
+        $ref: "#/CommentToolCall"
+# 一条公开可见的 AI 工具调用。字段名与 Go 的 forum.ToolCallEntry 逐字一致。
+# 刻意不含 resultDigest：那是工具返回给模型的正文片段，可能包含提问者可见而
+# 读者不可见的内容（私密板块、受限附件）。
+CommentToolCall:
+  type: object
+  properties:
+    tool:
+      type: string
+      description: 工具名（宿主登记表里的名字，例如 web-search）。插件工具用原名，不做本地化。
+    arguments:
+      type: string
+      description: |
+        模型给出的工具入参（原始 JSON 字符串），已按站点脱敏规则处理并截断到
+        1 KiB。它是模型生成的检索词/标识符，不是用户正文。
+    isError:
+      type: boolean
+      description: 工具自己判定输入有问题（模型拿到了失败结果并据此作答）。真实尝试但失败。
+    latencyMs:
+      type: integer
+      description: 这次调用的耗时（毫秒）。
 ApiResponseCommentCitationList:
   type: object
   required: [code, message, data]

@@ -329,6 +329,37 @@ func (o *Orchestrator) execute(
 	return truncated, len(truncated), trace
 }
 
+// ToolSection 返回「本次请求实际会带上的工具」的提示词段。
+//
+// 它存在的理由是一个真实故障：插件把 web-search 登记进了宿主工具表、运营者也把
+// 它列进了用途白名单，但模型一次都没调——因为 system 里只描述了站内工具，模型
+// 读到的文本里根本没有「你可以联网检索」这件事。请求的 tools 声明里有，可弱模型
+// 不会主动去读 schema 猜自己有什么能力。
+//
+// 因此这段必须由**编排器**生成，而不是登记表：只有编排器同时知道用途白名单、
+// 本次的工具步数预算、以及当前 profile 是否支持工具。三者任一不满足，Run 就会
+// 把 descriptors 置空——那时提示词里若仍宣称「你可以调用 X」，模型一调就是
+// 「工具不可用」，比不说更糟。
+//
+// 任何一步读失败都返回空串：少一段提示是保守作答，不该让整次回复失败。
+func (o *Orchestrator) ToolSection(ctx context.Context, costClass string, names []string) string {
+	if o == nil || o.gateway == nil || o.registry == nil || len(names) == 0 {
+		return ""
+	}
+	settings, err := o.gateway.Settings(ctx)
+	if err != nil {
+		return ""
+	}
+	steps := settings.Gates.ResolvedToolCallsPerReply()
+	if steps > MaxToolCallsPerReply {
+		steps = MaxToolCallsPerReply
+	}
+	if steps <= 0 || !o.toolsSupported(settings, costClass) {
+		return ""
+	}
+	return RenderToolSection(o.registry.Descriptors(names))
+}
+
 // toolsSupported 判断当前成本等级解析出的 profile 是否支持工具调用。
 // 解析失败时照常带上工具：真正的失败原因（没有可用提供商、密钥缺失）由网关在
 // 调用时给出，这里不制造第二个失败来源。

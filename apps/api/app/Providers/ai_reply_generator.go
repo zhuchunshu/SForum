@@ -42,7 +42,56 @@ func NewAIReplyGenerator(
 		generator = generator.WithCitations(citations).
 			WithTopicState(aireply.NewPostgresTopicStateStore(pool))
 	}
+	// 工具轨迹与工具段互相独立：前者只写（发布之后落库），后者只读（组装提示词）。
+	// 两者都缺时行为与引入前完全一致——回复照常，只是看不到调用、模型也不知道
+	// 自己有哪些工具。
+	if pool != nil {
+		generator = generator.WithToolCalls(aireply.NewPostgresToolCallStore(pool))
+	}
+	if orchestrator != nil {
+		generator = generator.WithToolSectioner(orchestrator)
+	}
 	return generator
+}
+
+// NewForumToolCallReader 把工具轨迹存储适配成 Forum 侧的读取面。
+//
+// 与 NewForumCitationReader 同一形状：两侧各有自己的结构（Forum 不 import
+// aireply，反向依赖会把方向倒过来），转换处就是那份「字段必须逐字一致」契约的
+// 唯一执行点。
+//
+// 注意公开投影在这里就已经做减法：ResultDigest 不转换（它是工具结果片段，可能
+// 包含提问者可见而读者不可见的内容），Arguments 保留（写入侧已脱敏并截断）。
+func NewForumToolCallReader(pool *pgxpool.Pool) forum.ToolCallReader {
+	if pool == nil {
+		return nil
+	}
+	return aireplyToolCallReader{store: aireply.NewPostgresToolCallStore(pool)}
+}
+
+type aireplyToolCallReader struct {
+	store *aireply.PostgresToolCallStore
+}
+
+func (r aireplyToolCallReader) ListBySourceComment(ctx context.Context, sourceCommentID int64) ([]forum.ToolCallEntry, error) {
+	items, err := r.store.ListBySourceComment(ctx, sourceCommentID)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, nil
+	}
+	converted := make([]forum.ToolCallEntry, 0, len(items))
+	for _, item := range items {
+		converted = append(converted, forum.ToolCallEntry{
+			Tool:      item.Tool,
+			Arguments: item.Arguments,
+			IsError:   item.IsError,
+			Failure:   item.Failure,
+			LatencyMS: item.LatencyMS,
+		})
+	}
+	return converted, nil
 }
 
 // NewAIReplyCitationStore 构造 B4/B5 共用的引用存储。pool 为 nil 时返回 nil

@@ -1378,23 +1378,34 @@ commentReplies:
         "$ref": "../components/responses.yaml#/NotFound"
 commentCitations:
   get:
-    summary: List an AI reply's citations
+    summary: List an AI reply's activity (citations and tool calls)
     operationId: listCommentCitations
     description: |
-      返回一条评论作为 AI 产物时引用的站内楼层（依据）。引用由 AI 回复生成器在
-      发布成功之后写入，因此只有 AI 产出的评论会有非空结果。
+      返回一条评论作为 AI 产物时留下的活动记录：引用的站内楼层（`items`）与调用
+      过的工具（`toolCalls`）。两者都由 AI 回复生成器在**发布成功之后**写入，
+      因此只有 AI 产出的评论会有非空结果。
+
+      路径名保留 `citations`（已发布的契约），载荷因此是「依据 + 工具调用」两个
+      分区：它们在读者眼里是同一个问题（这条回答依据了什么、做了什么），而且
+      合并成一个请求，避免一页评论发出两倍请求。
 
       可见性与评论回复列表完全一致：评论存在且其所属主题对访客公开可见。
       不可见时返回 404，且不区分「不存在」与「不可见」——否则 commentID 枚举
       会成为探测隐藏主题的手段。
 
-      **零引用返回空列表而不是 404**：一条普通评论没有任何依据是正常结论。
+      **零结果返回空数组而不是 404**：一条普通评论没有任何依据、也没有调用过
+      工具，是正常结论。
+
       每条引用的 `excerpt` 取自被引用楼层的正文（不是模型生成的引文）。
+      `toolCalls` 只包含**公开可投影**的调用：四种「模型撞到配置」的结局
+      （`unknown_tool` / `not_allowed` / `step_exhausted` /
+      `result_budget_exhausted`）已被服务端过滤，工具返回给模型的正文片段
+      （`resultDigest`）**不对外暴露**。零工具调用时该字段整体省略。
     parameters:
     - "$ref": "../components/parameters.yaml#/CommentID"
     responses:
       '200':
-        description: 该评论的全部依据，顺序即生成时的标注顺序。
+        description: 该评论的 AI 活动记录，两个分区各自保持生成时的顺序。
         content:
           application/json:
             schema:

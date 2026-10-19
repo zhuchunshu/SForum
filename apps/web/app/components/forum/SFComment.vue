@@ -9,7 +9,7 @@ export const COMMENT_EDITOR_RENDERER_KEY = 'sforum-comment-editor-renderer'
 <script setup lang="ts">
 import SFCommentUserPreview from '~/components/forum/SFCommentUserPreview.vue'
 import SFMentionContent from '~/components/forum/SFMentionContent.vue'
-import SFCommentCitations from '~/components/forum/SFCommentCitations.vue'
+import SFCommentAIActivity from '~/components/forum/SFCommentAIActivity.vue'
 import SFUserIdentityName from '~/components/forum/SFUserIdentityName.vue'
 import {
   forumAuthorName,
@@ -425,9 +425,9 @@ const InlineEditorHost = () => {
           {{ content }}
         </p>
 
-        <!-- AI 产出评论的「依据」折叠块（B4）。默认收起且收起时零请求：
-             展开才去 GET /comments/{id}/citations。删除态不显示。 -->
-        <SFCommentCitations
+        <!-- AI 产出评论的「AI 活动」折叠块：工具调用 + 依据。默认收起，
+             收起时零请求；展开才去 GET /comments/{id}/citations。删除态不显示。 -->
+        <SFCommentAIActivity
           v-if="commentNode && !isDeletedComment"
           :comment-id="commentNode.id"
         />

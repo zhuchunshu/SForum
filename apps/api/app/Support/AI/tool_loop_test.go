@@ -480,3 +480,30 @@ func TestToolRegistryStaysConsistentWhileReplacedConcurrently(t *testing.T) {
 		t.Fatal("final table lost the tool")
 	}
 }
+
+// ToolSection 必须与 Run 的闸门判断一致：提示词宣称有工具、请求却没带上，
+// 比不说更糟——模型一调就是「工具不可用」。
+func TestOrchestratorToolSectionFollowsTheSameGates(t *testing.T) {
+	tool := &fakeTool{name: "web-search"}
+	orchestrator, _, _ := newOrchestrator(t, enabledSettings(),
+		&scriptedInvoker{responses: []ai.WireResponse{finalResponse("ok")}}, tool)
+
+	section := orchestrator.ToolSection(context.Background(), ai.CostClassEconomy,
+		[]string{"web-search", "never-registered"})
+	if !strings.Contains(section, "web-search") {
+		t.Fatalf("已登记且在白名单里的工具必须出现在提示词段里：\n%s", section)
+	}
+	if strings.Contains(section, "never-registered") {
+		t.Fatalf("未登记的工具不得出现在提示词段里：\n%s", section)
+	}
+
+	// 步数预算为 0：Run 会把 descriptors 置空，提示词段也必须为空。
+	disabled := enabledSettings()
+	zero := 0
+	disabled.Gates.ToolCallsPerReply = &zero
+	noTools, _, _ := newOrchestrator(t, disabled,
+		&scriptedInvoker{responses: []ai.WireResponse{finalResponse("ok")}}, tool)
+	if got := noTools.ToolSection(context.Background(), ai.CostClassEconomy, []string{"web-search"}); got != "" {
+		t.Fatalf("预算为 0 时提示词段必须为空，got %q", got)
+	}
+}

@@ -214,7 +214,7 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfcategory_select` | `sforum.component.shared.sfcategory_select@1` | component | `public` | — | `apps/web/app/components/forum/SFCategorySelect.vue` | P9 Component Registry |
 | `core.component.shared.sfcategory_show_page` | `sforum.component.shared.sfcategory_show_page@1` | component | `public` | — | `apps/web/app/components/forum/SFCategoryShowPage.vue` | P9 Component Registry |
 | `core.component.shared.sfcomment` | `sforum.component.shared.sfcomment@1` | component | `public` | — | `apps/web/app/components/forum/SFComment.vue` | P9 Component Registry |
-| `core.component.shared.sfcomment_citations` | `sforum.component.shared.sfcomment_citations@1` | component | `public` | — | `apps/web/app/components/forum/SFCommentCitations.vue` | P9 Component Registry |
+| `core.component.shared.sfcomment_citations` | `sforum.component.shared.sfcomment_citations@1` | component | `public` | — | `apps/web/app/components/forum/SFCommentAIActivity.vue` | P9 Component Registry |
 | `core.component.shared.sfcomment_stream_controls` | `sforum.component.shared.sfcomment_stream_controls@1` | component | `public` | — | `apps/web/app/components/forum/SFCommentStreamControls.vue` | P9 Component Registry |
 | `core.component.shared.sfcomment_stream_notice` | `sforum.component.shared.sfcomment_stream_notice@1` | component | `public` | — | `apps/web/app/components/forum/SFCommentStreamNotice.vue` | P9 Component Registry |
 | `core.component.shared.sfcomment_user_preview` | `sforum.component.shared.sfcomment_user_preview@1` | component | `public` | — | `apps/web/app/components/forum/SFCommentUserPreview.vue` | P9 Component Registry |
@@ -222,6 +222,8 @@ Manifest V3 component targets declare both `targetId` and `targetContractVersion
 | `core.component.shared.sfeditor` | `sforum.component.shared.sfeditor@1` | component | `public` | — | `apps/web/app/components/SFEditor.vue` | P9 Component Registry |
 | `core.component.shared.sfeditor_image_menu` | `sforum.component.shared.sfeditor_image_menu@1` | component | `public` | — | `apps/web/app/components/editor/SFEditorImageMenu.vue` | P9 Component Registry |
 | `core.component.shared.sfeditor_image_upload_modal` | `sforum.component.shared.sfeditor_image_upload_modal@1` | component | `public` | — | `apps/web/app/components/editor/SFEditorImageUploadModal.vue` | P9 Component Registry |
+| `core.component.shared.sfeditor_table_menu` | `sforum.component.shared.sfeditor_table_menu@1` | component | `public` | — | `apps/web/app/components/editor/SFEditorTableMenu.vue` | P9 Component Registry |
+| `core.component.shared.sfeditor_table_picker` | `sforum.component.shared.sfeditor_table_picker@1` | component | `public` | — | `apps/web/app/components/editor/SFEditorTablePicker.vue` | P9 Component Registry |
 | `core.component.shared.sfeditor_toolbar` | `sforum.component.shared.sfeditor_toolbar@1` | component | `public` | — | `apps/web/app/components/editor/SFEditorToolbar.vue` | P9 Component Registry |
 | `core.component.shared.sfemail_verification_page` | `sforum.component.shared.sfemail_verification_page@1` | component | `public` | — | `apps/web/app/components/identity/SFEmailVerificationPage.vue` | P9 Component Registry |
 | `core.component.shared.sfempty_state` | `sforum.component.shared.sfempty_state@1` | component | `public`, `admin` | — | `apps/web/app/components/SFEmptyState.vue` | P7/P9 Admin and Component Registries |

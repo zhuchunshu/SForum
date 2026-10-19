@@ -5454,6 +5454,14 @@
       "next": "Next image",
       "loadFailed": "The image could not be loaded."
     },
+    "aiActivity": {
+      "summary": "AI activity",
+      "loading": "Reading AI activity…",
+      "toolCallsTitle": "Tool calls ({count})",
+      "both": "AI activity ({tools} tool calls · {citations} sources)",
+      "failed": "Failed",
+      "latency": "{ms} ms"
+    },
     "citations": {
       "title": "Sources ({count})",
       "commentLabel": "Floor {id}",

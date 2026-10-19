@@ -1,18 +1,24 @@
 /**
- * 「依据」折叠块的展示逻辑（B4 渲染面）。
+ * 「AI 活动」折叠块的展示逻辑：依据（引用）+ 工具调用。
  *
- * 契约是冻结的（T5 定稿，OpenAPI `schemas/forum.yaml#/CommentCitation`）：
+ * 契约是冻结的（OpenAPI `schemas/forum.yaml#/CommentCitationList`）：
  *
  *   GET /api/v1/comments/{commentID}/citations
- *   → 200 {"items":[{"topicId":123,"commentId":913,"excerpt":"..."}]}
+ *   → 200 {"items":[{"topicId":123,"commentId":913,"excerpt":"..."}],
+ *          "toolCalls":[{"tool":"web-search","arguments":"{\"query\":\"…\"}",
+ *                        "latencyMs":120}]}
  *
- * 四条边界：
- * - 无分页、无 limit：写入侧已硬限 20 条（`MaxCitationsPerReply`）。
- * - 零引用 = `{"items":[]}` + 200，不是 404 —— 空数组即不渲染折叠块。
+ * 六条边界：
+ * - 无分页、无 limit：写入侧已硬限（引用 20 条、工具调用 12 条）。
+ * - 零结果 = `{"items":[]}`（`toolCalls` 整体省略）+ 200，不是 404 —— 两个分区
+ *   都为空时不渲染折叠块。
  * - 不可见与不存在都返回 404，**两者刻意不可区分**（commentID 枚举防护）。
  *   界面不得从 404 推断「没权限」，也不要给出可区分的提示。
  * - `excerpt` 是被引用楼层的**原始正文**（数据库里的 `plain_text`），
  *   **不是模型输出**。因此它按纯文本渲染，永远不解析 HTML。
+ * - `arguments` 是**模型输出**（工具入参），同样按纯文本渲染。
+ * - 服务端已经过滤掉四种「模型撞到配置」的失败结局，前端不再做二次判断；
+ *   它只负责丢掉空工具名这类畸形载荷。
  */
 
 /**
@@ -190,4 +196,104 @@ export function createCitationFetcher(): {
       }
     }
   }
+}
+
+/**
+ * ForumToolCall 是一条公开可见的工具调用，与后端 `forum.ToolCallEntry` /
+ * OpenAPI `CommentToolCall` 逐字一致。
+ *
+ * 四个字段全部 `omitempty`：服务端省略零值。**没有 `resultDigest`**——工具返回
+ * 给模型的正文片段可能包含提问者可见而读者不可见的内容，服务端刻意不投影它。
+ */
+export type ForumToolCall = {
+  tool?: string
+  arguments?: string
+  isError?: boolean
+  latencyMs?: number
+}
+
+export type VisibleToolCall = {
+  /** 展示序号，1 起。 */
+  index: number
+  /** 工具名原样（`web-search`），不做本地化：它是宿主登记表里的稳定标识。 */
+  tool: string
+  /** 参数摘要：JSON 里有 query 时取 query，否则原文首 80 字符。空串表示不展示。 */
+  argumentSummary: string
+  isError: boolean
+  latencyMs: number
+}
+
+// 参数摘要长度上限。参数本身在写入侧已截断到 1 KiB，这里只取「一眼能认出这是
+// 什么检索词」的长度——完整参数对读者没有价值，对布局是灾难。
+const TOOL_ARGUMENT_SUMMARY_MAX_RUNES = 80
+
+function positiveLatency(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  if (value <= 0) return 0
+  return Math.round(value)
+}
+
+/**
+ * toolArgumentSummary 把模型给出的工具入参压成一行可读文本。
+ *
+ * 优先取 JSON 里的 `query`：所有检索类工具都用这个键，它是读者唯一关心的部分。
+ * 解析失败或没有 `query` 时退回原文首段——**不丢信息**，也不猜结构。
+ */
+export function toolArgumentSummary(argumentsValue: unknown): string {
+  if (typeof argumentsValue !== 'string') return ''
+  const raw = argumentsValue.trim()
+  if (!raw) return ''
+  let candidate = raw
+  if (raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      const query = parsed?.query
+      if (typeof query === 'string' && query.trim()) {
+        candidate = query.trim()
+      }
+    } catch {
+      // 模型给出的参数不是合法 JSON：按原文展示，不吞掉它。
+    }
+  }
+  const runes = Array.from(candidate)
+  if (runes.length <= TOOL_ARGUMENT_SUMMARY_MAX_RUNES) return candidate
+  return `${runes.slice(0, TOOL_ARGUMENT_SUMMARY_MAX_RUNES).join('')}…`
+}
+
+/**
+ * visibleToolCalls 过滤掉畸形条目并编号。
+ *
+ * 服务端已经做过公开投影（拒绝类结局、结果片段都不在载荷里），这里只防两种
+ * 畸形：非对象条目、空工具名。一条没有名字的调用无法解释任何事，渲染它只是
+ * 一个空徽标。
+ */
+export function visibleToolCalls(calls: readonly ForumToolCall[] | undefined | null): VisibleToolCall[] {
+  if (!Array.isArray(calls) || calls.length === 0) return []
+  const visible: VisibleToolCall[] = []
+  for (const call of calls) {
+    if (!call || typeof call !== 'object') continue
+    const tool = typeof call.tool === 'string' ? call.tool.trim() : ''
+    if (!tool) continue
+    visible.push({
+      index: visible.length + 1,
+      tool,
+      argumentSummary: toolArgumentSummary(call.arguments),
+      isError: call.isError === true,
+      latencyMs: positiveLatency(call.latencyMs)
+    })
+  }
+  return visible
+}
+
+/** toolCallsVisible 是「零工具调用不渲染该分区」的单一判据。 */
+export function toolCallsVisible(calls: readonly ForumToolCall[] | undefined | null): boolean {
+  return visibleToolCalls(calls).length > 0
+}
+
+/** activityVisible 是「两个分区都为空则整块不渲染」的单一判据。 */
+export function activityVisible(
+  citations: readonly ForumCitation[] | undefined | null,
+  toolCalls: readonly ForumToolCall[] | undefined | null
+): boolean {
+  return citationsVisible(citations) || toolCallsVisible(toolCalls)
 }

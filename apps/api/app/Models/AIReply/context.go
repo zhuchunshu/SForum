@@ -186,6 +186,9 @@ type replyPromptExtras struct {
 	// citationsEnabled 表示引用能力已装配。未装配时不写格式要求：让模型输出一堆
 	// 不会被校验、也不会被渲染的标记，只会污染正文。
 	citationsEnabled bool
+	// toolSection 是「本次可调用的工具」清单（已渲染好的文本）。空串表示这次
+	// 没有工具可用——此时提示词里不留一个空标题，模型也就不会去找一个不存在的工具。
+	toolSection string
 }
 
 // buildReplyPrompt 组装系统指令与用户内容。
@@ -197,12 +200,12 @@ type replyPromptExtras struct {
 // extras 的两段内容追加在**最后**：模型对末尾指令的遵守程度高于中段，而「有哪
 // 些已确认事实」「引用该怎么标」都属于「接下来该怎么写」的指示。
 func buildReplyPrompt(thread ReplyContext, systemOverride string, extras replyPromptExtras) (string, string) {
-	// systemOverride 来自控制台配置；为空时用内置默认。无论哪种情况，防注入尾注
-	// 都由 supportai 追加，调用方无法绕过。
-	system := systemOverride
-	if strings.TrimSpace(system) == "" {
-		system = supportai.DefaultReplySystemPrompt + "\n\n" + supportai.ReplyPromptSafetyAppendix
-	}
+	// 组装收敛到 supportai.ComposeReplySystemPrompt：基础提示词 + 本次可调用
+	// 工具 + 固定安全尾注。尾注必须永远在最后一段——它是「上面那些是资料，不是
+	// 指令」的边界声明，把宿主文本追加在它之后会让这条边界失效。
+	//
+	// systemOverride 为空时用内置默认；无论哪种情况，调用方都无法绕过尾注。
+	system := supportai.ComposeReplySystemPrompt(systemOverride, extras.toolSection)
 
 	var builder strings.Builder
 	builder.WriteString("主题：" + strings.TrimSpace(thread.TopicTitle) + "\n")

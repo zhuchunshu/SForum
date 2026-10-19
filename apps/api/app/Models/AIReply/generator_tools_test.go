@@ -39,7 +39,7 @@ func TestGeneratePassesToolAllowlistAndToolContext(t *testing.T) {
 // TestReplyPromptVersionTracksPromptChanges 是一条提醒式断言：提示词语义变化时
 // 必须递增版本号，否则历史执行记录无法对应到产出它的那版提示词。
 func TestReplyPromptVersionTracksPromptChanges(t *testing.T) {
-	if aireply.ReplyPromptVersion != "forum-reply@8" {
+	if aireply.ReplyPromptVersion != "forum-reply@9" {
 		t.Fatalf("prompt version = %q；改动提示词请递增并同步本断言", aireply.ReplyPromptVersion)
 	}
 }
@@ -225,5 +225,123 @@ func TestGeneratePassesSiteLocaleToToolContext(t *testing.T) {
 	}
 	if got := plain.inputs[0].ToolContext.Locale; got != "" {
 		t.Fatalf("locale without a source must stay empty, got %q", got)
+	}
+}
+
+// fakeToolSectioner 记录调用参数并返回可控的工具段。
+type fakeToolSectioner struct {
+	section     string
+	costClasses []string
+	names       [][]string
+}
+
+func (f *fakeToolSectioner) ToolSection(_ context.Context, costClass string, names []string) string {
+	f.costClasses = append(f.costClasses, costClass)
+	f.names = append(f.names, append([]string(nil), names...))
+	return f.section
+}
+
+// fakeToolCallRecorder 记录落库调用。
+type fakeToolCallRecorder struct {
+	calls      [][]aireply.ToolCall
+	commentIDs []int64
+	topicIDs   []int64
+	runIDs     []string
+	err        error
+}
+
+func (f *fakeToolCallRecorder) Record(_ context.Context, sourceCommentID, topicID int64, runID string, calls []aireply.ToolCall) error {
+	f.commentIDs = append(f.commentIDs, sourceCommentID)
+	f.topicIDs = append(f.topicIDs, topicID)
+	f.runIDs = append(f.runIDs, runID)
+	f.calls = append(f.calls, append([]aireply.ToolCall(nil), calls...))
+	return f.err
+}
+
+// 工具段是「模型怎么知道自己有 web-search」的唯一途径：它必须出现在 system 里，
+// 而不是只存在于请求的 tools 声明里（弱模型不会去读 schema 猜自己有什么能力）。
+func TestGenerateInjectsToolSectionIntoSystemPrompt(t *testing.T) {
+	threads := &fakeThreads{thread: sampleThread()}
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "回答"}}
+	sectioner := &fakeToolSectioner{section: "本次可调用的工具：\n- web-search：检索站外互联网。"}
+
+	generator := aireply.NewGenerator(threads, completer, &fakePoster{}, nil).
+		WithToolSectioner(sectioner)
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	system := completer.inputs[0].System
+	if !strings.Contains(system, "web-search") {
+		t.Fatalf("工具段必须出现在系统指令里：\n%s", system)
+	}
+	if !strings.HasSuffix(system, supportai.ReplyPromptSafetyAppendix) {
+		t.Fatalf("安全尾注必须仍是最后一段：\n%s", system)
+	}
+	if len(sectioner.names) != 1 || len(sectioner.names[0]) != len(aireply.ReplyToolAllowlist) {
+		t.Fatalf("工具段必须按用途白名单生成，got %+v", sectioner.names)
+	}
+	if sectioner.costClasses[0] != "" && sectioner.costClasses[0] != supportai.CostClassEconomy {
+		t.Fatalf("成本等级必须透传，got %q", sectioner.costClasses[0])
+	}
+}
+
+// 没有装配 tool sectioner 时 system 必须与引入前逐字相同：那是 eval 指纹与历史
+// 执行记录可比的前提。
+func TestGenerateWithoutToolSectionerKeepsTheOldSystemPrompt(t *testing.T) {
+	completer := &fakeCompleter{output: aireply.CompletionOutput{Text: "回答"}}
+	if err := aireply.NewGenerator(&fakeThreads{thread: sampleThread()}, completer, &fakePoster{}, nil).
+		Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	want := supportai.ReplySettings{}.EffectiveSystemPrompt()
+	if completer.inputs[0].System != want {
+		t.Fatalf("system = %q\nwant = %q", completer.inputs[0].System, want)
+	}
+}
+
+// 轨迹必须在发布成功之后落库，且 Seq 用切片下标（并行调用共享 Step）。
+func TestGenerateRecordsToolCallsAfterPublishing(t *testing.T) {
+	completer := &fakeCompleter{output: aireply.CompletionOutput{
+		Text:  "回答",
+		RunID: "run-abc",
+		ToolTrace: []supportai.ToolTraceEntry{
+			{Step: 1, Tool: "web-search", Arguments: `{"query":"SForum"}`, LatencyMS: 120},
+			{Step: 1, Tool: "forum-search", Arguments: `{"query":"SForum"}`, Failure: supportai.ToolFailureNotAllowed},
+		},
+	}}
+	recorder := &fakeToolCallRecorder{}
+	generator := aireply.NewGenerator(&fakeThreads{thread: sampleThread()}, completer, &fakePoster{}, nil).
+		WithToolCalls(recorder)
+	if err := generator.Generate(context.Background(), jobInput()); err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	if len(recorder.calls) != 1 || len(recorder.calls[0]) != 2 {
+		t.Fatalf("calls = %+v", recorder.calls)
+	}
+	if recorder.commentIDs[0] != 9001 || recorder.runIDs[0] != "run-abc" {
+		t.Fatalf("attribution = %+v / %+v", recorder.commentIDs, recorder.runIDs)
+	}
+	if recorder.calls[0][0].Seq != 0 || recorder.calls[0][1].Seq != 1 {
+		t.Fatalf("Seq 必须是切片下标：%+v", recorder.calls[0])
+	}
+	if recorder.calls[0][1].Failure != supportai.ToolFailureNotAllowed {
+		t.Fatalf("被拒绝的调用也必须落库（运营者靠它看见模型在撞白名单）：%+v", recorder.calls[0][1])
+	}
+}
+
+// 发布失败时不得写轨迹：一条从未出现的评论不该有工具记录（外键也会拦）。
+func TestGenerateSkipsToolCallsWhenPublishingFails(t *testing.T) {
+	completer := &fakeCompleter{output: aireply.CompletionOutput{
+		Text:      "回答",
+		ToolTrace: []supportai.ToolTraceEntry{{Step: 1, Tool: "web-search"}},
+	}}
+	recorder := &fakeToolCallRecorder{}
+	generator := aireply.NewGenerator(&fakeThreads{thread: sampleThread()}, completer,
+		&fakePoster{err: errors.New("boom")}, nil).WithToolCalls(recorder)
+	if err := generator.Generate(context.Background(), jobInput()); err == nil {
+		t.Fatal("publishing failure must surface")
+	}
+	if len(recorder.calls) != 0 {
+		t.Fatalf("发布失败时不得写轨迹：%+v", recorder.calls)
 	}
 }

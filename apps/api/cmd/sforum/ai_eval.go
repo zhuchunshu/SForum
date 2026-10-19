@@ -292,12 +292,17 @@ type evalParameterSource struct {
 	gateway *supportai.Gateway
 }
 
+// ReplySystemPrompt 返回**基础**提示词（不含安全尾注与工具段）：组装由生成器
+// 调用 supportai.ComposeReplySystemPrompt 完成，与生产路径逐字同源。
+//
+// 这里若返回已经组装好的 EffectiveSystemPrompt()，eval 的 system 就会缺掉
+// 「本次可调用的工具」那一段——基线测的将不是生产实际发出去的东西。
 func (s evalParameterSource) ReplySystemPrompt(context.Context) (string, error) {
 	settings, err := s.gateway.Settings(context.Background())
 	if err != nil {
 		return "", err
 	}
-	return settings.Reply.EffectiveSystemPrompt(), nil
+	return settings.Reply.BaseSystemPrompt(), nil
 }
 
 func (s evalParameterSource) ReplyPurposeParameters(context.Context) (aireply.ReplyPurposeParameters, error) {
@@ -376,7 +381,9 @@ func (s *evalStack) runFixture(ctx context.Context, fixture evalFixture) (evalSn
 	completer := &recordingCompleter{
 		inner: aireply.NewGatewayCompleter(s.gateway, orchestrator).WithImages(evalImageReader{}),
 	}
-	generator := aireply.NewGenerator(reader, completer, poster, evalParameterSource{gateway: s.gateway})
+	generator := aireply.NewGenerator(reader, completer, poster, evalParameterSource{gateway: s.gateway}).
+		// 与生产同源：工具段由编排器按「本次真的会带上的工具」渲染。
+		WithToolSectioner(orchestrator)
 
 	// 评论触发时 parent 与 trigger 是同一条评论（生产里「回复机器人」就是这样）。
 	parentID := int64(0)
