@@ -835,6 +835,7 @@
 @media (min-width: 981px) {
   .sforum-topic-page__layout {
     gap: 12px;
+    align-items: start;
     background: var(--sf-public-surface);
   }
 
@@ -848,13 +849,15 @@
     scrollbar-gutter: stable;
   }
 
+  /* 左右栏与中列同一滚动所有权：三列各自定高滚动，滚轮不互相带动。 */
   .sforum-topic-page__sidebar,
   .sforum-topic-page__side {
-    position: relative;
-    top: auto;
-    height: auto;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
-    overflow: visible;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   /* 兼容已安装的旧默认主题 artifact：列线曾用 ±12px 伪元素画在中列边缘，

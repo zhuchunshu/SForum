@@ -290,8 +290,8 @@ describe('default theme V32 topic page contract', () => {
     expect(css).toContain('background: var(--sf-public-surface)')
     expect(css).toContain('overflow-wrap: anywhere')
     expect(css).toContain('.sforum-topic-page__main {\n    position: sticky;\n    top: var(--sf-public-topbar-height);\n    height: calc(100vh - var(--sf-public-topbar-height));\n    min-height: 0;\n    overflow-y: auto;')
-    expect(css).toContain('.sforum-topic-page__sidebar,\n  .sforum-topic-page__side {\n    position: relative;')
-    expect(css).toContain('height: auto;\n    min-height: 0;\n    overflow: visible;')
+    expect(css).toContain('.sforum-topic-page__sidebar,\n  .sforum-topic-page__side {\n    position: sticky;\n    top: var(--sf-public-topbar-height);\n    height: calc(100vh - var(--sf-public-topbar-height));\n    min-height: 0;\n    overflow-y: auto;')
+    expect(css).not.toContain('.sforum-topic-page__side {\n    position: relative;')
     // 列线由栏自身 1px 边框承担；旧的 ±12px 伪元素线在宿主壳路径被关闭。
     expect(css).toContain('.sforum-topic-page__sidebar::after')
     expect(css).toContain('content: none')

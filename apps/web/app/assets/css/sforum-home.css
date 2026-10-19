@@ -720,9 +720,12 @@
 @media (min-width: 981px) {
   .sforum-home__layout {
     gap: 12px;
+    align-items: start;
   }
 
   .sforum-home__main {
+    position: sticky;
+    top: var(--sf-public-topbar-height);
     height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     overflow-y: auto;
@@ -730,13 +733,15 @@
     scrollbar-gutter: stable;
   }
 
+  /* 左右栏与中列同一滚动所有权：三列各自定高滚动，滚轮不互相带动。 */
   .sforum-home__sidebar,
   .sforum-home__right {
-    position: static;
-    top: auto;
-    height: auto;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
-    overflow: visible;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   /* Host 回退页的三栏轨道由宿主壳统一拥有（sforum-theme.css 的

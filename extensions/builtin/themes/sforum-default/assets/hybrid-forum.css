@@ -536,6 +536,7 @@
     gap: 12px;
     height: auto;
     min-height: calc(100vh - var(--sf-public-topbar-height));
+    align-items: start;
     overflow: visible;
     padding: 0 18px;
     background: var(--sf-public-surface);
@@ -555,6 +556,8 @@
 
   /* 发帖/编辑主列：固定 dock 需要更大底边距 */
   .sforum-topic-composer__main {
+    position: sticky;
+    top: var(--sf-public-topbar-height);
     height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     padding-bottom: 112px;
@@ -563,6 +566,7 @@
     scrollbar-gutter: stable;
   }
 
+  /* 左右栏与中列同一滚动所有权：三列各自定高滚动，滚轮不互相带动。 */
   .sforum-home__sidebar,
   .sforum-home__right,
   .sforum-topic-page__sidebar,
@@ -573,16 +577,39 @@
   .sforum-settings__right,
   .sforum-moderation__sidebar,
   .sforum-moderation__right {
-    position: static;
-    top: auto;
-    height: auto;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
-    overflow: visible;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
+  /* 左右栏隐藏滚动条：滚动能力保留，列宽与不溢出的栏一致。 */
+  .sforum-home__sidebar,
+  .sforum-home__right,
   .sforum-topic-page__sidebar,
-  .sforum-topic-page__side {
-    position: relative;
+  .sforum-topic-page__side,
+  .sforum-notifications__sidebar,
+  .sforum-notifications__right,
+  .sforum-settings__sidebar,
+  .sforum-settings__right,
+  .sforum-moderation__sidebar,
+  .sforum-moderation__right {
+    scrollbar-width: none;
+  }
+
+  .sforum-home__sidebar::-webkit-scrollbar,
+  .sforum-home__right::-webkit-scrollbar,
+  .sforum-topic-page__sidebar::-webkit-scrollbar,
+  .sforum-topic-page__side::-webkit-scrollbar,
+  .sforum-notifications__sidebar::-webkit-scrollbar,
+  .sforum-notifications__right::-webkit-scrollbar,
+  .sforum-settings__sidebar::-webkit-scrollbar,
+  .sforum-settings__right::-webkit-scrollbar,
+  .sforum-moderation__sidebar::-webkit-scrollbar,
+  .sforum-moderation__right::-webkit-scrollbar {
+    display: none;
   }
 }
 

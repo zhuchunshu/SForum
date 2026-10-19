@@ -492,11 +492,12 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     .sforum-moderation__layout
   ) {
     box-sizing: border-box;
+    align-items: start;
     padding-left: var(--sf-public-edge-inset, 24px);
     padding-right: var(--sf-public-edge-inset, 24px);
   }
 
-  /* 中列滚动所有权：三栏壳一律由中列独立滚动并吸在顶栏下方。 */
+  /* 三栏各自独立滚动：每列都吸在顶栏下方并拥有自己的滚动条。 */
   .sf-host-public-chrome--fullwidth-3col :is(
     .sforum-home__main,
     .sforum-topic-page__main,
@@ -521,12 +522,13 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     .sforum-home__sidebar,
     .sforum-topic-page__sidebar
   ) {
-    position: static;
-    top: auto;
-    height: auto;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     padding: 24px 24px 20px 28px;
-    overflow: visible;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .sf-host-public-chrome--fullwidth-3col .sforum-home__main {
@@ -537,21 +539,52 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     .sforum-home__right,
     .sforum-topic-page__side
   ) {
-    position: static;
-    top: auto;
-    height: auto;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     padding: 34px 28px;
-    overflow: visible;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
-  .sf-host-public-chrome--fullwidth-3col :is(
+}
+
+/*
+ * 左右栏隐藏滚动条：滚动能力（滚轮 / 键盘 / 触摸）保留，
+ * 列宽与内容不溢出的栏完全一致，不出现滚动条沟槽或轨道。
+ * 中列保留可见滚动条，作为页面主滚动入口。
+ */
+@media (min-width: 981px) {
+  :is(
+    .sforum-home__sidebar,
+    .sforum-home__right,
     .sforum-topic-page__sidebar,
-    .sforum-topic-page__side
+    .sforum-topic-page__side,
+    .sforum-notifications__sidebar,
+    .sforum-notifications__right,
+    .sforum-settings__sidebar,
+    .sforum-settings__right,
+    .sforum-moderation__sidebar,
+    .sforum-moderation__right
   ) {
-    position: relative;
+    scrollbar-width: none;
   }
 
+  :is(
+    .sforum-home__sidebar,
+    .sforum-home__right,
+    .sforum-topic-page__sidebar,
+    .sforum-topic-page__side,
+    .sforum-notifications__sidebar,
+    .sforum-notifications__right,
+    .sforum-settings__sidebar,
+    .sforum-settings__right,
+    .sforum-moderation__sidebar,
+    .sforum-moderation__right
+  )::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @media (max-width: 980px) {
@@ -791,7 +824,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
 }
 
 @media (min-width: 981px) {
-  /* 兼容已安装的旧默认主题 artifact：中栏独立滚动，长侧栏参与页面滚动。 */
+  /* 兼容已安装的旧默认主题 artifact：三栏各自独立滚动，页面本身不再滚动。 */
   .sf-theme-template[data-extension-id="sforum.default-theme"]
     .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col {
     display: flex;
@@ -841,6 +874,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     ) {
     height: auto;
     min-height: calc(100vh - var(--sf-public-topbar-height));
+    align-items: start;
     overflow: visible;
   }
 
@@ -866,6 +900,8 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
   .sf-theme-template[data-extension-id="sforum.default-theme"]
     .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col
     .sforum-topic-composer__main {
+    position: sticky;
+    top: var(--sf-public-topbar-height);
     height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
     padding-bottom: 112px;
@@ -874,6 +910,7 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
     scrollbar-gutter: stable;
   }
 
+  /* 左右栏与中列同一滚动所有权：三列各自定高、各自滚动，滚轮不互相带动。 */
   .sf-theme-template[data-extension-id="sforum.default-theme"]
     .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col :is(
       .sforum-home__sidebar,
@@ -887,19 +924,12 @@ body[data-sforum-error="404"] > nuxt-error-overlay.pip-hidden {
       .sforum-moderation__sidebar,
       .sforum-moderation__right
     ) {
-    position: static;
-    top: auto;
-    height: auto;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
-    overflow: visible;
-  }
-
-  .sf-theme-template[data-extension-id="sforum.default-theme"]
-    .sf-page.sf-theme--default.sf-theme-shell--fullwidth-3col :is(
-      .sforum-topic-page__sidebar,
-      .sforum-topic-page__side
-    ) {
-    position: relative;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   /*

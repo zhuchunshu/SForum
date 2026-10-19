@@ -280,6 +280,10 @@
 }
 
 @media (min-width: 981px) {
+  .sforum-settings__layout {
+    align-items: start;
+  }
+
   .sforum-settings__main {
     position: sticky;
     top: var(--sf-public-topbar-height);
@@ -290,22 +294,20 @@
     scrollbar-gutter: stable;
   }
 
+  /* 左右栏与中列同一滚动所有权：三列各自定高滚动，滚轮不互相带动。 */
   .sforum-settings__sidebar,
   .sforum-settings__right {
-    position: static;
-    top: auto;
-    height: auto;
+    position: sticky;
+    top: var(--sf-public-topbar-height);
+    height: calc(100vh - var(--sf-public-topbar-height));
     min-height: 0;
-    overflow: visible;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .sforum-settings__sidebar .sf-home-navigation,
   .sforum-settings__sidebar .sf-home-navigation__desktop {
     min-height: 100%;
-    overflow: visible;
-  }
-
-  .sforum-settings__right {
     overflow: visible;
   }
 }

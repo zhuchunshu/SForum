@@ -593,8 +593,11 @@ Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md`
 - `SFHostPublicChrome` preserves the selected theme's public shell geometry
   during a Core page fallback. Its `fullwidth-3col` contract uses the same
   topbar grid, 24 px viewport inset, 230 px left rail, 270 px right rail,
-  column padding, sticky center-column scroll ownership, and document-scrolling
-  side rails as the default theme.
+  column padding, and per-column sticky scroll ownership as the default theme:
+  left, center, and right columns each own `overflow-y: auto` at viewport height
+  minus the topbar, with `overscroll-behavior: contain`, so scrolling one rail
+  never moves another. Pages that keep their footer inside the center column
+  leave the document itself non-scrollable.
   Runtime fallback may change ownership/content, not page geometry.
 - Page-level 3col CSS must not hard-code horizontal insets. `sforum-theme.css`
   owns `--sf-public-edge-inset` for home/topic/notifications/settings/moderation
