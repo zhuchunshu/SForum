@@ -315,7 +315,28 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- **AI 观测层与能力层（2026-10-19，最新）**：让 AI 工具循环对运营者第一次可见，并在这个基础上扩容能力。A 批：`ToolTraceEntry`（参数脱敏 + 结果摘要 + 五种失败结局，工具明细只进日志不进 `ai_executions`）、run 级关联 id（`RunResult.RunID` 复合字面量一次写入，7 处 `g.record` 全透传，迁移 001）、`GET /admin/ai/runs/:runId` 回放（服务层判 `ai.manage`，缓存命中单条记录必须标注）、`CompletionOutput` 四项透出 + 结构化 `tool_trace` 日志。G：`sforum ai:eval` 基线门禁（10 条 fixture、真实装配、只跑不发布、`--diff`/`--only`、成本保护；两条纪律：`TriggerUserID=0` 防配额自噬、带 `error` 的快照必须补跑）。B 批：预算默认步数 3→5、三个新只读工具（`forum-comment-thread` / `forum-attachment-read` / `ai-self-history`，提示词版本 `forum-reply@8`）、两条派生用途 （`forum.digest`/`forum.tour`，落新表 `ai_derived_artifacts`，只 CLI 手动触发）、证据链（`[[cite:]]` 解析隔离 + 逐条校验 + 发布后落 `ai_citations` + 公开读端点）、会话状态（`ai_topic_state`，三重失效 + 四条防丢失）。验证：L1/L2/L4/L5 绿、L3 仍为 9 条既有告警、L6/L7 有运行时与浏览器证据。详见 `sessions/2026-10-19-ai-observability-and-capabilities.md`、`plans/archive/2026-10/2026-10-19-ai-observability-and-capabilities.md`（含 D1–D24 偏离登记）、`modules/ai.md`。
+- **错误页 i18n 崩溃修复（2026-10-19，最新）**：`error.vue` 报
+  `Need to install with 'app.use' function` 是二次故障而非根因——`@nuxtjs/i18n`
+  把 `vueApp.use(i18n)` 放在插件 setup 最后一步，提前失败就会留下"没有 i18n 的
+  app"，而错误页与 `app/components/errors/` 下 8 个组件全部无条件依赖
+  `useI18n()`，于是错误页自身崩溃并掩盖原始错误。触发环境是 dev server 运行中
+  被 `bun install` 换掉了 `node_modules`（`.pnpm` 与 `.bun` 双树并存）。修法：
+  新增 `useErrorPageShell()` 双条件就绪判定（`$i18n` + `$localeHead`）＋零依赖
+  兜底页 `SFSystemErrorBootstrapFallback`，主题错误页与 SEO/head 全部纳入
+  `i18nReady` 门控；同时删除误提交的 `apps/web/pnpm-lock.yaml` /
+  `pnpm-workspace.yaml`。详见
+  `sessions/2026-10-19-error-page-i18n-resilience.md`、
+  `decisions/2026-10-19-error-page-must-not-depend-on-plugins.md`。
+- **Code Scanning #43/#44 修复（2026-10-19）**：两条 open 告警同属
+  `js/incomplete-multi-character-sanitization`，都由提交 `1da2b5da0` 引入——同一提交
+  用「剥离到不动点」修好了 #41、抽出 h1 标题函数修好了 #42，却把单次正则写法留在了
+  抽出的新函数（#43）和测试辅助函数（#44）里。修法：#43 改成逐字符线性扫描
+  （`stripMarkupToText`，任意中间值不含标签边界、无 O(n²) 迭代面）；#44 抽成
+  `tests/helpers/sourceText.ts` 的 `stripHtmlComments`，迭代到不动点且**用空格替换**
+  （空串删除会拼出 `v-`+`html` 这类被断言禁止的 token）。验证：web 1331 用例全绿、
+  typecheck 0 错、架构门禁通过、40006 例随机/对抗输入零尖括号泄漏。详见
+  `sessions/2026-10-19-code-scanning-43-44-remediation.md`。
+- **AI 观测层与能力层（2026-10-19）**：让 AI 工具循环对运营者第一次可见，并在这个基础上扩容能力。A 批：`ToolTraceEntry`（参数脱敏 + 结果摘要 + 五种失败结局，工具明细只进日志不进 `ai_executions`）、run 级关联 id（`RunResult.RunID` 复合字面量一次写入，7 处 `g.record` 全透传，迁移 001）、`GET /admin/ai/runs/:runId` 回放（服务层判 `ai.manage`，缓存命中单条记录必须标注）、`CompletionOutput` 四项透出 + 结构化 `tool_trace` 日志。G：`sforum ai:eval` 基线门禁（10 条 fixture、真实装配、只跑不发布、`--diff`/`--only`、成本保护；两条纪律：`TriggerUserID=0` 防配额自噬、带 `error` 的快照必须补跑）。B 批：预算默认步数 3→5、三个新只读工具（`forum-comment-thread` / `forum-attachment-read` / `ai-self-history`，提示词版本 `forum-reply@8`）、两条派生用途 （`forum.digest`/`forum.tour`，落新表 `ai_derived_artifacts`，只 CLI 手动触发）、证据链（`[[cite:]]` 解析隔离 + 逐条校验 + 发布后落 `ai_citations` + 公开读端点）、会话状态（`ai_topic_state`，三重失效 + 四条防丢失）。验证：L1/L2/L4/L5 绿、L3 仍为 9 条既有告警、L6/L7 有运行时与浏览器证据。详见 `sessions/2026-10-19-ai-observability-and-capabilities.md`、`plans/archive/2026-10/2026-10-19-ai-observability-and-capabilities.md`（含 D1–D24 偏离登记）、`modules/ai.md`。
 - **扩展设置保存提速（2026-10-19）**：保存设置不是纯写库（实测 `put_ms=5`），耗时全在「重启插件」；80% 以上的 CPU 花在对同一份不可变扩展包反复做整树 SHA-256。根因是 `bootstrap` 里每 5 秒一轮的 `GuardPolicyCatalog.RunRefresh`（16 个 uploaded 扩展 × 2 次可信身份 = 约 32 次整树哈希 / 5 秒，独占 27.39 s / 40 s 窗口）。修复为包校验指纹记忆化（`app/Support/ExtensionPackage/verification_cache.go`，只读元数据、共用同一文件集合、TTL 5 分钟、dev 构建显式失效）＋同一 gate 内共享 `ArtifactLoader` 消除重复 registry 校验。实测单次保存 **24.5–39 s → ≈3.0 s**，后台循环 **27.39 s → 0.18 s**。详见 `sessions/2026-10-19-extension-settings-save-latency.md`、`decisions/2026-10-19-package-verification-memoization.md`。
 - **控制台 AI 保存 422 与上限放宽（2026-10-19）**：定位到六条触发路径（`v-model.number` 清空产生空串、闸门/预算无上界、供应商「非空但不合法」、自动裁决空动作、数值入口分散、错误不可诊断）。修复方向是「前端永不产出非法形状 + 服务端说清哪个字段」：新增 `Settings.Issues()` 与字段级 422（`ai.settings_malformed` / `ai.settings_invalid` + `data.fields`），控制台改走 `coerceInteger`/`profileIssue` 并在保存前拦截；同时把 `Support/AI` 天花板按模型能力重定标（输出 128k、输入总预算 12 MiB、工具步数 12、月度预算 1000 万元，默认值不变），经 `limits` 下发前端；同步 SDK 镜像常量、gRPC 16 MiB 与插件 `GOMEMLIMIT` 96 MiB。详见 `sessions/2026-10-19-admin-ai-save-422-and-limits.md`、`decisions/2026-10-19-ai-context-and-budget-ceilings.md`。
 - **dev 制品自愈 + lifecycle 终态一致（2026-10-19）**：stage 幂等改为「记录路径 == 本次 DigestTree 校验过的快照根」，`ensureExtensionVersion` 冲突时只修 `package_path`，删目录/换根不再永久 missing；dev auto 在自动恢复前先判冻结制品可装载，并按摘要 + attempt 上限（3）放弃，不再把 operation 推到 attempt=98；lifecycle 汇总新增 `closed`（`completed_at` 唯一判据），CLI already-closed 报错带 `state/terminal/completedAt`。详见 `sessions/2026-10-19-dev-artifact-self-heal.md`。
