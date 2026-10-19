@@ -210,21 +210,37 @@ html.dark {
   line-height: 1.75;
 }
 
-/* GFM 表格：细线 + 斑马纹，窄屏横向滚动避免撑破版心 */
+/*
+ * GFM 表格：撑满版心 + 细线 + 斑马纹。
+ * 不要给 table 设 display: block / overflow-x: auto —— 表格会退化成块盒，内部
+ * 匿名表格按 shrink-to-fit 收缩，列宽塌到 min-content，正文里的表格就缩成一条。
+ * 窄屏靠单元格换行（overflow-wrap: anywhere）消化宽度，而不是横向滚动。
+ * 72px 列最小宽度与撰写区同值，短内容表格因此和编辑器一样均分列宽。
+ */
 .sf-prose :where(table) {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
-  display: block;
-  overflow-x: auto;
   font-size: 0.92em;
   margin: 1.4em 0;
 }
 .sf-prose :where(th),
 .sf-prose :where(td) {
+  min-width: 72px;
   border: 1px solid var(--border-default);
   padding: 0.55em 0.8em;
   text-align: left;
-  white-space: nowrap;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* 窄屏放不下 72px 列最小宽度（最多 8 列），交给换行消化，避免顶出版心。 */
+@media (max-width: 640px) {
+  .sf-prose :where(th),
+  .sf-prose :where(td) {
+    min-width: 0;
+  }
 }
 .sf-prose :where(th) {
   background: color-mix(in srgb, var(--text-main) 4%, transparent);

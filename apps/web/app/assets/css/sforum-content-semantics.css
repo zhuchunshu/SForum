@@ -195,8 +195,11 @@
  * 服务端 bluemonday 都会剥掉内联 style，align 属性才能穿过两端净化。
  *
  * 刻意不在这里给 .sf-prose 加规则：正式正文的表格排版由 main.css 拥有，重复定义
- * 只会让两处漂移。预览区复刻 main.css 的取值（nowrap + 横向滚动 + 斑马纹），
- * 撰写区改用换行 + 最小列宽，因为编辑时需要看到完整单元格内容。
+ * 只会让两处漂移。预览区复刻 main.css 的取值（100% 宽度 + 72px 列最小宽度 +
+ * 单元格换行 + 斑马纹），撰写区同样换行 + 最小列宽，因为编辑时需要看到完整单元格。
+ *
+ * 两端都不要给 table 设 display: block：那会把表格降级成块盒，内部匿名表格退化为
+ * shrink-to-fit，列宽塌到 min-content，表格会缩成一小条。
  */
 .sf-editor__content table,
 .sf-editor__preview table {
@@ -205,17 +208,22 @@
   font-size: 0.92em;
 }
 
-.sf-editor__preview table {
-  display: block;
-  overflow-x: auto;
-}
-
 .sf-editor__preview th,
 .sf-editor__preview td {
+  min-width: 72px;
   padding: 0.55em 0.8em;
   border: 1px solid var(--border-default);
   text-align: left;
-  white-space: nowrap;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .sf-editor__preview th,
+  .sf-editor__preview td {
+    min-width: 0;
+  }
 }
 
 .sf-editor__preview th {
