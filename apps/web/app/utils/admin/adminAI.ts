@@ -13,6 +13,7 @@ export type AIComparableSettings = {
   reply?: { systemPrompt?: string, triggerMode?: string }
   gates?: { toolCallsPerReply?: number | null }
   purposes?: Record<string, AIPurposeOverride>
+  toolDisplayDescriptions?: Record<string, Record<string, string>>
 }
 
 // AIPurposeOverride 是某个用途的站点覆盖形状。两个字段都可省：缺省即沿用该用途
@@ -213,6 +214,14 @@ export function normalizedAISettingsForComparison<T extends AIComparableSettings
   } else {
     delete copy.purposes
   }
+  // 工具说明覆盖同理：服务端归一化会去空白、丢空值、丢弃空条目，整份为空时省略
+  // 字段。不在这里对齐，改一条说明不算脏、清空一条却一直显示脏。
+  const displayDescriptions = pruneToolDisplayDescriptions(copy.toolDisplayDescriptions)
+  if (displayDescriptions) {
+    copy.toolDisplayDescriptions = displayDescriptions
+  } else {
+    delete copy.toolDisplayDescriptions
+  }
   // identity 是历史字段（早期版本用它配置是否把供应商与模型标识注入 system），
   // 网关不再注入，服务端也不再接受它。旧后端回传或旧草稿里残留的值一律剥掉，
   // 否则一个已经不存在的开关会继续让面板显示「有未保存的改动」。
@@ -338,4 +347,33 @@ export function profileIssue(profile: AIProfileDraftLike | null | undefined): AI
   const model = (profile.model ?? '').trim()
   if (!model || utf8ByteLength(model) > MAX_PROFILE_MODEL_BYTES) return 'model'
   return null
+}
+
+/**
+ * pruneToolDisplayDescriptions 把工具说明覆盖整理成服务端归一化后的同形：去空白、
+ * 丢空值、丢空条目，整份为空时返回 undefined。
+ *
+ * 它同时服务两件事：提交前清理，以及脏判定。少了任何一条，界面就会出现「改一条
+ * 说明不算脏」或「清空一条之后永远脏」这类假象。
+ */
+export function pruneToolDisplayDescriptions(
+  overrides: Record<string, Record<string, string>> | undefined
+): Record<string, Record<string, string>> | undefined {
+  if (!overrides) return undefined
+  const kept: Record<string, Record<string, string>> = {}
+  for (const [rawName, locales] of Object.entries(overrides)) {
+    const name = typeof rawName === 'string' ? rawName.trim() : ''
+    if (!name || !locales || typeof locales !== 'object') continue
+    const texts: Record<string, string> = {}
+    for (const [rawLocale, rawText] of Object.entries(locales)) {
+      const locale = typeof rawLocale === 'string' ? rawLocale.trim() : ''
+      const text = typeof rawText === 'string' ? rawText.trim() : ''
+      if (!locale || !text) continue
+      texts[locale] = text
+    }
+    if (Object.keys(texts).length > 0) {
+      kept[name] = texts
+    }
+  }
+  return Object.keys(kept).length > 0 ? kept : undefined
 }

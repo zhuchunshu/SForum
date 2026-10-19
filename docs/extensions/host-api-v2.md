@@ -475,6 +475,7 @@ middle of one completion.
       "contractVersion": "vendor.plugin.order_lookup@1",
       "name": "vendor-order-lookup",
       "description": "Look up an order by its public number.",
+      "descriptionI18n": { "zh-CN": "按公开订单号查询一条订单。" },
       "parameters": { "type": "object", "properties": { "orderNumber": { "type": "string" } }, "required": ["orderNumber"] },
       "handler": "vendor.plugin.order_lookup",
       "timeoutMs": 1000,
@@ -492,6 +493,13 @@ Declaration rules (manifest validation rejects anything else):
   unique inside the plugin. `id` is the stable dispatch identity and must be a
   versioned id in the plugin's own namespace, with
   `contractVersion == id + "@1"`.
+- `description` is the only text the model reads, and it is rendered into the
+  system prompt byte-for-byte. `descriptionI18n` is optional and console-only:
+  a locale map (at most 8 locales, 1024 bytes per value) the AI console shows to
+  operators. It never enters a model request, the result cache key, or the
+  prompt version, so translating it cannot change what the model is told. Keys
+  must already be canonical locale tags (`en-US`, `zh-CN`, `es-419`); `en-us` is
+  rejected rather than rewritten.
 - `handler` must also be owned by the plugin: a plugin cannot register another
   plugin's handler.
 - `parameters` is a JSON Schema object, at most 8192 bytes. The Host validates
@@ -550,23 +558,29 @@ site" — but the model only sees what the running purpose allows. Purposes carr
 their own allowlist (`RunInput.ToolNames`), and plugin tools never shadow a Core
 tool name.
 
-For the reply purpose that allowlist is the site's AI settings document
-(`reply.tools.allowed`): leaving it unset keeps the purpose's declared Core list,
-and listing names — Core or plugin — makes exactly those visible. A plugin tool
+For the reply purpose that allowlist lives in the site's AI settings document
+under `purposes["forum.reply"].tools.allowed`: leaving it unset keeps the
+purpose's declared Core list, and listing names — Core or plugin — makes exactly
+those visible. The legacy `reply.tools.allowed` field is still accepted and is
+normalized into the same entry; new configurations should use the purpose map. A plugin tool
 therefore never becomes reachable just by installing the plugin; an operator has
 to name it. Names that are not registered at request time are skipped, so a
-configuration may be written before the plugin is installed. Tool registration
-happens during API assembly, so enabling or disabling a plugin takes effect for
-the AI tool list after an API restart.
+configuration may be written before the plugin is installed. The tool registry is
+rebuilt whenever the Host applies a new plugin runtime set, so enabling or
+disabling a plugin changes this catalog without an API restart; the
+assembly-time registration only covers the window before the first apply.
 
 The console does not make operators guess those names. `GET /admin/ai/settings`
 returns `availableTools[]` — every registered tool with its `name`,
-`description` and `origin` (`kind: core | plugin`, plus `extensionId` and
-`version` for plugin tools). It is a global fact, deliberately separate from any
-purpose's allowlist: the catalog answers "what exists here", the allowlist
-answers "what this purpose may use". Disabled plugins are not registered at all,
-so their tools disappear from the catalog instead of lingering as entries that
-fail on every call.
+`description` (the model-visible text), optional `descriptionI18n`
+(console-only copies), `origin` (`kind: core | plugin`, plus `extensionId` and
+`version` for plugin tools), the declared `timeoutMs` for plugin tools, and a
+bounded `parameters` summary (top-level names and required entries, not the
+whole schema). It is a global fact, deliberately separate from any purpose's
+allowlist: the catalog answers "what exists here", the allowlist answers "what
+this purpose may use". Disabled plugins are not registered at all, so their
+tools disappear from the catalog instead of lingering as entries that fail on
+every call.
 
 ### Event publish command
 

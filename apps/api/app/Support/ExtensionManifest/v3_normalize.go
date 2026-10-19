@@ -35,6 +35,7 @@ func normalizeV3Manifest(manifest *Manifest) {
 		item.ContractVersion = strings.TrimSpace(item.ContractVersion)
 		item.Name = strings.TrimSpace(item.Name)
 		item.Description = strings.TrimSpace(item.Description)
+		item.DescriptionI18n = normalizeAIToolDescriptionI18n(item.DescriptionI18n)
 		item.Handler = strings.TrimSpace(item.Handler)
 	}
 	for index := range manifest.Routes {

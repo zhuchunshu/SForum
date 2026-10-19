@@ -28,9 +28,24 @@ type ToolOrigin struct {
 // ToolAvailability 是「站内有哪些 AI 工具」的可枚举条目。它比 ToolDefinition
 // 多一个来源：模型只需要名字与描述，运营者还需要知道谁提供的。
 type ToolAvailability struct {
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Origin      ToolOrigin `json:"origin"`
+	Name string `json:"name"`
+	// Description 是模型收到的那份说明，必须与 ToolDefinition.Description 逐字节
+	// 相同：它会被 RenderToolSection 渲染进 system，因此任何展示用文案都不能写
+	// 进这里。
+	Description string `json:"description"`
+	// DescriptionI18n 是仅控制台展示的本地化说明（例如 en-US），来自插件清单
+	// 或 Core 内置声明。它不进出站请求、不进缓存键、不参与提示词版本，因此新增
+	// 或修改它不会改变任何一次模型调用。
+	DescriptionI18n map[string]string `json:"descriptionI18n,omitempty"`
+	Origin          ToolOrigin        `json:"origin"`
+	// TimeoutMS 是插件声明的单次调用超时上限；Core 内置工具没有这一层声明，为 0。
+	TimeoutMS int `json:"timeoutMs,omitempty"`
+	// SettingsPath 是插件管理设置页的站内路径（不含 /control-panel 前缀）。
+	// 只有声明了设置页的插件工具才有值；Core 内置工具为空。
+	SettingsPath string `json:"settingsPath,omitempty"`
+	// Parameters 是参数摘要，不是完整 JSON Schema：完整 schema 单个可达 8 KiB，
+	// 整份下发会把每次控制台加载撑大。
+	Parameters *ToolParameterSummary `json:"parameters,omitempty"`
 }
 
 // ToolCatalog 是登记表的只读枚举面。服务层与控制器只依赖它，因此不需要知道
@@ -154,6 +169,10 @@ func (r *ToolRegistry) Descriptors(names []string) []ToolDefinition {
 // 它只回答「站内有哪些工具」，不回答「模型能不能用」：可见性由用途白名单决定
 // （RunInput.ToolNames）。两者刻意分开——否则运营者在控制台看到的清单会随着
 // 每个用途的覆盖配置变化，而「站内有哪些工具」本该是一个全局事实。
+//
+// 四项可选元数据（来源、展示文案、超时、参数摘要）都用类型断言按需读取：没有
+// 实现某个接口的工具仍然是一个合法工具，只是控制台少显示几行。Description 保持
+// 原样，它是模型收到的那一份，任何展示文案都不得覆盖它。
 func (r *ToolRegistry) Available() []ToolAvailability {
 	if r == nil {
 		return nil
@@ -174,11 +193,23 @@ func (r *ToolRegistry) Available() []ToolAvailability {
 				origin = declared
 			}
 		}
-		out = append(out, ToolAvailability{
+		entry := ToolAvailability{
 			Name:        definition.Name,
 			Description: definition.Description,
 			Origin:      origin,
-		})
+			Parameters:  summarizeToolParameters(definition.Parameters),
+		}
+		// 展示文案必须拷贝：交出去的是调用方的副本，改它不会污染下一次枚举。
+		if provider, ok := tool.(ToolDisplayDescriptionProvider); ok {
+			entry.DescriptionI18n = copyStringMap(provider.DisplayDescriptions())
+		}
+		if provider, ok := tool.(ToolTimeoutProvider); ok {
+			entry.TimeoutMS = provider.TimeoutMS()
+		}
+		if provider, ok := tool.(ToolSettingsPathProvider); ok {
+			entry.SettingsPath = strings.TrimSpace(provider.SettingsPath())
+		}
+		out = append(out, entry)
 	}
 	return out
 }

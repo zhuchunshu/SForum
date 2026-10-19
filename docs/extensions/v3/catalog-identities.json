@@ -2448,6 +2448,16 @@
       "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIPurposesTab.vue"
     },
     {
+      "id": "core.component.admin.sf_admin_ai_tools_tab",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_tools_tab@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIToolsTab.vue"
+    },
+    {
       "id": "core.component.admin.sf_admin_site_client_tab",
       "contractVersion": "sforum.component.admin.sf_admin_site_client_tab@1",
       "kind": "component",

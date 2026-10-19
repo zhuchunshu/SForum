@@ -133,6 +133,11 @@ func (v *v3Validator) validateAITools() error {
 		if err := ValidateAIToolContext(declaration.Context); err != nil {
 			return err
 		}
+		// rule #14：rule #13 已由 ValidateAIToolContext 占用（2026-10-19 的会话事实
+		// 声明），新增规则追加在末尾，不重编号既有规则。
+		if err := validateAIToolDescriptionI18n(declaration.DescriptionI18n); err != nil {
+			return err
+		}
 	}
 	return nil
 }

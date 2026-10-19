@@ -119,7 +119,7 @@ describe('admin AI purposes console surface', () => {
 
   test('registers the tab in the page shell and the query deep link', () => {
     expect(pageShell).toContain('SFAdminAIPurposesTab')
-    expect(pageShell).toContain("'providers', 'replyPrompt', 'purposes', 'diagnose', 'observability'")
+    expect(pageShell).toContain("'providers', 'replyPrompt', 'purposes', 'tools', 'diagnose', 'observability'")
     expect(pageShell).toContain('purposes: SFAdminAIPurposesTab')
   })
 

@@ -186,6 +186,25 @@ AISettings:
         list) takes over the model-visible tool allowlist for that purpose.
       additionalProperties:
         "$ref": "#/AIPurposeSettings"
+    toolDisplayDescriptions:
+      type: object
+      description: |
+        Console-only display text overrides, keyed by tool name then locale
+        (for example `{"forum-search":{"en-US":"Search posts"}}`). It never
+        reaches the model: the model always reads the tool's `description`, which
+        is what gets rendered into the system prompt. Operators use this to give
+        a third-party tool an English label without editing the plugin manifest;
+        precedence is operator override, then manifest `descriptionI18n`, then
+        nothing.
+
+        Normalized on save: keys and values are trimmed, blank values are
+        dropped, a tool whose every locale is blank disappears, and an entirely
+        empty document is stored as absent. At most 64 tools, 8 locales per tool,
+        1024 bytes per value.
+      additionalProperties:
+        type: object
+        additionalProperties:
+          type: string
     reply:
       "$ref": "#/AIReplySettings"
     autoAction:
@@ -196,8 +215,6 @@ AISettings:
       "$ref": "#/AIRedactionSettings"
     multimodal:
       "$ref": "#/AIMultimodalSettings"
-    reply:
-      "$ref": "#/AIReplySettings"
     revision:
       type: integer
       format: int64
@@ -238,6 +255,17 @@ AISettingsUpdateRequest:
       type: object
       additionalProperties:
         "$ref": "#/AIPurposeSettings"
+    toolDisplayDescriptions:
+      type: object
+      description: |
+        Console-only display text overrides (tool name -> locale -> text), same
+        shape and limits as `AISettings.toolDisplayDescriptions`. It is part of
+        the whole-document PUT: a client that omits the field while saving any
+        other setting clears the stored overrides.
+      additionalProperties:
+        type: object
+        additionalProperties:
+          type: string
     autoAction:
       "$ref": "#/AIAutoActionSettings"
     gates:
@@ -337,6 +365,54 @@ AIAvailableTool:
       description: The name the model sees; this is what an allowlist entry must match.
     description:
       type: string
+      description: |
+        Model-visible tool description. This is the text rendered into the system
+        prompt and the only thing the model reads when deciding whether to call
+        the tool; console display text lives in `descriptionI18n` and must never
+        be mistaken for it.
+    descriptionI18n:
+      type: object
+      description: |
+        Console-only localized labels (locale -> text) contributed by the plugin
+        manifest (`aiTools[].descriptionI18n`). It is never sent to the model and
+        never changes the prompt or the cache key. An operator override, if any,
+        is stored in `AISettings.toolDisplayDescriptions`.
+      additionalProperties:
+        type: string
+    timeoutMs:
+      type: integer
+      description: |
+        Per-call timeout the plugin declared for this tool, in milliseconds.
+        Absent for Core built-in tools, which run in-process and have no such
+        declaration.
+    settingsPath:
+      type: string
+      description: |
+        Admin settings page of the plugin that contributes this tool, without the
+        `/control-panel` prefix (for example
+        `/extensions/sforum.fetch-url/pages/settings`). Present only when the
+        extension really declares a settings page, so the console never links to
+        a missing route. Absent for Core built-in tools.
+    parameters:
+      type: object
+      description: |
+        Display summary of the tool's parameter schema, not the full JSON Schema
+        (a single schema may reach 8 KiB). Absent when the schema has no top-level
+        `properties`.
+      properties:
+        names:
+          type: array
+          description: Sorted top-level property names, at most 24 entries.
+          items:
+            type: string
+        required:
+          type: array
+          description: Sorted required names that also appear in `names`.
+          items:
+            type: string
+        truncated:
+          type: boolean
+          description: True when the schema declares more properties than `names` lists.
     origin:
       type: object
       required:

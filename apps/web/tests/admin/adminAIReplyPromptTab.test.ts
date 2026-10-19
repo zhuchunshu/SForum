@@ -31,7 +31,7 @@ describe('admin AI reply prompt tab', () => {
   test('registers the tab in the page shell', () => {
     expect(pageShell).toContain('SFAdminAIReplyPromptTab')
     // 用途页签插在回复提示词与连通性测试之间（见 adminAIPurposes.test.ts）。
-    expect(pageShell).toContain("'providers', 'replyPrompt', 'purposes', 'diagnose', 'observability'")
+    expect(pageShell).toContain("'providers', 'replyPrompt', 'purposes', 'tools', 'diagnose', 'observability'")
     expect(pageShell).toContain('replyPrompt: SFAdminAIReplyPromptTab')
   })
 

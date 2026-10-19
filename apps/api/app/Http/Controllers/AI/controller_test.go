@@ -204,3 +204,54 @@ func TestDecodeSettingsRequestAcceptsRecommendedDocument(t *testing.T) {
 		t.Fatalf("decoded document must validate: %v", err)
 	}
 }
+
+// toolDisplayDescriptions 是整份文档 PUT 的一部分。DTO 漏字段会重演 reply 的事故：
+// 运营者保存任何其它设置时，写过的界面译文被静默抹掉，而界面看起来一切正常。
+// 这条断言把「提交 → 组装 → 落库形状 → 再读回」整条链钉住。
+func TestUpdateSettingsRequestKeepsToolDisplayDescriptions(t *testing.T) {
+	base := supportai.RecommendedSettings().Normalized()
+	request := updateSettingsRequest{
+		Enabled:               base.Enabled,
+		Profiles:              base.Profiles,
+		CostClassProfiles:     base.CostClassProfiles,
+		PurposeFailurePosture: base.PurposeFailurePosture,
+		Purposes:              base.Purposes,
+		AutoAction:            base.AutoAction,
+		Gates:                 base.Gates,
+		Redaction:             base.Redaction,
+		Multimodal:            base.Multimodal,
+		ToolDisplayDescriptions: map[string]map[string]string{
+			"forum-search":         {"en-US": "Search posts and topics", "zh-CN": "搜索帖子与主题"},
+			" vendor-plugin-tool ": {" en-US ": "  Vendor search  "},
+		},
+	}
+	assembled := settingsFromRequest(request)
+	if err := assembled.Validate(); err != nil {
+		t.Fatalf("well-formed display descriptions must stay savable: %v", err)
+	}
+
+	raw, err := json.Marshal(assembled)
+	if err != nil {
+		t.Fatalf("marshal settings: %v", err)
+	}
+	var stored supportai.Settings
+	if err := json.Unmarshal(raw, &stored); err != nil {
+		t.Fatalf("unmarshal settings: %v", err)
+	}
+	if len(stored.ToolDisplayDescriptions) != 2 {
+		t.Fatalf("display descriptions lost in round trip: %#v", stored.ToolDisplayDescriptions)
+	}
+	if stored.ToolDisplayDescriptions["forum-search"]["zh-CN"] != "搜索帖子与主题" {
+		t.Fatalf("zh-CN text lost: %#v", stored.ToolDisplayDescriptions["forum-search"])
+	}
+	// 键与值在组装时已被归一：落库的形状必须是干净的，控制台不必再清洗一遍。
+	if stored.ToolDisplayDescriptions["vendor-plugin-tool"]["en-US"] != "Vendor search" {
+		t.Fatalf("trimmed plugin text lost: %#v", stored.ToolDisplayDescriptions)
+	}
+
+	// 形状校验必须走同一条保存路径：非法工具名在保存时就该被拒，而不是存进去。
+	request.ToolDisplayDescriptions = map[string]map[string]string{"Vendor Tool": {"en-US": "text"}}
+	if err := settingsFromRequest(request).Validate(); err == nil {
+		t.Fatal("an invalid tool name must be rejected before saving")
+	}
+}

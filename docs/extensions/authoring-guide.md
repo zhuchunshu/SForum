@@ -1056,13 +1056,15 @@ implementation.
 12. **AI tools** — declare tool contributions in `aiTools[]` with a namespaced
     `id`/`handler`, a versioned `contractVersion` matching `id@1`, a model-safe
     `name` (`[a-z0-9_-]`, no dot), a JSON-Schema `parameters` object, and an
-    explicit `timeoutMs`. Answer them through the reserved `sforum.ai.tool`
-    slot; the declared timeout is the only runtime freedom. Contributing a tool
-    needs no `ai.invoke` — the purpose that runs the loop pays — and a declared
-    tool is not automatically visible to the model. Declare `context`
-    (`locale`/`topic`/`viewer`) when the tool needs conversation facts:
-    omitting it means `["locale"]`, and `viewer` is an identity disclosure that
-    has to be written down explicitly.
+    explicit `timeoutMs`. Optional `descriptionI18n` adds console-only localized
+    descriptions (a locale map, at most 8 locales, 1024 bytes per value); the
+    model still reads `description`. Answer them through the reserved
+    `sforum.ai.tool` slot; the declared timeout is the only runtime freedom.
+    Contributing a tool needs no `ai.invoke` — the purpose that runs the loop
+    pays — and a declared tool is not automatically visible to the model.
+    Declare `context` (`locale`/`topic`/`viewer`) when the tool needs
+    conversation facts: omitting it means `["locale"]`, and `viewer` is an
+    identity disclosure that has to be written down explicitly.
 13. **Events** — declare custom event names in your own namespace and publish
     them through `sforum.events.emit@1`; never publish another plugin's
     namespace or a Core-owned name.

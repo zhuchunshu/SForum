@@ -160,3 +160,142 @@ func TestManifestV3AIToolsContextDeclaration(t *testing.T) {
 		})
 	}
 }
+
+// aiToolDescriptionI18nAt 返回 count 个已规范化 locale 的展示文案，用来压条数边界。
+func aiToolDescriptionI18nAt(count int) map[string]string {
+	locales := []string{"en", "en-US", "en-GB", "zh-CN", "zh-TW", "ja", "de", "fr", "es"}
+	values := make(map[string]string, count)
+	for index := 0; index < count && index < len(locales); index++ {
+		values[locales[index]] = fmt.Sprintf("Localized description %d", index)
+	}
+	return values
+}
+
+// descriptionI18n 只影响控制台展示：它不能替换模型可见的 description，也不能
+// 突破 schema 与 Go 规则中任何一边的边界。
+func TestManifestV3AIToolDescriptionI18nAccepted(t *testing.T) {
+	declaration := aiToolDeclaration()
+	declaration.DescriptionI18n = map[string]string{
+		"en-US": "Look up an order by its public number.",
+		"zh-CN": "按公开订单号查询订单。",
+		"ja":    "公開注文番号で注文を検索します。",
+	}
+	manifest := aiToolManifest(declaration)
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("localized descriptions should validate: %v", err)
+	}
+	body, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateV3JSONSchema(body); err != nil {
+		t.Fatalf("schema and Go rules must accept the same map: %v", err)
+	}
+	if manifest.AITools[0].Description != declaration.Description {
+		t.Fatal("localized text must not replace the model-facing description")
+	}
+
+	atLimit := aiToolDeclaration()
+	atLimit.DescriptionI18n = aiToolDescriptionI18nAt(AIToolDescriptionI18nMaximum)
+	if err := Validate(aiToolManifest(atLimit)); err != nil {
+		t.Fatalf("%d locales should validate: %v", AIToolDescriptionI18nMaximum, err)
+	}
+}
+
+// 键必须是已规范化的 locale：Normalize 不折叠大小写与分隔符，所以这些形状会
+// 原样走到规则上并被拒绝，而不是被悄悄改写。
+func TestManifestV3AIToolDescriptionI18nRejected(t *testing.T) {
+	cases := map[string]map[string]string{
+		"value too long":   {"en-US": strings.Repeat("x", AIToolDescriptionMaximumBytes+1)},
+		"too many locales": aiToolDescriptionI18nAt(AIToolDescriptionI18nMaximum + 1),
+		"underscore key":   {"zh_cn": "查询订单。"},
+		"lowercase region": {"zh-cn": "查询订单。"},
+		"padded key":       {" zh-CN ": "查询订单。"},
+	}
+	for name, values := range cases {
+		t.Run(name, func(t *testing.T) {
+			manifest := aiToolManifest(aiToolDeclaration())
+			manifest.AITools[0].DescriptionI18n = values
+			if err := Validate(manifest); err == nil {
+				t.Fatalf("%s must be rejected", name)
+			}
+		})
+	}
+}
+
+// Normalize 会丢弃空文案条目，因此「空值被拒绝」这条规则只能在规范化之前验证：
+// 直接调用校验器，确认规则本身对原始输入成立，而不是依赖调用顺序。
+func TestManifestV3AIToolDescriptionI18nRejectsEmptyText(t *testing.T) {
+	cases := map[string]map[string]string{
+		"empty value":      {"en-US": ""},
+		"whitespace value": {"en-US": "   "},
+		"blank key":        {"  ": "查询订单。"},
+	}
+	for name, values := range cases {
+		t.Run(name, func(t *testing.T) {
+			manifest := aiToolManifest(aiToolDeclaration())
+			manifest.AITools[0].DescriptionI18n = values
+			validator := v3Validator{manifest: manifest, ids: map[string]string{}}
+			err := validator.validateAITools()
+			if err == nil {
+				t.Fatalf("%s must be rejected before normalization", name)
+			}
+			if !strings.Contains(err.Error(), "v3 aitools rule #14") {
+				t.Fatalf("descriptionI18n must fail rule #14, got %v", err)
+			}
+		})
+	}
+}
+
+func TestManifestV3AIToolDescriptionI18nNormalized(t *testing.T) {
+	declaration := aiToolDeclaration()
+	declaration.DescriptionI18n = map[string]string{
+		"  ":    "空白键没有展示意义",
+		"en-US": "  Look up an order.  ",
+		"zh-CN": "   ",
+		"ja":    "注文を検索します。",
+	}
+	normalized := Normalize(aiToolManifest(declaration)).AITools[0].DescriptionI18n
+	if len(normalized) != 2 {
+		t.Fatalf("normalized locales = %#v, want 2 entries", normalized)
+	}
+	if normalized["en-US"] != "Look up an order." || normalized["ja"] != "注文を検索します。" {
+		t.Fatalf("normalized locales drifted: %#v", normalized)
+	}
+
+	empty := aiToolDeclaration()
+	empty.DescriptionI18n = map[string]string{}
+	if got := Normalize(aiToolManifest(empty)).AITools[0].DescriptionI18n; got != nil {
+		t.Fatalf("empty map must normalize to nil, got %#v", got)
+	}
+}
+
+// 旧清单（没有 descriptionI18n）的规范形必须逐字节不变：protocolRuntimeManifestDigest
+// 直接对 canonical manifest 做 SHA-256，多出一个空字段就会让每个旧插件的运行时
+// 摘要漂移。空 map 与空文案同理——它们规范化后与「没写」完全一致。
+func TestManifestV3AIToolDescriptionI18nKeepsLegacyCanonicalForm(t *testing.T) {
+	legacy := Normalize(aiToolManifest(aiToolDeclaration()))
+	if legacy.AITools[0].DescriptionI18n != nil {
+		t.Fatalf("legacy declaration must not gain a locale map: %#v", legacy.AITools[0].DescriptionI18n)
+	}
+	if err := Validate(aiToolManifest(aiToolDeclaration())); err != nil {
+		t.Fatalf("legacy declaration must still validate: %v", err)
+	}
+	body, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "descriptionI18n") {
+		t.Fatalf("legacy canonical manifest must not mention descriptionI18n: %s", body)
+	}
+
+	blank := aiToolDeclaration()
+	blank.DescriptionI18n = map[string]string{"en-US": "   "}
+	blankBody, err := json.Marshal(Normalize(aiToolManifest(blank)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(blankBody) != string(body) {
+		t.Fatalf("blank localized text must canonicalize like an absent field:\n%s\n%s", blankBody, body)
+	}
+}

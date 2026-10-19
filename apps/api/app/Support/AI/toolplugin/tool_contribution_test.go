@@ -249,3 +249,110 @@ func TestPluginToolDispatchFiltersContextByDeclaration(t *testing.T) {
 		t.Fatalf("declared facts must reach the plugin: %#v", got)
 	}
 }
+
+// 插件工具的界面文案与超时是可选声明：登记表必须能读到它们，但读取不得暴露
+// 内部 map（调用方改到返回值不能污染下一次枚举）。
+func TestPluginToolCarriesDisplayDescriptionsAndTimeout(t *testing.T) {
+	extension, declaration := pluginAIToolFixture()
+	declaration.DescriptionI18n = map[string]string{"en-US": "Look up an order by its public number."}
+	invoker := &recordingPluginToolInvoker{}
+	tool, err := toolplugin.NewPluginTool(extension, declaration, invoker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tool.TimeoutMS(); got != declaration.TimeoutMS {
+		t.Fatalf("timeout = %d, want %d", got, declaration.TimeoutMS)
+	}
+	descriptions := tool.DisplayDescriptions()
+	if descriptions["en-US"] != "Look up an order by its public number." {
+		t.Fatalf("display descriptions drifted: %#v", descriptions)
+	}
+	descriptions["en-US"] = "mutated"
+	if tool.DisplayDescriptions()["en-US"] != "Look up an order by its public number." {
+		t.Fatal("DisplayDescriptions must return a copy")
+	}
+
+	registry := supportai.NewToolRegistry()
+	if err := registry.Register(tool); err != nil {
+		t.Fatal(err)
+	}
+	available := registry.Available()
+	if len(available) != 1 {
+		t.Fatalf("available = %#v", available)
+	}
+	if available[0].DescriptionI18n["en-US"] != "Look up an order by its public number." ||
+		available[0].TimeoutMS != declaration.TimeoutMS {
+		t.Fatalf("registry entry dropped optional metadata: %#v", available[0])
+	}
+}
+
+func TestValidateAIToolDeclarationRejectsInvalidDisplayDescriptions(t *testing.T) {
+	extension, declaration := pluginAIToolFixture()
+	tooMany := make(map[string]string, 9)
+	for index := 0; index < 9; index++ {
+		tooMany[strings.Repeat("a", index+1)] = "text"
+	}
+	cases := []struct {
+		name         string
+		descriptions map[string]string
+	}{
+		{"empty value", map[string]string{"en-US": "   "}},
+		{"blank locale", map[string]string{"": "text"}},
+		{"untrimmed locale", map[string]string{" en-US": "text"}},
+		{"too long", map[string]string{"en-US": strings.Repeat("x", extensionmanifest.AIToolDescriptionMaximumBytes+1)}},
+		{"too many", tooMany},
+	}
+	for _, testCase := range cases {
+		declaration.DescriptionI18n = testCase.descriptions
+		if err := toolplugin.ValidateAIToolDeclaration(extension.ID, declaration); err == nil {
+			t.Fatalf("%s must be rejected", testCase.name)
+		}
+	}
+	declaration.DescriptionI18n = map[string]string{"en-US": "Look up an order."}
+	if err := toolplugin.ValidateAIToolDeclaration(extension.ID, declaration); err != nil {
+		t.Fatalf("valid display descriptions rejected: %v", err)
+	}
+}
+
+// 设置页跳转只对「真的声明了设置页」的插件出现：凭扩展 id 拼链接会把运营者
+// 送到一个 404，因此清单里没有 settings 文档、也没有 path=/settings 的管理页时
+// SettingsPath 必须为空。
+func TestPluginToolExposesSettingsPageOnlyWhenDeclared(t *testing.T) {
+	extension, declaration := pluginAIToolFixture()
+	invoker := &recordingPluginToolInvoker{}
+
+	tool, err := toolplugin.NewPluginTool(extension, declaration, invoker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tool.SettingsPath(); got != "" {
+		t.Fatalf("plugin without settings page must not expose a path: %q", got)
+	}
+
+	withSettings := extension
+	withSettings.Manifest.Settings = []extensionmanifest.ManifestSetting{{
+		Key:   "api_key",
+		Label: extensionmanifest.LocalizedText{Default: "API key"},
+		Type:  "text",
+	}}
+	tool, err = toolplugin.NewPluginTool(withSettings, declaration, invoker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tool.SettingsPath(); got != "/extensions/fixture.ai-tool/pages/settings" {
+		t.Fatalf("settings document must expose the settings page: %q", got)
+	}
+
+	withPage := extension
+	withPage.Manifest.AdminPages = []extensionmanifest.ManifestAdminPage{{
+		Path:  "/settings",
+		Label: "Settings",
+	}}
+	tool, err = toolplugin.NewPluginTool(withPage, declaration, invoker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tool.SettingsPath(); got != "/extensions/fixture.ai-tool/pages/settings" {
+		t.Fatalf("custom /settings admin page must expose the settings page: %q", got)
+	}
+}

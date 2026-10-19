@@ -48,7 +48,8 @@ live in configuration, not in Core code.
 
 - 页面壳 `pages/admin/ai.vue` 是唯一数据所有者：数据经 `ADMIN_AI_KEY` 注入，可编辑
   草稿经 `ADMIN_AI_DRAFT_KEY` 注入（`useAdminAISettingsForm`）。页签只渲染，不重新拉取。
-- 五个固定页签：providers / **replyPrompt** / purposes / diagnose / observability。
+- 六个固定页签：providers / **replyPrompt** / purposes / **tools**（本批新增）/
+  diagnose / observability。
   页签用 `router.replace` 同步 query（`push` 会触发完整导航并白屏）。
 - **草稿由页面壳持有**，因为回复提示词与供应商是同一次保存的内容：两个页签各持一份
   副本的话，在提示词页签里的改动切回供应商页签就消失了。保存/重置操作条也放在页面壳
@@ -226,6 +227,51 @@ live in configuration, not in Core code.
   mismatch（2026-10-12 修复）。**窄屏渲染 QA 待做**（390x844）。决策：
   `decisions/2026-10-12-ai-purpose-registry.md`。
 
+## 模型工具目录与统一配置（2026-10-19）
+
+- **一个页签回答「站内有哪些工具、谁能用」。** `/control-panel/ai?tab=tools` 是第六个
+  固定页签（`SFAdminAIToolsTab`，权限页式矩阵表 + 详情弹窗），数据来自
+  `GET /admin/ai/settings` 的 `availableTools[]`。表格每一行给出中英说明、来源
+  （`Core` 或 `@extensionId` + 版本）、参数摘要、插件声明的超时上限、被哪些用途使用，
+  以及逐用途的暴露开关。工具本身仍由代码与清单声明，页签只能改控制台文案与用途白名单。
+- **说明有三个来源，优先级固定**：运营者覆盖（`settings.toolDisplayDescriptions`）>
+  声明默认（插件 `aiTools[].descriptionI18n`，Core 走 `DisplayDescriptions()`）> 无。
+  三者都只服务控制台；模型读的始终是 `Definition().Description`，由
+  `RenderToolSection` 逐字节渲染进 system。因此英文说明不进出站请求、不进缓存键
+  （`CacheKey` 的工具部分只写名字/描述/参数）、不触发提示词版本递增。
+- **不做模型可见描述的本地化**：给模型第二份译文会让「改一句英文」变成一次提示词变更，
+  缓存键与 eval 指纹随之漂移。要改模型读到的说明，只能改工具声明本身。
+- **`descriptionI18n` 是 map，不是 `LocalizedText`**：后者带自定义 `MarshalJSON`，而 Go
+  的 `omitempty` 对 struct 字段不生效，零值会被序列化成 `""`，让每个旧插件的 canonical
+  manifest 多出一个字段、`protocolRuntimeManifestDigest` 随之漂移。map 的 `omitempty`
+  正常工作，旧清单的规范形与摘要逐字节不变。字段可选、`manifestVersion` 仍为 3、
+  `aiTools[].contractVersion` 不递增，`validateAITools` 只追加一条规则（`rule #14`：
+  值非空且 ≤1024 字节、locale 键必须是规范形、≤8 项）。
+- **运营者覆盖同样只服务控制台**：`toolDisplayDescriptions` 是设置文档的一部分，
+  保存时校验工具名、locale 键、每工具 ≤8 个 locale、≤64 个工具、值 ≤1024 字节；
+  归一化只去空白与空条目，不把非法值悄悄改成合法值。存在性不在保存时判定（登记表随
+  插件启停变化），控制台按活表过滤。
+- **暴露编辑自动收敛**：`setPurposeTool` 把生效集合与用途声明比较，一致时删掉
+  `purposes[id].tools` 整个字段——「勾上再取消」必须回到未覆盖状态，否则界面会永远
+  显示「已自定义」。`removeToolFromAllPurposes` 对每个用途单独收敛，只处理当前目录里
+  的用途，不静默删除看不见的配置。
+- **未注册引用可见且可清理**：`referencedButUnregistered` 反向列出「白名单里有、登记表
+  里没有」的名字及引用它的用途。服务端本来就会静默跳过它们，界面必须给出「从所有用途
+  移除」，否则运营者只能看到一个勾着的死名字。
+- **三种诊断**：`gates.toolCallsPerReply` 解析为 0（工具预算关闭）、用途的成本等级没有
+  绑定 profile、绑定的 profile 声明 `supportsTools: false`。三者对应三个不同的修复
+  动作，因此不合并成一句「工具不可用」。
+- **没有全局工具开关**：按用途覆盖已经是唯一事实源；再加总开关会造出第二个真相，并让
+  「这个工具到底能不能被调用」需要读两处配置。
+- **保存会推进 revision，因此缓存失效**：`toolDisplayDescriptions` 是设置文档的一部分，
+  保存它同样让 `ai_settings.revision` 递增，结果缓存按 revision 换键。这是已知取舍：
+  改一条控制台文案会让结果缓存整体失效一次。
+- **工具调用明细已有数据面**：`ai_tool_calls`（迁移 `202610190005`）在发布成功后记录
+  每次调用，公开投影挂在 `/comments/:id/citations` 的 `toolCalls`，管理端回放走 run
+  时间线。**按工具的调用统计视图不在本次范围**，后续再做。
+- 取舍与理由见 `decisions/2026-10-19-ai-tool-catalog-console.md`；验收状态见
+  `sessions/2026-10-19-ai-tools-tab-handoff.md`（门禁与桌面/390x844 渲染 QA 已通过）。
+
 ## 派生内容用途 `forum.digest` / `forum.tour`（B3，2026-10-19）
 
 - **只读 + 手动触发 + 不发布。** 两条用途都声明 `economy`、失败姿态与 `forum.reply`
@@ -345,7 +391,11 @@ live in configuration, not in Core code.
   声明也不在目录里的名字标为未知，因为服务端会跳过它。
 - **停用插件不再登记工具**：`registerPluginAITools` 此前遍历 `ExtensionStore.List`
   却不看 `Status`，与自己的注释矛盾，会造出「看得见、调不动」的工具；现在跳过
-  非 `enabled` 的扩展。工具登记仍在装配期完成，启用/停用要等 API 重启才反映到目录。
+  非 `enabled` 的扩展。**登记表不再只是装配期快照（2026-10-19 更正）**：期望集每次
+  成功应用后 `aiToolRefresher` 都会用「Core 快照 + 最新已启用插件工具」原子换表，
+  `Available()` 读活表，所以启用/停用/升级在控制台刷新后即生效，不需要重启 API
+  （装配期那次登记保留，覆盖第一个期望集应用之前的时间窗）。历史背景：在此之前
+  登记确实只在装配期完成，重启是目录更新的唯一方式。
 - **工具超时上限 30 秒（2026-10-19，5000 → 180000 → 30000）**。`AIToolMaximumTimeoutMS` 是
   声明上限，不是等待时长：宿主按声明值设截止时间，插件自己的预算决定实际等多久。
   原先的 5000 是 SDK 传输默认请求超时被直接推上来的值，对冷启动检索过紧。四处
@@ -353,8 +403,8 @@ live in configuration, not in Core code.
   的派发校验（改用工具自己的上限，不再复用传输默认值）、SDK
   `HostAIToolMaximumTimeoutMS`、`schemas/manifest-v3.schema.json` 的 `maximum`。
   没有站点级闸门（运营者决策）：唯一的上界就是各插件声明的 `timeoutMs`，所以
-  「一次回复最多等多久」由插件作者决定，控制台看不到也改不了。正因为没有第二道
-  闸门，上限本身不能太大——30 秒与模型 profile 的默认请求超时同量级。
+  「一次回复最多等多久」由插件作者决定，控制台只读展示声明值、不能修改。正因为没有
+  第二道闸门，上限本身不能太大——30 秒与模型 profile 的默认请求超时同量级。
 
 ## 可观测性（2026-10-19，A 批）
 
@@ -382,7 +432,7 @@ live in configuration, not in Core code.
   （历史记录没有 run 归属，界面据此不显示展开入口）。前端 `useAdminAIRunTimeline`
   + `SFAdminAIRunTimeline.vue`；**缓存命中只有一条记录是正确行为，界面必须标注**，
   `status=denied` 要标「未出站」并显示 `gateReason`。**工具调用明细不在执行记录里**
-  （在日志里），界面不得伪造。
+  （回复的明细在 `ai_tool_calls`，其余在日志里），界面不得伪造。
 - **`CompletionOutput` 透出四项**（此前被逐层丢弃）：`ToolTrace` / `Usage` /
   `ModelCalls` / `ToolCalls`。错误路径经 `partialOutput` 带回部分结果，`Generate`
   在错误文本里附 `tool_calls=N usage=I/O`——重试的一方能知道上次做到哪

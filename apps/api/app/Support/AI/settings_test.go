@@ -1,6 +1,7 @@
 package ai_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -195,5 +196,188 @@ func TestSettingsValidateReplyToolAllowlistShape(t *testing.T) {
 	tooMany.Reply.Tools = &ai.ReplyToolSettings{Allowed: allowed}
 	if err := tooMany.Validate(); !errors.Is(err, ai.ErrSettingsInvalid) {
 		t.Fatalf("oversized allowlist must be rejected, got %v", err)
+	}
+}
+
+// 控制台展示文案的归一化语义：键去空白、空白值丢弃、空条目整体消失、最终为空
+// 置 nil。它与 normalizePurposes 同一条规则——空覆盖等于没有，否则控制台会显示
+// 一条空文案和一条假的「已自定义」。
+func TestToolDisplayDescriptionsNormalizePrunesEmptyOverrides(t *testing.T) {
+	settings := ai.Settings{
+		ToolDisplayDescriptions: map[string]map[string]string{
+			" forum-search ": {
+				" en-US ": "  Search posts  ",
+				"zh-CN":   "   ",
+				"":        "orphan locale",
+			},
+			"vendor-tool": {},
+			"   ":         {"en-US": "nameless tool"},
+		},
+	}
+	normalized := settings.Normalized().ToolDisplayDescriptions
+	if len(normalized) != 1 {
+		t.Fatalf("only the tool with a real value may survive, got %#v", normalized)
+	}
+	entry, ok := normalized["forum-search"]
+	if !ok {
+		t.Fatalf("tool name must be trimmed, got %#v", normalized)
+	}
+	if len(entry) != 1 || entry["en-US"] != "Search posts" {
+		t.Fatalf("locale key and value must be trimmed, got %#v", entry)
+	}
+}
+
+func TestToolDisplayDescriptionsEmptyDocumentBecomesNil(t *testing.T) {
+	empty := ai.Settings{ToolDisplayDescriptions: map[string]map[string]string{}}
+	if got := empty.Normalized().ToolDisplayDescriptions; got != nil {
+		t.Fatalf("empty map must normalize to nil, got %#v", got)
+	}
+	blank := ai.Settings{ToolDisplayDescriptions: map[string]map[string]string{
+		"forum-search": {"en-US": "  "},
+		"vendor-tool":  {},
+	}}
+	normalized := blank.Normalized()
+	if normalized.ToolDisplayDescriptions != nil {
+		t.Fatalf("blank overrides must normalize to nil, got %#v", normalized.ToolDisplayDescriptions)
+	}
+	// 「空覆盖等于没有」也必须是序列化事实：文档里不该留下一个空对象让控制台
+	// 显示一个假的已配置状态。
+	raw, err := json.Marshal(normalized)
+	if err != nil {
+		t.Fatalf("marshal settings: %v", err)
+	}
+	if strings.Contains(string(raw), "toolDisplayDescriptions") {
+		t.Fatalf("an empty override must not be serialized: %s", raw)
+	}
+}
+
+func TestSettingsAcceptWellFormedToolDisplayDescriptions(t *testing.T) {
+	settings := ai.RecommendedSettings()
+	settings.ToolDisplayDescriptions = map[string]map[string]string{
+		"forum-search":       {"en-US": "Search posts and topics", "zh-CN": "搜索帖子与主题"},
+		"vendor-plugin-tool": {"en-US": "Vendor search"},
+	}
+	if err := settings.Validate(); err != nil {
+		t.Fatalf("well-formed display descriptions must validate: %v", err)
+	}
+	// 边界值本身是合法的：64 个工具、每个 8 条 locale。
+	boundary := ai.RecommendedSettings()
+	boundary.ToolDisplayDescriptions = make(map[string]map[string]string, ai.MaxToolDisplayTools)
+	for tool := 0; tool < ai.MaxToolDisplayTools; tool++ {
+		locales := make(map[string]string, ai.MaxToolDisplayLocales)
+		for index := 0; index < ai.MaxToolDisplayLocales; index++ {
+			locales[fmt.Sprintf("en-%c%c", 'A'+index, 'A'+index)] = "text"
+		}
+		boundary.ToolDisplayDescriptions[fmt.Sprintf("tool-%d", tool)] = locales
+	}
+	if err := boundary.Validate(); err != nil {
+		t.Fatalf("the documented boundaries must stay savable: %v", err)
+	}
+}
+
+func TestSettingsRejectInvalidToolDisplayDescriptions(t *testing.T) {
+	tooManyTools := make(map[string]map[string]string, ai.MaxToolDisplayTools+1)
+	for tool := 0; tool <= ai.MaxToolDisplayTools; tool++ {
+		tooManyTools[fmt.Sprintf("tool-%d", tool)] = map[string]string{"en-US": "text"}
+	}
+	tooManyLocales := make(map[string]string, ai.MaxToolDisplayLocales+1)
+	for index := 0; index <= ai.MaxToolDisplayLocales; index++ {
+		tooManyLocales[fmt.Sprintf("en-%c%c", 'A'+index, 'A'+index)] = "text"
+	}
+
+	cases := map[string]struct {
+		descriptions map[string]map[string]string
+		field        string
+		code         string
+	}{
+		"invalid tool name": {
+			descriptions: map[string]map[string]string{"Vendor Tool": {"en-US": "text"}},
+			field:        "toolDisplayDescriptions.Vendor Tool",
+			code:         ai.IssueCodeInvalidValue,
+		},
+		"dotted tool name": {
+			descriptions: map[string]map[string]string{"vendor.plugin.tool": {"en-US": "text"}},
+			field:        "toolDisplayDescriptions.vendor.plugin.tool",
+			code:         ai.IssueCodeInvalidValue,
+		},
+		"overlong tool name": {
+			descriptions: map[string]map[string]string{strings.Repeat("a", ai.MaxToolNameLen+1): {"en-US": "text"}},
+			field:        "toolDisplayDescriptions." + strings.Repeat("a", ai.MaxToolNameLen+1),
+			code:         ai.IssueCodeInvalidValue,
+		},
+		"locale is a word": {
+			descriptions: map[string]map[string]string{"forum-search": {"english": "text"}},
+			field:        "toolDisplayDescriptions.forum-search.english",
+			code:         ai.IssueCodeInvalidValue,
+		},
+		"locale with script subtag": {
+			descriptions: map[string]map[string]string{"forum-search": {"zh-Hant": "text"}},
+			field:        "toolDisplayDescriptions.forum-search.zh-Hant",
+			code:         ai.IssueCodeInvalidValue,
+		},
+		"locale with three subtags": {
+			descriptions: map[string]map[string]string{"forum-search": {"zh-Hant-CN": "text"}},
+			field:        "toolDisplayDescriptions.forum-search.zh-Hant-CN",
+			code:         ai.IssueCodeInvalidValue,
+		},
+		"empty locale key": {
+			descriptions: map[string]map[string]string{"forum-search": {"  ": "text"}},
+			field:        "toolDisplayDescriptions.forum-search",
+			code:         ai.IssueCodeInvalidValue,
+		},
+		"overlong value": {
+			descriptions: map[string]map[string]string{"forum-search": {"en-US": strings.Repeat("a", ai.MaxToolDescriptionBytes+1)}},
+			field:        "toolDisplayDescriptions.forum-search.en-US",
+			code:         ai.IssueCodeTooLong,
+		},
+		"too many locales": {
+			descriptions: map[string]map[string]string{"forum-search": tooManyLocales},
+			field:        "toolDisplayDescriptions.forum-search",
+			code:         ai.IssueCodeTooMany,
+		},
+		"too many tools": {
+			descriptions: tooManyTools,
+			field:        "toolDisplayDescriptions",
+			code:         ai.IssueCodeTooMany,
+		},
+	}
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			settings := ai.RecommendedSettings()
+			settings.ToolDisplayDescriptions = testCase.descriptions
+			issues := settings.Issues()
+			found := false
+			for _, issue := range issues {
+				if issue.Field == testCase.field && issue.Code == testCase.code {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("expected %s=%s, got %#v", testCase.field, testCase.code, issues)
+			}
+			if err := settings.Validate(); !errors.Is(err, ai.ErrSettingsInvalid) {
+				t.Fatalf("invalid display descriptions must be rejected, got %v", err)
+			}
+		})
+	}
+}
+
+// 展示文案是整份设置文档的一部分：它必须能穿过一次 JSON 往返，且不污染模型可见
+// 的工具说明字段（ToolAvailability.Description）。
+func TestToolDisplayDescriptionsSurviveJSONRoundTrip(t *testing.T) {
+	settings := ai.RecommendedSettings()
+	settings.ToolDisplayDescriptions = map[string]map[string]string{
+		"forum-search": {"en-US": "Search posts"},
+	}
+	raw, err := json.Marshal(settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded ai.Settings
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.ToolDisplayDescriptions["forum-search"]["en-US"] != "Search posts" {
+		t.Fatalf("display descriptions lost in JSON round trip: %#v", decoded.ToolDisplayDescriptions)
 	}
 }

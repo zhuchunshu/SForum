@@ -99,6 +99,56 @@ func (t *PluginTool) Origin() supportai.ToolOrigin {
 	}
 }
 
+// DisplayDescriptions 透传清单里声明的界面文案（locale -> 文本）。
+//
+// 它只服务控制台：模型收到的仍是 Definition().Description。返回副本，调用方
+// 改到它不会污染下一次枚举，也不会改到声明本身。
+func (t *PluginTool) DisplayDescriptions() map[string]string {
+	if t == nil || len(t.declaration.DescriptionI18n) == 0 {
+		return nil
+	}
+	copied := make(map[string]string, len(t.declaration.DescriptionI18n))
+	for locale, text := range t.declaration.DescriptionI18n {
+		copied[locale] = text
+	}
+	return copied
+}
+
+// TimeoutMS 是声明里的单次调用超时上限。控制台展示与派发读取同一个值，因此
+// 「界面说最多等多久」与「实际等多久」不会分叉。
+func (t *PluginTool) TimeoutMS() int {
+	if t == nil {
+		return 0
+	}
+	return t.declaration.TimeoutMS
+}
+
+// SettingsPath 返回该插件的管理设置页路径；插件没有设置页时返回空串。
+//
+// 路径不含 /control-panel 前缀，由前端用 adminRoutes.path 拼；与邮件设置页
+// 打开提供商设置的方式一致。只有真的声明了设置页才返回，避免把运营者送到 404。
+func (t *PluginTool) SettingsPath() string {
+	if t == nil || !extensionHasSettingsPage(t.extension) {
+		return ""
+	}
+	return "/extensions/" + t.extension.ID + "/pages/settings"
+}
+
+// extensionHasSettingsPage 判断扩展是否真的有设置页：声明了 settings 文档，或
+// 声明了一个 path=/settings 的管理页。两者任一成立，动态管理页路由才存在。
+func extensionHasSettingsPage(extension extensions.Extension) bool {
+	manifest := extension.Manifest
+	if len(manifest.Settings) > 0 || manifest.SettingsDocument.Explicit {
+		return true
+	}
+	for _, page := range extensionmanifest.EffectiveAdminPages(manifest) {
+		if extensionmanifest.NormalizeRoutePath(page.Path) == "/settings" {
+			return true
+		}
+	}
+	return false
+}
+
 // Invoke 执行一次工具调用。
 //
 // 超时来自声明且不可协商：调用时若插件进程慢，这里返回的错误只会被编排层记为

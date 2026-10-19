@@ -56,6 +56,9 @@ export type AdminAISettings = {
   // purposes 是按用途的覆盖。缺省即沿用各用途自己的声明；它是 reply.tools 特例的
   // 替代品（旧字段由服务端在归一化时迁移进来）。
   purposes?: Record<string, AdminAIPurposeOverride>
+  // toolDisplayDescriptions 是仅控制台展示的工具说明覆盖（工具名 -> locale -> 文本）。
+  // 它不进模型请求：模型读的是工具自己的 description。旧文档可能没有这个字段。
+  toolDisplayDescriptions?: Record<string, Record<string, string>>
   // reply.systemPrompt 为空表示使用内置默认提示词；一键恢复就是把这里清空。
   // triggerMode 决定机器人何时回复：mention（默认）/ autonomous（AI 自主判定
   // 是否参与）/ off（停用自动触发）。旧文档可能没有这个字段。
@@ -83,11 +86,27 @@ export type AdminAIToolOrigin = {
   version?: string
 }
 
+// AdminAIToolParameterSummary 是参数 schema 的展示摘要（不是完整 JSON Schema）。
+export type AdminAIToolParameterSummary = {
+  names?: string[]
+  required?: string[]
+  truncated?: boolean
+}
+
 // AdminAIToolAvailability 是「站内有哪些 AI 工具」的条目。它与用途白名单是两个
 // 问题：这里是全局事实，白名单是某个用途的生效配置。
+//
+// description 是模型可见文本；descriptionI18n 是作者/内置提供的界面文案。
+// 运营者在 AI 设置里的 toolDisplayDescriptions 优先级更高，由控制台自行合并。
 export type AdminAIToolAvailability = {
   name: string
   description?: string
+  descriptionI18n?: Record<string, string>
+  /** 插件声明的单次调用超时上限；Core 内置工具没有这一层声明。 */
+  timeoutMs?: number
+  /** 插件管理设置页路径（不含 /control-panel）；只有真的声明了设置页才有。 */
+  settingsPath?: string
+  parameters?: AdminAIToolParameterSummary
   origin: AdminAIToolOrigin
 }
 

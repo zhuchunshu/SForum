@@ -3,6 +3,7 @@ import type { Component } from 'vue'
 import SFAdminAIProvidersTab from '~/components/admin/ai/tabs/SFAdminAIProvidersTab.vue'
 import SFAdminAIReplyPromptTab from '~/components/admin/ai/tabs/SFAdminAIReplyPromptTab.vue'
 import SFAdminAIPurposesTab from '~/components/admin/ai/tabs/SFAdminAIPurposesTab.vue'
+import SFAdminAIToolsTab from '~/components/admin/ai/tabs/SFAdminAIToolsTab.vue'
 import SFAdminAIDiagnoseTab from '~/components/admin/ai/tabs/SFAdminAIDiagnoseTab.vue'
 import SFAdminAIObservabilityTab from '~/components/admin/ai/tabs/SFAdminAIObservabilityTab.vue'
 import SFAdminFixedTabNav from '~/components/admin/settings/shared/SFAdminFixedTabNav.vue'
@@ -19,7 +20,7 @@ defineOptions({
   name: 'AdminAI'
 })
 
-type AITab = 'providers' | 'replyPrompt' | 'purposes' | 'diagnose' | 'observability'
+type AITab = 'providers' | 'replyPrompt' | 'purposes' | 'tools' | 'diagnose' | 'observability'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,13 +38,14 @@ provide(ADMIN_AI_KEY, ai)
 const draft = useAdminAISettingsForm(ai)
 provide(ADMIN_AI_DRAFT_KEY, draft)
 
-const validTabs: AITab[] = ['providers', 'replyPrompt', 'purposes', 'diagnose', 'observability']
+const validTabs: AITab[] = ['providers', 'replyPrompt', 'purposes', 'tools', 'diagnose', 'observability']
 const activeTab = ref<AITab>(normalizeTab(route.query.tab))
 
 const tabs = computed(() => [
   { id: 'providers', label: t('admin.ai.tabs.providers'), icon: 'i-lucide-server' },
   { id: 'replyPrompt', label: t('admin.ai.tabs.replyPrompt'), icon: 'i-lucide-message-square-text' },
   { id: 'purposes', label: t('admin.ai.tabs.purposes'), icon: 'i-lucide-blocks' },
+  { id: 'tools', label: t('admin.ai.tabs.tools'), icon: 'i-lucide-wrench' },
   { id: 'diagnose', label: t('admin.ai.tabs.diagnose'), icon: 'i-lucide-stethoscope' },
   { id: 'observability', label: t('admin.ai.tabs.observability'), icon: 'i-lucide-activity' }
 ])
@@ -52,6 +54,7 @@ const tabComponents: Record<AITab, Component> = {
   providers: SFAdminAIProvidersTab,
   replyPrompt: SFAdminAIReplyPromptTab,
   purposes: SFAdminAIPurposesTab,
+  tools: SFAdminAIToolsTab,
   diagnose: SFAdminAIDiagnoseTab,
   observability: SFAdminAIObservabilityTab
 }
@@ -91,15 +94,16 @@ function setActiveTab(value: string) {
     </h2>
   </div>
 
-  <UDashboardToolbar class="mb-6 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+  <UDashboardToolbar class="mb-6 overflow-x-hidden rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-500 [&_[data-slot=left]]:min-w-0 [&_[data-slot=left]]:flex-1 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
     <template #left>
       <div class="flex min-w-0 items-center gap-2 text-sm">
-        <UIcon name="i-lucide-sparkles" class="size-4" />
-        <span class="truncate">{{ t('admin.ai.intro') }}</span>
+        <UIcon name="i-lucide-sparkles" class="size-4 shrink-0" />
+        <span class="min-w-0 truncate">{{ t('admin.ai.intro') }}</span>
       </div>
     </template>
     <template #right>
       <UButton
+        class="shrink-0"
         color="neutral"
         variant="outline"
         leading-icon="i-lucide-refresh-cw"

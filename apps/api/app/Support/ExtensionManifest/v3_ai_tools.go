@@ -38,6 +38,11 @@ const AIToolDescriptionMaximumBytes = 1_024
 // supportai.MaxToolNameLen 保持同一量纲。
 const AIToolNameMaximumLength = 64
 
+// AIToolDescriptionI18nMaximum 是单个工具可声明的本地化说明条数上限，与
+// schemas/manifest-v3.schema.json 的 maxProperties 保持同一量纲：本地化说明是
+// 控制台展示用的短文本，条数上限只需覆盖站点实际支持的语言数量级。
+const AIToolDescriptionI18nMaximum = 8
+
 // AI 工具可以声明的会话事实。声明是**白名单**：没列出来的事实不会被传进
 // 插件进程，因此「工具能知道现在是谁在问」必须是作者写下的显式决定。
 const (
@@ -61,8 +66,15 @@ type ManifestAITool struct {
 	ContractVersion string `json:"contractVersion"`
 	// Name 是模型看到的工具名：只允许 [a-z0-9_-]，且不含点号。
 	Name string `json:"name"`
-	// Description 决定模型何时调用该工具。
+	// Description 决定模型何时调用该工具。它是模型输入，不是界面文案。
 	Description string `json:"description"`
+	// DescriptionI18n 是仅控制台展示的本地化说明（locale -> 文本）。
+	//
+	// 它刻意不是 LocalizedText：后者带自定义 MarshalJSON，而 Go 的 omitempty 对
+	// struct 字段不生效，零值会被序列化成 ""，让每个旧插件的 canonical manifest
+	// 多出一个字段、manifest 摘要随之漂移。map 的 omitempty 正常工作，旧清单的
+	// 规范形与摘要因此逐字节不变。
+	DescriptionI18n map[string]string `json:"descriptionI18n,omitempty"`
 	// Parameters 是 JSON Schema 对象（不是数组、不是裸 true）。
 	Parameters json.RawMessage `json:"parameters,omitempty"`
 	// Handler 是插件侧的可执行 handler，必须落在所属插件的命名空间下。
@@ -115,6 +127,61 @@ func ValidateAIToolContext(values []string) error {
 		seen[value] = struct{}{}
 	}
 	return nil
+}
+
+// validateAIToolDescriptionI18n 校验仅用于控制台展示的本地化说明。字段缺失时
+// 零影响：旧清单没有这个字段，规范化与摘要都必须逐字节不变。
+//
+// 键必须是**已规范化**的 locale（等于 normalizeLocaleKey 的结果）。这里刻意不
+// 做规范化，与 ValidateAIToolContext 同一条理由，并且多一层：把 " zh-CN " 与
+// "zh-CN" 折叠到同一个槽位会让两个值争夺同一个键，而 canonical manifest 的字节
+// 与摘要取决于最终留下的那一个——那是一个不确定的摘要。作者写错的事实被拒绝，
+// 而不是被宿主悄悄改写成另一个意思。
+func validateAIToolDescriptionI18n(values map[string]string) error {
+	if len(values) == 0 {
+		return nil
+	}
+	if len(values) > AIToolDescriptionI18nMaximum {
+		return fmt.Errorf("%w: v3 aitools rule #14", ErrInvalidManifest)
+	}
+	for key, value := range values {
+		if key == "" || normalizeLocaleKey(key) != key {
+			return fmt.Errorf("%w: v3 aitools rule #14", ErrInvalidManifest)
+		}
+		text := strings.TrimSpace(value)
+		if text == "" || len(text) > AIToolDescriptionMaximumBytes {
+			return fmt.Errorf("%w: v3 aitools rule #14", ErrInvalidManifest)
+		}
+	}
+	return nil
+}
+
+// normalizeAIToolDescriptionI18n 修剪展示文案两侧空白，并丢弃没有展示意义的条目。
+//
+// 键只判空、不做大小写或分隔符改写：改写会让 " zh-CN " 与 "zh-CN" 折叠成同一个
+// 键，两个值中谁留下取决于 map 遍历顺序，规范形因此不再确定。键的形状由
+// validateAIToolDescriptionI18n 拒绝，而不是被规范化悄悄修好。
+//
+// 全空（含「写了空 map」）时返回 nil，让旧清单与空声明的序列化结果一致。
+func normalizeAIToolDescriptionI18n(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	normalized := make(map[string]string, len(values))
+	for key, value := range values {
+		if strings.TrimSpace(key) == "" {
+			continue
+		}
+		text := strings.TrimSpace(value)
+		if text == "" {
+			continue
+		}
+		normalized[key] = text
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 // IsOwnedID 判断一个标识是否严格落在 owner 命名空间下：以 `<owner>.` 开头，

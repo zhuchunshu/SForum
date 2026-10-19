@@ -127,6 +127,12 @@ type Settings struct {
 	// 它是「回复特例」的替代品：回复工具的覆盖现在写在 Purposes["forum.reply"]
 	// 下，与其它用途走同一条路径。
 	Purposes map[string]PurposeSettings `json:"purposes,omitempty"`
+	// ToolDisplayDescriptions 是仅控制台展示的工具说明覆盖（工具名 -> locale -> 文本）。
+	//
+	// 它永远不进模型请求：模型读的是工具自己的 Definition().Description（会被
+	// RenderToolSection 渲染进 system）。运营者用它给没有英文说明的第三方旧插件
+	// 补一条界面文案，不需要改插件代码；优先级是「运营者 > 插件清单 > 无」。
+	ToolDisplayDescriptions map[string]map[string]string `json:"toolDisplayDescriptions,omitempty"`
 	// Reply 是 AI 回复的可配置部分（提示词与旧版工具覆盖）。零值即使用内置默认。
 	Reply      ReplySettings      `json:"reply"`
 	AutoAction AutoActionSettings `json:"autoAction"`
@@ -228,6 +234,7 @@ func (s Settings) Normalized() Settings {
 	}
 	s.migrateLegacyReplyTools()
 	s.normalizePurposes()
+	s.normalizeToolDisplayDescriptions()
 	return s
 }
 
@@ -284,6 +291,48 @@ func (s *Settings) normalizePurposes() {
 		return
 	}
 	s.Purposes = normalized
+}
+
+// normalizeToolDisplayDescriptions 去掉工具名与 locale 键两侧的空白，并丢弃
+// 「空覆盖」：一条只有空白值的 locale 与没有这一项等价，一个没有任何有效 locale
+// 的工具条目与没有这个工具等价。这与 normalizePurposes 同一条语义——空覆盖等于
+// 没有，留着只会让控制台显示一条空文案和一条假的「已自定义」。
+//
+// 只做剪枝，不做合法化：非法工具名或非法 locale 键保持原样留给 Issues 拒绝，
+// 静默删掉运营者写下的内容比拒绝保存更糟。
+func (s *Settings) normalizeToolDisplayDescriptions() {
+	if len(s.ToolDisplayDescriptions) == 0 {
+		s.ToolDisplayDescriptions = nil
+		return
+	}
+	normalized := make(map[string]map[string]string, len(s.ToolDisplayDescriptions))
+	for rawName, locales := range s.ToolDisplayDescriptions {
+		name := strings.TrimSpace(rawName)
+		if name == "" {
+			continue
+		}
+		entry := make(map[string]string, len(locales))
+		for rawLocale, text := range locales {
+			locale := strings.TrimSpace(rawLocale)
+			if locale == "" {
+				continue
+			}
+			text = strings.TrimSpace(text)
+			if text == "" {
+				continue
+			}
+			entry[locale] = text
+		}
+		if len(entry) == 0 {
+			continue
+		}
+		normalized[name] = entry
+	}
+	if len(normalized) == 0 {
+		s.ToolDisplayDescriptions = nil
+		return
+	}
+	s.ToolDisplayDescriptions = normalized
 }
 
 // Profile 按 id 查找。

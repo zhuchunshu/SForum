@@ -90,6 +90,119 @@ func (s Settings) purposeIssues() []Issue {
 	return issues
 }
 
+// maxToolDisplayLocaleKeyBytes 是控制台展示文案的 locale 键长度上限。它只约束
+// 键的形状，值的体积由 MaxToolDescriptionBytes 管；16 字节足够容纳「语言码 +
+// 地区码」（zh-CN、es-419），同时挡住一个失控的长键把字段路径撑长。
+const maxToolDisplayLocaleKeyBytes = 16
+
+// toolDisplayIssues 校验「仅控制台展示的工具说明覆盖」的形状。
+//
+// 与工具白名单同一条理由，这里不判定工具是否真的注册过：登记表随插件启停变化，
+// 保存时把它钉死会让「先写译文、后装插件」变成不可能。运行期由控制台按登记表
+// 过滤，未注册的名字自然不显示。
+//
+// 它必须拒绝而不是剪枝的两件事：非法工具名与非法 locale 键。剪掉它们等于静默
+// 丢弃运营者写下的内容，而 422 能把问题定位到具体字段。
+func (s Settings) toolDisplayIssues() []Issue {
+	if len(s.ToolDisplayDescriptions) == 0 {
+		return nil
+	}
+	// 整份文档的体积上限：这个字段只服务界面，但它是设置文档的一部分，
+	// 失控的条目数会把 GET /admin/ai/settings 撑大。
+	if len(s.ToolDisplayDescriptions) > MaxToolDisplayTools {
+		return []Issue{{Field: "toolDisplayDescriptions", Code: IssueCodeTooMany}}
+	}
+	var issues []Issue
+	for rawName, locales := range s.ToolDisplayDescriptions {
+		name := strings.TrimSpace(rawName)
+		if !ValidToolName(name) {
+			issues = append(issues, Issue{Field: toolDisplayField(name), Code: IssueCodeInvalidValue})
+			continue
+		}
+		if len(locales) > MaxToolDisplayLocales {
+			issues = append(issues, Issue{Field: toolDisplayField(name), Code: IssueCodeTooMany})
+			continue
+		}
+		for rawLocale, text := range locales {
+			locale := strings.TrimSpace(rawLocale)
+			if !validToolDisplayLocale(locale) {
+				issues = append(issues, Issue{Field: toolDisplayField(name, locale), Code: IssueCodeInvalidValue})
+				continue
+			}
+			if len(text) > MaxToolDescriptionBytes {
+				issues = append(issues, Issue{Field: toolDisplayField(name, locale), Code: IssueCodeTooLong})
+			}
+		}
+	}
+	return issues
+}
+
+// toolDisplayField 拼出 toolDisplayDescriptions 的字段路径。空片段直接跳过：
+// 一个空 locale 不该产出一个以点号结尾、无法定位的路径。
+func toolDisplayField(parts ...string) string {
+	field := "toolDisplayDescriptions"
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		field += "." + part
+	}
+	return field
+}
+
+// validToolDisplayLocale 校验 locale 键的形状：语言码（2–3 位字母）可选带地区码
+// （2 位字母或 3 位数字），例如 en、zh-CN、es-419。
+//
+// 大小写不敏感：BCP-47 的规范写法是语言小写、地区大写，但把 en-us 判成非法只会
+// 让运营者拿到一个无法解释的 422，而这两种写法指向同一批读者。带脚本子标签
+// （zh-Hant）不在支持范围内——这个字段只服务控制台展示，不需要完整 BCP-47。
+func validToolDisplayLocale(locale string) bool {
+	locale = strings.TrimSpace(locale)
+	if locale == "" || len(locale) > maxToolDisplayLocaleKeyBytes {
+		return false
+	}
+	language, region := locale, ""
+	if index := strings.IndexByte(locale, '-'); index >= 0 {
+		language, region = locale[:index], locale[index+1:]
+		// 第二个连字符意味着第三个子标签（脚本或变体），不在支持范围内。
+		if strings.IndexByte(region, '-') >= 0 {
+			return false
+		}
+	}
+	if len(language) < 2 || len(language) > 3 || !asciiLetters(language) {
+		return false
+	}
+	switch {
+	case region == "":
+		return true
+	case len(region) == 2:
+		return asciiLetters(region)
+	case len(region) == 3:
+		return asciiDigits(region)
+	default:
+		return false
+	}
+}
+
+func asciiLetters(value string) bool {
+	for _, r := range value {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
+			return false
+		}
+	}
+	return true
+}
+
+func asciiDigits(value string) bool {
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // Issues 覆盖策略层与受限层，并给出每一处的字段路径。越界值直接拒绝，而不是
 // 截断到边界，避免静默改变运营者的意图。
 //
@@ -97,6 +210,7 @@ func (s Settings) purposeIssues() []Issue {
 func (s Settings) Issues() []Issue {
 	issues := s.replyToolIssues()
 	issues = append(issues, s.purposeIssues()...)
+	issues = append(issues, s.toolDisplayIssues()...)
 	if len(s.Profiles) > MaxProfiles {
 		issues = append(issues, Issue{Field: "profiles", Code: IssueCodeTooMany})
 	}

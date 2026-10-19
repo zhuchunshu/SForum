@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { AdminAIPurposeOverride, AdminAIToolAvailability, AdminAIToolOrigin, AdminAIValidatedPurpose } from '~/composables/admin/useAdminAI'
+import type { AIPurposeOverride } from '~/utils/admin/adminAI'
 import { ADMIN_AI_DRAFT_KEY } from '~/composables/admin/useAdminAISettingsForm'
+import { toSettingsOverride } from '~/components/admin/ai/toolOverrides'
 import {
   AI_FAILURE_POSTURES,
   MAX_TOOLS_PER_REQUEST,
@@ -10,6 +12,7 @@ import {
   purposeToolsAreOverridden,
   selectedPurposeTools
 } from '~/utils/admin/adminAI'
+import { setPurposeTool, toolOriginLabel } from '~/utils/admin/adminAITools'
 
 // 用途清单是「站内有哪些 AI 行为」的唯一可枚举答案。每一行都同时展示声明与生效
 // 两份事实：运营者要能看出「这个用途原本是什么」与「我把它改成了什么」，否则一次
@@ -38,14 +41,16 @@ function overrideFor(id: string): AdminAIPurposeOverride | undefined {
 }
 
 // 用户在界面上做的任何改动都写回同一份草稿：页面壳持有它，保存是整份文档替换。
-function writeOverride(id: string, override: AdminAIPurposeOverride | undefined) {
+// 参数接受工具纯函数的覆盖形状，写入前补成设置文档要求的形状（见 toolOverrides）。
+function writeOverride(id: string, override: AIPurposeOverride | undefined) {
   const current = form.value
   if (!current) return
   const purposes = { ...(current.purposes ?? {}) }
-  if (!override) {
+  const next = toSettingsOverride(override)
+  if (!next) {
     delete purposes[id]
   } else {
-    purposes[id] = override
+    purposes[id] = next
   }
   current.purposes = purposes
 }
@@ -79,12 +84,11 @@ function toolOrigin(name: string): AdminAIToolOrigin | undefined {
   return availableTools.value.find(tool => tool.name === name)?.origin
 }
 
-// 插件工具在标签里带上扩展 id：运营者要能看出这个名字是谁提供的，而不是靠工具名
-// 的形状去猜。
+// 插件工具在标签里带上扩展标识：运营者要能看出这个名字是谁提供的，而不是靠工具名
+// 的形状去猜。Core 内置仍然只显示名字，保持这一列不被 @Core 噪音填满。
 function toolLabel(name: string) {
-  const origin = toolOrigin(name)
-  if (origin?.kind === 'plugin') return `${name} · ${origin.extensionId || 'plugin'}`
-  return name
+  const label = toolOriginLabel(toolOrigin(name))
+  return label === 'Core' ? name : `${name} · ${label}`
 }
 
 // 真正「未注册」的选中项：既不在用途声明里，也不在站内工具目录里。服务端会跳过
@@ -147,19 +151,14 @@ function useCustomTools(purpose: AdminAIValidatedPurpose) {
   writeOverride(purpose.id, next)
 }
 
+// 勾选与取消都走 setPurposeTool：它把生效集合物化后增删名字，再与用途声明比较——
+// 一旦结果与声明一致就把整个 tools 字段删掉，于是「勾上再取消」会回到「未覆盖」，
+// 而不是留下一个与声明同值、却永远显示「已自定义」的覆盖。
 function toggleTool(purpose: AdminAIValidatedPurpose, name: string, checked: boolean) {
   const current = normalizePurposeToolNames(selectedTools(purpose))
-  let next = current
-  if (checked) {
-    if (!current.includes(name) && current.length >= MAX_TOOLS_PER_REQUEST) return
-    next = normalizePurposeToolNames([...current, name])
-  } else {
-    next = current.filter(item => item !== name)
-  }
-  const existing = overrideFor(purpose.id)
-  const override: AdminAIPurposeOverride = { tools: { allowed: next } }
-  if (existing?.failurePosture) override.failurePosture = existing.failurePosture
-  writeOverride(purpose.id, override)
+  // 上限只在「新增」时拦：取消勾选永远允许，否则超限的配置会把运营者锁在界面里。
+  if (checked && !current.includes(name) && current.length >= MAX_TOOLS_PER_REQUEST) return
+  writeOverride(purpose.id, setPurposeTool(purpose.declaredTools, overrideFor(purpose.id), name, checked))
 }
 
 // 每行的输入框是纯界面状态：它不进配置文档，也不参与脏判定。

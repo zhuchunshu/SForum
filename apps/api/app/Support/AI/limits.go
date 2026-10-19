@@ -50,6 +50,11 @@ const (
 	MaxToolArgumentsBytes   = 16_384
 	MaxToolCallIDLen        = 128
 
+	// 控制台展示文案的上限。toolDisplayDescriptions 只服务界面，但它是整份设置
+	// 文档的一部分，仍要有边界：一个失控的字段不该把 GET /admin/ai/settings 撑大。
+	MaxToolDisplayTools   = 64
+	MaxToolDisplayLocales = 8
+
 	// 单次回复允许的工具调用次数（步数预算）。默认 5 是「搜索 → 读帖 → 再搜索 →
 	// 回答」这类多跳组合够用、成本又可控的折中（B1：由 3 放宽，因为第三跳被截断
 	// 会让模型凭已有信息编）。上限 12 是运营者不能越过的进程安全边界，抬它需要

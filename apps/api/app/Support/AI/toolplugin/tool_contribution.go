@@ -91,6 +91,12 @@ func ValidateAIToolDeclaration(extensionID string, declaration extensionmanifest
 	if len(strings.TrimSpace(declaration.Description)) > supportai.MaxToolDescriptionBytes {
 		return fmt.Errorf("%w: description too long", ErrAIToolDeclarationInvalid)
 	}
+	// 界面文案是可选声明，但一旦出现就必须与清单侧同源校验：运行期登记表是
+	// 第二个入口，不能因为清单在安装时校验过就默认这里的值一定合法（数据库里
+	// 可能躺着旧规则下的历史产物）。
+	if err := validateToolDescriptionI18n(declaration.DescriptionI18n); err != nil {
+		return err
+	}
 	// Parameters 是 JSON Schema 对象。Core 不解释它的语义，但必须保证它是合法
 	// JSON 且是对象——供应商会在请求层直接拒绝其它形状。
 	if err := validateToolParameters(declaration.Parameters); err != nil {
@@ -125,6 +131,35 @@ func validateToolParameters(raw json.RawMessage) error {
 	var probe map[string]any
 	if err := json.Unmarshal([]byte(trimmed), &probe); err != nil || probe == nil {
 		return fmt.Errorf("%w: parameters must be a JSON object", ErrAIToolDeclarationInvalid)
+	}
+	return nil
+}
+
+// aiToolDescriptionLocalesMaximum 与清单 schema 的 maxProperties 对齐：界面文案
+// 不是数据面，语言种数只需要覆盖控制台的实际语言，超出只会撑大载荷。
+const aiToolDescriptionLocalesMaximum = 8
+
+// validateToolDescriptionI18n 校验可选的界面文案。字段缺失是合法状态（旧插件），
+// 一旦出现则每条都必须可用：空文案会让控制台显示一个空行，超长文案会把
+// GET /admin/ai/settings 撑大。
+func validateToolDescriptionI18n(descriptions map[string]string) error {
+	if len(descriptions) == 0 {
+		return nil
+	}
+	if len(descriptions) > aiToolDescriptionLocalesMaximum {
+		return fmt.Errorf("%w: too many display locales", ErrAIToolDeclarationInvalid)
+	}
+	for locale, text := range descriptions {
+		if strings.TrimSpace(locale) == "" || locale != strings.TrimSpace(locale) {
+			return fmt.Errorf("%w: invalid display locale %q", ErrAIToolDeclarationInvalid, locale)
+		}
+		trimmed := strings.TrimSpace(text)
+		if trimmed == "" {
+			return fmt.Errorf("%w: empty display description for %q", ErrAIToolDeclarationInvalid, locale)
+		}
+		if len(trimmed) > supportai.MaxToolDescriptionBytes {
+			return fmt.Errorf("%w: display description too long", ErrAIToolDeclarationInvalid)
+		}
 	}
 	return nil
 }

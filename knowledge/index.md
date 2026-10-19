@@ -285,6 +285,10 @@ load archived sessions or completed plans as current context.
   里选择并保留手动输入出口）。仍待渲染 QA：需要管理员凭据。
 - Excluded by operator decision: embeddings/vector retrieval and multimodal
   input.
+- 2026-10-19 模型工具目录与统一配置（`tools` 页签）：三源说明（运营者 > 插件清单 >
+  无）、逐用途暴露与自动收敛、未注册引用清理、三种可用性诊断。
+  Handoff: `sessions/2026-10-19-ai-tools-tab-handoff.md`；决策：
+  `decisions/2026-10-19-ai-tool-catalog-console.md`。
 
 ## Current Project State
 

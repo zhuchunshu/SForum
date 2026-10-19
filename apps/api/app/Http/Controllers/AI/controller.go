@@ -41,6 +41,10 @@ type updateSettingsRequest struct {
 	AutoAction supportai.AutoActionSettings         `json:"autoAction"`
 	Gates      supportai.GateSettings               `json:"gates"`
 	Redaction  supportai.RedactionSettings          `json:"redaction"`
+	// ToolDisplayDescriptions 是仅控制台展示的工具说明覆盖。它是整份文档 PUT 的
+	// 一部分，因此必须出现在 DTO 里：漏掉它会重演 reply 字段的事故——运营者保存
+	// 任何其它设置时，这些译文会被静默抹掉。
+	ToolDisplayDescriptions map[string]map[string]string `json:"toolDisplayDescriptions"`
 	// Reply 承载回复提示词与旧版工具白名单覆盖。前端一直在发这一项，但 DTO 此前
 	// 没有它，保存设置会静默丢掉运营者写过的提示词——这里补齐，并让工具白名单
 	// 走同一条经过校验的路径。
@@ -413,16 +417,17 @@ func (h *Controller) encryptionEnabled() bool {
 // 默认值，因此「用户只改了开关」这类最小提交也能通过校验。
 func settingsFromRequest(request updateSettingsRequest) supportai.Settings {
 	return supportai.Settings{
-		Enabled:               request.Enabled,
-		Profiles:              request.Profiles,
-		CostClassProfiles:     request.CostClassProfiles,
-		PurposeFailurePosture: request.PurposeFailurePosture,
-		Purposes:              request.Purposes,
-		AutoAction:            request.AutoAction,
-		Gates:                 request.Gates,
-		Redaction:             request.Redaction,
-		Reply:                 request.Reply,
-		Multimodal:            request.Multimodal,
+		Enabled:                 request.Enabled,
+		Profiles:                request.Profiles,
+		CostClassProfiles:       request.CostClassProfiles,
+		PurposeFailurePosture:   request.PurposeFailurePosture,
+		Purposes:                request.Purposes,
+		AutoAction:              request.AutoAction,
+		Gates:                   request.Gates,
+		Redaction:               request.Redaction,
+		ToolDisplayDescriptions: request.ToolDisplayDescriptions,
+		Reply:                   request.Reply,
+		Multimodal:              request.Multimodal,
 	}.Normalized()
 }
 

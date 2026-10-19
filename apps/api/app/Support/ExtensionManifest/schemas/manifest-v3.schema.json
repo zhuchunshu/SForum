@@ -3334,6 +3334,14 @@
             "type": "string",
             "minLength": 1
           },
+          "descriptionI18n": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 8,
+            "additionalProperties": {
+              "$ref": "#/$defs/nonEmpty"
+            }
+          },
           "parameters": {},
           "handler": {
             "$ref": "#/$defs/handler"
