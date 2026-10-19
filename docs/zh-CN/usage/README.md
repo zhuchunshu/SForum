@@ -14,6 +14,7 @@
 | [管理后台](./admin.md) | 后台入口、用户/角色/权限、论坛与分类、审核、附件、邮件、SEO、Webhook、更新与任务 |
 | [论坛日常](./forum.md) | 版块标签、发帖回帖、版主操作 |
 | [短代码](./shortcodes.md) | 内置短代码语法、旧版兼容、保护内容与搜索/缓存/SEO 排除 |
+| [富内容围栏](./rich-content.md) | 脑图、统计图与公式的写法、上限、回落、CSP 与 AI 行为 |
 | [通知](./notifications.md) | 站内信、个人偏好、Web Push 与管理员策略 |
 | [搜索](./search.md) | 默认站点搜索与可选 Meilisearch |
 | [扩展与主题](./extensions.md) | 安装/启用插件、激活主题、信任与安全 |

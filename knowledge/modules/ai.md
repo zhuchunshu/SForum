@@ -193,6 +193,24 @@ live in configuration, not in Core code.
 - 可见行为变化：回复上限 512 → 该 profile 的 `Defaults.MaxTokens`（内置默认 2048），
   只在实际生成时计费。
 
+## 富内容围栏提示词段（2026-10-20）
+
+- `Support/AI/rich_content_prompt.go` 的 `RichContentSystemPrompt()` 是**宿主拥有**的一段：
+  `ComposeReplySystemPrompt` 的固定顺序变成 **base → 富内容 → 工具 → 安全尾注**，运营者
+  覆盖 base 提示词也删不掉它（与安全尾注同理）。`CoreReplyPromptVersion` 升到
+  `forum-reply@10`，结果缓存键随之失效；`Models/AIReply/generator_tools_test.go` 的
+  提醒式版本断言同步更新。
+- 段内容与 `contracts/fixtures/rich-content-v1.json` 对齐（mermaid / chart 两种围栏、
+  `$…$` 与 `$$…$$`、12 KiB / 8 KiB 上限、每回答最多一张图、数字只能来自工具结果、
+  禁止 HTML/SVG 画图、禁止 `[topic]`/`[user]` 这类短代码），一致性由
+  `reply_prompt_test.go` 的 fixture 用例守着。
+- 为什么教围栏而不是短代码：短代码身份集冻结、参数只允许标量、且模型拿不到 `topic_id`
+  （工具只返回链接）；围栏是模型原生输出，渲染层在 `apps/web/app/utils/content/`
+  （见 `modules/frontend.md`）。
+- 是否真的会用只能由 `sforum ai:eval` 的 `11-rich-diagram` / `12-rich-chart` /
+  `13-rich-math` / `14-rich-no-overuse` 四条用例度量；baseline 需要真实网关 +
+  `DATABASE_URL` + `APP_OPTION_ENC_KEY`，本次未生成（记为 residual）。
+
 ## Purposes
 
 - **用途是声明，不是调用点的细节。** `app/Support/AI/purpose.go` 的

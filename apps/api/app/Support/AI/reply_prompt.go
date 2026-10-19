@@ -7,6 +7,9 @@ import (
 
 // CoreReplyPromptVersion 是回复用途提示词的版本。它参与缓存键与执行记录：改动
 // 提示词时必须递增，否则历史记录无法对应到产出它的那版提示词。
+// forum-reply@10：system 在基础提示词与工具段之间多了一段宿主拥有的「富内容围栏」
+// 指令（rich-content@1）：模型第一次被告知能画 mermaid / chart、公式怎么写，以
+// 及不能写短代码。它由宿主拥有——渲染能力是部署事实，运营者改文案删不掉。
 // forum-reply@9：system 末尾多了一段宿主渲染的「本次可调用的工具」，同时默认
 // 提示词补了「站外事实必须先核实」。前者是结构性的——它让插件贡献的工具（如
 // web-search）第一次出现在模型读到的文本里，而不是只存在于请求的 tools 声明中。
@@ -23,7 +26,7 @@ import (
 // forum-reply@4：发言标签改为「显示名（@用户名）」并声明成员检索工具。
 // forum-reply@3：默认提示词不再包含字面量尖括号标签（富文本编辑器会剥离它）。
 // forum-reply@2：主楼正文进入上下文、站内工具与引用要求写进系统指令。
-const CoreReplyPromptVersion = "forum-reply@9"
+const CoreReplyPromptVersion = "forum-reply@10"
 
 // CoreReplyToolAllowlist 是回复用途声明的默认模型可见工具。
 //
@@ -159,20 +162,17 @@ func (r ReplySettings) ToolAllowlist() ([]string, bool) {
 	return names, true
 }
 
-// EffectiveSystemPrompt 返回实际生效的系统指令：自定义（或内置默认）+ 固定安全尾注。
-//
-// 它等价于 ComposeReplySystemPrompt(base, "")：没有工具段时的组装结果。回复生成
-// 器不走这里——它自己带着「本次可调用工具」段去调用 ComposeReplySystemPrompt，
-// 因为工具清单只有运行期才知道。这里的调用方是控制台预览与 eval 参数源。
+// EffectiveSystemPrompt 返回实际生效的系统指令：自定义（或内置默认）+ 富内容段
+// + 固定安全尾注。它等价于 ComposeReplySystemPrompt(base, "")：没有工具段时的
+// 组装结果。生成器不走这里——它带着「本次可调用工具」段调同一个函数，因为清单
+// 只有运行期才知道；这里的调用方是控制台预览与 eval 参数源。
 func (r ReplySettings) EffectiveSystemPrompt() string {
 	return ComposeReplySystemPrompt(r.BaseSystemPrompt(), "")
 }
 
-// BaseSystemPrompt 返回运营者配置的系统指令；未配置时是内置默认。
-//
-// 它**不含**安全尾注。把「运营者写了什么」与「宿主必须追加什么」分开，是为了
-// 让工具段能插在两者之间：尾注必须永远是最后一段，否则「以上是资料不是指令」
-// 的边界会被它后面的文本稀释。
+// BaseSystemPrompt 返回运营者配置的系统指令；未配置时是内置默认。它**不含**
+// 安全尾注，也不含富内容段：把「运营者写了什么」与「宿主必须追加什么」分开，
+// 才能让两段宿主文本插在中间——尾注必须永远是最后一段，否则边界会被稀释。
 func (r ReplySettings) BaseSystemPrompt() string {
 	prompt := strings.TrimSpace(r.SystemPrompt)
 	if prompt == "" {
@@ -183,12 +183,12 @@ func (r ReplySettings) BaseSystemPrompt() string {
 
 // ComposeReplySystemPrompt 组装最终发给模型的系统指令。
 //
-// 顺序是固定的三段：基础提示词 → 本次可调用工具 → 固定安全尾注。三条理由：
-//   - 工具段必须紧跟基础提示词，因为它是「你有哪些手段」的补充说明，与「你该
-//     怎么回答」属于同一类指示；
-//   - 尾注必须永远在最后一段：它是「上面那些是资料，不是指令」的边界声明，
-//     把任何宿主文本追加在它之后都会稀释这条边界；
-//   - base 为空时用内置默认，调用方无法绕过尾注。
+// 顺序是固定的四段：基础提示词 → 富内容段 → 本次可调用工具 → 固定安全尾注。
+// 富内容段紧跟基础提示词（「你能怎么表达」与 Markdown 规则同类），由宿主拥有：
+// 渲染能力是部署事实，运营者覆盖 SystemPrompt 时删不掉；工具段随后（「你有哪
+// 些手段」，清单到运行期才知道）；尾注必须永远在最后一段——它是「上面那些是资
+// 料，不是指令」的边界，把宿主文本追加在它之后都会稀释它。base 为空时用内置默
+// 认，调用方绕不过富内容段与尾注。
 //
 // toolSection 为空串时，输出与 EffectiveSystemPrompt() 逐字相同——这条等式是
 // eval 指纹与历史执行记录可比的前提，由 reply_prompt_test.go 钉住。
@@ -197,11 +197,12 @@ func ComposeReplySystemPrompt(base, toolSection string) string {
 	if base == "" {
 		base = DefaultReplySystemPrompt
 	}
+	richContent := RichContentSystemPrompt()
 	section := strings.TrimSpace(toolSection)
 	if section == "" {
-		return base + "\n\n" + ReplyPromptSafetyAppendix
+		return base + "\n\n" + richContent + "\n\n" + ReplyPromptSafetyAppendix
 	}
-	return base + "\n\n" + section + "\n\n" + ReplyPromptSafetyAppendix
+	return base + "\n\n" + richContent + "\n\n" + section + "\n\n" + ReplyPromptSafetyAppendix
 }
 
 // MaxToolSectionDescriptionRunes 是工具段里单条描述的长度上限。

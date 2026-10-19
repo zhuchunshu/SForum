@@ -68,9 +68,17 @@ const TEXT_NODE = 3
 const ELEMENT_NODE = 1
 const SKIPPED_TAGS = new Set(['A', 'CODE', 'PRE', 'SCRIPT', 'STYLE', 'TEXTAREA'])
 const SKIPPED_ATTRIBUTE = 'data-sf-mention-ignore'
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
+const MATHML_NAMESPACE = 'http://www.w3.org/1998/Math/MathML'
 
 function isSkippedElement(element: Element) {
-  return SKIPPED_TAGS.has(element.tagName) || element.hasAttribute(SKIPPED_ATTRIBUTE)
+  // SVG / MathML 子树整棵跳过：图里的标签文字不是正文，而且它们的 tagName 是小写
+  // （SVG 的 <style>、<text>），大小写敏感的白名单会漏掉——mermaid 生成的
+  // <style> 里的 @keyframes 就曾被当成 @提及 链接化，直接破坏图形。
+  if (element.namespaceURI === SVG_NAMESPACE || element.namespaceURI === MATHML_NAMESPACE) {
+    return true
+  }
+  return SKIPPED_TAGS.has(element.tagName.toUpperCase()) || element.hasAttribute(SKIPPED_ATTRIBUTE)
 }
 
 function collectTextNodes(node: Node, collected: Text[]) {

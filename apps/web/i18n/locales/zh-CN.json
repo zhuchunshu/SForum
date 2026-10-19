@@ -39,6 +39,17 @@
     "copyFailed": "复制失败，请手动选择代码",
     "plainText": "纯文本"
   },
+  "richContent": {
+    "diagram": "图表",
+    "chart": "统计图",
+    "math": "公式",
+    "source": "查看源码",
+    "invalid": "图表语法有误，已显示源码",
+    "tooLarge": "图表超出大小限制，已显示源码",
+    "unsupported": "暂不支持该图表类型，已显示源码",
+    "cspBlocked": "当前页面安全策略下以源码显示",
+    "error": "图表渲染失败，已显示源码"
+  },
   "appearance": {
     "colorMode": {
       "system": "自动",

@@ -381,6 +381,15 @@ V1 boundaries:
   404. Existing authorized admin and revision projections retain full
   `RenderedContent` and remain independently permissioned.
 
+- Fenced rich content (` ```mermaid `, ` ```chart `) and math delimiters (`$…$`,
+  `$$…$$`) are **ordinary content**, not shortcodes: they stay code blocks / text in
+  `raw_content` and in the sanitized HTML, and are rendered client-side by
+  `apps/web/app/utils/content/`. No Host node, schema, storage, API, or shortcode
+  identity changed for them. Their source therefore reaches `plainText` and excerpts
+  exactly like any code block — an accepted tradeoff recorded in
+  `decisions/2026-10-20-rich-content-fences.md`; if excerpt noise becomes a problem,
+  the follow-up is a Host-side marker that excludes those blocks from plain text.
+
 ## Public URLs And Reads
 
 | Resource | URL |

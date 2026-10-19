@@ -1,0 +1,57 @@
+{
+  "id": "rich-no-overuse",
+  "note": "反向用例：简单事实问题不该画图。期望回答简短、无任何围栏——没有代码块、没有 mermaid/chart、没有 $…$ 公式；出现任何一种都算过度使用。",
+  "topicTitle": "上传附件报 413 是什么原因",
+  "topicBody": "传一张 12 MB 的截图时失败，页面只显示 `413 Request Entity Too Large`。服务器是 nginx + Go API。这个错误码到底是什么意思？",
+  "topicAuthor": {
+    "username": "grace",
+    "displayName": "Grace"
+  },
+  "comments": [
+    {
+      "author": {
+        "username": "alice",
+        "displayName": "Alice"
+      },
+      "content": "我也遇到过，换小图就好了。",
+      "isBot": false
+    },
+    {
+      "author": {
+        "username": "grace",
+        "displayName": "Grace"
+      },
+      "content": "@helper 这个 413 是什么意思？",
+      "isBot": false
+    }
+  ],
+  "triggerCommentIndex": 1,
+  "triggerUserID": 900014,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 901,
+        "title": "nginx 大文件上传的常见坑",
+        "body": "默认的请求体上限通常只有 1 MB，超过就由 nginx 直接返回 413，请求根本到不了 Go 服务。\n\n要放开得同时看两处：nginx 的 client_max_body_size，以及应用自己的上传大小限制。只改一处，另一处仍会拒绝。\n\n413 是「请求体太大」，不是权限问题，也不是文件类型问题。",
+        "categorySlug": "ops",
+        "status": "active",
+        "commentCount": 9,
+        "viewCount": 2400,
+        "author": {
+          "username": "carol",
+          "displayName": "Carol"
+        }
+      }
+    ],
+    "users": [
+      {
+        "username": "carol",
+        "displayName": "Carol",
+        "bio": "后端与运维。",
+        "topicCount": 91,
+        "commentCount": 700
+      }
+    ]
+  }
+}

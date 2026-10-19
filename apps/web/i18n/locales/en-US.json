@@ -39,6 +39,17 @@
     "copyFailed": "Copy failed. Select the code manually.",
     "plainText": "Plain text"
   },
+  "richContent": {
+    "diagram": "Diagram",
+    "chart": "Chart",
+    "math": "Formula",
+    "source": "View source",
+    "invalid": "Diagram syntax is invalid; showing source",
+    "tooLarge": "Diagram exceeds the size limit; showing source",
+    "unsupported": "Diagram type is not supported; showing source",
+    "cspBlocked": "Rendered as source under this page's security policy",
+    "error": "Diagram failed to render; showing source"
+  },
   "appearance": {
     "colorMode": {
       "system": "Automatic",

@@ -14,6 +14,7 @@ For contributors, see [Development](../development/README.md).
 | [Admin control panel](./admin.md) | Users/roles/permissions, forum & taxonomy, moderation, attachments, mail, SEO, webhooks, updates & jobs |
 | [Forum day-to-day](./forum.md) | Taxonomy, posting, moderation |
 | [Shortcodes](./shortcodes.md) | Built-in syntax, legacy compatibility, protected content and search/cache/SEO exclusion |
+| [Rich content](./rich-content.md) | Diagrams, charts, formulas: syntax, limits, fallbacks, CSP, AI behavior |
 | [Notifications](./notifications.md) | Inbox, preferences, Web Push, operator policy |
 | [Search](./search.md) | Site search vs optional Meilisearch |
 | [Extensions & themes](./extensions.md) | Install, enable, trust, activate |

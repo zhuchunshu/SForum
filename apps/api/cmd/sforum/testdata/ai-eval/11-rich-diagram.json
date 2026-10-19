@@ -1,0 +1,72 @@
+{
+  "id": "rich-diagram",
+  "note": "脑图 ×1：提问者要求把本楼的分歧画成脑图。检验模型是否用 mermaid mindmap 围栏，而不是 ASCII 树、HTML 列表或纯文字复述；分歧点必须来自本楼发言（至少三条），不得编造。期望恰好一个 mermaid 围栏，且不出现 chart。",
+  "topicTitle": "AI 回复要不要默认带图",
+  "topicBody": "最近在讨论 AI 回复要不要默认带图，楼里大致分成四派：\n\n1. 阅读效率：图画得快，但一个三行能说清的问题会被拉成一张图，短回答反而更长。\n2. 无障碍：屏幕阅读器读不了图，图里的结论必须在正文里再说一遍。\n3. 移动端：窄屏上图会横向滚动，手指拖着看，不如列表。\n4. 可信度：模型画出来的图看起来很专业，但数据可能是编的，读者更容易信。\n\n我倾向默认关闭，但拿不准。",
+  "topicAuthor": {
+    "username": "dana",
+    "displayName": "Dana"
+  },
+  "comments": [
+    {
+      "author": {
+        "username": "alice",
+        "displayName": "Alice"
+      },
+      "content": "我站默认关闭。上周有个回答画了张时序图，其实两句话就能说完。",
+      "isBot": false
+    },
+    {
+      "author": {
+        "username": "bob",
+        "displayName": "Bob"
+      },
+      "content": "我站默认打开。复杂流程有图确实省事，问题在于该不该用，而不是能不能用。",
+      "isBot": false
+    },
+    {
+      "author": {
+        "username": "dana",
+        "displayName": "Dana"
+      },
+      "content": "@helper 把上面这几条分歧画成脑图，我想看看结构。",
+      "isBot": false
+    }
+  ],
+  "triggerCommentIndex": 2,
+  "triggerUserID": 900011,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 701,
+        "title": "AI 回复里的图，什么时候真的比文字清楚",
+        "body": "判断标准只有一条：读者要不要在脑子里重建一个结构。\n\n流程有分支、层级超过两层、多个角色按时间交错——这些用图比文字省事。单个事实、一个判断、一条命令的用法，用图只是把一句话摊开，读者反而要多花时间找重点。\n\n另一个常被忽略的点：图不能替代结论。图下面仍要有一句话说明「所以呢」，否则屏幕阅读器用户和只看摘要的人都拿不到信息。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 5,
+        "viewCount": 860,
+        "author": {
+          "username": "alice",
+          "displayName": "Alice"
+        }
+      }
+    ],
+    "users": [
+      {
+        "username": "alice",
+        "displayName": "Alice",
+        "bio": "前端与无障碍。",
+        "topicCount": 64,
+        "commentCount": 520
+      },
+      {
+        "username": "bob",
+        "displayName": "Bob",
+        "bio": "写 Go 和数据库。",
+        "topicCount": 128,
+        "commentCount": 940
+      }
+    ]
+  }
+}

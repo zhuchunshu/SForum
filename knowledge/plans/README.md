@@ -20,6 +20,7 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
+| `2026-10-20-rich-content-fences.md` | **landed（有 residual）** -- 富内容围栏（mermaid / chart / 公式）：不扩短代码身份，改用代码围栏 + `$…$` 承载；客户端渐进增强接在 `v-highlight`，KaTeX 走 MathML，图表走窄 schema + Chart.js；AI 提示词增加宿主拥有的富内容段（`forum-reply@10`）。浏览器实测出图/回落/颜色模式重渲染/390 无溢出，并修掉 mermaid `click` 的 `<a>` 绕过站外中转。未做：eval baseline、工具栏插入菜单 |
 | `2026-10-19-ai-tool-call-visibility.md` | **completed（待归档）** -- 两半：W1 让工具进入提示词（宿主渲染「本次可用工具」段 + `forum-reply@9`，修「模型拿到 web-search 却一次没调」）；W2 把 `ToolTrace` 落进新表 `ai_tool_calls` 并公开读（增量挂在 `GET /comments/:id/citations` 的 `toolCalls` 字段，不新增路由）。证据：run `8681e832…` 只有 1 行 `ai_executions` = 零工具调用；轨迹此前只进 slog |
 | `2026-10-19-editor-tables.md` | **landed** -- 修复"编辑含 GFM 表格的帖子即整表丢失"；四层打通（编辑器节点/UI、Host Schema+规范化、Host 渲染+Markdown 投影、goldmark 短代码兼容路径）；v1 不做合并单元格与列宽持久化（见 `decisions/2026-10-19-editor-tables.md`） |
 | `archive/2026-10/2026-10-19-ai-observability-and-capabilities.md` | **completed** -- A 批（ToolTrace / run correlation id / 轨迹回放）+ G（`sforum ai:eval` 基线）+ B 批（预算、3 个新只读工具、2 条派生用途、证据链溯源、会话状态）十项全部落地；六轨道并行 + 写作用域矩阵 + 进度账本 + 24 条偏离登记（D1–D24，无重号）；验证矩阵 L1–L5 通过，L6/L7 有运行时/浏览器证据；同日把仓库门禁从 HEAD 多处红推到 `./scripts/test.sh` 全绿（架构闸门 9→0） |

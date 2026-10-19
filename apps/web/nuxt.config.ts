@@ -154,7 +154,9 @@ export default defineNuxtConfig({
     '~/assets/css/sforum-profile.css',
     // 排序/分段控件基线必须在 home / taxonomy / tags 之后加载（同级声明后置覆盖）
     '~/assets/css/sforum-sort-control.css',
-    '~/assets/css/highlight-theme.css'
+    '~/assets/css/highlight-theme.css',
+    // 富内容容器依赖 highlight-theme 的 .sf-code-block，必须排在它之后。
+    '~/assets/css/rich-content.css'
   ],
   // DevTools 会扩大开发期依赖扫描和常驻内存；需要调试时用 NUXT_DEVTOOLS=true 显式开启。
   devtools: { enabled: devtoolsEnabled },
@@ -289,6 +291,14 @@ export default defineNuxtConfig({
     head: {
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+      ],
+      script: [
+        {
+          // 富内容水合前的骨架标记：SSR 输出的是普通代码块，先把它遮成骨架，避免
+          // 「先看到源码、再变成图」的闪屏。客户端 pass 起来后改写为 ready；若 8 秒
+          // 仍未接管（脚本被文档 CSP 拦、bundle 加载失败），自动摘掉标记让源码照常可见。
+          innerHTML: "document.documentElement.dataset.sfRich='pending';setTimeout(function(){if(document.documentElement.dataset.sfRich==='pending')delete document.documentElement.dataset.sfRich},8000)"
+        }
       ]
     }
   },

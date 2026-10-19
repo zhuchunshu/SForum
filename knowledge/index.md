@@ -6,6 +6,26 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 富内容围栏（mermaid / chart / 公式）
+
+- Status: **landed (2026-10-20)**。AI 与人类都能在正文里画脑图/流程图/时序图/统计图/
+  公式：**不扩短代码身份**，载体是代码围栏（`mermaid` / `chart`）与 `$…$` / `$$…$$`；
+  客户端渐进增强接在 `v-highlight`，KaTeX 走 MathML、图表走窄 schema + Chart.js、
+  脑图走 mermaid `mindmap`。AI 提示词新增宿主拥有的富内容段（`forum-reply@10`），
+  顺序 base → 富内容 → 工具 → 安全尾注。
+- 浏览器实测（发帖 / AI 评论 / 编辑器预览三条路径）：真实 mermaid / chart / MathML
+  出图、超限回落、颜色模式重渲染、390 宽无溢出；水合前有 shimmer 骨架，图出现不顶动
+  正文。期间发现并修掉四个真实缺陷：**mermaid `click` 的 `<a>` 绕过站外中转**、
+  **提及链接化把 SVG `<style>` 里的 `@keyframes` 当成 @提及**（小写 tagName 漏过白名单）、
+  **chart 在 pass cleanup 后几毫秒消失**（abort 监听留在成功路径）、**视口内图块被
+  紧接着的 updated 收掉后停在骨架**。
+- 未做：eval baseline（需真实网关 + 加密密钥）、工具栏「插入图块」菜单（需登录才能
+  渲染 QA）、摘要里剔除图源码（刻意留作后续）。
+- Plan: `plans/2026-10-20-rich-content-fences.md`
+- Handoff: `sessions/2026-10-20-rich-content-fences-handoff.md`
+- Decision: `decisions/2026-10-20-rich-content-fences.md`
+- Modules: `modules/frontend.md`、`modules/ai.md`、`modules/forum.md`
+
 ### 测试门禁吞吐
 
 - Status: **landed (2026-10-20)**。`scripts/test-api-isolated.sh` 用固定宿主端口
@@ -330,6 +350,16 @@ load archived sessions or completed plans as current context.
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
+
+- **富内容围栏（2026-10-20，最新）**：短代码不扩身份，改用代码围栏 + 公式定界符承载
+  脑图/流程图/统计图/公式。四层落地：契约 fixture → 客户端渲染层（mermaid / Chart.js /
+  KaTeX-MathML，全部动态 import + 懒加载 + 每页配额 + fail-open 源码）→ `v-highlight`
+  接线（覆盖 6 个正文面，颜色模式重渲染）→ AI 宿主提示词段（`forum-reply@10`）。
+  浏览器实测出图与回落；安全侧修掉 mermaid `click` 的 `<a>` 绕过站外中转，
+  `themeCSS`/`themeVariables` 经 `secure` 锁死。验证：web 1483 用例、typecheck、
+  架构闸门、Go 两包、docs 校验全绿。详见
+  `sessions/2026-10-20-rich-content-fences-handoff.md`、
+  `decisions/2026-10-20-rich-content-fences.md`。
 
 - **AI 工具调用可见性（2026-10-19，最新）**：机器人「拿到 web-search 却一次没调」
   拆成两半修。**W1**：system 末尾由宿主渲染「本次可调用的工具」段（生成者是

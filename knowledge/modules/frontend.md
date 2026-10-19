@@ -165,6 +165,52 @@ responsibilities.
   borderless, and square so selected-theme prose rules cannot reintroduce a
   second rounded border.
 
+### Rich content fences (mermaid / chart / math)
+
+- `v-highlight` now owns prose enhancement end to end: after `enhanceCodeBlocks`,
+  `enhanceRichContent` takes over `figure.sf-code-block[data-language="mermaid|chart"]`
+  and rewrites `$…$` / `$$…$$` text nodes. Authoritative limits live in
+  `contracts/fixtures/rich-content-v1.json`; TS mirror and types in
+  `apps/web/app/utils/content/`.
+- Each fence becomes `figure.sf-rich[data-sf-rich][data-sf-rich-state]` with a canvas,
+  a `<details>` holding the original code figure, and a note. Blocks already in the
+  viewport paint immediately; the rest are lazy (IntersectionObserver, 300px) and capped
+  per kind (6 per document); oversize, over-quota, parse failures and aborts fail open
+  to the source block. A pass that is cleaned up by the next `updated` must not leave a
+  block stuck on its skeleton, which is why the viewport fast path exists.
+- No-flash skeleton: an inline head script in `nuxt.config.ts` marks
+  `html[data-sf-rich="pending"]` before hydration (with an 8s self-clearing fallback for
+  blocked scripts), CSS covers rich fences with a shimmer while keeping the source in the
+  DOM, and the first client pass flips the flag to `ready`. The wrapper's canvas gets the
+  original code block's height as `minHeight`, so the diagram does not push the page.
+- Mermaid: `securityLevel:'strict'`, `htmlLabels:false`, `secure` locks security **and
+  theme keys** (`themeCSS`/`themeVariables` would otherwise let a diagram write user CSS
+  into the in-SVG `<style>`); output passes DOMPurify (svg profile) and then a scrub that
+  removes `<script>`, `on*`, and **unwraps every `<a>`** — mermaid 11 renders `click`
+  URLs as anchors even in strict mode, which would bypass the outbound-link interstitial.
+- Chart: strict JSON (6 keys, 5 types, ≤6 series, ≤60 labels, finite |v| ≤ 1e12),
+  Chart.js canvas (fixed 280px height, `maintainAspectRatio:false`), colors from
+  `--sf-rich-text` / `--sf-accent`, reduced motion disables animation. Aborting a pass
+  must **not** destroy a chart whose canvas is still in the document — only a canvas that
+  left the DOM (re-render replaced the wrapper) is disposed; otherwise the chart vanished
+  milliseconds after rendering. Math: KaTeX `output:'mathml'` (no inline styles → survives the public page
+  document CSP), `maxExpand` 1000, block vs inline via `data-math-display`.
+- CSP degradation: pages carrying `[data-document-policy-digest]` render mermaid as
+  source with a note; math (MathML) and charts (canvas) still render. Color-mode changes
+  re-render fences via `rerenderRichContent`; math spans are left alone because MathML
+  inherits `currentColor`.
+- Mermaid theming: `theme:'base'` + site tokens (`--sf-rich-node-bg`, `--sf-rich-border`,
+  `--sf-rich-text`, `--sf-rich-edge`) and a **concrete font family** — mermaid measures
+  text with the configured family, so `inherit` produced nodes too small for CJK labels.
+  `rich-content.css` then overrides node fills/strokes and edge width, because mermaid's
+  classic theme paints 3px strokes in the fill colour.
+- The mention linkifier skips whole SVG and MathML subtrees: its tag allowlist compares
+  uppercase `tagName`, while SVG elements (`<style>`, `<text>`) are lowercase — mermaid's
+  `@keyframes` was being linkified into `/u/keyframes` and corrupted the diagram.
+- Tests: `apps/web/tests/content/*` (fence wrap/fallback/quota, mermaid security and
+  anchor unwrapping, chart schema, math delimiters, fixture parity) plus
+  `tests/forum/forumMentions.test.ts` for the SVG/MathML skip.
+
 ### Responsive public sidebar source
 
 - Desktop and mobile public left navigation now consume

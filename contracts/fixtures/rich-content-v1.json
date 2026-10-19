@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "sforum.rich-content@1",
+  "note": "富内容围栏的权威契约：围栏语言、公式定界符、上限与回落原因码。Go（AI 提示词段）与 TypeScript（渲染器）各自镜像本文件，双方各有一个 conformance 测试读取本文件比对，禁止只改一侧。",
+  "fences": [
+    {
+      "language": "mermaid",
+      "kind": "diagram",
+      "renderer": "mermaid",
+      "maxSourceBytes": 12288,
+      "maxPerDocument": 6,
+      "diagramKinds": [
+        "mindmap",
+        "flowchart",
+        "sequenceDiagram",
+        "stateDiagram-v2",
+        "classDiagram",
+        "erDiagram",
+        "gantt",
+        "timeline",
+        "pie",
+        "journey",
+        "quadrantChart"
+      ]
+    },
+    {
+      "language": "chart",
+      "kind": "chart",
+      "renderer": "chartjs",
+      "maxSourceBytes": 8192,
+      "maxPerDocument": 6
+    }
+  ],
+  "math": {
+    "output": "mathml",
+    "inlineDelimiters": [
+      ["$", "$"],
+      ["\\(", "\\)"]
+    ],
+    "displayDelimiters": [
+      ["$$", "$$"],
+      ["\\[", "\\]"]
+    ],
+    "maxSourceBytes": 2048,
+    "maxPerDocument": 200,
+    "maxExpand": 1000
+  },
+  "chart": {
+    "types": ["bar", "line", "area", "pie", "doughnut"],
+    "maxSeries": 6,
+    "maxLabels": 60,
+    "maxLabelChars": 120,
+    "maxTitleChars": 120,
+    "maxAbsValue": 1000000000000,
+    "maxSourceBytes": 8192
+  },
+  "fallbackReasons": ["invalid", "too_large", "unsupported", "csp", "error"]
+}

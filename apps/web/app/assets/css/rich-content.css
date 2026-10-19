@@ -1,0 +1,246 @@
+/* 富内容（mermaid / chart / math）容器。
+   DOM 契约见 apps/web/app/utils/content/richContentTypes.ts 与计划 §3.2：
+   figure.sf-rich[data-sf-rich][data-sf-rich-state] > .sf-rich__canvas + details.sf-rich__source + .sf-rich__note
+   源码块本身复用 highlight-theme.css 的 .sf-code-block，这里只负责把它塞进 details 后的间距。 */
+:where(.sf-prose, .sf-editor__preview) {
+  --sf-rich-border: #d3dce6;
+  --sf-rich-bg: #f8f9fb;
+  --sf-rich-muted: #707989;
+  --sf-rich-text: #354052;
+  /* mermaid 节点填充：比容器底色略深一点，靠 1px 边框与线条分层，不用高饱和色块。 */
+  --sf-rich-node-bg: #ffffff;
+  --sf-rich-accent: #2563eb;
+  --sf-rich-edge: #94a3b8;
+}
+
+.dark :where(.sf-prose, .sf-editor__preview) {
+  --sf-rich-border: #2f3a37;
+  --sf-rich-bg: #111615;
+  --sf-rich-muted: #87938f;
+  --sf-rich-text: #dce6e3;
+  --sf-rich-node-bg: #1f2a28;
+  --sf-rich-accent: #3b82f6;
+  --sf-rich-edge: #5b6b66;
+}
+
+.sf-prose .sf-rich,
+.sf-editor__preview .sf-rich {
+  max-width: 100%;
+  margin: 1.4em 0;
+  border: 1px solid var(--sf-rich-border);
+  border-radius: 6px;
+  background: var(--sf-rich-bg);
+  color: var(--sf-rich-text);
+}
+
+.sf-rich__canvas {
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.sf-rich__canvas > svg,
+.sf-rich__canvas > canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.sf-rich__source > summary {
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--sf-rich-border);
+  color: var(--sf-rich-muted);
+  font-size: 0.8125rem;
+  user-select: none;
+}
+
+.sf-rich__source > summary:focus-visible {
+  outline: 2px solid var(--sf-accent, currentColor);
+  outline-offset: 2px;
+}
+
+/* 源码块在 details 内不再重复外框与上下留白。 */
+.sf-rich__source .sf-code-block {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--sf-rich-border);
+  border-radius: 0;
+}
+
+.sf-rich__note {
+  margin: 0;
+  padding: 0 0.75rem 0.75rem;
+  color: var(--sf-rich-muted);
+  font-size: 0.8125rem;
+}
+
+/* 回落态：画布为空，只留源码与说明。 */
+.sf-rich[data-sf-rich-state='fallback'] .sf-rich__canvas {
+  display: none;
+}
+
+/* 渲染中的骨架：避免「空白 → 图突然出现」的跳动与闪屏。
+   高度由编排层按原代码块高度写进 style.minHeight，这里只负责外观。 */
+.sf-rich[data-sf-rich-state='pending'] .sf-rich__canvas {
+  min-height: 180px;
+  border-radius: 4px;
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--sf-rich-border) 35%, transparent) 0%,
+    color-mix(in srgb, var(--sf-rich-border) 70%, transparent) 50%,
+    color-mix(in srgb, var(--sf-rich-border) 35%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: sf-rich-shimmer 1.2s linear infinite;
+}
+
+/* 水合前：SSR 里的代码块先遮成骨架。
+   只在 data-sf-rich="pending" 时生效（内联脚本设置），JS 失败会在 8 秒后摘除标记。
+   文本保持透明而不是移除，读屏与复制仍拿得到源码。 */
+html[data-sf-rich='pending'] .sf-prose pre:has(> code.language-mermaid),
+html[data-sf-rich='pending'] .sf-prose pre:has(> code.language-chart),
+html[data-sf-rich='pending'] .sf-editor__preview pre:has(> code.language-mermaid),
+html[data-sf-rich='pending'] .sf-editor__preview pre:has(> code.language-chart) {
+  position: relative;
+  min-height: 180px;
+  overflow: hidden;
+  color: transparent;
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--sf-rich-border) 35%, transparent) 0%,
+    color-mix(in srgb, var(--sf-rich-border) 70%, transparent) 50%,
+    color-mix(in srgb, var(--sf-rich-border) 35%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: sf-rich-shimmer 1.2s linear infinite;
+}
+
+.sf-rich[data-sf-rich-state='ready'] .sf-rich__canvas > svg,
+.sf-rich[data-sf-rich-state='ready'] .sf-rich__canvas > canvas,
+.sf-rich-math > math {
+  animation: sf-rich-in 180ms ease-out;
+}
+
+@keyframes sf-rich-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@keyframes sf-rich-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-rich[data-sf-rich-state='pending'] .sf-rich__canvas,
+  html[data-sf-rich='pending'] .sf-prose pre,
+  html[data-sf-rich='pending'] .sf-editor__preview pre {
+    animation: none;
+  }
+
+  .sf-rich[data-sf-rich-state='ready'] .sf-rich__canvas > svg,
+  .sf-rich[data-sf-rich-state='ready'] .sf-rich__canvas > canvas,
+  .sf-rich-math > math {
+    animation: none;
+  }
+}
+
+/* pending：懒渲染触发前先占位，避免 IntersectionObserver 命中时布局跳动。 */
+.sf-rich[data-sf-rich-state='pending'] .sf-rich__canvas {
+  min-height: 3rem;
+}
+
+/* 统计图画布铺满容器；canvas 由渲染器创建，这里只保证有高度、不被压扁。 */
+.sf-rich[data-sf-rich='chart'] .sf-rich__canvas {
+  display: block;
+  min-height: 220px;
+}
+
+.sf-rich__canvas {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 源码面板展开后与说明文字形成层级：summary 收起时弱化，展开时回到正文色。 */
+.sf-rich__source[open] > summary {
+  color: var(--sf-rich-text);
+}
+
+.sf-rich__note[hidden] {
+  display: none;
+}
+
+/* 深色：画布不再叠一层浅底，避免 SVG 透明区域发灰。 */
+.dark .sf-rich__canvas {
+  background: transparent;
+}
+
+.dark .sf-rich__source .sf-code-block {
+  background: transparent;
+}
+
+/* 公式：行内跟随文本流；块级独占一行并居中，超宽时横向滚动而不是撑破正文。 */
+.sf-rich-math {
+  display: inline;
+}
+
+.sf-rich-math[data-math-display='1'] {
+  display: block;
+  margin: 0.9em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
+}
+
+.sf-rich-math math {
+  color: inherit;
+}
+
+/* 回落时 span 里留下的是 TeX 原文，用等宽字体标出这是源码而不是公式。 */
+.sf-rich-math[data-sf-rich-state='fallback'] {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.9375em;
+}
+
+/* 窄屏（含 390px）：图保持可读尺寸，超出部分横向滚动而不是整体压缩。 */
+@media (max-width: 480px) {
+  .sf-rich {
+    margin: 1em 0;
+  }
+
+  .sf-rich__canvas {
+    justify-content: flex-start;
+    padding: 0.5rem;
+  }
+
+  .sf-rich__canvas > svg {
+    max-width: none;
+    height: auto;
+  }
+}
+
+/* mermaid 的 classic 主题把节点描边画成与填充同色、连线 3px，放在正文里显得又脏又重。
+   这里按站点 token 统一收敛：细边框、统一表面色、1.5px 连线。
+   mermaid 自己在 SVG 里注入的 <style> 用 #id 选择器，优先级高于普通类选择器，所以
+   必须 !important 才能盖住；作用域只到 .sf-rich__canvas svg，不影响正文其它部分。 */
+.sf-rich__canvas svg .mindmap-node rect,
+.sf-rich__canvas svg .mindmap-node circle,
+.sf-rich__canvas svg .mindmap-node polygon,
+.sf-rich__canvas svg .mindmap-node path {
+  fill: var(--sf-rich-node-bg) !important;
+  stroke: var(--sf-rich-border) !important;
+  stroke-width: 1px !important;
+}
+
+.sf-rich__canvas svg .mindmap-node text {
+  fill: var(--sf-rich-text) !important;
+}
+
+.sf-rich__canvas svg .section-edge,
+.sf-rich__canvas svg [class^='edge-depth-'],
+.sf-rich__canvas svg [class^='section-edge-'] {
+  stroke: var(--sf-rich-edge) !important;
+  stroke-width: 1.5px !important;
+}

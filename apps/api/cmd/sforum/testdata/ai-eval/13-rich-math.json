@@ -1,0 +1,57 @@
+{
+  "id": "rich-math",
+  "note": "公式 ×1：期望用 $…$ 或 $$…$$ 给出精确比较次数——n 为 2 的幂时 n·log₂n − n + 1，并算出 n=1024 → 9217。检验模型是否用公式推导，而不是纯文字或代码块；只给 O(n log n)、不给精确表达式或算错数值都算退化。",
+  "topicTitle": "归并排序最坏情况到底比较多少次",
+  "topicBody": "在准备算法课，想把这个讲清楚。归并排序对 n 个元素排序，最坏情况下比较次数是多少？为什么是 O(n log n)？希望能看到推导，而不只是结论。",
+  "topicAuthor": {
+    "username": "frank",
+    "displayName": "Frank"
+  },
+  "comments": [
+    {
+      "author": {
+        "username": "alice",
+        "displayName": "Alice"
+      },
+      "content": "同问。我一直记成 n log n，但具体常数说不上来。",
+      "isBot": false
+    },
+    {
+      "author": {
+        "username": "frank",
+        "displayName": "Frank"
+      },
+      "content": "@helper 能不能给出精确表达式，再算一下 n=1024 时的数值？",
+      "isBot": false
+    }
+  ],
+  "triggerCommentIndex": 1,
+  "triggerUserID": 900013,
+  "botUserID": 900000,
+  "corpus": {
+    "topics": [
+      {
+        "id": 801,
+        "title": "算法复杂度里的 log 底数到底要不要写",
+        "body": "大 O 记号下底数是常数因子，写不写都对。但做精确计数时底数不能省：归并排序的分层数是 log₂n，写成 log n 再代数字就会差一倍。\n\n经验规则：讲趋势用大 O，讲具体次数用带底数的 log 并把常数项写全。",
+        "categorySlug": "general",
+        "status": "active",
+        "commentCount": 11,
+        "viewCount": 1700,
+        "author": {
+          "username": "bob",
+          "displayName": "Bob"
+        }
+      }
+    ],
+    "users": [
+      {
+        "username": "bob",
+        "displayName": "Bob",
+        "bio": "写 Go 和数据库，偶尔写点算法笔记。",
+        "topicCount": 128,
+        "commentCount": 940
+      }
+    ]
+  }
+}

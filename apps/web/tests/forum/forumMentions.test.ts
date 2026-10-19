@@ -35,6 +35,26 @@ describe('forum mention syntax', () => {
 })
 
 describe('forum mention linkify', () => {
+  test('skips SVG and MathML subtrees (mermaid style / diagram labels)', () => {
+    const document = testDocument()
+    const root = document.createElement('div')
+    root.innerHTML = [
+      '<p>@alice 你好</p>',
+      '<svg xmlns="http://www.w3.org/2000/svg"><style>@keyframes spin{}</style>'
+        + '<text>@in_diagram</text></svg>',
+      '<math xmlns="http://www.w3.org/1998/Math/MathML"><mtext>@in_math</mtext></math>'
+    ].join('')
+
+    expect(linkifyForumMentions(root)).toBe(1)
+
+    const created = root.querySelector('p a.sf-mention')
+    expect(created?.getAttribute('data-sf-mention')).toBe('alice')
+    // SVG 的 <style> / <text> 与 MathML 文本都不参与链接化：小写 tagName 会绕过
+    // 大小写敏感的白名单，而且图里的 @ 不是提及。
+    expect(root.querySelector('svg a')).toBeNull()
+    expect(root.querySelector('math a')).toBeNull()
+  })
+
   test('links visible text and skips links, inline code, and code blocks', () => {
     const document = testDocument()
     const root = document.createElement('div')
