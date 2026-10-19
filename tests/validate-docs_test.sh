@@ -64,6 +64,41 @@ curl -fsSLo sforum-bootstrap.sh https://github.com/zhuchunshu/SForum/releases/la
 ./sforum-bootstrap.sh upgrade
 Use --channel prerelease for prereleases.
 Historical compatibility: the v3.0.0-alpha.13 bundled updater stays pinned.
+
+[one-click](./deployment/one-click.md)
+[manual](./deployment/manual.md)
+[environment](./deployment/environment.md)
+[troubleshooting](./deployment/troubleshooting.md)
+EOF
+    mkdir -p "$dir/docs/$locale/deployment"
+    cat > "$dir/docs/$locale/deployment/one-click.md" <<'EOF'
+# One-click
+
+./deploy.sh --action deploy
+./upgrade.sh
+--confirm-maintenance
+.deployrc
+EOF
+    cat > "$dir/docs/$locale/deployment/manual.md" <<'EOF'
+# Manual
+
+docker compose
+migrate
+SFORUM_VERSION
+SFORUM_CONFIRM_RESTORE
+EOF
+    cat > "$dir/docs/$locale/deployment/environment.md" <<'EOF'
+# Environment
+
+`APP_ENV` `SFORUM_VERSION` `TRUST_PROXY` `TRUSTED_PROXIES`
+`TRUST_PROXY_PRIVATE` `TRUST_PROXY_LOOPBACK` `SFORUM_SAFE_MODE` `PPROF_ENABLED`
+EOF
+    cat > "$dir/docs/$locale/deployment/troubleshooting.md" <<'EOF'
+# Troubleshooting
+
+recovery_required
+sforum extension disable
+PPROF_ENABLED
 EOF
     cat > "$dir/docs/$locale/development/cli.md" <<'EOF'
 # CLI
@@ -81,6 +116,22 @@ EOF
 Requires Go 1.26.6+.
 EOF
   done
+
+  cat > "$dir/.env.production.example" <<'EOF'
+APP_ENV=production
+SFORUM_VERSION=v3.0.0-alpha.9
+EOF
+
+  cat > "$dir/compose.yaml" <<'EOF'
+services:
+  api:
+    environment:
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      TRUST_PROXY_PRIVATE: ${TRUST_PROXY_PRIVATE:-}
+      TRUST_PROXY_LOOPBACK: ${TRUST_PROXY_LOOPBACK:-}
+      SFORUM_SAFE_MODE: ${SFORUM_SAFE_MODE:-}
+EOF
 
   cat > "$dir/AGENTS.md" <<'EOF'
 # Agent guide
@@ -465,5 +516,41 @@ cat >> "$CASE_HISTORICAL_PREFIX/docs/en-US/README.md" <<'EOF'
 Deploy v3.0.0 for the demo.
 EOF
 assert_validator_fails_with "$CASE_HISTORICAL_PREFIX" "must not contain the concrete release number v3.0.0" "historical prerelease prefix check"
+
+# A deployment task page must exist in both locales.
+CASE_DEPLOY_PAGE="$TEMP_DIR/deploy-page"
+write_base_fixture "$CASE_DEPLOY_PAGE"
+rm "$CASE_DEPLOY_PAGE/docs/zh-CN/deployment/manual.md"
+rm "$CASE_DEPLOY_PAGE/docs/en-US/deployment/manual.md"
+assert_validator_fails_with "$CASE_DEPLOY_PAGE" "required deployment guide is missing" "deployment page presence check"
+
+# Every production env key must stay documented in both locales.
+CASE_ENV_KEY="$TEMP_DIR/env-key"
+write_base_fixture "$CASE_ENV_KEY"
+printf 'NEW_SECRET=change-me\n' >> "$CASE_ENV_KEY/.env.production.example"
+assert_validator_fails_with "$CASE_ENV_KEY" "must document NEW_SECRET" "environment key coverage check"
+
+# A documented proxy variable must actually reach the API container.
+CASE_COMPOSE_PASSTHROUGH="$TEMP_DIR/compose-passthrough"
+write_base_fixture "$CASE_COMPOSE_PASSTHROUGH"
+grep -v 'TRUST_PROXY: ' "$CASE_COMPOSE_PASSTHROUGH/compose.yaml" > "$CASE_COMPOSE_PASSTHROUGH/compose.yaml.next"
+mv "$CASE_COMPOSE_PASSTHROUGH/compose.yaml.next" "$CASE_COMPOSE_PASSTHROUGH/compose.yaml"
+assert_validator_fails_with "$CASE_COMPOSE_PASSTHROUGH" "API environment must pass through TRUST_PROXY" "Compose passthrough check"
+
+# Stale image/service counts must not come back.
+CASE_STALE_COUNT="$TEMP_DIR/stale-count"
+write_base_fixture "$CASE_STALE_COUNT"
+cat >> "$CASE_STALE_COUNT/docs/en-US/deployment.md" <<'EOF'
+
+four GHCR images
+EOF
+assert_validator_fails_with "$CASE_STALE_COUNT" "stale service/image count" "deployment count check"
+
+# Operational commands must survive edits to the task pages.
+CASE_MARKER="$TEMP_DIR/deploy-marker"
+write_base_fixture "$CASE_MARKER"
+grep -v -- '--confirm-maintenance' "$CASE_MARKER/docs/en-US/deployment/one-click.md" > "$CASE_MARKER/docs/en-US/deployment/one-click.md.next"
+mv "$CASE_MARKER/docs/en-US/deployment/one-click.md.next" "$CASE_MARKER/docs/en-US/deployment/one-click.md"
+assert_validator_fails_with "$CASE_MARKER" "missing operational marker --confirm-maintenance" "deployment marker check"
 
 printf 'validate-docs_test.sh: all checks passed\n'

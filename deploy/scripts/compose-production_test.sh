@@ -59,6 +59,10 @@ ruby -rjson -e '
   api = services.fetch("api")
   abort "compose-production_test.sh: API still exposes Worker ownership configuration" if api.fetch("environment").key?("EMBED_WORKER_IN_API")
   abort "compose-production_test.sh: default topology includes standalone Worker" if services.key?("worker")
+  %w[TRUST_PROXY TRUSTED_PROXIES TRUST_PROXY_PRIVATE TRUST_PROXY_LOOPBACK SFORUM_SAFE_MODE].each do |key|
+    abort "compose-production_test.sh: API does not pass through #{key}" unless api.fetch("environment").key?(key)
+    abort "compose-production_test.sh: #{key} should default to an empty value" unless api.fetch("environment").fetch(key) == ""
+  end
 
   legacy_services = JSON.parse(File.read(ARGV.fetch(2))).fetch("services")
   abort "compose-production_test.sh: legacy env revived standalone Worker" if legacy_services.key?("worker")

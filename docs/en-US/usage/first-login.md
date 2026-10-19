@@ -30,6 +30,7 @@ The initial `super_admin` cannot be deleted, disabled, or stripped of super-admi
 - Browser sessions are server-backed (Redis).  
 - Account security UI manages devices and revocation.  
 - Production: rotate secrets and DB passwords in `.env.production`.
+- For the production sequence (first admin, reverse proxy, backup), see [Manual Compose deployment](../deployment/manual.md).
 
 ## Human verification (ALTCHA)
 

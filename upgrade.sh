@@ -23,6 +23,10 @@ Usage: ./upgrade.sh [VERSION] [options]
 
 Zero-downtime HTTP update for an existing SForum Compose installation.
 
+Normally invoked by ./sforum-bootstrap.sh upgrade after the bootstrap refreshes
+the target Release toolkit. Running this file directly requires both
+.env.production and .deployrc in the current directory.
+
 Options:
   VERSION             Target release number/tag, or latest (default: latest)
   --version VERSION   Same as the positional VERSION argument
@@ -31,9 +35,15 @@ Options:
   --confirm-maintenance
                       Authorize a short maintenance-window upgrade when the
                       target release contains migrations that cannot run while
-                      the old release serves traffic.
+                      the old release serves traffic. Run this flag on the
+                      local upgrade.sh; the bootstrap does not forward it.
   --yes               Skip version and one-time topology confirmations
   -h, --help          Show this help
+
+State:
+  .deployrc           Required. Records the active slot and both slot versions.
+  .deploy.lock        Prevents concurrent deploy/update operations.
+  deploy/runtime/     Managed blue/green Caddy configuration.
 
 Channels:
   stable             Resolve the newest stable GitHub Release only.

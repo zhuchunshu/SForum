@@ -17,6 +17,10 @@ Official project documentation. Choose a language:
 | Development | [开发指南](./zh-CN/development/README.md) | [Development](./en-US/development/README.md) |
 | API usage | [API 使用](./zh-CN/development/api.md) | [API usage](./en-US/development/api.md) |
 | Deployment | [生产部署](./zh-CN/deployment.md) | [Deployment](./en-US/deployment.md) |
+| One-click install/update | [一键安装与更新](./zh-CN/deployment/one-click.md) | [One-click install/update](./en-US/deployment/one-click.md) |
+| Manual Compose | [手动部署](./zh-CN/deployment/manual.md) | [Manual Compose](./en-US/deployment/manual.md) |
+| Environment & secrets | [环境变量与密钥](./zh-CN/deployment/environment.md) | [Environment & secrets](./en-US/deployment/environment.md) |
+| Deployment troubleshooting | [部署故障排查](./zh-CN/deployment/troubleshooting.md) | [Deployment troubleshooting](./en-US/deployment/troubleshooting.md) |
 | Architecture | [架构](./zh-CN/architecture.md) | [Architecture](./en-US/architecture.md) |
 | Product | [产品说明](./zh-CN/product.md) | [Product](./en-US/product.md) |
 | Extensions (tech) | [扩展参考](./extensions/) | [Extension reference](./extensions/) |
@@ -27,7 +31,9 @@ Official project documentation. Choose a language:
 docs/
 ├── README.md                 # this hub
 ├── zh-CN/                    # Chinese handbook (maintained in parallel)
+│   └── deployment/           # install/update, manual, environment, troubleshooting
 ├── en-US/                    # English handbook (maintained in parallel)
+│   └── deployment/           # same structure as zh-CN/deployment
 ├── extensions/               # technical extension contracts (path stable for CI)
 │   ├── authoring-guide.md
 │   ├── migrating-from-sforum-v2.md   # SForum-old -> V3 mapping + quick starts

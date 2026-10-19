@@ -21,13 +21,32 @@ usage() {
   cat <<'EOF'
 Usage: ./deploy.sh [options]
 
+Without --action, an interactive console offers install/update, backup, restore,
+status, logs, restart, and stop.
+
 Options:
   --lang zh|en          Interface language
   --version VERSION     Release tag, or latest stable release (default: latest)
   --channel CHANNEL     Update channel: stable (default) or prerelease
-  --action ACTION       deploy, backup, restore, status, logs, restart, stop
+  --action ACTION       deploy, install, update, backup, restore, status,
+                        logs, restart, stop, rollback
   --yes, --defaults     Accept recommended configuration defaults
   -h, --help            Show this help
+
+Actions:
+  deploy|install|update Resolve the target release, back up an existing
+                        database, run migrations, start the release images, and
+                        verify health before recording .deployrc.
+  backup                Create a PostgreSQL backup under backups/ (0600).
+  restore               Restore a backup after typing RESTORE.
+  status|logs           Inspect the currently recorded deployment.
+  restart|stop          Restart or stop the managed Compose services.
+  rollback              Print rollback guidance; it does not change versions.
+
+State:
+  .deployrc             Recorded version, topology, and recovery state (0600).
+  .deploy.lock          Prevents two deploy operations from running at once.
+  .env.production       Required production configuration (0600).
 
 Channels:
   stable                Resolve the newest stable GitHub Release only.

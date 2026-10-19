@@ -31,8 +31,20 @@ Options:
   --bootstrap          Confirm the legacy ingress conversion (upgrade only)
   -h, --help           Show this help
 
+Each run resolves an immutable tag, verifies and refreshes this bootstrap, then
+verifies and promotes the same Release's complete toolkit (deploy.sh,
+upgrade.sh, Compose files, .env.production.example, deploy/scripts, Caddy
+examples). Previous managed tools are backed up under .sforum/tooling-backups/.
+.env.production, .deployrc, deploy/runtime/, and data volumes are preserved.
+
+Install refuses to run when .env.production or .deployrc already exists.
+Upgrade requires both. To recover a half-finished install, run
+./deploy.sh --action deploy --version <TAG> once, then use bootstrap upgrade.
+
 Maintenance actions such as status, logs, backup, restore, restart, and stop
-remain local deploy.sh operations and do not require GitHub access.
+remain local deploy.sh operations and do not require GitHub access. A
+maintenance-window authorization is a local upgrade.sh flag; the bootstrap does
+not forward --confirm-maintenance.
 EOF
 }
 

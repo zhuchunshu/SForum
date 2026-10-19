@@ -80,6 +80,14 @@ services:
       ALTCHA_CHALLENGE_TTL: ${ALTCHA_CHALLENGE_TTL:-10m}
       ALTCHA_COST: ${ALTCHA_COST:-1000}
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+      # 宿主机反代后的真实客户端 IP。生产默认不信任任何网段，只有显式开启
+      # TRUST_PROXY 并给出精确 TRUSTED_PROXIES 才会采信转发头。
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      TRUST_PROXY_PRIVATE: ${TRUST_PROXY_PRIVATE:-}
+      TRUST_PROXY_LOOPBACK: ${TRUST_PROXY_LOOPBACK:-}
+      # 带外恢复开关：扩展导致启动失败时，设为 true 后重启 API 可跳过插件启动。
+      SFORUM_SAFE_MODE: ${SFORUM_SAFE_MODE:-}
       EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       # Compose 中必须使用容器内路径；同时在 override 中添加对应的只读 volume。

@@ -315,7 +315,28 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- **错误页 i18n 崩溃修复（2026-10-19，最新）**：`error.vue` 报
+- **公开三栏独立滚动（2026-10-19，最新）**：桌面三栏壳的左/中/右列各自
+  `position: sticky` + `height: calc(100vh - topbar)` + `overflow-y: auto` +
+  `overscroll-behavior: contain`，滚动一栏不再带动另外两栏；document 在
+  中列持页脚的页面彻底不可滚。左右栏 `scrollbar-width: none` +
+  `::-webkit-scrollbar { display: none }` 隐藏滚动条（滚动能力保留），列宽与
+  不溢出的栏一致；中列保留可见滚动条。三处几何（`sforum-theme.css` 兼容块与
+  Host 壳、五个页面级 CSS、主题包 `hybrid-forum.css`）同值，并删除把左右栏
+  打回 `static/visible` 的反向规则。改前实测 document 1545/810、左右栏 1487px
+  `overflow: visible`；改后三列 752px 独立滚动、document 810。主题包已
+  `extension build` 并 stage（最新 `16562`，active `16540`）。
+  详见 `sessions/2026-10-19-three-column-independent-scroll-handoff.md`。
+- **生产部署文档写透（2026-10-19）**：把中英文生产部署手册拆成「入口页 +
+  4 个任务页」（一键安装与更新、手动 Compose、环境变量与密钥、故障排查），补全
+  bootstrap/deploy.sh/upgrade.sh 执行链、`.deployrc` 状态、手动更新/回滚、
+  env 契约与 `recovery_required` 处置。顺手修复文档与实现的两处偏差：
+  `compose.yaml` 现在真正透传 `TRUST_PROXY*` 与 `SFORUM_SAFE_MODE`；pprof/
+  `GOMEMLIMIT` 明确为 override-only。`validate-docs` 新增部署文档门禁（页面齐全、
+  env key 覆盖、Compose 透传、操作命令标记、旧计数防回归）。验证：
+  `validate-docs`、`validate-docs_test`、compose/deploy/upgrade/release-assets
+  测试、`contracts-gate`（374 routes / 330 UI surfaces / 99 traceability rows）
+  与架构闸门全绿。详见 `sessions/2026-10-19-deployment-docs-depth.md`。
+- **错误页 i18n 崩溃修复（2026-10-19）**：`error.vue` 报
   `Need to install with 'app.use' function` 是二次故障而非根因——`@nuxtjs/i18n`
   把 `vueApp.use(i18n)` 放在插件 setup 最后一步，提前失败就会留下"没有 i18n 的
   app"，而错误页与 `app/components/errors/` 下 8 个组件全部无条件依赖

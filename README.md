@@ -141,9 +141,9 @@ run refreshes the bootstrap and the target Release's complete deploy toolkit
 before handing off to `upgrade.sh`. The default resolves to the newest
 **stable** Release and is confirmed before any change (`--yes` skips prompts).
 Prereleases are never selected implicitly: pass
-`--channel prerelease` or an explicit tag such as `v3.0.0-alpha.N`. Every choice
-resolves to a concrete `vX.Y.Z` tag and runs the matching GHCR images — floating
-`latest` images are never used in production Compose.
+`--channel prerelease` or an explicit tag. Every choice resolves to an
+immutable `vX.Y.Z` tag — floating `latest` images are never used in production
+Compose.
 
 Production uses one API process with an embedded River worker, sharing the
 database pool, SecretStore-backed settings, and extension runtime. Existing
@@ -154,10 +154,16 @@ The first blue/green ingress conversion has a short maintenance window. Later
 releases keep API/Web HTTP traffic available when the database is unchanged or
 every pending Core migration explicitly declares backward-compatible online
 execution; WebSockets may reconnect while durable River jobs remain protected
-by the queue during the API slot handoff. Undeclared Core and all River migrations use the
-blue/green-aware `deploy.sh` maintenance path.
+by the queue during the API slot handoff. Undeclared Core and all River
+migrations use the blue/green-aware `deploy.sh` maintenance path.
 
-Details: [docs/zh-CN/deployment.md](./docs/zh-CN/deployment.md) / [docs/en-US/deployment.md](./docs/en-US/deployment.md).
+Full guides:
+
+- [Deployment overview](./docs/en-US/deployment.md) / [中文](./docs/zh-CN/deployment.md)
+- [One-click install and update](./docs/en-US/deployment/one-click.md)
+- [Manual Compose deployment](./docs/en-US/deployment/manual.md)
+- [Environment and secrets](./docs/en-US/deployment/environment.md)
+- [Troubleshooting](./docs/en-US/deployment/troubleshooting.md)
 
 ## Community
 

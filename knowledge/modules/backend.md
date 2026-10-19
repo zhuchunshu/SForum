@@ -242,6 +242,17 @@ OpenAPI entrypoint/path item and in the generated Go Core Route Catalog; the
 failure-path suite independently proves OpenAPI drift and Go registration
 drift are rejected.
 
+Deployment documentation contract (2026-10-19): the production handbook is one
+hub plus four task pages per locale (`deployment/one-click.md`,
+`deployment/manual.md`, `deployment/environment.md`,
+`deployment/troubleshooting.md`). `validateDeploymentGuides()` requires every
+page and hub link in both locales, every `.env.production.example` key to appear
+in both environment pages, the documented `TRUST_PROXY*` and
+`SFORUM_SAFE_MODE` variables to be passed through `compose.yaml`, the
+install/update/manual/troubleshooting command markers to survive edits, and the
+old “four GHCR images”/“five long-running services” counts to stay absent.
+`tests/validate-docs_test.sh` carries a failure case for each rule.
+
 The admin release checker caches both successful and failed upstream results
 for five minutes per API process. Forced checks still bypass that cache.
 

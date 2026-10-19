@@ -17,9 +17,13 @@
  *     OpenAPI and the generated Go Core Route Catalog.
  *  7. README and both deployment guides use the verified bootstrap as the
  *     stable rolling install/update entry.
- *  8. The Release workflow produces the fixed-name deploy assets and includes
+ *  8. The deployment guide set is complete in both locales, every
+ *     `.env.production.example` key is documented, the documented proxy and
+ *     Safe Mode variables are actually passed through Compose, and the
+ *     operational markers for install/update/manual/troubleshooting survive.
+ *  9. The Release workflow produces the fixed-name deploy assets and includes
  *     them in SHA256SUMS.
- *  9. Dependabot uses the Compose-aware ecosystem at the repository root and
+ * 10. Dependabot uses the Compose-aware ecosystem at the repository root and
  *     covers every Go module in the governed source/tooling scopes.
  *
  * Structured sources (go.mod, command Use strings, workflow YAML, finalize
@@ -507,6 +511,107 @@ function validateStableInstallEntry() {
   }
 }
 
+function validateDeploymentGuides() {
+  const pages = [
+    'deployment/one-click.md',
+    'deployment/manual.md',
+    'deployment/environment.md',
+    'deployment/troubleshooting.md',
+  ]
+  const locales = ['zh-CN', 'en-US']
+  const missing = new Set()
+
+  for (const locale of locales) {
+    for (const page of pages) {
+      const file = `docs/${locale}/${page}`
+      if (!existsSync(repoPath(file))) {
+        missing.add(file)
+        fail(`${file}: required deployment guide is missing`)
+      }
+    }
+    const hub = read(`docs/${locale}/deployment.md`)
+    for (const page of pages) {
+      if (!hub.includes(`./${page}`)) {
+        fail(`docs/${locale}/deployment.md: must link to ./${page}`)
+      }
+    }
+  }
+
+  // Every documented production key must stay discoverable in both locales.
+  const envKeys = [...read('.env.production.example').matchAll(/^([A-Z][A-Z0-9_]*)=/gm)]
+    .map((match) => match[1])
+  const passthroughKeys = [
+    'TRUST_PROXY',
+    'TRUSTED_PROXIES',
+    'TRUST_PROXY_PRIVATE',
+    'TRUST_PROXY_LOOPBACK',
+    'SFORUM_SAFE_MODE',
+    'PPROF_ENABLED',
+  ]
+  for (const locale of locales) {
+    const file = `docs/${locale}/deployment/environment.md`
+    if (missing.has(file)) continue
+    const content = read(file)
+    for (const key of [...envKeys, ...passthroughKeys]) {
+      if (!new RegExp(`\\b${key}\\b`).test(content)) {
+        fail(`${file}: must document ${key}`)
+      }
+    }
+  }
+
+  // The documented proxy/safe-mode variables must actually reach the API container.
+  const compose = read('compose.yaml')
+  for (const key of passthroughKeys.filter((key) => key !== 'PPROF_ENABLED')) {
+    const pattern = new RegExp(`^\\s+${key}:\\s+\\$\\{${key}:`, 'm')
+    if (!pattern.test(compose)) {
+      fail(`compose.yaml: API environment must pass through ${key}`)
+    }
+  }
+
+  const requiredMarkers = {
+    'deployment/one-click.md': [
+      './deploy.sh --action deploy',
+      './upgrade.sh',
+      '--confirm-maintenance',
+      '.deployrc',
+    ],
+    'deployment/manual.md': [
+      'docker compose',
+      'migrate',
+      'SFORUM_VERSION',
+      'SFORUM_CONFIRM_RESTORE',
+    ],
+    'deployment/troubleshooting.md': [
+      'recovery_required',
+      'sforum extension disable',
+      'PPROF_ENABLED',
+    ],
+  }
+  for (const locale of locales) {
+    for (const [page, markers] of Object.entries(requiredMarkers)) {
+      const file = `docs/${locale}/${page}`
+      if (missing.has(file)) continue
+      const content = read(file)
+      for (const marker of markers) {
+        if (!content.includes(marker)) {
+          fail(`${file}: missing operational marker ${marker}`)
+        }
+      }
+    }
+  }
+
+  // Guard the two counts that drifted before the guides were split.
+  for (const locale of locales) {
+    const file = `docs/${locale}/deployment.md`
+    const content = read(file)
+    for (const phrase of ['四个 GHCR', 'four GHCR', '五个常驻服务', 'five long-running services']) {
+      if (content.includes(phrase)) {
+        fail(`${file}: stale service/image count: ${phrase}`)
+      }
+    }
+  }
+}
+
 function validateReleaseAssets() {
   if (!existsSync(repoPath('scripts/ci/build-deploy-asset.sh'))) {
     fail('scripts/ci/build-deploy-asset.sh is missing')
@@ -585,10 +690,13 @@ validateDocumentedHttpEndpoints()
 // 7. Stable rolling install entry everywhere it matters.
 validateStableInstallEntry()
 
-// 8. Release workflow produces and checksums the deploy assets.
+// 8. Deployment guides stay complete, bilingual, and aligned with Compose.
+validateDeploymentGuides()
+
+// 9. Release workflow produces and checksums the deploy assets.
 validateReleaseAssets()
 
-// 9. Dependabot covers Compose and all governed Go modules.
+// 10. Dependabot covers Compose and all governed Go modules.
 validateDependencyGovernance()
 
 if (failures.length > 0) {
