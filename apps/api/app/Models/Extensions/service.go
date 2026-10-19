@@ -839,24 +839,6 @@ func (s *CatalogService) Navigation(ctx context.Context, actor identity.Actor) (
 	return navigation, nil
 }
 
-func (s *SettingsService) Settings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
-	extension, err := s.store.Get(ctx, normalizeID(extensionID))
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	if !canManageExtensionSettings(actor, extension) {
-		return ExtensionSettings{}, identity.ErrPermissionDenied
-	}
-	if err := requireArtifactAvailable(extension); err != nil {
-		return ExtensionSettings{}, err
-	}
-	values, err := s.listDecryptedSettings(ctx, extension)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	return resolveExtensionSettings(extension, values, locale), nil
-}
-
 // AdminPageBootstrap 一次加载扩展详情页：store.Get 仅一次；未知 path 不报错，page/settings 为 null。
 // 仅当匹配页 View 声明为 settings 时才加载掩码设置，不根据 path 文本推断。
 func (s *CatalogService) AdminPageBootstrap(ctx context.Context, actor identity.Actor, extensionID, pagePath, locale string) (AdminPageBootstrap, error) {
@@ -911,93 +893,4 @@ func (s *CatalogService) AdminPageBootstrap(ctx context.Context, actor identity.
 	settings := resolveExtensionSettings(extension, values, locale)
 	result.Settings = &settings
 	return result, nil
-}
-
-func (s *SettingsService) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput, locale string) (ExtensionSettings, error) {
-	s.assetPublicationMu.Lock()
-	defer s.assetPublicationMu.Unlock()
-
-	extension, err := s.store.Get(ctx, normalizeID(extensionID))
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	if !canManageExtensionSettings(actor, extension) {
-		return ExtensionSettings{}, identity.ErrPermissionDenied
-	}
-	if err := requireArtifactAvailable(extension); err != nil {
-		return ExtensionSettings{}, err
-	}
-	// 生产路径：SettingsLifecycle（revision CAS + 迁移 + SecretStore）。
-	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
-		return s.updateSettingsViaLifecycle(ctx, actor, extension, input, locale)
-	}
-	current, err := s.listDecryptedSettings(ctx, extension)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	values, err := sanitizeSettingValues(extension.Manifest, input.Values, current)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	stored, err := s.encryptSecretSettings(extension.Manifest, values)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	// 持久化前保留 previous 密文快照，便于重启失败时回滚。
-	previousRaw, err := s.store.ListSettings(ctx, extension.ID)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	if mutationErr := s.store.ReplaceSettings(ctx, extension.ID, stored); mutationErr != nil {
-		if err := s.resolvePreparedSettingsMutation(ctx, extension.ID, previousRaw, stored, restart, mutationErr); err != nil {
-			return ExtensionSettings{}, err
-		}
-	}
-	if err := s.restartPluginForSettings(ctx, actor, extension, restart, legacySettingsRestartMutationKey(extension, actor)); err != nil {
-		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
-	}
-	maybeBumpPublicSurfaceRevision(s.Service, ctx, extension)
-	// 返回解密后的视图（secret 仍在 resolve 中掩码）。
-	return resolveExtensionSettings(extension, values, locale), nil
-}
-
-func (s *SettingsService) ResetSettings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
-	s.assetPublicationMu.Lock()
-	defer s.assetPublicationMu.Unlock()
-
-	extension, err := s.store.Get(ctx, normalizeID(extensionID))
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	if !canManageExtensionSettings(actor, extension) {
-		return ExtensionSettings{}, identity.ErrPermissionDenied
-	}
-	if err := requireArtifactAvailable(extension); err != nil {
-		return ExtensionSettings{}, err
-	}
-	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
-		return s.resetSettingsViaLifecycle(ctx, actor, extension, locale)
-	}
-	previousRaw, err := s.store.ListSettings(ctx, extension.ID)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
-	if err != nil {
-		return ExtensionSettings{}, err
-	}
-	if mutationErr := s.store.ResetSettings(ctx, extension.ID); mutationErr != nil {
-		if err := s.resolvePreparedSettingsMutation(ctx, extension.ID, previousRaw, map[string]string{}, restart, mutationErr); err != nil {
-			return ExtensionSettings{}, err
-		}
-	}
-	if err := s.restartPluginForSettings(ctx, actor, extension, restart, legacySettingsRestartMutationKey(extension, actor)); err != nil {
-		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
-	}
-	maybeBumpPublicSurfaceRevision(s.Service, ctx, extension)
-	return resolveExtensionSettings(extension, map[string]string{}, locale), nil
 }

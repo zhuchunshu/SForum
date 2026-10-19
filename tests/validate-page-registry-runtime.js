@@ -146,8 +146,13 @@ function validateOfflineContracts() {
   const catalog = read('apps/api/app/Support/Pages/catalog.go')
   assertIncludes(catalog, 'DataSchema', 'ResolvedPage must include DataSchema field')
 
-  const registry = read('apps/api/app/Support/Pages/registry.go')
-  assert.match(registry, /DataSchema:\s+c\.DataSchema/, 'Resolve(replace) must copy DataSchema from contribution')
+  // Resolve 可能被拆到同包的其他文件（2026-10-19 从 registry.go 拆到
+  // registry_resolution.go 以满足 1000 行闸门）。契约是「Resolve 的 replace 分支
+  // 必须逐字复制 DataSchema」，不是「这段代码必须住在某一个文件名里」。
+  const registrySources = ['apps/api/app/Support/Pages/registry.go', 'apps/api/app/Support/Pages/registry_resolution.go']
+    .map(path => read(path))
+    .join('\n')
+  assert.match(registrySources, /DataSchema:\s+c\.DataSchema/, 'Resolve(replace) must copy DataSchema from contribution')
 
   const gateway = read('apps/api/app/Support/Pages/loader_gateway.go')
   assert.match(gateway, /DataSchema:\s+resolved\.DataSchema/, 'LoadForResolved must forward DataSchema')

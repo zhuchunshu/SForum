@@ -1,3 +1,20 @@
+// 本文件是扩展管理的前端契约中心：类型、纯函数与展示规则。为避免单文件越过
+// architecture-boundaries 的 1000 行闸门，两组内聚的纯逻辑已抽到同目录模块，
+// 并在此**原样 re-export**，因此所有既有 `~/utils/admin/adminExtensions` 的
+// import 路径、导出名与类型形状都不变。
+//
+// - `./adminExtensionsLocalization`：manifest 文案的本地化合并（含 langs 解析）
+// - `./adminExtensionsEvents`：事件/投递的合并与分页
+//
+// 两个模块只 `import type` 本文件，运行期依赖保持单向。
+export * from './adminExtensionsLocalization'
+export * from './adminExtensionsEvents'
+
+// `export *` 只做再导出，不会在当前模块作用域里引入绑定。本文件内部仍要调用
+// 其中的展示函数（extensionSettingDeclarations / extensionAdminPages），因此
+// 显式再 import 一次。方向仍是单向：对方只 import type 本文件。
+import { extensionDisplayName, extensionLocalizedDisplay } from './adminExtensionsLocalization'
+
 export type AdminExtensionType = 'plugin' | 'theme'
 export type AdminExtensionStatus = 'installed' | 'enabled' | 'disabled'
 export type AdminExtensionSource = 'builtin' | 'uploaded'
@@ -617,7 +634,6 @@ export type AdminExtensionStats = {
   activeThemeId: string
 }
 
-export const EXTENSION_EVENT_PAGE_SIZE = 8
 export const EXTENSION_EVENT_FETCH_LIMIT = 100
 export const EXTENSION_DELIVERY_FETCH_LIMIT = 100
 
@@ -710,140 +726,6 @@ function effectiveManifestAdminPages(manifest: AdminExtensionManifest) {
   return manifest.admin?.pages?.length ? manifest.admin.pages : manifest.adminPages || []
 }
 
-export type ExtensionLocalizedDisplay = {
-  name: string
-  description: string
-  url: string
-  author: AdminExtensionAuthor
-}
-
-function normalizeExtensionLocaleKey(value?: string | null) {
-  const raw = `${value || ''}`.trim().replace(/_/g, '-')
-  if (!raw) {
-    return ''
-  }
-  const parts = raw.split('-').filter(Boolean)
-  const first = parts[0]
-  if (!first) {
-    return ''
-  }
-  // 语言主码小写；两位区域码大写（zh-CN），其余段小写。
-  parts[0] = first.toLowerCase()
-  for (let index = 1; index < parts.length; index += 1) {
-    const part = parts[index]
-    if (!part) {
-      continue
-    }
-    parts[index] = part.length === 2 ? part.toUpperCase() : part.toLowerCase()
-  }
-  return parts.join('-')
-}
-
-function extensionLocaleLookupCandidates(locale?: string | null) {
-  const code = normalizeExtensionLocaleKey(locale)
-  if (!code) {
-    return [] as string[]
-  }
-  const candidates = [code]
-  const primary = code.split('-')[0]
-  if (primary && primary !== code) {
-    candidates.push(primary)
-  }
-  return candidates
-}
-
-function lookupExtensionLocale(langs: Record<string, AdminExtensionLocale> | undefined, locale?: string | null) {
-  if (!langs) {
-    return undefined
-  }
-  const entries = Object.entries(langs)
-  if (!entries.length) {
-    return undefined
-  }
-  // 键做规范化后再匹配，兼容 zh / zh-CN / zh_CN。
-  const normalized = new Map(
-    entries
-      .map(([key, value]) => [normalizeExtensionLocaleKey(key), value] as const)
-      .filter(([key]) => Boolean(key))
-  )
-  for (const candidate of extensionLocaleLookupCandidates(locale)) {
-    const match = normalized.get(candidate)
-    if (match) {
-      return match
-    }
-  }
-  return undefined
-}
-
-function resolveLocaleCode(locale?: unknown) {
-  // 兼容直接传入 string / Ref / ComputedRef，避免模板误传对象导致匹配失败。
-  if (locale == null) {
-    return ''
-  }
-  if (typeof locale === 'string') {
-    return locale
-  }
-  if (typeof locale === 'object' && locale !== null && 'value' in locale) {
-    const value = (locale as { value: unknown }).value
-    return typeof value === 'string' ? value : `${value ?? ''}`
-  }
-  return `${locale}`
-}
-
-// 按当前 UI locale 解析展示文案；无 langs 或未命中时回退顶层默认英文。
-export function extensionLocalizedDisplay(item: AdminExtension, locale?: unknown): ExtensionLocalizedDisplay {
-  const manifest = item.manifest
-  const display: ExtensionLocalizedDisplay = {
-    name: item.name || manifest.name || '',
-    description: manifest.description || '',
-    url: manifest.url || '',
-    author: {
-      name: manifest.author?.name || '',
-      url: manifest.author?.url,
-      email: manifest.author?.email
-    }
-  }
-  const override = lookupExtensionLocale(manifest.langs, resolveLocaleCode(locale))
-  if (!override) {
-    return display
-  }
-  if (override.name?.trim()) {
-    display.name = override.name.trim()
-  }
-  if (override.description?.trim()) {
-    display.description = override.description.trim()
-  }
-  if (override.url?.trim()) {
-    display.url = override.url.trim()
-  }
-  if (override.author?.name?.trim()) {
-    display.author.name = override.author.name.trim()
-  }
-  if (override.author?.url?.trim()) {
-    display.author.url = override.author.url.trim()
-  }
-  if (override.author?.email?.trim()) {
-    display.author.email = override.author.email.trim()
-  }
-  return display
-}
-
-export function extensionDisplayName(item: AdminExtension, locale?: unknown) {
-  return extensionLocalizedDisplay(item, locale).name
-}
-
-export function extensionDisplayDescription(item: AdminExtension, locale?: unknown) {
-  return extensionLocalizedDisplay(item, locale).description
-}
-
-export function extensionAuthorName(item: AdminExtension, locale?: unknown) {
-  return extensionLocalizedDisplay(item, locale).author.name?.trim() || ''
-}
-
-export function extensionAuthorWebsite(item: AdminExtension, locale?: unknown) {
-  const display = extensionLocalizedDisplay(item, locale)
-  return display.author.url || display.url || ''
-}
 
 export function runtimeStatusLabelKey(item: AdminExtension) {
   return `admin.extensions.runtime.${item.runtime?.state || 'stopped'}`
@@ -880,74 +762,6 @@ export function extensionUpgradeCandidates(items: AdminExtension[]) {
   return items.filter(canUpgradePlugin)
 }
 
-export function mergeExtensionEvents(eventsByExtension: Record<string, AdminExtensionEvent[]>) {
-  return Object.values(eventsByExtension)
-    .flat()
-    .slice()
-    .sort((left, right) => {
-      const timeDiff = Date.parse(right.createdAt) - Date.parse(left.createdAt)
-      return timeDiff || right.id - left.id
-    })
-}
-
-export function mergeExtensionDeliveries(items: AdminExtensionEventDelivery[]) {
-  return items.slice().sort((left, right) => {
-    const timeDiff = Date.parse(right.createdAt) - Date.parse(left.createdAt)
-    return timeDiff || right.id - left.id
-  })
-}
-
-export function extensionEventPage(items: AdminExtensionEvent[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
-  return extensionItemsPage(items, page, pageSize)
-}
-
-export function extensionDeliveryPage(items: AdminExtensionEventDelivery[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
-  return extensionItemsPage(items, page, pageSize)
-}
-
-export function extensionDefinitionPage(items: AdminExtensionEventDefinition[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
-  return extensionItemsPage(items, page, pageSize)
-}
-
-export function extensionContributionPage(items: AdminEffectiveContribution[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
-  return extensionItemsPage(items, page, pageSize)
-}
-
-/** 通用列表分页（页面注册表等管理列表复用）。 */
-export function paginateItems<T>(items: T[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
-  return extensionItemsPage(items, page, pageSize)
-}
-
-export function extensionContributionLabel(item: AdminEffectiveContribution, locale = 'zh-CN') {
-  const labels = item.label || {}
-  return labels[locale] || labels['zh-CN'] || labels['en-US'] || Object.values(labels).find(Boolean) || item.id
-}
-
-export function extensionContributionPayloadSummary(item: AdminEffectiveContribution) {
-  const payload = item.payload || {}
-  const parts = [payload.type, payload.method, payload.path]
-    .map(value => `${value || ''}`.trim())
-    .filter(Boolean)
-  return parts.length ? parts.join(' ') : '-'
-}
-
-function extensionItemsPage<T>(items: T[], page: number, pageSize = EXTENSION_EVENT_PAGE_SIZE) {
-  const safePageSize = Math.max(1, Math.floor(pageSize))
-  const totalPages = Math.max(1, Math.ceil(items.length / safePageSize))
-  const currentPage = Math.min(totalPages, Math.max(1, Math.floor(page) || 1))
-  const start = items.length === 0 ? 0 : (currentPage - 1) * safePageSize + 1
-  const end = items.length === 0 ? 0 : Math.min(items.length, currentPage * safePageSize)
-
-  return {
-    items: items.slice(start === 0 ? 0 : start - 1, end),
-    page: currentPage,
-    pageSize: safePageSize,
-    totalPages,
-    start,
-    end,
-    total: items.length
-  }
-}
 
 export function extensionSettingDeclarations(items: AdminExtension[], locale?: string | null) {
   return items

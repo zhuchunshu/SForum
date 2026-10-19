@@ -74,3 +74,44 @@ func lifecycleRecoveryDecisionSelectSQL() string {
 		FROM extension_lifecycle_recovery_decisions
 	`
 }
+
+// LastSuccessfulLifecycleAuthority 与下面的 recovery 读取同属「生命周期决策读面」，
+// 因此放在同一文件：两者都只对 PostgresLifecycleRepository 做只读查询，且共用
+// 同一套「没有行就是 Err*NotFound」的语义。拆成两个文件只是历史上先后落地的顺序，
+// 不是职责边界。
+//
+// LastSuccessfulLifecycleAuthority returns an immutable exact-artifact grant
+// snapshot. It intentionally ignores current trust-row revocation state so an
+// operator can still disable or rollback code that was previously approved.
+func (r *PostgresLifecycleRepository) LastSuccessfulLifecycleAuthority(
+	ctx context.Context,
+	input ExactExtensionVersionInput,
+) (LifecycleAuthoritySnapshot, error) {
+	if r == nil || r.pool == nil {
+		return LifecycleAuthoritySnapshot{}, ErrLifecycleCoordinatorUnavailable
+	}
+	if err := validateExactExtensionVersionInput(input); err != nil {
+		return LifecycleAuthoritySnapshot{}, err
+	}
+	var document []byte
+	err := r.pool.QueryRow(ctx, `
+		SELECT authority_snapshot
+		FROM extension_lifecycle_operations
+		WHERE extension_id = $1
+		  AND extension_version = $2
+		  AND package_digest = $3
+		  AND terminal_result = $4
+		  AND completed_at IS NOT NULL
+		ORDER BY completed_at DESC, id DESC
+		LIMIT 1
+	`, input.ExtensionID, input.Version, input.PackageDigest, LifecycleTerminalSucceeded).Scan(&document)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return LifecycleAuthoritySnapshot{}, ErrLifecycleAuthorityNotFound
+	}
+	if err != nil {
+		return LifecycleAuthoritySnapshot{}, fmt.Errorf("load successful lifecycle authority: %w", err)
+	}
+	return decodeLifecycleAuthoritySnapshot(document)
+}
+
+var _ LifecycleAuthorityRepository = (*PostgresLifecycleRepository)(nil)

@@ -975,50 +975,5 @@ func registryInstanceAllowed(instanceID string, materials ...*lifecycleRegistryM
 	return false
 }
 
-func (b *PostgresLifecycleBoundaryRegistries) reconcileRoutes(
-	ctx context.Context,
-	extensionID string,
-	source, target, desired *lifecycleRegistryMaterial,
-) error {
-	return b.publishBoundRoutePublication(ctx, func(publication routes.Publication) (routes.Publication, error) {
-		var desiredSet *routes.PluginRouteSet
-		if desired != nil {
-			value := desired.routes
-			desiredSet = &value
-		}
-		return replaceLifecycleRouteSet(publication, extensionID, desiredSet, source, target)
-	})
-}
-
-func replaceLifecycleRouteSet(
-	publication routes.Publication,
-	extensionID string,
-	desired *routes.PluginRouteSet,
-	source, target *lifecycleRegistryMaterial,
-) (routes.Publication, error) {
-	plugins := make([]routes.PluginRouteSet, 0, len(publication.Plugins)+1)
-	for _, plugin := range publication.Plugins {
-		if plugin.Artifact.ExtensionID != extensionID {
-			plugins = append(plugins, plugin)
-			continue
-		}
-		if source != nil && sameRouteArtifact(plugin.Artifact, source.routes.Artifact) ||
-			target != nil && sameRouteArtifact(plugin.Artifact, target.routes.Artifact) {
-			continue
-		}
-		return routes.Publication{}, ErrLifecycleRegistryPublicationConflict
-	}
-	if desired != nil {
-		plugins = append(plugins, *desired)
-	}
-	publication.Plugins = plugins
-	return publication, nil
-}
-
-func sameRouteArtifact(left, right routes.PluginArtifact) bool {
-	return left.ExtensionID == right.ExtensionID && left.ExtensionVersion == right.ExtensionVersion &&
-		left.PackageDigest == right.PackageDigest && left.RuntimeInstanceID == right.RuntimeInstanceID
-}
-
 var _ LifecycleBoundaryRegistries = (*PostgresLifecycleBoundaryRegistries)(nil)
 var _ LifecycleBoundaryTransaction = (*postgresLifecycleRegistryTransaction)(nil)

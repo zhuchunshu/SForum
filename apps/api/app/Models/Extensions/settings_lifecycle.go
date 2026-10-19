@@ -131,6 +131,25 @@ func (s *SettingsService) SettingsLifecycle() SettingsLifecycleRuntime {
 	return s.settingsLifecycle
 }
 
+// 以下两个只读设置入口属于 SettingsService 的同一职责：把「运行时能读到什么」
+// 收敛到一处，禁止插件边界直接拿 Store。它们原先放在 service_package.go，与
+// 打包/清单校验代码混在一起；移到这里与 Settings/UpdateSettings/ResetSettings
+// 同文件，读设置的四条路径一眼可见。
+// ListSettingsForRuntime 供插件子进程注入：返回解密后的设置；解密失败则错误。
+func (s *SettingsService) ListSettingsForRuntime(ctx context.Context, extensionID string) (map[string]string, error) {
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return nil, err
+	}
+	return s.listDecryptedSettings(ctx, extension)
+}
+
+// ListSettings 实现插件 ProtocolStarter 与 Host API 共用的只读设置接口。
+// 所有运行时读取必须经过这里，禁止直接把 Store 注入插件边界。
+func (s *SettingsService) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
+	return s.ListSettingsForRuntime(ctx, extensionID)
+}
+
 // RegisterSettingsLifecycleFromManifest 从 Manifest 恢复 Schema（启用/升级时调用）。
 // Migration 若已由插件 Host API / 注册表声明则保留；否则按 dataVersion 目标注册空路径。
 func (s *SettingsService) RegisterSettingsLifecycleFromManifest(extension Extension) error {
@@ -547,4 +566,119 @@ func legacySettingsRestartMutationKey(extension Extension, actor identity.Actor)
 func settingsRestartPhaseKey(mutationKey string, phase string) string {
 	digest := sha256.Sum256([]byte("sforum.extension.settings.restart\x00" + phase + "\x00" + mutationKey))
 	return "settings-" + phase + "-" + hex.EncodeToString(digest[:])
+}
+
+// 以下三个入口（Settings / UpdateSettings / ResetSettings）原先在 service.go。
+// 它们与 UpdateSettings 的 lifecycle 变体、updateSettingsViaLifecycle、
+// resetSettingsViaLifecycle 是同一个职责的两条实现路径（有 SettingsLifecycle 走
+// 文档 CAS，没有它走 store.ReplaceSettings），分处两个文件时「改一条路径漏掉另一条」
+// 是很容易发生的事。移到一起后，读设置/写设置/重置设置的全部路径在同一屏内可见。
+//
+// CatalogService.AdminPageBootstrap 仍留在 service.go：它是扩展详情页的装载器，
+// 设置只是其中一种 page view。
+func (s *SettingsService) Settings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	if !canManageExtensionSettings(actor, extension) {
+		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return ExtensionSettings{}, err
+	}
+	values, err := s.listDecryptedSettings(ctx, extension)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	return resolveExtensionSettings(extension, values, locale), nil
+}
+
+func (s *SettingsService) UpdateSettings(ctx context.Context, actor identity.Actor, extensionID string, input UpdateSettingsInput, locale string) (ExtensionSettings, error) {
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	if !canManageExtensionSettings(actor, extension) {
+		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return ExtensionSettings{}, err
+	}
+	// 生产路径：SettingsLifecycle（revision CAS + 迁移 + SecretStore）。
+	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
+		return s.updateSettingsViaLifecycle(ctx, actor, extension, input, locale)
+	}
+	current, err := s.listDecryptedSettings(ctx, extension)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	values, err := sanitizeSettingValues(extension.Manifest, input.Values, current)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	stored, err := s.encryptSecretSettings(extension.Manifest, values)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	// 持久化前保留 previous 密文快照，便于重启失败时回滚。
+	previousRaw, err := s.store.ListSettings(ctx, extension.ID)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	if mutationErr := s.store.ReplaceSettings(ctx, extension.ID, stored); mutationErr != nil {
+		if err := s.resolvePreparedSettingsMutation(ctx, extension.ID, previousRaw, stored, restart, mutationErr); err != nil {
+			return ExtensionSettings{}, err
+		}
+	}
+	if err := s.restartPluginForSettings(ctx, actor, extension, restart, legacySettingsRestartMutationKey(extension, actor)); err != nil {
+		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
+	}
+	maybeBumpPublicSurfaceRevision(s.Service, ctx, extension)
+	// 返回解密后的视图（secret 仍在 resolve 中掩码）。
+	return resolveExtensionSettings(extension, values, locale), nil
+}
+
+func (s *SettingsService) ResetSettings(ctx context.Context, actor identity.Actor, extensionID string, locale string) (ExtensionSettings, error) {
+	s.assetPublicationMu.Lock()
+	defer s.assetPublicationMu.Unlock()
+
+	extension, err := s.store.Get(ctx, normalizeID(extensionID))
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	if !canManageExtensionSettings(actor, extension) {
+		return ExtensionSettings{}, identity.ErrPermissionDenied
+	}
+	if err := requireArtifactAvailable(extension); err != nil {
+		return ExtensionSettings{}, err
+	}
+	if s.settingsLifecycle != nil && len(extension.Manifest.Settings) > 0 {
+		return s.resetSettingsViaLifecycle(ctx, actor, extension, locale)
+	}
+	previousRaw, err := s.store.ListSettings(ctx, extension.ID)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	restart, err := s.preparePluginSettingsRestart(ctx, actor, extension)
+	if err != nil {
+		return ExtensionSettings{}, err
+	}
+	if mutationErr := s.store.ResetSettings(ctx, extension.ID); mutationErr != nil {
+		if err := s.resolvePreparedSettingsMutation(ctx, extension.ID, previousRaw, map[string]string{}, restart, mutationErr); err != nil {
+			return ExtensionSettings{}, err
+		}
+	}
+	if err := s.restartPluginForSettings(ctx, actor, extension, restart, legacySettingsRestartMutationKey(extension, actor)); err != nil {
+		return ExtensionSettings{}, s.restoreSettingsAfterRestartFailure(ctx, extension.ID, previousRaw, restart, err)
+	}
+	maybeBumpPublicSurfaceRevision(s.Service, ctx, extension)
+	return resolveExtensionSettings(extension, map[string]string{}, locale), nil
 }

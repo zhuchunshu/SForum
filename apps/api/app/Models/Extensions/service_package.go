@@ -813,21 +813,6 @@ func (s *serviceCore) decryptSecretValue(stored string) (plain string, migrated 
 	return plain, false, nil
 }
 
-// ListSettingsForRuntime 供插件子进程注入：返回解密后的设置；解密失败则错误。
-func (s *SettingsService) ListSettingsForRuntime(ctx context.Context, extensionID string) (map[string]string, error) {
-	extension, err := s.store.Get(ctx, normalizeID(extensionID))
-	if err != nil {
-		return nil, err
-	}
-	return s.listDecryptedSettings(ctx, extension)
-}
-
-// ListSettings 实现插件 ProtocolStarter 与 Host API 共用的只读设置接口。
-// 所有运行时读取必须经过这里，禁止直接把 Store 注入插件边界。
-func (s *SettingsService) ListSettings(ctx context.Context, extensionID string) (map[string]string, error) {
-	return s.ListSettingsForRuntime(ctx, extensionID)
-}
-
 func manifestEvents(manifest Manifest) []ManifestEvent {
 	return extensionmanifest.DeclaredEvents(manifest)
 }
