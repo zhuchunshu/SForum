@@ -63,10 +63,12 @@ const maxMessage = Number(maxMessageParts[1]) * (2 ** Number(maxMessageParts[2])
 const concurrency = Number(server.match(/DefaultConcurrentCalls\s*=\s*(\d+)/)?.[1])
 const timeout = Number(server.match(/DefaultRequestTimeout\s*=\s*(\d+)\s*\*\s*time\.Second/)?.[1])
 
-assert(maxMessage === 4194304, `unexpected protocol v2 message limit ${maxMessage}`)
+// 上限随 2026-10-19 的上下文预算重定标抬到 16 MiB（必须 >= MaxTotalInputBytes=12 MiB），
+// 这里钉「足够大且与 Host 输入预算同量级」，而不是钉一个会被下一次调参打脸的历史数字。
+assert(maxMessage >= 12 * 1024 * 1024, `protocol v2 message limit ${maxMessage} is below the Host input budget (12 MiB)`)
 assert(concurrency === 16, `unexpected protocol v2 concurrency limit ${concurrency}`)
 assert(timeout === 5, `unexpected protocol v2 request timeout ${timeout}`)
-for (const value of ['4194304', String(concurrency), `${timeout} seconds`]) {
+for (const value of [String(maxMessage), String(concurrency), `${timeout} seconds`]) {
   assert(doc.includes(value), `Host API v2 docs omit current safety value ${value}`)
 }
 

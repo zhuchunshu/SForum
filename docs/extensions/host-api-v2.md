@@ -363,7 +363,7 @@ Current host-owned defaults are part of the compatibility test surface:
 
 | Limit | Current value |
 | --- | --- |
-| Maximum gRPC send or receive message | 4 MiB (`4194304` bytes) |
+| Maximum gRPC send or receive message | 16 MiB (`16777216` bytes) — must stay at or above the Host AI input budget (12 MiB), so a single completion request always fits one transport frame |
 | Active calls per gRPC server | 16 across unary calls and streams |
 | Default RPC deadline | 5 seconds |
 | Handshake/health deadline | 5 seconds |

@@ -121,9 +121,15 @@ func newVersionGCFixture(t *testing.T, ctx context.Context, pool *pgxpool.Pool) 
 		store: store,
 	}
 	t.Cleanup(func() {
-		// 锚点表对 extensions 是 RESTRICT：必须先清锚点再清扩展。
-		_, _ = pool.Exec(context.Background(), `DELETE FROM extension_version_gc_removals WHERE extension_id = $1`, fixture.id)
-		_, _ = pool.Exec(context.Background(), `DELETE FROM extensions WHERE id = $1`, fixture.id)
+		// 顺序是硬约束，不是风格：
+		//  1) plugin_runtime_publication_members 对 extension_versions 是 RESTRICT（生产里
+		//     那是「精确版本不可物理删除」的完整性约束），所以先拆 publication 再删版本；
+		//  2) 锚点表 extension_version_gc_removals 对 extensions 也是 RESTRICT；
+		//  3) 最后删 extensions，其余子表是 CASCADE。
+		// 清理失败必须报出来：吞掉错误会让行留在共享测试库里，后面 bootstrap 的
+		// lifecycle preflight 会读到这些「没有有效 manifest 的历史行」并整包失败——
+		// 排查成本极高，而根因只是这里少删了两张表。
+		retireVersionGCFixture(t, pool, fixture.id)
 	})
 
 	base := t.TempDir()
@@ -827,5 +833,28 @@ func TestVersionGCAdminServiceRequiresSuperAdmin(t *testing.T) {
 	// CLI 与 API 的执行共用同一 token 语义：重放拒绝。
 	if _, err := fixture.store.ExecuteVersionGCSweep(ctx, VersionGCOptions{}, confirmation.Token); !errors.Is(err, ErrVersionGCConfirmationInvalid) {
 		t.Fatalf("replayed token error = %v, want ErrVersionGCConfirmationInvalid", err)
+	}
+}
+
+// retireVersionGCFixture 把一个 fixture 扩展从「活跃集合」里摘掉（仅测试使用）。
+//
+// 为什么不是 DELETE：`plugin_runtime_publication_members` 对 `extension_versions`
+// 是 ON DELETE RESTRICT，且 `plugin_runtime_publications` 有 append-only 触发器——
+// **已进入 desired full-set 的精确版本在物理上不可删除**，这是生产完整性约束，
+// 测试也不该绕过它（踩过：DELETE 语句被触发器拒绝，行仍留在共享测试库里）。
+//
+// 后果与正确做法：这些行会一直存在，但**不得保持 enabled**。desired full-set 只看
+// enabled 的扩展；把状态退休成 disabled、并清掉磁盘已不存在的 staged 指针，后面的
+// 包（例如 bootstrap 的 lifecycle e2e）在计算 full-set 时就不会再去读那个已被
+// t.TempDir 删掉的包目录。这正是之前 `static preflight: invalid manifest` 的根因。
+func retireVersionGCFixture(t *testing.T, pool *pgxpool.Pool, extensionID string) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `
+		UPDATE extensions
+		SET status = 'disabled', staged_version_id = NULL, updated_at = now()
+		WHERE id = $1
+	`, extensionID); err != nil {
+		t.Errorf("retire version-gc fixture %s: %v", extensionID, err)
 	}
 }

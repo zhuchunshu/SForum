@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	extensions "github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions"
@@ -502,12 +503,8 @@ func newLifecycleCleanupIntegration(
 	}
 
 	username := fmt.Sprintf("cleanup_%d", time.Now().UnixNano())
-	var actorUserID int64
-	if err := pool.QueryRow(ctx, `
-		INSERT INTO users (username, username_lower, email, email_lower, display_name)
-		VALUES ($1, $1, $2, $2, 'Cleanup Integration')
-		RETURNING id
-	`, username, username+"@example.test").Scan(&actorUserID); err != nil {
+	actorUserID, err := insertCleanupActor(ctx, pool, username)
+	if err != nil {
 		pool.Close()
 		t.Fatal(err)
 	}
@@ -756,4 +753,32 @@ func writeLifecycleCleanupPackage(path string) error {
 func sha256Bytes(value []byte) string {
 	digest := sha256.Sum256(value)
 	return hex.EncodeToString(digest[:])
+}
+
+// insertCleanupActor 插入一个集成测试用的真实账号并返回 id。
+//
+// 为什么要重试：`users.id` 是序列，而同一轮 `go test -p 1` 里更早的包可能用
+// **显式 id** 造过 fixture（不推进序列）。两者相遇时这次 `RETURNING id` 会撞
+// `users_pkey`——看起来像「隔离性坏了」，其实是共享库里的序列与显式插入不一致。
+// 每次重试都会推进序列，因此最多几次就能拿到空闲 id；这不是掩盖问题，而是让
+// 这个 fixture 不依赖「别的包怎么写 fixture」。
+func insertCleanupActor(ctx context.Context, pool *pgxpool.Pool, username string) (int64, error) {
+	var lastErr error
+	for attempt := 0; attempt < 8; attempt++ {
+		var actorUserID int64
+		err := pool.QueryRow(ctx, `
+			INSERT INTO users (username, username_lower, email, email_lower, display_name)
+			VALUES ($1, $1, $2, $2, 'Cleanup Integration')
+			RETURNING id
+		`, username, username+"@example.test").Scan(&actorUserID)
+		if err == nil {
+			return actorUserID, nil
+		}
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
+			return 0, err
+		}
+		lastErr = err
+	}
+	return 0, lastErr
 }

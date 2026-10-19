@@ -204,6 +204,8 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/navigation-inspector': 'apps/web/app/pages/admin/extensions/navigation-inspector.vue',
   '/extensions/registry-catalogs': 'apps/web/app/pages/admin/extensions/registry-catalogs.vue',
   '/extensions/provider-slots': 'apps/web/app/pages/admin/extensions/provider-slots.vue',
+  '/extensions/route-catalog': 'apps/web/app/pages/admin/extensions/route-catalog.vue',
+  '/extensions/query-catalog': 'apps/web/app/pages/admin/extensions/query-catalog.vue',
   '/ai': 'apps/web/app/pages/admin/ai.vue',
   '/jobs': 'apps/web/app/pages/admin/jobs.vue',
   '/schedules': 'apps/web/app/pages/admin/schedules.vue',
@@ -319,8 +321,16 @@ assert(
 )
 assert(systemFolder.children?.some(entry => entry.pageId === '/personalization'), 'System folder should contain the personalization page')
 assert(
-  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/login-methods,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search,/ai',
+  systemFolder.children?.map(entry => entry.pageId).join(',') === '/settings,/settings/mail,/settings/login-methods,/settings/avatar,/settings/features,/entity-meta,/personalization,/seo,/search',
   'System folder should keep the approved settings submenu order without ops tools'
+)
+// AI 控制台是一级菜单（admin.nav.aiTools），不再是「系统」文件夹的一员：
+// 它有自己的 sectionId 供插件把设置页并进同一个容器。
+const aiFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.aiTools')
+assert(aiFolder, 'Admin sidebar should expose the AI tools folder as a first-level entry')
+assert(
+  aiFolder?.children?.map(entry => entry.pageId).join(',') === '/ai',
+  'AI tools folder should own exactly the AI console page'
 )
 assert(!systemFolder.children?.some(entry => entry.pageId === '/settings/notifications'), 'Notification settings should be tabs inside the unified Mail and Notifications page')
 assert(
@@ -343,7 +353,7 @@ const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' 
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
 assert(
   extensionFolder.children?.map(entry => entry.pageId).join(',') ===
-    '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-providers,/extensions/route-inspector,/extensions/cache-inspector,/extensions/asset-inspector,/extensions/template-inspector,/extensions/component-inspector,/extensions/navigation-inspector,/extensions/registry-catalogs,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
+    '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-catalog,/extensions/query-catalog,/extensions/route-providers,/extensions/route-inspector,/extensions/cache-inspector,/extensions/asset-inspector,/extensions/template-inspector,/extensions/component-inspector,/extensions/navigation-inspector,/extensions/registry-catalogs,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
   'Extension folder should keep the approved submenu order without the app store'
 )
 assert(!extensionFolder.children?.some(entry => entry.pageId === '/extensions/store'), 'App store should not live under the extensions folder')

@@ -44,9 +44,13 @@ func TestPostgresAttachmentReadGuardObservesCrossNodeResourceAuthority(t *testin
 			id BIGINT PRIMARY KEY, author_user_id BIGINT NOT NULL, status TEXT NOT NULL,
 			topic_id BIGINT NOT NULL, content_id BIGINT UNIQUE
 		)`,
+		// content_type 是 LoadReadGuardSubject 的读列之一（image/text 判定），
+		// 缺了它查询会直接报错，而错误在守卫层被归一成「guard unavailable」——
+		// 表现为一条与真正原因无关的失败信息（本次即由此发现该 fixture 早已漂移）。
 		`CREATE TABLE ` + quotedSchema + `.attachments (
 			id BIGINT PRIMARY KEY, public_id TEXT NOT NULL UNIQUE, owner_user_id BIGINT,
-			status TEXT NOT NULL, visibility TEXT NOT NULL
+			status TEXT NOT NULL, visibility TEXT NOT NULL,
+			content_type TEXT NOT NULL DEFAULT 'application/octet-stream'
 		)`,
 		`CREATE TABLE ` + quotedSchema + `.attachment_references (
 			id BIGINT PRIMARY KEY, attachment_id BIGINT NOT NULL, resource_type TEXT NOT NULL,

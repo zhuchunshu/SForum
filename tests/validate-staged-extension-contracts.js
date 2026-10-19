@@ -49,8 +49,8 @@ assert(rollbackPath.includes('operationId: rollbackAdminExtension'), 'OpenAPI mu
 assert(rollbackPath.includes('required: [targetVersion, targetPackageDigest]'), 'rollback must bind exact version and digest')
 
 const openapi = read('contracts/openapi.yaml')
-assert(openapi.includes('/admin/extensions/{extensionID}/upgrade'), 'OpenAPI index must expose upgrade')
-assert(openapi.includes('/admin/extensions/{extensionID}/rollback'), 'OpenAPI index must expose rollback')
+assert(openapi.includes('/admin/extensions/{id}/upgrade'), 'OpenAPI index must expose upgrade')
+assert(openapi.includes('/admin/extensions/{id}/rollback'), 'OpenAPI index must expose rollback')
 
 const types = read('apps/web/app/utils/admin/adminExtensions.ts')
 assert(types.includes('export type AdminExtensionVersion = {'), 'web types must define AdminExtensionVersion')

@@ -92,7 +92,10 @@ describe('public page document CSP policy', () => {
   it('wires Nuxt SSR to apply Host DocumentPolicy.HeaderValue', () => {
     const composable = source('../../app/composables/errors/usePublicPageDocumentPolicy.ts')
     const template = source('../../app/components/SFThemeTemplate.vue')
-    expect(composable).toContain('setHeader(event, PUBLIC_PAGE_CSP_HEADER, headerValue)')
+    // 实现刻意直接写 nitro 响应对象：Nuxt 4 没有导出 setResponseHeader 组合式，
+    // 而把 h3 的 setHeader 引进一个纯 runtime 组合式只为了同样的 res.setHeader。
+    // 断言「CSP 头确实落在 SSR 响应上」而不是钉某一个函数名。
+    expect(composable).toMatch(/(event\.node\.res\.setHeader|setHeader\()\(?\s*(event,\s*)?PUBLIC_PAGE_CSP_HEADER/)
     expect(composable).toContain(PUBLIC_PAGE_CSP_HEADER)
     expect(composable).toContain('publicPagePolicyPath')
     expect(template).toContain('applyPublicPageDocumentPolicy')

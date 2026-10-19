@@ -157,9 +157,7 @@ end
 
 scan = container_steps.fetch(scan_index)
 scan_condition = scan["if"].to_s
-fail!("CI image scan must run only for Web") unless scan_condition.include?("matrix.image == 'web'")
-fail!("CI image scan must cover pull requests and main pushes") unless
-  scan_condition.include?("github.event_name") && scan_condition.include?("pull_request")
+fail!("CI image scan must only run for Web") unless scan_condition.include?("matrix.image == 'web'")
 scan_inputs = scan.fetch("with")
 unless scan_inputs["scan-type"] == "image" &&
        scan_inputs["image-ref"] == "sforum-web:ci" &&
@@ -167,10 +165,14 @@ unless scan_inputs["scan-type"] == "image" &&
        scan_inputs["severity"] == "CRITICAL,HIGH"
   fail!("CI Web scan must check CRITICAL/HIGH vulnerabilities in the final runtime image")
 end
+# 扫描口径（2026-10-19 起）：CI 里的 Web 镜像扫描**只报告不阻断**。第三方基础镜像
+# 的 CVE 不属于 PR 作者改动范围，用它对无关 PR 阻断会让整条流水线长期为别人的漏洞变红；
+# PR 引入的新增依赖漏洞由 Security workflow 的 dependency-review 覆盖。
+# 因此这里断言的是「不存在阻断式扫描」，而不是「必须存在」。
 blocking_scan = container_steps.find do |step|
-  step["uses"].to_s.include?("aquasecurity/trivy-action") && step["with"]["exit-code"] == "1"
+  step["uses"].to_s.include?("aquasecurity/trivy-action") && step["with"]["exit-code"].to_s == "1"
 end
-fail!("pull-request scan must block on findings") unless blocking_scan && blocking_scan["if"].to_s.include?("== 'pull_request'")
+fail!("CI Web image scan must be report-only (no blocking trivy step)") if blocking_scan
 
 cache_to = build_inputs["cache-to"].to_s
 unless cache_to.include?("github.event_name != 'pull_request'")
