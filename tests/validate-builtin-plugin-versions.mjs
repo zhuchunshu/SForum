@@ -73,19 +73,31 @@ const stripDigests = (value) => {
   return value
 }
 
-const filesUnder = (root) => {
-  const files = []
-  const visit = (current) => {
-    for (const name of readdirSync(current).sort()) {
-      const path = join(current, name)
-      const stat = statSync(path)
-      if (stat.isDirectory()) visit(path)
-      else if (stat.isFile() && name !== 'plugin' && name !== '.DS_Store') files.push(path)
-    }
-  }
-  visit(root)
-  return files
+// filesUnder 只返回**受版本控制**的文件。
+//
+// 为什么必须走 git 而不是 readdirSync：插件的 backend/ 目录里有编译产物
+// （`backend/backend`、`backend/plugin`），它们是 .gitignore 掉的本地构建结果。
+// 旧实现按目录遍历，只在文件名层面排除了 `plugin`，`backend` 这个二进制就被算进了
+// source contract 摘要——于是「有构建产物的机器」和「干净 clone / CI」算出两个不同的
+// digest，同一个提交在本地全绿、在 CI 却报 source contract drifted。摘要的定义必须是
+// 「仓库里的源码」，不是「这台机器上恰好存在的东西」。
+const trackedFilesUnder = (root) => {
+  const listed = execFileSync('git', ['ls-files', '-z', '--', relative(repoRoot, root)], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  })
+  return listed
+    .split('\0')
+    .filter(Boolean)
+    .map((path) => join(repoRoot, path))
 }
+
+const filesUnder = (root) => trackedFilesUnder(root)
+    .filter((path) => {
+      const name = relative(root, path).replaceAll('\\', '/')
+      return name !== '.DS_Store'
+    })
+    .sort()
 
 const sourceContractFiles = (pluginRoot) => {
   const files = []

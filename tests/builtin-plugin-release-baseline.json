@@ -3,35 +3,35 @@
   "plugins": {
     "sforum.auth-github": {
       "version": "1.0.7",
-      "sourceDigest": "f7826cb1a41bf4972b82a6817fcc8ea18fd4f9ae399d2b5644f256439eb3b862"
+      "sourceDigest": "39e005ce3983bb0d0d06c20bae7c6d1be08131093e563e38d114dad224e83cd9"
     },
     "sforum.content-policy": {
       "version": "1.1.6",
-      "sourceDigest": "0d278975e4f30401b4ff4192609dd819f8765b58524d36bfd4d9f343630194be"
+      "sourceDigest": "9d0ea0b223d9a0b26ce79916251f92ce7f451f5997557cdb4be23744a5726f2c"
     },
     "sforum.search-site": {
       "version": "1.0.6",
-      "sourceDigest": "2dd4f30567807be6f81e229c48b19bcee53132fdbafe1f2dcd7f8009c32ce3c9"
+      "sourceDigest": "41633521d5086023efa2414fbc7a03224493cee5c4e8730b87a8ec3f68df4d65"
     },
     "sforum-shortcodes": {
       "version": "1.3.4",
-      "sourceDigest": "5e8ce0f8491806b614329e2fd55cc5d6b20ed0b8d26bb8115e7b9ea7e901e0e6"
+      "sourceDigest": "d4eb11279d33d77aee794086fc91ab59fde58b7ed2f17abe22012e31bc7a5755"
     },
     "sforum.smtp": {
       "version": "1.1.6",
-      "sourceDigest": "7a18c62c5a012739bbdda44d54ea7b93b7083744271256acb5448cbf907becbd"
+      "sourceDigest": "8a073d893a832977140c3d4c093b9ab16a7de043035d1b0f2682b2ced72fdb10"
     },
     "sforum.storage-fs": {
       "version": "1.1.7",
-      "sourceDigest": "03a716ff0825e2d45662f20cd6991a82fb378491da1af80b7474ba5b38b72f0e"
+      "sourceDigest": "740e80d09b5cd3eb8eea2acb3311cd91e2e2519391a73c1346f55ae64262d95e"
     },
     "sforum.storage-s3": {
       "version": "1.0.8",
-      "sourceDigest": "17ae5b8e32fab24d15f91608c3a903f610950797b32a8ffeab72aeae2a9cf0fa"
+      "sourceDigest": "48acb6e8b96ef34d407d9dce4b3715b2dcbd09221bec12d96ca5ead2e012ff1d"
     },
     "sforum.web-push": {
       "version": "1.0.6",
-      "sourceDigest": "77f1d39d10e8699703a2c0beae23ab7e846ebd81e8ef9d8c92e42dfe215c4db5"
+      "sourceDigest": "436400f89b716dc2f78f0b7b7ecfc64df41a8df50e5988ce608c96ab891db32f"
     }
   }
 }
