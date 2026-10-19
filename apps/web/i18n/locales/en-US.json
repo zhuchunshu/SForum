@@ -660,7 +660,7 @@
       "userQuota": "Daily quota per user",
       "monthlyBudget": "Monthly budget",
       "toolCalls": "Tool calls per reply",
-      "toolCallsHint": "3 is recommended (and applies when unset), with a hard cap of 5; 0 disables tool calls so replies stay plain text. Each step is its own model call; the user quota counts one reply, while tool steps count against the site and extension scopes only.",
+      "toolCallsHint": "{default} is recommended (and applies when unset), with a hard cap of {max}; 0 disables tool calls so replies stay plain text. Each step is its own model call; the user quota counts one reply, while tool steps count against the site and extension scopes only.",
       "toolCallsExplicitState": "Current: set explicitly. Clear the box to restore \"unset\".",
       "toolCallsDefaultState": "Current: unset (the recommended 3 applies; clearing the box means this state).",
       "toolCallsRestore": "Restore \"unset\"",

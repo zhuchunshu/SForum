@@ -700,7 +700,7 @@
       "userQuota": "每用户每日配额",
       "monthlyBudget": "月度预算（元）",
       "toolCalls": "每次回复工具调用上限",
-      "toolCallsHint": "推荐 3（未设置时按 3 生效），上限 5；0 表示停用工具调用，回复退化为纯文本。每一步都是一次独立模型调用；用户配额按一次回复结算，工具步数只计入站点与扩展口径。",
+      "toolCallsHint": "推荐 {default}（未设置时按 {default} 生效），上限 {max}；0 表示停用工具调用，回复退化为纯文本。每一步都是一次独立模型调用；用户配额按一次回复结算，工具步数只计入站点与扩展口径。",
       "toolCallsExplicitState": "当前：已显式设置。留空可恢复为“未设置”。",
       "toolCallsDefaultState": "当前：未设置（按推荐值 3 生效，清空输入框即为此状态）。",
       "toolCallsRestore": "恢复“未设置”",

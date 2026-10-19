@@ -125,6 +125,13 @@ function toolCallsValue() {
   return toolCallsUsesDefault() ? limits.value.defaultToolCallsPerReply : form.value?.gates.toolCallsPerReply
 }
 
+// 提示里的「推荐 / 上限」必须来自服务端 limits，不能写死在文案里：硬顶与默认值
+// 在 B1 已经抬过一次（3→5、5→12），写死的副本只会继续骗运营者。
+const toolCallsHint = computed(() => t('admin.ai.toolCallsHint', {
+  default: limits.value.defaultToolCallsPerReply,
+  max: limits.value.maxToolCallsPerReply
+}))
+
 function setBudgetYuan(value: string | number) {
   if (!form.value) return
   const maxUnits = limits.value.maxMonthlyBudgetMicros / MICRO_PER_UNIT
@@ -352,7 +359,7 @@ function setSupportsTools(value: boolean | 'indeterminate') {
           <UInput :key="fieldKey('monthlyBudgetMicros')" :model-value="budgetYuan()" type="number" min="0" step="0.01" :disabled="!canManage" class="w-full"
             @update:model-value="setBudgetYuan" />
         </UFormField>
-        <UFormField :label="t('admin.ai.toolCalls')" :help="t('admin.ai.toolCallsHint')">
+        <UFormField :label="t('admin.ai.toolCalls')" :help="toolCallsHint">
           <div class="flex min-w-0 items-center gap-2">
             <UInput
               :key="fieldKey('toolCallsPerReply')"
@@ -377,7 +384,7 @@ function setSupportsTools(value: boolean | 'indeterminate') {
             />
           </div>
           <template #help>
-            <span class="text-xs">{{ t('admin.ai.toolCallsHint') }}</span>
+            <span class="text-xs">{{ toolCallsHint }}</span>
             <span v-if="toolCallsUsesDefault()" class="mt-0.5 block text-xs text-slate-500 dark:text-zinc-400">
               {{ t('admin.ai.toolCallsDefaultState') }}
             </span>
