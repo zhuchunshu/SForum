@@ -1,12 +1,31 @@
 {
   "id": "longthread-migration-review",
-  "text": "顺序没问题。补三点实操细节：\n\n1. 每条 DDL 前先 `SET lock_timeout = '2s'`，拿不到锁就失败重试，避免业务在锁队列里被排队堵死。\n2. 5 分钟窗口只够装 DDL 那几秒的操作；800 万行按 5000 一批是 1600 批，回填根本塞不进去，也不需要——分批回填本来就是可以在线跑的，批间 sleep 让 autovacuum 跟上即可。\n3. 最后一步 `ALTER COLUMN ... SET NOT NULL` 在 PG 12+ 会利用已 validate 的 CHECK 约束跳过全表扫描，瞬时完成（你 PG 14 适用）。",
+  "text": "顺序没问题，补两点容易踩的：\n\n- 列改成 nullable 后，迁移期间新写入的行是 `NULL` 而不是 `''`。回填条件建议写 `WHERE region IS NULL`，否则漏掉新行，最后 `SET NOT NULL` 会失败。\n- 最后一步别直接 `SET NOT NULL`（它要扫全表且取 ACCESS EXCLUSIVE）。PG 12+ 可以借已验证的 CHECK 约束免扫描：先 `ADD CONSTRAINT ... CHECK (region IS NOT NULL) NOT VALID`（短暂 ACCESS EXCLUSIVE）→ `VALIDATE CONSTRAINT`（SHARE UPDATE EXCLUSIVE，不挡写）→ 再 `SET NOT NULL`。\n\n另外提醒一句：5 分钟窗口实际只约束取 ACCESS EXCLUSIVE 的短语句（加列、加 NOT VALID 约束）。分批回填和 CONCURRENTLY 建索引整体耗时肯定远超 5 分钟，别把它算进窗口",
   "stopReason": "end",
-  "toolTrace": [],
-  "modelCalls": 1,
+  "toolTrace": [
+    {
+      "step": 1,
+      "tool": "forum-search",
+      "arguments": "{\"query\": \"CREATE INDEX CONCURRENTLY 迁移 锁表\"}",
+      "argumentsBytes": 52,
+      "resultBytes": 66,
+      "resultDigest": "没有找到相关主题。可以换关键词，或直接回答。",
+      "latencyMs": 0
+    },
+    {
+      "step": 1,
+      "tool": "forum-search",
+      "arguments": "{\"query\": \"分批回填 大表 加列\"}",
+      "argumentsBytes": 39,
+      "resultBytes": 66,
+      "resultDigest": "没有找到相关主题。可以换关键词，或直接回答。",
+      "latencyMs": 0
+    }
+  ],
+  "modelCalls": 2,
   "usage": {
-    "inputTokens": 1795,
-    "outputTokens": 1266
+    "inputTokens": 4618,
+    "outputTokens": 2848
   },
-  "promptDigest": "88a157b8b7bbbdf5"
+  "promptDigest": "34824c08742a9f65"
 }

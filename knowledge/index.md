@@ -323,13 +323,13 @@ load archived sessions or completed plans as current context.
   `step`），公开投影增量挂在 `GET /comments/:id/citations` 的 `toolCalls` 字段
   （不新增路由），过滤四种「撞配置」结局、**永不投影 `result_digest`**；前端
   `SFCommentAIActivity.vue` 一个折叠块两个分区。
-  **关键发现**：21:45 供应商切到本机 `agent2api` 之后，**所有** run 都只有 1 次模型
-  调用（零工具调用），同一 fixture 从 3/3 掉到 1/0，删掉新提示词段仍是 1/0，
-  而代理收到的请求里 `tools` 与 `tool_choice: auto` 都在——是代理/上游不回
-  `tool_calls`，不是本仓库的缺陷。eval 基线因此**刻意未重生成**。
-  验证：Go 全绿、web 1358 pass、typecheck 0 错、架构与 OpenAPI 闸门通过；受控合成
-  数据下 1633/390 两档浏览器证据齐。详见
-  `sessions/2026-10-19-ai-tool-call-visibility.md`、
+  **已真实端到端验证**（2026-10-20 00:23，主题 1236 评论 5015）：run `105b53c7…`
+  3 次模型调用、`ai_tool_calls` 4 行（`web-search` ×3 + `fetch-url`，其中 1 条
+  `step_exhausted` 被公开面过滤），页面「工具调用（3）」；模型在两次检索失败后
+  **如实说无法核实版本号**，没有编造。排查结论记在 handoff：`agent2api` 曾有两个
+  独立故障（收了 tools 不回 `tool_calls`；上游 token 过期 502），与本仓库无关；
+  eval 基线已按 `@9` 重生成。
+  详见 `sessions/2026-10-19-ai-tool-call-visibility.md`、
   `decisions/2026-10-19-ai-tool-call-visibility-and-prompt-tool-section.md`。
 - **编辑器表格（2026-10-19，最新）**：`SFEditor` 现在能画、能渲染、能存表格。
   修复的真实缺陷是"编辑含 GFM 表格的帖子即整表丢失"——`@tiptap/markdown` 对无

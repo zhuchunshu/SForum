@@ -1,22 +1,22 @@
 {
   "id": "crosslang-en-question",
-  "text": "不是你的代码有竞态 bug，而是 Fiber/fasthttp 的设计问题：`c.RequestCtx()` 返回的对象**生命周期只覆盖 handler**。handler 一返回，fasthttp 就会取消该 context、重置并复用这个对象给下一个请求。所以你的 goroutine 是在和连接池/下一个请求赛跑，30% 失败率就是典型的时序性竞态。\n\n对会活得比请求久的 goroutine，别用请求的 context：\n\n```go\ngo func() {\n    // 后台工作与请求解耦\n    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)\n    defer cancel()\n\n    rows, err := db.QueryContext(ctx, query)\n    // ...\n}()\nreturn c.JSON(response)\n```\n\n要点：\n\n- `context.Background()` + 显式 timeout，需要取消时自己控制。\n- 如果要保留请求相关的值（trace ID 之类），在返回前**复制**出来，不要直接传 `c`。\n- 对比：标准库 `net/http` 的 request context 在响应写完前一直有效，但即使在那里，客户端断开也会触发取消——所以「goroutine 活得比 handler 久」时用 Background 是通用规则。\n\n站内我搜了一下没有相关主题可引用，但 fasthttp 的 `RequestCtx` 复用是官方文档里明确警告过的行为，可以翻一下它的 `AcquireRequestCtx`/`ReleaseRequestCtx` 说明确认。",
+  "text": "Not your race — it's the framework's lifetime rules. Fiber sits on fasthttp, and a `RequestCtx` is pooled and reset as soon as the handler returns. That includes cancelling the request context. So the goroutine starts, then the handler returns, the ctx gets cancelled, and your `db.Query` sees `context canceled` — the ~30% is just whether the query managed to get going before the cancel landed.\n\nFix: don't hand the request context to work that outlives the request.\n\n```go\ngo func() {\n    ctx := context.WithoutCancel(c.UserContext()) // Go 1.21+\n    // or: ctx := context.Background()\n    rows, err := db.QueryContext(ctx, query)\n    ...\n}()\n```\n\nRules of thumb:\n- Copy out anything you need from `c` (strings, ints, values) before spawning; never touch `c` or `*fasthttp.RequestCtx` inside the goroutine.\n- Give the goroutine its own timeout (`context.WithTimeout(context.Background(), ...)`) so it can't leak forever.\n- Close `rows` inside that same goroutine.\n\nI can't verify the exact API name for your Fiber version offline — check the docs for `UserContext` (v2) / `Context` (v3). Also, if you *want* the query cancelled when the client disconnects, then the request must wait for it, which defeats the point of the goroutine.",
   "stopReason": "end",
   "toolTrace": [
     {
       "step": 1,
       "tool": "forum-search",
-      "arguments": "{\"query\":\"context canceled goroutine Fiber fasthttp\"}",
-      "argumentsBytes": 53,
-      "resultBytes": 66,
-      "resultDigest": "没有找到相关主题。可以换关键词，或直接回答。",
+      "arguments": "{\"query\": \"Fiber RequestCtx goroutine context canceled\"}",
+      "argumentsBytes": 56,
+      "resultBytes": 324,
+      "resultDigest": "共 1 条相关主题，本页 1 条：\n- 《Why does my context get cancelled as soon as the handler returns?》 链接：https://eval.invalid/t/1\n  分类：general ｜ 评论 1 ｜ 浏览 0\n  摘要：I'm using Fiber with a database call inside a gorout",
       "latencyMs": 0
     },
     {
       "step": 1,
       "tool": "forum-search",
-      "arguments": "{\"query\":\"RequestCtx escapes handler background job\"}",
-      "argumentsBytes": 53,
+      "arguments": "{\"query\": \"fasthttp RequestCtx reuse after handler returns\"}",
+      "argumentsBytes": 60,
       "resultBytes": 66,
       "resultDigest": "没有找到相关主题。可以换关键词，或直接回答。",
       "latencyMs": 0
@@ -24,8 +24,8 @@
   ],
   "modelCalls": 2,
   "usage": {
-    "inputTokens": 3067,
-    "outputTokens": 1339
+    "inputTokens": 4098,
+    "outputTokens": 1871
   },
-  "promptDigest": "ebe46de9d2e7ab3f"
+  "promptDigest": "e4d08b44d1293e9f"
 }

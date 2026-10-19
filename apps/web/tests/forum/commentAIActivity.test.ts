@@ -170,6 +170,14 @@ describe('tool call projection', () => {
     expect(toolArgumentSummary('{"query":"  "}')).toBe('{"query":"  "}')
   })
 
+  test('a fetch tool argument shows the url, not the raw JSON', () => {
+    // 公开面上出现 {"url": "..."} 是机器味道；读者只想知道它去读了哪一页。
+    expect(toolArgumentSummary('{"url":"https://github.com/zhuchunshu/SForum/releases"}'))
+      .toBe('https://github.com/zhuchunshu/SForum/releases')
+    // query 仍然优先于 url（同一条调用里两者都有时，检索词才是「在做什么」）。
+    expect(toolArgumentSummary('{"query":"SForum","url":"https://example.com"}')).toBe('SForum')
+  })
+
   test('non-JSON arguments are shown as-is, never swallowed', () => {
     expect(toolArgumentSummary('SForum 是什么论坛程序')).toBe('SForum 是什么论坛程序')
     expect(toolArgumentSummary('')).toBe('')

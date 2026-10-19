@@ -237,7 +237,8 @@ function positiveLatency(value: unknown): number {
  * toolArgumentSummary 把模型给出的工具入参压成一行可读文本。
  *
  * 优先取 JSON 里的 `query`：所有检索类工具都用这个键，它是读者唯一关心的部分。
- * 解析失败或没有 `query` 时退回原文首段——**不丢信息**，也不猜结构。
+ * 其次是 `url`（`fetch-url` 这类工具的参数），它比 `{"url": "..."}` 这样的原文
+ * 好读得多。两者都没有时退回原文首段——**不丢信息**，也不猜结构。
  */
 export function toolArgumentSummary(argumentsValue: unknown): string {
   if (typeof argumentsValue !== 'string') return ''
@@ -247,9 +248,14 @@ export function toolArgumentSummary(argumentsValue: unknown): string {
   if (raw.startsWith('{')) {
     try {
       const parsed = JSON.parse(raw) as Record<string, unknown>
-      const query = parsed?.query
-      if (typeof query === 'string' && query.trim()) {
-        candidate = query.trim()
+      // 顺序固定：检索词 > 目标地址 > 原文。前两者是「这条调用在做什么」的答案，
+      // 原文只是兜底——公开面上不该出现 `{"url": "..."}` 这种机器味道。
+      for (const key of ['query', 'url'] as const) {
+        const value = parsed?.[key]
+        if (typeof value === 'string' && value.trim()) {
+          candidate = value.trim()
+          break
+        }
       }
     } catch {
       // 模型给出的参数不是合法 JSON：按原文展示，不吞掉它。

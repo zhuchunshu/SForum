@@ -1,13 +1,13 @@
 {
   "id": "longthread-debug-escalation",
-  "text": "找到了：[《排障记录：nginx 与 Go 后端连接复用导致的偶发 502》](https://eval.invalid/t/200)\n\n摘要里说的和你这现象完全对得上——不定时 502、`upstream prematurely closed connection`、重启后端即恢复。核心结论就是 Bob 说的那套：反代 `keepalive_timeout` 要显著小于后端 `IdleTimeout`，让 nginx 先主动关连接，避免复用到已被 Go 侧关闭的连接。\n\n去翻正文和 23 条评论吧，里面有具体配置。观察两天有结果记得回来同步一下。",
+  "text": "找到了，是 Bob 写的《排障记录：nginx 与 Go 后端连接复用导致的偶发 502》：https://eval.invalid/t/200\n\n要点跟你现在改的方向一致：\n\n- **根因**：nginx 侧 `keepalive_timeout` 大于 Go 侧 `IdleTimeout`，空闲连接被 Go 先关，nginx 连接池仍持有它，复用时就写到已关闭的 socket 上。\n- **为什么重启才恢复**：重启清空连接池，短暂全是新连接，所以症状消失；等连接再空闲到超时点又复发。\n- **修复**：nginx 55s / Go 75s；后端响应加 `Keep-Alive: timeout=75`；顺带把探针短连接和 graceful shutdown 一起修（SIGTERM 后先停新连接、等在途请求完成）。\n- **验证**：用 `ss -tan state established` 看空闲期 ESTAB 是否平滑下降、不再堆 CLOSE_WAIT。\n\n另外那份记录里也提到探针会放大现象但不是根因，你的 k8s readinessProbe 每 5s 一次正好对上",
   "stopReason": "end",
   "toolTrace": [
     {
       "step": 1,
       "tool": "forum-search",
-      "arguments": "{\"query\":\"nginx Go 连接复用 排障\"}",
-      "argumentsBytes": 40,
+      "arguments": "{\"query\": \"连接复用\"}",
+      "argumentsBytes": 25,
       "resultBytes": 386,
       "resultDigest": "共 1 条相关主题，本页 1 条：\n- 《排障记录：nginx 与 Go 后端连接复用导致的偶发 502》 链接：https://eval.invalid/t/200\n  分类：general ｜ 评论 23 ｜ 浏览 7700\n  摘要：症状：不定时 502，nginx 日志 upstream",
       "latencyMs": 0
@@ -15,17 +15,26 @@
     {
       "step": 1,
       "tool": "forum-search",
-      "arguments": "{\"query\":\"keepalive IdleTimeout 反代\"}",
-      "argumentsBytes": 40,
+      "arguments": "{\"query\": \"nginx keepalive_timeout IdleTimeout 后端\"}",
+      "argumentsBytes": 55,
       "resultBytes": 386,
       "resultDigest": "共 1 条相关主题，本页 1 条：\n- 《排障记录：nginx 与 Go 后端连接复用导致的偶发 502》 链接：https://eval.invalid/t/200\n  分类：general ｜ 评论 23 ｜ 浏览 7700\n  摘要：症状：不定时 502，nginx 日志 upstream",
       "latencyMs": 0
+    },
+    {
+      "step": 2,
+      "tool": "forum-topic-read",
+      "arguments": "{\"topicId\": 200}",
+      "argumentsBytes": 16,
+      "resultBytes": 1285,
+      "resultDigest": "主题 #200《排障记录：nginx 与 Go 后端连接复用导致的偶发 502》\n分类：general ｜ 状态：active ｜ 评论 23 ｜ 浏览 7700 ｜ 链接：https://eval.invalid/t/200\n作者：Bob\n\n主楼正文：\n症状：不定时 502，nginx 日",
+      "latencyMs": 0
     }
   ],
-  "modelCalls": 2,
+  "modelCalls": 3,
   "usage": {
-    "inputTokens": 3913,
-    "outputTokens": 252
+    "inputTokens": 6865,
+    "outputTokens": 435
   },
-  "promptDigest": "ebb4eb15423bd494"
+  "promptDigest": "f7c18e93bd5919d2"
 }

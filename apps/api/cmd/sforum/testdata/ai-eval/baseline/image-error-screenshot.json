@@ -1,12 +1,12 @@
 {
   "id": "image-error-screenshot",
-  "text": "截图里的内容我这边看不到，日志没有贴出来，所以暂时没法判断具体是什么错。\n\n麻烦把日志**以文字形式**直接贴出来，尤其是最后几行报错（`panic:`、`ERROR`、`fatal` 之类的那几行），截图经常传不上来或压缩得看不清。顺便补充两个信息会更方便排查：\n\n1. 启动用的命令或配置（比如 `go run main.go` 还是二进制？有没有传配置文件？）\n2. 这个服务是什么项目/框架\n\n有了报错原文再发一次，我帮你看。",
+  "text": "日志内容没传上来——主楼里只有说明文字，截图我这边看不到，所以没法判断。\n\n麻烦把报错的**文本**贴一下（直接复制终端输出，或者贴代码块），尤其是：\n\n- 最后几行 `panic:` / `fatal error:` 的完整堆栈\n- 报错前一行的 `go: ...` 或 `listen tcp :xxxx` 之类\n- 如果是编译期错误，把 `go build ./...` 的输出也带上\n\n另外两个信息有用：`go env GOTOOLCHAIN` 和 `go.mod` 里的 `go` 版本行——1.24.2 和 module 声明不一致时，有时会在启动阶段直接退出。\n\n贴上来我再看看，或者 @ 其他跑过同样环境",
   "stopReason": "end",
   "toolTrace": [],
   "modelCalls": 1,
   "usage": {
-    "inputTokens": 1443,
-    "outputTokens": 441
+    "inputTokens": 1887,
+    "outputTokens": 431
   },
-  "promptDigest": "956589705a3e1d26"
+  "promptDigest": "6cf33d3931104df1"
 }

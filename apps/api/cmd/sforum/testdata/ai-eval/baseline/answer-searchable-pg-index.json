@@ -1,22 +1,22 @@
 {
   "id": "answer-searchable-pg-index",
-  "text": "有的，站内有一篇几乎一模一样的排障记录：[《排障记录：PostgreSQL 复合索引没被使用，走 primary key 索引扫描 + Sort》](https://eval.invalid/t/88)（@Alice 写的，两千万行 events 表，症状和你完全一致）。\n\n她的结论是最后命中的原因：**ORDER BY 和索引定义在 NULLS 位置上不一致**。PostgreSQL 里 `DESC` 默认是 `DESC NULLS FIRST`，两者必须逐字对应索引才能提供有序输出，否则规划器就会改判成索引扫描 + Sort。\n\n她按代价从小到大列了三个排查点，建议照着查一遍：\n\n1. **NULLS 位置不匹配** —— 索引改成 `(tenant_id, created_at DESC NULLS LAST)` 并在查询里显式写 `NULLS LAST`（以实际对齐为准）。她改完后从 1.8s 降到 4ms\n2. **隐式类型转换** —— `tenant_id` 是 bigint 但参数被传成 text；EXPLAIN 里出现 `Filter` 而不是 `Index Cond` 就是信号\n3. **索引状态 INVALID** —— `CREATE INDEX CONCURRENTLY` 中途失败会留下 invalid 索引，`\\d` 能看到但不会被使用，需要 DROP 重建\n\n她文中还提了一句：ANALYZE/统计信息新旧不影响这个判断，NULLS 语义不一致时规划器再准也不会用这条索引。",
+  "text": "站内确实有——Alice 在《排障记录：PostgreSQL 复合索引没被使用，走 primary key 索引扫描 + Sort》里总结过，场景跟你几乎一模一样（两千万行、同样的索引和查询）：https://eval.invalid/t/88\n\n她按代价从小到大列了三步排查：\n\n1. **NULLS 位置对不上**：`DESC` 默认等价 `DESC NULLS FIRST`，索引定义与 `ORDER BY` 必须逐字一致，否则索引无法提供有序输出，规划器就退回「索引扫描 + Sort」。\n2. **隐式类型转换**：`tenant_id` 是 bigint 而参数被传成 text，多一次 cast 就丢索引可用性；EXPLAIN 里出现 `Filter` 而非 `Index Cond` 是信号。\n3. **索引状态 INVALID**：`CREATE INDEX CONCURRENTLY` 中途失败会留下 invalid 索引，`\\d` 看得到但没人用，得 DROP 重建。\n\n她那次命中的是第 1 条，改成 `(tenant_id, created_at DESC NULLS LAST)` 并在查询里显式写 `NULLS LAST`，就变成 Index Only Scan，1.8s → 4ms。另外她提到 ANALYZE 跑没跑不影响这个判断。\n\n不过那篇标着 12 条评论，我读到的正文下没有评论内容，可能分页没取全——你要完整讨论可以直接进主题",
   "stopReason": "end",
   "toolTrace": [
     {
       "step": 1,
       "tool": "forum-search",
-      "arguments": "{\"query\":\"PostgreSQL 复合索引 未使用 ORDER BY\"}",
-      "argumentsBytes": 54,
-      "resultBytes": 66,
-      "resultDigest": "没有找到相关主题。可以换关键词，或直接回答。",
+      "arguments": "{\"query\": \"PostgreSQL 复合索引 没被用上\"}",
+      "argumentsBytes": 49,
+      "resultBytes": 335,
+      "resultDigest": "共 1 条相关主题，本页 1 条：\n- 《PostgreSQL 复合索引为什么没被用上》 链接：https://eval.invalid/t/1\n  分类：general ｜ 评论 1 ｜ 浏览 0\n  摘要：表上建了 (tenant_id, created_at DESC) 的复合索引，查询条件",
       "latencyMs": 0
     },
     {
       "step": 1,
       "tool": "forum-search",
-      "arguments": "{\"query\":\"索引 索引扫描 排序 SORT\"}",
-      "argumentsBytes": 43,
+      "arguments": "{\"query\": \"索引 ORDER BY LIMIT 排序\"}",
+      "argumentsBytes": 41,
       "resultBytes": 428,
       "resultDigest": "共 1 条相关主题，本页 1 条：\n- 《排障记录：PostgreSQL 复合索引没被使用，走 primary key 索引扫描 + Sort》 链接：https://eval.invalid/t/88\n  分类：general ｜ 评论 12 ｜ 浏览 3110\n  摘要：线上一个两千万行",
       "latencyMs": 0
@@ -24,8 +24,8 @@
     {
       "step": 2,
       "tool": "forum-topic-read",
-      "arguments": "{\"topicId\":88}",
-      "argumentsBytes": 14,
+      "arguments": "{\"topicId\": 88, \"perPage\": 20}",
+      "argumentsBytes": 30,
       "resultBytes": 1633,
       "resultDigest": "主题 #88《排障记录：PostgreSQL 复合索引没被使用，走 primary key 索引扫描 + Sort》\n分类：general ｜ 状态：active ｜ 评论 12 ｜ 浏览 3110 ｜ 链接：https://eval.invalid/t/88\n作者：Alice\n\n主楼正文：\n线上一个",
       "latencyMs": 0
@@ -33,8 +33,8 @@
   ],
   "modelCalls": 3,
   "usage": {
-    "inputTokens": 4410,
-    "outputTokens": 668
+    "inputTokens": 5944,
+    "outputTokens": 653
   },
-  "promptDigest": "40b804debf99a695"
+  "promptDigest": "95e1ad4393a38712"
 }

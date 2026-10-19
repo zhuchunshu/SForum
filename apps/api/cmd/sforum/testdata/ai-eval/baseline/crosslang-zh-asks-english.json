@@ -1,12 +1,12 @@
 {
   "id": "crosslang-zh-asks-english",
-  "text": "Here you go — paste-ready wording for each term:\n\n**Idempotency**\n\n\u003e An operation is **idempotent** if performing it one or more times has the same effect as performing it exactly once. Our API endpoints are idempotent, so clients can safely retry failed requests without duplicating side effects (e.g., a retried payment creation will not charge twice).\n\n**Eventual consistency**\n\n\u003e The system follows an **eventually consistent** model: writes are acknowledged immediately, and replicas converge to the latest state over time. In the absence of new updates, all reads will eventually return the most recent value, but a short window of stale reads is possible right after a write.\n\n**Backpressure**\n\n\u003e **Backpressure** is the mechanism by which a slow consumer signals upstream producers to slow down, preventing unbounded buffering and memory growth. When the consumer can't keep up with the incoming data rate, demand is propagated upstream and the producer throttles accordingly.\n\nTwo small style tips for the README:\n\n- Use the noun forms (**idempotency**, **eventual consistency**, **backpressure**) in headings/glossaries, and the adjective forms (**idempotent**, **eventually consistent**) in sentences — that's the most natural pattern in English docs.\n- \"Backpressure\" is one word (no hyphen) in most modern docs — e.g., Reactive Streams, Kafka, and Rx documentation all write it that way.\n\nIf your original Chinese sentences describe specific behavior (e.g., which component applies backpressure), paste them here and I can give you idiomatic full-sentence translations instead of generic definitions.",
+  "text": "Short versions you can paste directly:\n\n- 幂等 → **idempotent** (adj.) / **idempotency** (noun). e.g. *\"This endpoint is idempotent: repeating the same request has no additional effect.\"* / *\"Retries are safe because the operation guarantees idempotency.\"*\n- 最终一致性 → **eventual consistency** (noun) / **eventually consistent** (adj.). e.g. *\"Replicas are eventually consistent: reads may briefly return stale data, but all nodes converge.\"* Note: it's a weak consistency model, not \"final\" consistency.\n- 背压 → **backpressure** (one word is the common spelling in tech docs; *back pressure* also appears). e.g. *\"The consumer applies backpressure when it cannot keep up with the producer.\"*\n\nTwo common pitfalls worth avoiding:\n- Don't write \"power-equivalent\" or \"idempotence\" as a verb form — use `is idempotent` / `idempotency`.\n- Don't translate 最终一致性 as \"final consistency\"; readers will read it as \"the last consistency,\" not the CAP sense.\n\nIf you need a one-line glossary entry style:\n\n```\nIdempotency: safely retrying the same request produces the same result.\nEventual consistency: replicas converge to the same state, but not immediately.\nBackpressure: a consumer signals the producer to slow down when it is overloaded.\n```",
   "stopReason": "end",
   "toolTrace": [],
   "modelCalls": 1,
   "usage": {
-    "inputTokens": 1486,
-    "outputTokens": 650
+    "inputTokens": 1927,
+    "outputTokens": 589
   },
-  "promptDigest": "4aef78619634178a"
+  "promptDigest": "1a4d32ee1303e165"
 }

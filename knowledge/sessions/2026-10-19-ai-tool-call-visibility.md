@@ -46,24 +46,32 @@
 工具段由 Orchestrator 渲染、插在基础提示词与安全尾注之间；`ReplySystemPrompt`
 只返回基础提示词。
 
-## 关键发现（**这是本轮最重要的结论**）
+## 关键发现与最终结局
 
-**机器人在切换供应商之后从未成功调用过任何工具，与本次改动无关。**
-
-证据链：
+**「机器人不搜索」的根因不在本仓库，而在供应商。** 链路排查与最终修复：
 
 | 时间 | 事件 |
 | --- | --- |
-| 08:56 / 08:58 | `e7bc4532…` / `78bf401c…` 各有 3 行 `ai_executions` = 2 次工具往返 |
-| 21:45 | `ai_settings` 被改为 `custom` → `http://127.0.0.1:3066/v1`（`agent2api`），`glm-5.3-flash` |
-| 21:46 起（含 23:28 的截图 run `8681e832…`、23:57 的 run `5b6065f9…`） | 每个 `forum.reply` run 都只有 **1** 行 `ai_executions` = 零工具调用 |
-| 00:01 / 00:02 | 同一 fixture `answer-searchable-channel` 从基线 3 次模型调用 / 3 次工具调用掉到 **1 / 0**；把新加的「站外事实」段整段删掉再跑，仍是 **1 / 0** |
-| 00:01 | `~/.agent2api/debug/last-request.json` 显示请求**确实带了** `tools`（6 条）与 `tool_choice: auto` |
+| 08:56 / 08:58 | `e7bc4532…` / `78bf401c…` 各有 3 行 `ai_executions` = 2 次工具往返（工具链本来是好的） |
+| 21:45 | `ai_settings` 改到 `custom` → `http://127.0.0.1:3066/v1`（`agent2api`），`glm-5.3-flash` |
+| 21:46 起（含 23:28 的截图 run `8681e832…`） | 每个 `forum.reply` run 都只有 **1** 行 = 零工具调用 |
+| 00:01 / 00:02 | 同一 fixture 从基线 3 次调用 / 3 次工具掉到 **1 / 0**；把新加的「站外事实」段整段删掉再跑仍是 **1 / 0** |
+| 00:01 | `~/.agent2api/debug/last-request.json` 显示请求**确实带了** `tools` 与 `tool_choice: auto` |
+| 00:19 | 换成 `deepseek-v4.1-flash` 后全部 `502 OrcaTerm 建会话失败（Invalid or expired AccessToken）`——代理上游账号 token 过期，模型根本没被调到 |
+| 00:23 | 换 key 后恢复：**3 次模型调用 / 3 次工具调用**（`answer-searchable-channel`） |
 
-结论：SForum 侧的线格式是对的（单元测试 `TestOrchestratorRunsToolThenAnswers` 也钉住
-出站 body 含 `tools`），是代理/上游没有返回 `tool_calls`。**换一个能正常返回工具调用
-的供应商即可**；本次新增的提示词工具段会让模型第一次在 system 里看到「你可以联网
-检索」，但提示词救不了「供应商不回 tool_calls」。
+所以本仓库的线格式自始至终是对的（`TestOrchestratorRunsToolThenAnswers` 钉住出站
+body 含 `tools`）；`agent2api` 那条链上有两个独立故障：先是「收了 tools 不回
+tool_calls」，再是「上游账号 token 过期」。**换供应商或修代理即可，代码侧无需再动。**
+
+**真实端到端证据**（2026-10-20 00:23，主题 1236，评论 5014 触发 → 5015 回复）：
+run `105b53c7eed18e877bcfdd1d4987db01` 在 `ai_executions` 有 **3** 行（502/503/504），
+`ai_tool_calls` 写 **4** 行：`web-search`（成功，3347ms）、`web-search`（失败，
+10206ms）、`fetch-url`（失败，4506ms）、`web-search`（`step_exhausted`，预算 3 用完）。
+公开端点只回前 3 条（`step_exhausted` 被过滤、`resultDigest` 不出现），页面折叠块显示
+「工具调用（3）」且两条标「失败」。**模型在两次检索失败后如实说「最新 release 的
+具体版本号我没能核实」，没有编版本号**——这正是 `@9` 那一段站外事实规则想要的
+行为，也顺带证明了工具段确实进了 system。
 
 ## 验证（实跑）
 
@@ -71,29 +79,31 @@
 - `cd apps/web && bun test` 1358 pass / 0 fail；`bun run typecheck` 0 错。
 - `node tests/validate-architecture-boundaries.mjs` passed；
   `ruby scripts/validate-openapi-refs.rb` 2878 refs OK。
-- **受控浏览器证据**（合成 2 行 `ai_tool_calls`：1 条 `web-search` 成功 +
-  1 条 `not_allowed`，验证后已删除）：
-  `GET /api/v1/comments/5010/citations` → `{"items":[],"toolCalls":[{"tool":"web-search",
-  "arguments":"{\"query\":…}","latencyMs":842}]}`（`not_allowed` 被过滤、
-  `resultDigest` 不出现）；页面恰好 1 个 `.sf-comment-ai-activity`，折叠标题
-  「工具调用（1）」，展开后是 `web-search` + 检索词 + `842 ms`；1633 与 390 宽均无横向溢出。
-  截图：`tmp/ai-activity-desktop.png`、`tmp/ai-activity-mobile.png`（gitignore）。
-- **真实模型证据**：run `5b6065f9…` 的 `prompt_version=forum-reply@9`，证明新提示词
-  已在线上生效。
+- **真实浏览器证据**（见上，run `105b53c7…`）：
+  `GET /api/v1/comments/5015/citations` 返回 3 条 `toolCalls`（`step_exhausted` 那条
+  被过滤、`resultDigest` 不出现）；页面恰好 1 个 `.sf-comment-ai-activity`，折叠标题
+  「工具调用（3）」，展开是两条 `web-search` + 一条 `fetch-url`，两条带「失败」标记；
+  1023/390 两档均无横向溢出。截图：`tmp/ai-activity-live.png`、
+  `tmp/ai-activity-live-mobile.png`（gitignore）。
+- **eval 基线已重生成**（2026-10-20 00:26，`--confirm` 10 条全部干净、无 `error`）：
+  `answer-searchable-channel` 3/3、`answer-searchable-pg-index` 3/3、
+  `crosslang-en-question` 2/2、`longthread-debug-escalation` 3/3、
+  `longthread-migration-review` 2/2、`refuse-private-data` 2/2、
+  `image-diagram-question` 3/3；三条无需工具的用例 1/0。
+  `promptDigest` 全变（`@9` + 工具段），这是预期。
 
 ## Next
 
-1. **换供应商或修 `agent2api` 的 tools 透传**，然后重跑一次站外提问：
-   预期该 run ≥2 行 `ai_executions`、`ai_tool_calls` 至少 1 行 `web-search`、
-   页面出现「工具调用（1）」。
-2. 工具调用恢复正常后重生成 eval 基线：
-   `sforum ai:eval --fixture-dir cmd/sforum/testdata/ai-eval --diff --confirm`
-   （`@9` 让 10 条 fixture 的 `promptDigest` 全变，且基线现在还是 3 次调用的旧行为）。
-   **本轮刻意没有重生成**——把「工具不可用」写成基线会毁掉这条门禁的信号。
+1. ~~换供应商~~ **已解决**（2026-10-20 00:23，`deepseek-v4.1-flash` + 新 key）。
+2. ~~重生成 eval 基线~~ **已完成**（见上）。若供应商再换，先跑
+   `ai:eval --diff`（不带 `--confirm`）确认指纹是否漂移，再决定是否 `--confirm` 重写。
 3. P2（未做，可裁）：`GET /admin/ai/runs/:runId` 增量返回 `toolCalls`（不过滤拒绝
    结局），`SFAdminAIRunTimeline.vue` 加一段「工具调用」。存储层已具备
    `PostgresToolCallStore.ListByRun`。
-4. 全部改动未 commit。
+4. **已知可调项**：`gates.toolCallsPerReply` 现在是 3，这次真实回复刚好在第 4 步被
+   截断（`step_exhausted`）。工具变多之后，站外核实 + 读页面很容易超预算；若运营者
+   希望机器人更「肯查」，把它调到 5（`DefaultToolCallsPerReply`）更合适。
+5. 提交：`81084a698` 已推；本轮补丁（`url` 摘要 + 基线）单独一个提交。
 
 ## Open Questions
 

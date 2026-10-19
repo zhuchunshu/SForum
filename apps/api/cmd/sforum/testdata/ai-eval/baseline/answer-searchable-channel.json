@@ -1,22 +1,22 @@
 {
   "id": "answer-searchable-channel",
-  "text": "没有所谓标准答案，但站内确实有人总结过，而且巧了——正是 @bob 自己写的：[《channel 还是 mutex：一条可操作的判断规则》](https://eval.invalid/t/42)。\n\n核心判断依据是**数据有没有交接点**：\n\n- 所有权随流程转移（生产者算完交给消费者，两者不同时持有）→ 用 **channel**，让「同一时刻只有一方能碰数据」成为结构上的事实。\n- 多个 goroutine 共同读改、没有明确交接点（计数器、缓存、连接池状态）→ 用 **sync.Mutex** / **sync.RWMutex**，这时 channel 只是把锁写得更贵更难读。\n\n帖子里还有个反例值得注意：为了保护一个共享 map 而套 channel 请求-应答，等于用 channel 手写了一把锁，开销更大、死锁面更宽。\n\n所以不是「哪个更 Go」的问题，而是看你的数据流长什么样。",
+  "text": "标准答案没有，但站内有一篇把判断规则讲得挺干脆的帖子：**《channel 还是 mutex：一条可操作的判断规则》**（作者 @bob）https://eval.invalid/t/42\n\n核心就一句：**看数据所有权有没有「交接点」**。\n\n- 所有权随流程转移（生产者算完交给消费者，两者不同时持有）→ 用 channel，让「同一时刻只有一方能碰」成为结构上的事实\n- 多个 goroutine 共同读改、没有明确交接点（计数器、缓存、连接池状态）→ 用 mutex / RWMutex\n\n它还点了两个坑：用 channel 给共享 map 套请求-应答，本质是拿 channel 当锁使，更贵也更容易死锁；以及 channel 的 close 语义是「不再发送」，由发送方关闭，接收方永不关闭。\n\n我读那个主题时页面显示还没有评论，所以只有主楼这一条规则可",
   "stopReason": "end",
   "toolTrace": [
     {
       "step": 1,
       "tool": "forum-search",
-      "arguments": "{\"query\":\"Go channel mutex 并发\"}",
-      "argumentsBytes": 35,
-      "resultBytes": 909,
-      "resultDigest": "共 2 条相关主题，本页 2 条：\n- 《Go 并发里 channel 和 mutex 到底怎么选》 链接：https://eval.invalid/t/1\n  分类：general ｜ 评论 2 ｜ 浏览 0\n  摘要：写并发代码时一直在纠结：什么时候该用 channel，什么",
+      "arguments": "{\"query\": \"channel 和 mutex 怎么选\"}",
+      "argumentsBytes": 40,
+      "resultBytes": 450,
+      "resultDigest": "共 1 条相关主题，本页 1 条：\n- 《Go 并发里 channel 和 mutex 到底怎么选》 链接：https://eval.invalid/t/1\n  分类：general ｜ 评论 2 ｜ 浏览 0\n  摘要：写并发代码时一直在纠结：什么时候该用 channel，什么",
       "latencyMs": 0
     },
     {
       "step": 1,
       "tool": "forum-search",
-      "arguments": "{\"query\":\"channel mutex 选择\"}",
-      "argumentsBytes": 32,
+      "arguments": "{\"query\": \"Go 并发 channel mutex 选择\"}",
+      "argumentsBytes": 43,
       "resultBytes": 498,
       "resultDigest": "共 1 条相关主题，本页 1 条：\n- 《channel 还是 mutex：一条可操作的判断规则》 链接：https://eval.invalid/t/42\n  分类：general ｜ 评论 7 ｜ 浏览 1832\n  摘要：Go 并发编程里最常被问的一个选择就是：channe",
       "latencyMs": 0
@@ -24,8 +24,8 @@
     {
       "step": 2,
       "tool": "forum-topic-read",
-      "arguments": "{\"topicId\":42}",
-      "argumentsBytes": 14,
+      "arguments": "{\"topicId\": 42}",
+      "argumentsBytes": 15,
       "resultBytes": 1184,
       "resultDigest": "主题 #42《channel 还是 mutex：一条可操作的判断规则》\n分类：general ｜ 状态：active ｜ 评论 7 ｜ 浏览 1832 ｜ 链接：https://eval.invalid/t/42\n作者：Bob\n\n主楼正文：\nGo 并发编程里最常被问的一个选择就是",
       "latencyMs": 0
@@ -33,8 +33,8 @@
   ],
   "modelCalls": 3,
   "usage": {
-    "inputTokens": 4634,
-    "outputTokens": 469
+    "inputTokens": 5830,
+    "outputTokens": 423
   },
-  "promptDigest": "6eab0885653e5bd7"
+  "promptDigest": "1970dfdd0028a3b2"
 }

@@ -1,6 +1,6 @@
 # AI 工具调用：让机器人真的去搜 + 把调用记录给用户看
 
-Status: **active** (2026-10-19)
+Status: **completed** (2026-10-19，2026-10-20 真实端到端验证通过)
 
 ## 0. 一句话结论
 
@@ -285,15 +285,22 @@ DROP TABLE IF EXISTS ai_tool_calls;
 | P0-3 公开读 | **done** | `CitationList.ToolCalls` + `publicToolCalls`；受控数据下端点只返回 1 条（`not_allowed` 被过滤、`resultDigest` 不出现） |
 | P0-4 契约 | **done** | `CommentToolCall` + `toolCalls`（`required` 仍只有 `items`）；`validate-openapi-refs` 2878 refs OK |
 | P0-5 前端 | **done** | `SFCommentAIActivity.vue` 一个块两分区；web 1358 pass、typecheck 0 错；1633/390 截图齐 |
-| P1 验证 | **部分** | 代码侧全绿 + 受控浏览器证据齐；**真实工具调用未发生**——供应商 `agent2api` 不回 `tool_calls`（见 §7 风险与 handoff） |
+| P1 验证 | **done** | run `105b53c7…`：3 次模型调用、`ai_tool_calls` 4 行（3 条公开、1 条 `step_exhausted` 被过滤）；页面「工具调用（3）」；eval 基线已按 `@9` 重生成 |
 | P2 管理面 | pending（可裁） | 存储层已备 `ListByRun` |
 
 ## 10. 结论补充（实现后回填）
 
-**W1/W2 的代码是对的，但线上「机器人不搜索」的根因不在本仓库。**
-2026-10-19 21:45 供应商切到本机 `agent2api`（`127.0.0.1:3066`）之后，所有
-`forum.reply` run 都只有 1 次模型调用；同一 eval fixture 从 3 次调用 / 3 次工具调用
-掉到 1 / 0；把本轮新增的提示词段整段删掉再跑仍是 1 / 0；而
-`~/.agent2api/debug/last-request.json` 显示请求确实带了 `tools` 与 `tool_choice: auto`。
-换一个能正常返回 `tool_calls` 的供应商即可，届时再按 P1 第 1 条做真实触发验证并
-重生成 eval 基线（本轮刻意未重生成，避免把「工具不可用」写成基线）。
+**W1/W2 的代码是对的；线上「机器人不搜索」的根因在本仓库之外，且是两层故障。**
+
+- 2026-10-19 21:45 供应商切到本机 `agent2api`（`127.0.0.1:3066`）后，所有
+  `forum.reply` run 都只有 1 次模型调用；同一 eval fixture 从 3 次调用 / 3 次工具
+  调用掉到 1 / 0；把本轮新增的提示词段整段删掉再跑仍是 1 / 0；而
+  `~/.agent2api/debug/last-request.json` 显示请求确实带了 `tools` 与
+  `tool_choice: auto`。→ 代理收了工具却不回 `tool_calls`。
+- 2026-10-19 00:19 换成 `deepseek-v4.1-flash` 后变成全量 `502 OrcaTerm 建会话失败
+  （Invalid or expired AccessToken）`：代理上游账号 token 过期，模型根本没被调到。
+- 2026-10-20 00:23 换 key 后恢复，真实触发验证通过（见 §9 P1 与 handoff）。
+
+**可调项**：`gates.toolCallsPerReply` 当前是 3，这次真实回复在第 4 步被截断
+（`step_exhausted`）。工具变多之后「检索 + 读页面」很容易超预算，运营者若希望机器人
+更肯查，调到 5（`DefaultToolCallsPerReply`）更合适。
