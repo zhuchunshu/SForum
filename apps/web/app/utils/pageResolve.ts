@@ -214,15 +214,45 @@ export async function requestPageResolveWithRetry(
 /**
  * 从 Page Registry 渲染出的正文里取可见标题：只保留首个 h1 的纯文本。
  *
- * 模板 HTML 由主题/插件提供，不能按可信标记处理：先剥掉标签，再丢弃残留的
- * 孤立尖括号，结果中不可能再拼出标签（因此也不能闭合内联脚本块）。
+ * 模板 HTML 由主题/插件提供，不能按可信标记处理。这里用逐字符扫描而不是
+ * 「正则剥标签 + 再删尖括号」：后者一次替换会把 `<scr<b>ipt>` 拼回 `<script>`，
+ * 正是 js/incomplete-multi-character-sanitization 的形态。扫描器只做单字符判定，
+ * 进入标签后不再输出任何字符，因此输出中不可能出现标签边界。
  */
 export function extractRegistryPageHeading(templateHtml: string): string {
   const inner = templateHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1]
   if (!inner) {
     return ''
   }
-  return inner.replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim()
+  return stripMarkupToText(inner).trim()
+}
+
+// 单次线性扫描：标签内内容整体丢弃；未闭合的尾部标签保留其缓冲文本
+// （`a<scr` → `ascr`，与原有行为一致），缓冲里也不吸收尖括号。
+function stripMarkupToText(value: string): string {
+  let text = ''
+  let pending = ''
+  let inTag = false
+  for (const char of value) {
+    if (inTag) {
+      if (char === '>') {
+        inTag = false
+        pending = ''
+      } else if (char !== '<') {
+        pending += char
+      }
+      continue
+    }
+    if (char === '<') {
+      inTag = true
+      pending = ''
+      continue
+    }
+    if (char !== '>') {
+      text += char
+    }
+  }
+  return text + pending
 }
 
 export function shouldDisablePageResolveSharedCache(

@@ -225,15 +225,42 @@ describe('registry page heading extraction', () => {
   })
 
   it('never leaves angle brackets that could rebuild markup', () => {
-    // 单次剥标签会把 `<scr<b>ipt>` 拼回 `<script>`；残留尖括号必须一起丢掉。
+    // 单次剥标签会把 `<scr<b>ipt>` 拼回 `<script>`；扫描器进入标签后不再输出字符，
+    // 因此任意中间值都不含标签边界，而不是靠事后删尖括号兜底。
     expect(extractRegistryPageHeading('<h1>a</scr<b>ipt><scr<b>ipt>alert(1)</scr<b>ipt></h1>'))
       .not.toMatch(/[<>]/)
     expect(extractRegistryPageHeading('<h1>x</script><img src=x onerror=alert(1)></h1>')).toBe('x')
     expect(extractRegistryPageHeading('<h1>a<scr</h1>')).toBe('ascr')
   })
 
+  it('drops brackets left inside an unterminated or nested tag', () => {
+    expect(extractRegistryPageHeading('<h1>a<<b</h1>')).toBe('ab')
+    expect(extractRegistryPageHeading('<h1>a<<<b>c</h1>')).toBe('ac')
+    for (const html of [
+      '<h1>a<<b</h1>',
+      '<h1><a<b>c</h1>',
+      '<h1>x</script><scr<b>ipt>y</h1>',
+      '<h1>tail<',
+      '<h1>tail</'
+    ]) {
+      expect(extractRegistryPageHeading(html)).not.toMatch(/[<>]/)
+    }
+  })
+
+  it('keeps escaped entities as literal title text', () => {
+    // `&lt;` 不是标签边界，标题里应原样保留（渲染层负责转义）。
+    expect(extractRegistryPageHeading('<h1>&lt;script&gt;</h1>')).toBe('&lt;script&gt;')
+    expect(extractRegistryPageHeading('<h1>A &amp; B</h1>')).toBe('A &amp; B')
+  })
+
+  it('keeps multi-line and non-ASCII headings intact', () => {
+    expect(extractRegistryPageHeading('<h1>多行\n标题</h1>')).toBe('多行\n标题')
+    expect(extractRegistryPageHeading('<h1>  spaced  </h1>')).toBe('spaced')
+  })
+
   it('falls back to an empty string without an h1', () => {
     expect(extractRegistryPageHeading('<p>no heading</p>')).toBe('')
+    expect(extractRegistryPageHeading('<h1></h1>')).toBe('')
     expect(extractRegistryPageHeading('')).toBe('')
   })
 })

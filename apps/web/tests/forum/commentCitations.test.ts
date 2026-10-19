@@ -10,20 +10,23 @@ import {
   visibleCitations,
   type ForumCitation
 } from '../../app/components/forum/citations'
+import { stripHtmlComments } from '../helpers/sourceText'
 
 function source(relative: string): string {
   return readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')
 }
 
 // 注释里会提到被禁止的写法（说明为什么不用它），断言必须只看真实代码。
+// HTML 注释的剥离必须迭代到不动点，否则嵌套构造会重新拼出注释边界。
 function code(relative: string): string {
-  return source(relative)
-    .split('\n')
-    .filter(line => !line.trimStart().startsWith('//')
-      && !line.trimStart().startsWith('*')
-      && !line.trimStart().startsWith('/*'))
-    .join('\n')
-    .replace(/<!--[\s\S]*?-->/g, '')
+  return stripHtmlComments(
+    source(relative)
+      .split('\n')
+      .filter(line => !line.trimStart().startsWith('//')
+        && !line.trimStart().startsWith('*')
+        && !line.trimStart().startsWith('/*'))
+      .join('\n')
+  )
 }
 
 function locale(name: string): Record<string, unknown> {
