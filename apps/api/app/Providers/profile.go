@@ -13,12 +13,24 @@ import (
 
 type ProfileProvider struct {
 	controller *profilecontroller.Controller
+	service    *profile.Service
 }
 
 func NewProfileProvider(store profile.Store, users identity.ActorStore, sessions *authsession.Manager, optionsService *options.Service) *ProfileProvider {
+	service := profile.NewService(store)
 	return &ProfileProvider{
-		controller: profilecontroller.NewController(profile.NewService(store), users, sessions, optionsService),
+		controller: profilecontroller.NewController(service, users, sessions, optionsService),
+		service:    service,
 	}
+}
+
+// WithNicknameEditor 注入昵称服务（Identity 实现）。不注入时昵称只读，
+// 带 displayName 的 PUT 会被拒绝。
+func (p *ProfileProvider) WithNicknameEditor(editor profile.NicknameEditor) *ProfileProvider {
+	if p != nil && p.service != nil {
+		p.service.WithNicknameEditor(editor)
+	}
+	return p
 }
 
 func NewProfileProviderWithAvatar(store profile.Store, users identity.ActorStore, sessions *authsession.Manager, uploader *attachments.Service, optionsService *options.Service) *ProfileProvider {
@@ -33,6 +45,7 @@ func NewProfileProviderWithAvatarAndTabs(store profile.Store, users identity.Act
 	}
 	return &ProfileProvider{
 		controller: profilecontroller.NewController(service, users, sessions, optionsService),
+		service:    service,
 	}
 }
 

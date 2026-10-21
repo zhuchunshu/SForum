@@ -79,6 +79,25 @@ export type PublicProfile = {
   activities: ProfileActivity[]
   joinedAt: string
   extensionTabs?: ProfileExtensionTab[]
+  /** 自助端点才有：昵称冷却与重名提示。 */
+  nickname?: NicknameState
+  /** 公开主页可选展示的最近一条曾用名。 */
+  previousDisplayNames?: string[]
+}
+
+export type NicknameState = {
+  displayName: string
+  changedAt?: string | null
+  nextChangeAt?: string | null
+  canChange: boolean
+  duplicates: number
+}
+
+export type NicknameAvailability = {
+  available: boolean
+  duplicates: number
+  conflict?: string
+  normalized?: string
 }
 
 export type UpdateProfileInput = {
@@ -87,6 +106,7 @@ export type UpdateProfileInput = {
   location?: string
   websiteUrl?: string
   avatarAttachmentId?: number | null
+  displayName?: string
 }
 
 export function useProfileApi() {
@@ -118,7 +138,14 @@ export function useProfileApi() {
   }
 
   function updateMyProfile(input: UpdateProfileInput) {
-    return request<ProfileData>('/profile', { method: 'PUT', body: input })
+    // 返回完整 PublicProfile：改名后前端需要新的 displayName 与昵称状态，
+    // 不应该再补一次 GET。
+    return request<PublicProfile>('/profile', { method: 'PUT', body: input })
+  }
+
+  function checkNicknameAvailability(value: string) {
+    const query = new URLSearchParams({ value })
+    return request<NicknameAvailability>(`/profile/nickname/availability?${query.toString()}`)
   }
 
   function uploadAvatar(file: File) {
@@ -136,6 +163,7 @@ export function useProfileApi() {
     listPublicActivities,
     getMyProfile,
     updateMyProfile,
+    checkNicknameAvailability,
     uploadAvatar,
     deleteAvatar
   }

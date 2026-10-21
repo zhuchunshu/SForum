@@ -92,6 +92,20 @@ export type AvatarSettings = {
   compressQuality: number
 }
 
+/**
+ * 昵称策略：昵称是展示标签而不是身份，唯一性只属于用户名。
+ * 全部字段来自 public 运行时选项，服务端校验仍是权威。
+ */
+export type NicknameSettings = {
+  allowUserChange: boolean
+  /** 冷却分钟数；0 表示不限制。 */
+  cooldownMinutes: number
+  minLength: number
+  maxLength: number
+  /** 是否在公开主页展示最近一条曾用名。 */
+  historyPublic: boolean
+}
+
 // 帖子详情页 URL 形态枚举与推荐默认值。TopicUrlMode 类型复用自 forumTaxonomy。
 export const topicUrlModes: TopicUrlMode[] = ['id_slug', 'id', 'slug']
 export const recommendedTopicUrlMode: TopicUrlMode = 'id_slug'
@@ -109,6 +123,15 @@ export const recommendedAvatarSettings: AvatarSettings = {
   compressEnabled: true,
   targetDimension: 256,
   compressQuality: 85
+}
+
+/** 开箱默认：允许改、7 天冷却、2–24 字符、曾用名不公开。 */
+export const recommendedNicknameSettings: NicknameSettings = {
+  allowUserChange: true,
+  cooldownMinutes: 10080,
+  minLength: 2,
+  maxLength: 24,
+  historyPublic: false
 }
 
 export type SEOSettings = SEOResolverSettings & {
@@ -430,6 +453,7 @@ export const useWebOptions = () => {
   const registrationEnabled = computed(() => normalizeEnabledOption(webOption('identity.registration.enabled'), true))
   const seoSettings = computed(() => resolveSEOSettings(options.value))
   const avatarSettings = computed(() => resolveAvatarSettings(options.value))
+  const nicknameSettings = computed(() => resolveNicknameSettings(options.value))
   const seoIndexable = computed(() => isSEOIndexingAllowed(seoSettings.value, siteUrl.value))
   // 帖子 URL 形态：列表/详情/SEO 链接生成均依赖此值。
   const topicUrlMode = computed<TopicUrlMode>(() => seoSettings.value.topicUrlMode)
@@ -487,6 +511,7 @@ export const useWebOptions = () => {
     registrationEnabled,
     seoSettings,
     avatarSettings,
+    nicknameSettings,
     seoIndexable,
     topicUrlMode,
     humanVerificationEnabledFor,
@@ -663,8 +688,7 @@ export function normalizeTopicUrlMode(value: string | undefined): TopicUrlMode {
   return topicUrlModes.includes(raw) ? raw : recommendedTopicUrlMode
 }
 
-export function resolveAvatarSettings(values: Record<string, string>): AvatarSettings {
-  const option = (name: string) => values[name] ?? fallbackOptions[name] ?? ''
+export function resolveAvatarSettings(values: Record<string, string>): AvatarSettings {  const option = (name: string) => values[name] ?? fallbackOptions[name] ?? ''
   return {
     allowUpload: normalizeEnabledOption(option('avatar.allow_upload'), recommendedAvatarSettings.allowUpload),
     defaultProvider: normalizeAvatarDefaultProvider(option('avatar.default_provider')),
@@ -677,6 +701,29 @@ export function resolveAvatarSettings(values: Record<string, string>): AvatarSet
     compressEnabled: normalizeEnabledOption(option('avatar.compress_enabled'), recommendedAvatarSettings.compressEnabled),
     targetDimension: normalizeBoundedInteger(option('avatar.target_dimension'), recommendedAvatarSettings.targetDimension, 32, 4096),
     compressQuality: normalizeBoundedInteger(option('avatar.compress_quality'), recommendedAvatarSettings.compressQuality, 1, 100)
+  }
+}
+
+export function resolveNicknameSettings(values: Record<string, string>): NicknameSettings {
+  const option = (name: string) => values[name] ?? fallbackOptions[name] ?? ''
+  // 空串不是 0：缺省项必须回落到推荐默认，否则「未配置冷却」会被读成「不限制」。
+  const bounded = (name: string, fallback: number, min: number, max: number) => {
+    const raw = option(name).trim()
+    return raw === '' ? fallback : normalizeBoundedInteger(raw, fallback, min, max)
+  }
+  let minLength = bounded('profile.nickname.min_length', recommendedNicknameSettings.minLength, 1, 32)
+  let maxLength = bounded('profile.nickname.max_length', recommendedNicknameSettings.maxLength, 2, 64)
+  // 交叉约束：上界低于下界时双双回退默认，避免渲染出一个无人能通过的区间。
+  if (maxLength < minLength) {
+    minLength = recommendedNicknameSettings.minLength
+    maxLength = recommendedNicknameSettings.maxLength
+  }
+  return {
+    allowUserChange: normalizeEnabledOption(option('profile.nickname.allow_user_change'), recommendedNicknameSettings.allowUserChange),
+    cooldownMinutes: bounded('profile.nickname.cooldown_minutes', recommendedNicknameSettings.cooldownMinutes, 0, 525600),
+    minLength,
+    maxLength,
+    historyPublic: normalizeEnabledOption(option('profile.nickname.history_public'), recommendedNicknameSettings.historyPublic)
   }
 }
 

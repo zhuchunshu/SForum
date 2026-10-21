@@ -36,6 +36,8 @@ type updateProfileRequest struct {
 	Location           *string `json:"location"`
 	WebsiteURL         *string `json:"websiteUrl"`
 	AvatarAttachmentID *int64  `json:"avatarAttachmentId"`
+	// DisplayName 是昵称。留空字符串表示「显示用户名」。
+	DisplayName *string `json:"displayName"`
 }
 
 func (h *Controller) publicProfile(c fiber.Ctx) error {
@@ -124,6 +126,7 @@ func (h *Controller) updateMyProfile(c fiber.Ctx) error {
 		Location:           req.Location,
 		WebsiteURL:         req.WebsiteURL,
 		AvatarAttachmentID: req.AvatarAttachmentID,
+		DisplayName:        req.DisplayName,
 	})
 	if err != nil {
 		return mapProfileError(err)
@@ -175,9 +178,19 @@ func (h *Controller) actor(c fiber.Ctx) (identity.Actor, error) {
 }
 
 func mapProfileError(err error) error {
+	var nicknameInvalid *identity.NicknameInvalidError
+	var nicknameCooldown *identity.NicknameCooldownError
 	switch {
 	case errors.Is(err, identity.ErrPermissionDenied):
 		return fiber.NewError(fiber.StatusForbidden, "permission.denied")
+	// 昵称错误走带字段/重试时刻的 APIError：错误中间件会本地化字段消息，
+	// 前端能就地把原因贴在输入框旁边，冷却时还能显示「什么时候能再改」。
+	case errors.Is(err, identity.ErrNicknameDisabled):
+		return apphttp.NewError(fiber.StatusUnprocessableEntity, profile.CodeNicknameDisabled)
+	case errors.As(err, &nicknameInvalid):
+		return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, profile.CodeNicknameInvalid, nicknameInvalid.Fields)
+	case errors.As(err, &nicknameCooldown):
+		return apphttp.NewErrorWithRetryAt(fiber.StatusUnprocessableEntity, profile.CodeNicknameCooldown, nicknameCooldown.RetryAt)
 	case errors.Is(err, profile.ErrProfileNotFound):
 		return fiber.NewError(fiber.StatusNotFound, profile.CodeProfileNotFound)
 	case errors.Is(err, profile.ErrProfileInvalid):
@@ -193,4 +206,18 @@ func mapProfileError(err error) error {
 	default:
 		return err
 	}
+}
+
+// nicknameAvailability 是改名前的预检。它不写任何东西，只回答三件事：
+// 这个值能不能用、有多少人同名、如果不能用是哪个原因。
+func (h *Controller) nicknameAvailability(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	result, err := h.service.CheckNicknameAvailability(c.Context(), actor, c.Query("value"))
+	if err != nil {
+		return mapProfileError(err)
+	}
+	return apphttp.OK(c, result)
 }

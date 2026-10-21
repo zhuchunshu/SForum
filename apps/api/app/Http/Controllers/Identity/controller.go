@@ -70,6 +70,17 @@ type Controller struct {
 	// 绝不使用请求 Host。appEnv 用于生产 HTTPS 强制。
 	appURL string
 	appEnv string
+	// authorNames 可选：管理员改名后回写派生索引（站内搜索的作者昵称）。
+	authorNames identity.AuthorNameSyncer
+}
+
+// WithAuthorNameSyncer 注入改名后的派生索引同步。它是可选依赖：同步失败只记
+// 日志，不回滚已经提交的账户更新。
+func (h *Controller) WithAuthorNameSyncer(syncer identity.AuthorNameSyncer) *Controller {
+	if h != nil {
+		h.authorNames = syncer
+	}
+	return h
 }
 
 // optionsResolver 只暴露密码策略、mail-test 需要的站点名/管理员邮箱，避免全量依赖 options.Service。

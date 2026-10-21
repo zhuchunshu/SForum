@@ -22,6 +22,15 @@ responsibilities.
   compatibility endpoint or the component-specific
   `/api/v1/admin/extensions/{id}/frontend/assets/{digest}/{component}/{asset}`
   endpoint.
+- Public read-only assets (`/_nuxt/**`, `/_sforum/assets/**`, `/_sforum/icons/**`)
+  are published as cross-origin readable: the app itself sets
+  `Access-Control-Allow-Origin: *` and `Cross-Origin-Resource-Policy: cross-origin`
+  (Nitro route rules for build assets, proxy `onResponse` for proxied extension
+  assets), because origin-rewriting middleboxes (mobile QQ X5 cloud acceleration,
+  CDNs) otherwise reject module scripts. Extension stylesheets keep `integrity`
+  but not `crossorigin`, so a rewritten response degrades to a no-cors load
+  instead of losing the stylesheet. Private
+  `/_sforum/private-assets/**` stays `same-origin`.
 - User-visible copy uses i18n keys. Public web options contain only frontend-
   safe state; secret metadata and writes use admin-only endpoints.
 - Build/typecheck use `.nuxt-build` and `.nuxt-typecheck` so they do not disturb

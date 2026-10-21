@@ -1,6 +1,7 @@
 package identitycontroller
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -124,6 +125,14 @@ func (h *Controller) updateUser(c fiber.Ctx) error {
 	user, err := h.service.UpdateAdminUser(c.Context(), actor, userID, input)
 	if err != nil {
 		return mapIdentityError(err)
+	}
+	// 管理员改名同样要回写派生索引，否则旧帖会一直搜到旧昵称；同名时这是一次
+	// 幂等的空更新。失败只记日志，不回滚已经提交的账户更新。
+	if req.DisplayName != nil && h.authorNames != nil {
+		if err := h.authorNames.SyncAuthorDisplayName(c.Context(), userID, user.DisplayName); err != nil {
+			slog.Warn("identity: sync author display name after admin rename failed",
+				"userId", userID, "error", err)
+		}
 	}
 	return apphttp.OK(c, user)
 }

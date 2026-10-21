@@ -42,4 +42,23 @@ describe('SFButton accessible disabled state', () => {
       wrapper.unmount()
     }
   })
+
+  // 入口 chunk 被中间层拒载时页面没有 JS：错误页动作必须是真链接才能导航。
+  test('renders a navigable anchor when href is provided', async () => {
+    const wrapper = mount(SFButton, {
+      props: { href: '/topics' },
+      slots: { default: 'Back home' }
+    })
+
+    try {
+      expect(wrapper.attributes('href')).toBe('/topics')
+      expect(wrapper.attributes('type')).toBeUndefined()
+      expect(wrapper.attributes('disabled')).toBeUndefined()
+
+      await wrapper.trigger('click')
+      expect(wrapper.emitted('click')).toHaveLength(1)
+    } finally {
+      wrapper.unmount()
+    }
+  })
 })

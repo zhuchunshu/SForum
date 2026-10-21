@@ -32,6 +32,8 @@ const (
 	AuditActionProviderActivationUpdate = "identity.provider.activation.update"
 	AuditActionProviderActivationReset  = "identity.provider.activation.reset"
 	AuditActionProviderProbe            = "identity.provider.probe"
+	// 自助改名审计。旧值/新值都记，历史表另有产品语义的一份记录。
+	AuditActionNicknameChange = "identity.nickname.change"
 
 	FieldUsername          = "username"
 	FieldEmail             = "email"
@@ -293,6 +295,8 @@ type AdminUserDetail struct {
 	Sessions          []AdminSessionInspect `json:"sessions"`
 	RecentAuthEvents  []AdminAuthEvent      `json:"recentAuthEvents"`
 	PasswordChangedAt *time.Time            `json:"passwordChangedAt,omitempty"`
+	// NicknameHistory 是最近若干次改名。历史表永久保留，这里只截取详情面板需要的条数。
+	NicknameHistory []NicknameChange `json:"nicknameHistory,omitempty"`
 }
 
 // AdminUserActivity 汇总活跃度与最近登录线索。

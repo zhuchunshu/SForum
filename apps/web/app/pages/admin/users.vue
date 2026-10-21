@@ -4,6 +4,7 @@ import { useAdminListSurfaces } from '~/composables/admin/useAdminListSurfaces'
 import SFAdminSurfaceOutlet from '~/components/admin/SFAdminSurfaceOutlet.vue'
 import SFAdminUserListToolbar from '~/components/admin/identity/users/SFAdminUserListToolbar.vue'
 import SFAdminUserEmailVerificationControl from '~/components/admin/identity/users/SFAdminUserEmailVerificationControl.vue'
+import SFAdminUserNicknameHistory from '~/components/admin/identity/users/SFAdminUserNicknameHistory.vue'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
 import {
@@ -93,7 +94,6 @@ onMounted(() => {
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / Math.max(perPage.value, 1))))
-
 
 // 分页计算会夹紧页码；同步回 ref，避免删减数据后落在空页。
 
@@ -320,8 +320,6 @@ async function openUser(user: AdminUserSummary) {
     detailPending.value = false
   }
 }
-
-
 
 async function refreshSelectedUser() {
   if (!selectedUser.value) return
@@ -1277,6 +1275,8 @@ watch([status, roleKey, sortBy, sortOrder], () => {
           </div>
           <SFAdminUserEmailVerificationControl :user="selectedUser" @updated="applyDetailToForm" />
         </section>
+
+        <SFAdminUserNicknameHistory :changes="selectedUser.nicknameHistory" />
 
         <!-- 公开资料 -->
         <section class="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">

@@ -125,7 +125,9 @@ func (h *Controller) publicFrontendAsset(c fiber.Ctx) error {
 	c.Set(fiber.HeaderCacheControl, "public, max-age=31536000, immutable")
 	c.Set(fiber.HeaderETag, asset.ETag)
 	c.Set("X-Content-Type-Options", "nosniff")
-	c.Set("Cross-Origin-Resource-Policy", "same-origin")
+	// 公开只读资产（hash 定址、immutable）：允许跨源读取，避免 QQ X5 云加速、
+	// CDN 等换源链路按 CORP 拒载。私有 frontend 资产仍保持 same-origin。
+	c.Set("Cross-Origin-Resource-Policy", "cross-origin")
 	c.Set("X-SForum-Asset-Digest", asset.Digest)
 	c.Set("X-SForum-Asset-Integrity", asset.Integrity)
 	return c.Send(asset.Body)
@@ -150,7 +152,7 @@ func (h *Controller) publicFrontendPackageAsset(c fiber.Ctx) error {
 	c.Set(fiber.HeaderCacheControl, "public, max-age=31536000, immutable")
 	c.Set(fiber.HeaderETag, asset.ETag)
 	c.Set("X-Content-Type-Options", "nosniff")
-	c.Set("Cross-Origin-Resource-Policy", "same-origin")
+	c.Set("Cross-Origin-Resource-Policy", "cross-origin")
 	c.Set("X-Frame-Options", "DENY")
 	c.Set("X-SForum-Asset-Digest", asset.Digest)
 	c.Set("X-SForum-Asset-Integrity", asset.Integrity)

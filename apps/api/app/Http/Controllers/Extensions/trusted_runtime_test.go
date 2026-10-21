@@ -146,7 +146,7 @@ func TestTrustedRuntimeControllerServesPublicL2DescriptorAndImmutableAssetsWitho
 		resp.Header.Get("Cache-Control") != "public, max-age=31536000, immutable" ||
 		resp.Header.Get("X-SForum-Asset-Digest") != fileDigest ||
 		resp.Header.Get("X-SForum-Asset-Integrity") != "sha256-test" ||
-		resp.Header.Get("Cross-Origin-Resource-Policy") != "same-origin" {
+		resp.Header.Get("Cross-Origin-Resource-Policy") != "cross-origin" {
 		t.Fatalf("public asset headers=%v body=%q", resp.Header, body.String())
 	}
 
@@ -158,6 +158,7 @@ func TestTrustedRuntimeControllerServesPublicL2DescriptorAndImmutableAssetsWitho
 	defer resp.Body.Close()
 	if resp.Header.Get("Content-Type") != "application/javascript; charset=utf-8" ||
 		resp.Header.Get("X-Frame-Options") != "DENY" ||
+		resp.Header.Get("Cross-Origin-Resource-Policy") != "cross-origin" ||
 		resp.Header.Get("X-SForum-Asset-Digest") != fileDigest {
 		t.Fatalf("public package asset headers=%v", resp.Header)
 	}

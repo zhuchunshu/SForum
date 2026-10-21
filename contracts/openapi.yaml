@@ -149,6 +149,8 @@ paths:
     "$ref": "./openapi/paths/profile.yaml#/profileActivitiesByUsername"
   "/profile":
     "$ref": "./openapi/paths/profile.yaml#/myProfile"
+  "/profile/nickname/availability":
+    "$ref": "./openapi/paths/profile.yaml#/profileNicknameAvailability"
   "/profile/avatar":
     "$ref": "./openapi/paths/profile.yaml#/myProfileAvatar"
   "/auth/register":

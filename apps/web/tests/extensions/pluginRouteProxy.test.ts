@@ -244,6 +244,8 @@ describe('trusted plugin arbitrary-route proxy', () => {
         response.setHeader('ETag', '"asset"')
         response.setHeader('Set-Cookie', 'csrf_=private')
         response.setHeader('Vary', 'Cookie, Accept-Encoding')
+        // 上游 API 对公开资产发的是 same-origin；代理必须覆盖它，否则换源链路拒载。
+        response.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
         response.end('immutable-body')
         return
       }
@@ -340,11 +342,16 @@ describe('trusted plugin arbitrary-route proxy', () => {
       expect(publicAsset.headers.get('set-cookie')).toBeNull()
       expect(publicAsset.headers.get('vary')).toBe('Accept-Encoding')
       expect(publicAsset.headers.get('etag')).toBe('"asset"')
+      // 换源链路（QQ X5 云加速、CDN）必须能读：上游 same-origin 被覆盖成 cross-origin。
+      expect(publicAsset.headers.get('access-control-allow-origin')).toBe('*')
+      expect(publicAsset.headers.get('cross-origin-resource-policy')).toBe('cross-origin')
+      expect(publicAsset.headers.get('timing-allow-origin')).toBe('*')
 
       const missingAsset = await fetch(`${webURL}/asset-proxy-missing`)
       expect(missingAsset.status).toBe(404)
       expect(missingAsset.headers.get('cache-control')).toBe('no-store')
       expect(missingAsset.headers.get('set-cookie')).toBeNull()
+      expect(missingAsset.headers.get('access-control-allow-origin')).toBe('*')
 
       const directDelivery = await fetch(`${webURL}/direct-delivery`, { redirect: 'manual' })
       expect(directDelivery.status).toBe(302)

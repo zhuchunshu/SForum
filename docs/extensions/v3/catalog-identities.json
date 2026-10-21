@@ -1856,6 +1856,12 @@
       "path": "/api/v1/profile"
     },
     {
+      "id": "core.route.profile.nickname_availability",
+      "contractVersion": "sforum.route.profile.nickname_availability@1",
+      "method": "GET",
+      "path": "/api/v1/profile/nickname/availability"
+    },
+    {
       "id": "core.route.profile.delete_avatar",
       "contractVersion": "sforum.route.profile.delete_avatar@1",
       "method": "DELETE",
@@ -4658,6 +4664,16 @@
       "source": "apps/web/app/components/settings/SFProfileSettingsPreview.vue"
     },
     {
+      "id": "core.component.shared.sfprofile_nickname_field",
+      "contractVersion": "sforum.component.shared.sfprofile_nickname_field@1",
+      "kind": "component",
+      "owners": [
+        "public"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/settings/SFProfileNicknameField.vue"
+    },
+    {
       "id": "core.component.shared.sfprofile_show_page",
       "contractVersion": "sforum.component.shared.sfprofile_show_page@1",
       "kind": "component",
@@ -5231,6 +5247,16 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/admin/identity/users/SFAdminUserListToolbar.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_user_nickname_history",
+      "contractVersion": "sforum.component.admin.sfadmin_user_nickname_history@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/identity/users/SFAdminUserNicknameHistory.vue"
     },
     {
       "id": "core.component.shared.sfcategory_navigation_block",

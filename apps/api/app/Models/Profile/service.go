@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"log/slog"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -18,6 +19,7 @@ type Service struct {
 	avatarUploader AvatarUploader
 	avatarOptions  AvatarOptionResolver
 	profileTabs    ProfileTabProvider
+	nicknames      NicknameEditor
 }
 
 const (
@@ -43,6 +45,24 @@ type AvatarUploader interface {
 
 type AvatarOptionResolver interface {
 	AvatarOptions(ctx context.Context) (options.AvatarOptions, error)
+}
+
+// NicknameEditor 是 Profile 对昵称域的窄依赖：策略、冷却、历史与审计都由
+// Identity 实现，Profile 只负责把一次 PUT /profile 编排完。
+type NicknameEditor interface {
+	State(ctx context.Context, userID int64) (identity.NicknameState, error)
+	Change(ctx context.Context, actor identity.Actor, displayName string) (identity.NicknameState, error)
+	Availability(ctx context.Context, actor identity.Actor, value string) (identity.NicknameAvailability, error)
+	PublicPreviousNames(ctx context.Context, userID int64) ([]string, error)
+}
+
+// WithNicknameEditor 注入昵称服务。未注入时昵称只读不可写，且 PUT 带
+// displayName 会被拒绝——静默丢弃用户的修改比报错更糟。
+func (s *Service) WithNicknameEditor(editor NicknameEditor) *Service {
+	if s != nil {
+		s.nicknames = editor
+	}
+	return s
 }
 
 type AvatarViewBuilder = avatar.ViewBuilder
@@ -90,7 +110,7 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string) (Public
 	if err != nil {
 		return PublicProfile{}, err
 	}
-	return PublicProfile{
+	view := PublicProfile{
 		UserID:        user.UserID,
 		Username:      user.Username,
 		DisplayName:   user.DisplayName,
@@ -101,7 +121,16 @@ func (s *Service) GetPublicProfile(ctx context.Context, username string) (Public
 		Activities:    activities,
 		JoinedAt:      user.JoinedAt,
 		ExtensionTabs: tabs,
-	}, nil
+	}
+	// 曾用名是可选公开面：运营没打开时这里什么都不返回，公开页也不会多一行。
+	if s.nicknames != nil {
+		if names, err := s.nicknames.PublicPreviousNames(ctx, user.UserID); err == nil {
+			view.PreviousDisplayNames = names
+		} else {
+			slog.Warn("profile: load previous display names failed", "userId", user.UserID, "error", err)
+		}
+	}
+	return view, nil
 }
 
 // SearchPublicUsers 按昵称/用户名检索可公开访问的活跃用户。
@@ -303,28 +332,33 @@ func (s *Service) GetMyProfile(ctx context.Context, userID int64) (PublicProfile
 	if err != nil {
 		return PublicProfile{}, err
 	}
-	profile = s.decorateProfile(ctx, user, profile)
-	return PublicProfile{
-		UserID:      user.UserID,
-		Username:    user.Username,
-		DisplayName: user.DisplayName,
-		Profile:     profile,
-		JoinedAt:    user.JoinedAt,
-	}, nil
+	return s.myProfileView(ctx, user, profile), nil
 }
 
 // UpdateMyProfile 更新当前用户自己的资料。仅限当前用户操作自己。
-func (s *Service) UpdateMyProfile(ctx context.Context, actor identity.Actor, input UpdateProfileInput) (Profile, error) {
+//
+// 顺序：先校验资料字段（无写入）→ 改昵称 → 写 user_profiles。昵称的策略与
+// 冷却拒绝必须发生在任何写入之前，否则一次「昵称太短」会顺手把简介存了。
+// 昵称已提交而资料写失败是罕见情况，重试即可；反向排序的副作用更糟。
+func (s *Service) UpdateMyProfile(ctx context.Context, actor identity.Actor, input UpdateProfileInput) (PublicProfile, error) {
 	if actor.ID <= 0 {
-		return Profile{}, identity.ErrPermissionDenied
+		return PublicProfile{}, identity.ErrPermissionDenied
 	}
 	normalized, err := normalizeUpdateProfileInput(input)
 	if err != nil {
-		return Profile{}, err
+		return PublicProfile{}, err
+	}
+	if input.DisplayName != nil {
+		if s.nicknames == nil {
+			return PublicProfile{}, identity.ErrNicknameDisabled
+		}
+		if _, err := s.nicknames.Change(ctx, actor, *input.DisplayName); err != nil {
+			return PublicProfile{}, err
+		}
 	}
 	existing, err := s.store.GetProfile(ctx, actor.ID)
 	if err != nil {
-		return Profile{}, err
+		return PublicProfile{}, err
 	}
 	// 合并：nil 字段保留原值。
 	merged := Profile{
@@ -350,19 +384,47 @@ func (s *Service) UpdateMyProfile(ctx context.Context, actor identity.Actor, inp
 	}
 	updated, err := s.store.UpsertProfile(ctx, merged)
 	if err != nil {
-		return Profile{}, err
+		return PublicProfile{}, err
 	}
 	if normalized.AvatarAttachmentID != nil {
 		updated, err = s.store.SetAvatarAttachment(ctx, actor.ID, normalized.AvatarAttachmentID, actor.ID)
 		if err != nil {
-			return Profile{}, err
+			return PublicProfile{}, err
 		}
 	}
 	user, err := s.store.GetUserSummaryByID(ctx, actor.ID)
 	if err != nil {
-		return updated, nil
+		return PublicProfile{}, err
 	}
-	return s.decorateProfile(ctx, user, updated), nil
+	return s.myProfileView(ctx, user, updated), nil
+}
+
+// CheckNicknameAvailability 是改名前的预检；未注入昵称服务时直接拒绝。
+func (s *Service) CheckNicknameAvailability(ctx context.Context, actor identity.Actor, value string) (NicknameAvailability, error) {
+	if s == nil || s.nicknames == nil {
+		return NicknameAvailability{}, identity.ErrNicknameDisabled
+	}
+	return s.nicknames.Availability(ctx, actor, value)
+}
+
+// myProfileView 组装自助资料视图。昵称状态读取失败只降级隐藏字段，
+// 不让整页资料因为一个策略缓存问题读不出来。
+func (s *Service) myProfileView(ctx context.Context, user UserProfileSummary, profile Profile) PublicProfile {
+	view := PublicProfile{
+		UserID:      user.UserID,
+		Username:    user.Username,
+		DisplayName: user.DisplayName,
+		Profile:     s.decorateProfile(ctx, user, profile),
+		JoinedAt:    user.JoinedAt,
+	}
+	if s.nicknames != nil {
+		if state, err := s.nicknames.State(ctx, user.UserID); err == nil {
+			view.Nickname = &state
+		} else {
+			slog.Warn("profile: load nickname state failed", "userId", user.UserID, "error", err)
+		}
+	}
+	return view
 }
 
 func (s *Service) UploadAvatar(ctx context.Context, actor identity.Actor, input attachments.UploadInput) (Profile, error) {

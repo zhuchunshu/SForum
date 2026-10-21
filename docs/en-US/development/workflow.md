@@ -37,6 +37,7 @@
 - Pages under `apps/web/app/pages` (admin under `pages/admin`)  
 - `SF*` components, Tabler/Lucide icons only  
 - Keep `zh-CN` and `en-US` strings in sync  
+- In messages, `@` and `|` are vue-i18n syntax (linked messages / plural separator); escape them as `{'@'}` literals, because a bare `@` fails the whole locale compile (dev overlay + build failure)  
 - Themes activate via Page Registry without assuming a Nuxt rebuild  
 
 ## Extension changes

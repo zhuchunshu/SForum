@@ -6,6 +6,37 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 公开资产跨源发布（QQ 内置浏览器 500）
+
+- Status: **landed (2026-10-22)**，待部署后复测。QQ 内置浏览器（X5 云加速）换源后
+  把 `/_nuxt/**`、`/_sforum/**` 判为跨源，缺 ACAO / `CORP: same-origin` 导致入口
+  chunk 与扩展样式被拒，页面停在错误页且动作全为 JS 死链。
+- 修复：公开只读资产由应用自己发 `ACAO: *` + `CORP: cross-origin`（`/_nuxt` 用
+  Nitro routeRules，`/_sforum/assets` 在代理 `onResponse` 覆盖上游，图标路由同
+  helper）；扩展样式去掉 `crossorigin` 保留 `integrity`；两个 ingress 补同名头作冗余；
+  错误页动作改真链接（`SFButton` 支持 `href`）。
+- 验证：web 1503 用例 + typecheck + 架构门禁、Go build/Extensions 测试通过；dev 实测
+  两处公开资产头正确。
+- Handoff: `sessions/2026-10-22-public-asset-cross-origin-handoff.md`
+- Decision: `decisions/2026-10-22-public-asset-cross-origin.md`
+
+### 昵称修改与昵称策略
+
+- Status: **landed (2026-10-20)**。成员可在 `/settings/profile` 自助改昵称；后台在
+  「站点设置 → 注册与用户名」控制开关、冷却（默认 7 天，分钟精度）、长度与曾用名
+  是否公开。昵称**非唯一**：唯一性只属于 username；重名只提示，撞他人用户名才拒绝；
+  保留词复用用户名列表。改名历史永久保留，默认仅后台可见。
+- 后端：Identity 的 `NicknameService`（事务内行锁 + 数据库时钟判冷却）、
+  `profile.nickname.*` 选项、`PUT /profile` 接受 `displayName`、
+  `GET /profile/nickname/availability`；改名后同步 `search_documents` 作者昵称。
+- 前端：`SFProfileNicknameField`（本地预检 + 防抖预检 + 分钟级倒计时）、后台策略
+  区块、后台用户详情改名历史、公开主页曾用名。
+- 验证：Go 全量 + web 1496 用例 + typecheck + 架构/OpenAPI/目录门禁；浏览器实测
+  1633×810 与 390×844。QA 改名数据已从开发库清理。
+- Handoff: `sessions/2026-10-20-nickname-policy.md`
+- Decision: `decisions/2026-10-20-nickname-policy.md`
+- Modules: `modules/profile.md`、`modules/options.md`
+
 ### 富内容围栏（mermaid / chart / 公式）
 
 - Status: **landed (2026-10-20)**。AI 与人类都能在正文里画脑图/流程图/时序图/统计图/
@@ -350,6 +381,21 @@ load archived sessions or completed plans as current context.
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
+
+- **公开资产跨源（2026-10-22，最新）**：QQ 内置浏览器（X5 云加速）换源后拒载入口
+  chunk 与扩展样式，表现为 `500 – Cross-origin script load denied`（那是 X5 内核
+  错误页，不是我们的 title）。公开只读资产改由应用自己发 ACAO + CORP cross-origin，
+  扩展样式去 `crossorigin` 保留 `integrity`，两个 ingress 补冗余头，错误页动作改真
+  链接。web 1503 用例、typecheck、架构门禁与 Go 测试通过。详见
+  `sessions/2026-10-22-public-asset-cross-origin-handoff.md`、
+  `decisions/2026-10-22-public-asset-cross-origin.md`。
+
+- **昵称策略（2026-10-20，最新）**：昵称改成可自助编辑的展示标签，唯一性仍只属于
+  username。非唯一 + 7 天冷却（分钟精度）+ 永久历史 + 撞用户名/保留词拦截；后台
+  有总开关与「曾用名公开」开关。改名同步搜索文档作者名。Go 全量、web 1496 用例、
+  typecheck、架构/OpenAPI/目录门禁与两档浏览器实测通过。详见
+  `sessions/2026-10-20-nickname-policy.md`、
+  `decisions/2026-10-20-nickname-policy.md`。
 
 - **富内容围栏（2026-10-20，最新）**：短代码不扩身份，改用代码围栏 + 公式定界符承载
   脑图/流程图/统计图/公式。四层落地：契约 fixture → 客户端渲染层（mermaid / Chart.js /

@@ -890,6 +890,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_user_nickname_history",
+    "contractVersion": "sforum.component.admin.sfadmin_user_nickname_history@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/identity/users/SFAdminUserNicknameHistory.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_version_gc_dialog",
     "contractVersion": "sforum.component.admin.sfadmin_version_gc_dialog@1",
     "kind": "component",
@@ -2688,6 +2698,16 @@
     "contractVersion": "sforum.component.shared.sfprivacy_page@1",
     "kind": "component",
     "source": "apps/web/app/components/legal/SFPrivacyPage.vue",
+    "owners": [
+      "public"
+    ],
+    "targetRegistry": "P9 Component Registry"
+  },
+  {
+    "id": "core.component.shared.sfprofile_nickname_field",
+    "contractVersion": "sforum.component.shared.sfprofile_nickname_field@1",
+    "kind": "component",
+    "source": "apps/web/app/components/settings/SFProfileNicknameField.vue",
     "owners": [
       "public"
     ],

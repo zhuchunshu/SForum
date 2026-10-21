@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { NuxtError } from '#app'
 import { resolveErrorPageContent } from '~/utils/errors/errorPage'
+import { useErrorPageActions } from '~/composables/errors/useErrorPageActions'
 import SFButton from '../SFButton.vue'
 
 const props = defineProps<{
@@ -8,49 +9,15 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const localePath = useLocalePath()
 const { siteName } = useWebOptions()
-const canGoBack = ref(false)
 const headingId = 'sforum-error-title'
 
 const page = computed(() => resolveErrorPageContent(props.error?.statusCode))
 const statusLabel = computed(() => t('errors.page.statusLabel', { statusCode: page.value.statusCode }))
 const title = computed(() => t(page.value.titleKey, { siteName: siteName.value }))
 const description = computed(() => t(page.value.descriptionKey, { siteName: siteName.value }))
-
-onMounted(() => {
-  canGoBack.value = window.history.length > 1
-})
-
-function clearResolvedDevErrorOverlay() {
-  if (import.meta.dev && import.meta.client) {
-    // Nuxt dev 会在 clearError 后留下已折叠入口；错误已恢复时不应遮挡正常页面。
-    document.querySelector('nuxt-error-overlay.pip-hidden')?.remove()
-  }
-}
-
-async function goHome() {
-  await clearError({ redirect: localePath('/') })
-  clearResolvedDevErrorOverlay()
-}
-
-async function goBack() {
-  if (import.meta.client && window.history.length > 1) {
-    await clearError()
-    clearResolvedDevErrorOverlay()
-    window.history.back()
-    return
-  }
-  await goHome()
-}
-
-async function retry() {
-  await clearError()
-  clearResolvedDevErrorOverlay()
-  if (import.meta.client) {
-    window.location.reload()
-  }
-}
+// 动作渲染成真链接：入口 chunk 被拒载时仍能返回首页或整页重试。
+const { canGoBack, homeHref, retryHref, goHome, goBack, retry } = useErrorPageActions()
 </script>
 
 <template>
@@ -64,15 +31,15 @@ async function retry() {
     <p class="sforum-error-page__description">{{ description }}</p>
 
     <div class="sforum-error-page__actions" :aria-label="title">
-      <SFButton size="md" @click="goHome">
+      <SFButton size="md" :href="homeHref" @click="goHome">
         <template #leading><UIcon name="i-lucide-home" class="sforum-error-page__button-icon" /></template>
         {{ t('errors.page.home') }}
       </SFButton>
-      <SFButton v-if="canGoBack" variant="ghost" size="md" @click="goBack">
+      <SFButton v-if="canGoBack" variant="ghost" size="md" :href="homeHref" @click="goBack">
         <template #leading><UIcon name="i-lucide-arrow-left" class="sforum-error-page__button-icon" /></template>
         {{ t('errors.page.back') }}
       </SFButton>
-      <SFButton v-if="page.showRetry" variant="ghost" size="md" @click="retry">
+      <SFButton v-if="page.showRetry" variant="ghost" size="md" :href="retryHref" @click="retry">
         <template #leading><UIcon name="i-lucide-refresh-cw" class="sforum-error-page__button-icon" /></template>
         {{ t('errors.page.retry') }}
       </SFButton>

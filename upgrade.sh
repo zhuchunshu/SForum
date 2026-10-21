@@ -531,6 +531,14 @@ write_router_config() {
   {
     printf ':3000 {\n'
     printf '\theader X-SForum-Active-Slot %s\n' "$slot"
+    # 公开只读资产：QQ 内置浏览器（X5 云加速）、CDN 换源后仍要能加载。
+    # 应用侧已发同名头，这里是 ingress 冗余，避免中间层抹掉响应头。
+    printf '\t@cors_assets path /_nuxt/* /_sforum/*\n'
+    printf '\theader @cors_assets {\n'
+    printf '\t\tAccess-Control-Allow-Origin "*"\n'
+    printf '\t\tTiming-Allow-Origin "*"\n'
+    printf '\t\tCross-Origin-Resource-Policy "cross-origin"\n'
+    printf '\t}\n'
     printf '\treverse_proxy web-%s:3000\n' "$slot"
     printf '}\n\n'
     printf ':18080 {\n'

@@ -263,7 +263,8 @@ function loadStylesheet(
     element.rel = 'stylesheet'
     element.href = url
     element.integrity = reference.integrity
-    element.crossOrigin = 'anonymous'
+    // 不设 crossOrigin：同源时 integrity 仍校验；被 X5 云加速/CDN 换源时按
+    // no-cors 加载（opaque 响应跳过 SRI），而不是整块样式被 CORS 拒载。
     let settled = false
     const timeout = globalThis.setTimeout(() => finish(false, 'public stylesheet load timed out'), timeoutMS)
     const finish = (loaded: boolean, reason = 'public stylesheet load failed') => {

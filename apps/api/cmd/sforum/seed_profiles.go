@@ -16,7 +16,7 @@ import (
 
 // seedProfileService 是 seed 场景用到的资料写入子集。
 type seedProfileService interface {
-	UpdateMyProfile(ctx context.Context, actor identity.Actor, input profile.UpdateProfileInput) (profile.Profile, error)
+	UpdateMyProfile(ctx context.Context, actor identity.Actor, input profile.UpdateProfileInput) (profile.PublicProfile, error)
 }
 
 // 内置资料语料。内容刻意中性、无指向性，避免假数据里出现真实人物或品牌。

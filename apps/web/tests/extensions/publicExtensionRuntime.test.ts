@@ -316,7 +316,9 @@ describe('public extension runtime contract', () => {
     const stylesheet = await waitForStylesheet(browser.document)
     expect(stylesheet.href).toBe(`http://127.0.0.1${style.assetPath}`)
     expect(stylesheet.integrity).toBe(style.integrity)
-    expect(stylesheet.crossOrigin).toBe('anonymous')
+    // 不声明 crossorigin：同源时 SRI 仍校验；被 X5 云加速/CDN 换源时按 no-cors
+    // 加载（opaque 响应跳过 SRI），而不是整块样式被 CORS 拒载。
+    expect(stylesheet.getAttribute('crossorigin')).toBeNull()
     const release = await loading
     await release.release()
     expect(stylesheet.isConnected).toBe(false)

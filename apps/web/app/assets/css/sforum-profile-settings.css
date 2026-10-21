@@ -359,3 +359,16 @@
     justify-content: stretch;
   }
 }
+
+/* 昵称：重名是提示不是错误；禁用态要看起来「有原因」，而不是坏掉。 */
+.sforum-settings-profile__field p.sforum-settings-profile__field-warning {
+  color: var(--sf-warning);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sforum-settings-profile__field input:disabled {
+  background: var(--sf-public-surface-muted);
+  color: var(--sf-public-text-muted);
+  cursor: not-allowed;
+}

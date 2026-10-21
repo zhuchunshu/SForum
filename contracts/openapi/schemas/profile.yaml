@@ -105,6 +105,15 @@ PublicProfile:
       description: Host-rendered profile tabs/sections from forum.profile.tabs (F4.3).
       items:
         "$ref": "#/ProfileExtensionTab"
+    nickname:
+      "$ref": "#/NicknameState"
+    previousDisplayNames:
+      type: array
+      description: |
+        Most recent previous nickname, present only when
+        `profile.nickname.history_public` is enabled. At most one item.
+      items:
+        type: string
 ProfileActivity:
   type: object
   required:
@@ -234,6 +243,71 @@ UpdateProfileRequest:
       - integer
       - 'null'
       format: int64
+    displayName:
+      type: string
+      maxLength: 64
+      description: |
+        Nickname (display label). An empty string means "show my username".
+        Length limits, reserved words, the cooldown, and the site-wide switch
+        come from the `profile.nickname.*` runtime options; the server is
+        authoritative.
+NicknameState:
+  type: object
+  required:
+  - displayName
+  - canChange
+  - duplicates
+  description: |
+    Self-service nickname state. Present only on GET/PUT /profile responses;
+    the public profile endpoint does not expose account policy state.
+  properties:
+    displayName:
+      type: string
+    changedAt:
+      type: string
+      format: date-time
+      description: Last self-service nickname change. Admin changes do not move this clock.
+    nextChangeAt:
+      type: string
+      format: date-time
+      description: Earliest moment the member may change the nickname again. Absent when no cooldown applies.
+    canChange:
+      type: boolean
+      description: Server-computed result of the site switch and the cooldown.
+    duplicates:
+      type: integer
+      description: Number of other active members using the same nickname. Nicknames are not unique; this is informational only.
+NicknameAvailability:
+  type: object
+  required:
+  - available
+  - duplicates
+  description: Read-only preflight for a nickname change.
+  properties:
+    available:
+      type: boolean
+    duplicates:
+      type: integer
+      description: Number of other active members using the same nickname. Duplicates never make a nickname unavailable.
+    conflict:
+      type: string
+      description: i18n message key explaining why the value cannot be saved. Empty when available.
+    normalized:
+      type: string
+      description: Value the server would store after whitespace normalization and the empty-to-username fallback.
+ApiResponseNicknameAvailability:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/NicknameAvailability"
 ApiResponseProfile:
   type: object
   required:

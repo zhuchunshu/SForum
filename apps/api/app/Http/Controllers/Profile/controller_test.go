@@ -142,6 +142,10 @@ func newProfileTestApp() (*fiber.App, *authsession.Manager, *profileFakeStore) {
 }
 
 func newProfileTestAppWithPolicy(policy profileForumReadPolicy) (*fiber.App, *authsession.Manager, *profileFakeStore) {
+	return newProfileTestAppWithEditor(policy, nil)
+}
+
+func newProfileTestAppWithEditor(policy profileForumReadPolicy, editor profile.NicknameEditor) (*fiber.App, *authsession.Manager, *profileFakeStore) {
 	manager := authsession.NewManager(session.NewStore(), authsession.Config{HashSecret: "test-secret"})
 	users := profileFakeActors{actors: map[int64]identity.Actor{
 		7: {ID: 7, Status: identity.UserStatusActive, Permissions: map[string]bool{}},
@@ -151,7 +155,11 @@ func newProfileTestAppWithPolicy(policy profileForumReadPolicy) (*fiber.App, *au
 		profile: profile.Profile{UserID: 7, Bio: "hello"},
 		stats:   profile.ProfileStats{TopicCount: 3, CommentCount: 12},
 	}
-	controller := NewController(profile.NewService(store), users, manager, policy)
+	service := profile.NewService(store)
+	if editor != nil {
+		service.WithNicknameEditor(editor)
+	}
+	controller := NewController(service, users, manager, policy)
 	loginProvider := profileRouteProviderFunc(func(api fiber.Router) {
 		api.Post("/test-login/:id", func(c fiber.Ctx) error {
 			userID, err := strconv.ParseInt(c.Params("id"), 10, 64)

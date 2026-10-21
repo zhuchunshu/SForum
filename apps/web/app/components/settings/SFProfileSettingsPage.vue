@@ -7,6 +7,7 @@ import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useUserLanguage } from '~/composables/identity/useUserLanguage'
 import SFSettingsShell from '~/components/settings/SFSettingsShell.vue'
 import SFProfileSettingsPreview from '~/components/settings/SFProfileSettingsPreview.vue'
+import SFProfileNicknameField from '~/components/settings/SFProfileNicknameField.vue'
 /**
  * 宿主 body 岛：forum.settings.profile。主题 L1 挂载；路由页仅 outlet + fail-closed 回退。
  * 三栏 chrome 由 SFSettingsShell 提供，此处仅保留资料表单业务。
@@ -15,6 +16,7 @@ import type { ProfileData, PublicProfile } from '~/composables/profile/useProfil
 import { safeUrl } from '~/utils/sfUrl'
 
 type ProfileDraft = {
+  displayName: string
   bio: string
   signature: string
   location: string
@@ -27,7 +29,7 @@ type SaveState = 'idle' | 'saving' | 'error' | 'success'
 const { t } = useI18n()
 const localePath = useLocalePath()
 const toast = useToast()
-const { siteDomain, avatarSettings } = useWebOptions()
+const { siteDomain, avatarSettings, nicknameSettings } = useWebOptions()
 const { user: authUser, setUser } = useAuthSession()
 const { currentLanguage, languageOptions, updateLanguage } = useUserLanguage()
 const { can } = usePermissions()
@@ -48,6 +50,7 @@ const { data: profile, pending } = await useAsyncData(
 )
 
 const draft = reactive<ProfileDraft>({
+  displayName: '',
   bio: '',
   signature: '',
   location: '',
@@ -55,6 +58,7 @@ const draft = reactive<ProfileDraft>({
   locale: currentLanguage.value
 })
 const baseline = ref<ProfileDraft>({
+  displayName: '',
   bio: '',
   signature: '',
   location: '',
@@ -73,7 +77,11 @@ const fieldErrors = ref<Record<string, string[]>>({})
 let successTimer: ReturnType<typeof setTimeout> | undefined
 
 const currentAvatar = computed(() => profile.value?.profile.avatar || null)
-const displayName = computed(() => userDisplayName(profile.value))
+// 预览跟着草稿走：改了昵称但没保存时，右侧应该显示改后的名字。
+const displayName = computed(() => {
+  const draftName = draft.displayName.trim()
+  return draftName || userDisplayName(profile.value)
+})
 const publicProfilePath = computed(() => profile.value ? localePath(`/u/${profile.value.username}`) : undefined)
 const publicProfilePrefix = computed(() => `${siteDomain.value}/u/`)
 const joinedLabel = computed(() => profile.value ? formatDateOnly(profile.value.joinedAt) : '')
@@ -98,7 +106,8 @@ const avatarCapabilityHint = computed(() => {
 })
 
 const isDirty = computed(() => (
-  draft.bio !== baseline.value.bio
+  draft.displayName !== baseline.value.displayName
+  || draft.bio !== baseline.value.bio
   || draft.signature !== baseline.value.signature
   || draft.location !== baseline.value.location
   || draft.websiteUrl !== baseline.value.websiteUrl
@@ -122,9 +131,18 @@ watch(profile, (value) => {
   if (!value || formReady.value) {
     return
   }
-  setDraftFromProfile(value.profile)
+  setDraftFromProfile(value)
   formReady.value = true
 }, { immediate: true })
+
+// 用户一改动昵称就收起上一次的服务端字段错误，避免旧提示压着新输入。
+watch(() => draft.displayName, () => {
+  if (!fieldErrors.value.displayName) {
+    return
+  }
+  const { displayName, ...rest } = fieldErrors.value
+  fieldErrors.value = rest
+})
 
 onBeforeUnmount(() => {
   if (successTimer) {
@@ -132,28 +150,32 @@ onBeforeUnmount(() => {
   }
 })
 
-function profileValues(data: ProfileData): ProfileDraft {
+function profileValues(data: PublicProfile): ProfileDraft {
   return {
-    bio: data.bio || '',
-    signature: data.signature || '',
-    location: data.location || '',
-    websiteUrl: data.websiteUrl || '',
+    displayName: data.displayName || '',
+    bio: data.profile.bio || '',
+    signature: data.profile.signature || '',
+    location: data.profile.location || '',
+    websiteUrl: data.profile.websiteUrl || '',
     locale: currentLanguage.value
   }
 }
 
-function setDraftFromProfile(data: ProfileData) {
+function setDraftFromProfile(data: PublicProfile) {
   const values = profileValues(data)
   Object.assign(draft, values)
   baseline.value = { ...values }
 }
 
-function applyProfileUpdate(updated: ProfileData, options: { resetDraft?: boolean } = {}) {
+// 保存返回完整 PublicProfile（含新昵称与冷却状态），头像接口仍只返回资料行。
+function applyProfileSnapshot(snapshot: PublicProfile) {
+  profile.value = snapshot
+  setDraftFromProfile(snapshot)
+}
+
+function applyProfileData(updated: ProfileData) {
   if (profile.value) {
     profile.value = { ...profile.value, profile: updated }
-  }
-  if (options.resetDraft) {
-    setDraftFromProfile(updated)
   }
 }
 
@@ -200,24 +222,29 @@ async function save() {
   successMessage.value = ''
   fieldErrors.value = {}
   try {
-    let updated = profile.value?.profile
-    const profileChanged = draft.bio !== baseline.value.bio
+    const nicknameChanged = draft.displayName !== baseline.value.displayName
+    const profileChanged = nicknameChanged
+      || draft.bio !== baseline.value.bio
       || draft.signature !== baseline.value.signature
       || draft.location !== baseline.value.location
       || draft.websiteUrl !== baseline.value.websiteUrl
+    let updated: PublicProfile | null = null
     if (profileChanged) {
       updated = await profileApi.updateMyProfile({
         bio: draft.bio,
         signature: draft.signature,
         location: draft.location,
-        websiteUrl: draft.websiteUrl
+        websiteUrl: draft.websiteUrl,
+        // 只在真的改过时提交昵称：服务端把「提交了 displayName」当作一次改名意图。
+        ...(nicknameChanged ? { displayName: draft.displayName } : {})
       })
     }
     if (draft.locale !== baseline.value.locale) {
       await updateLanguage(draft.locale)
     }
     if (updated) {
-      applyProfileUpdate(updated, { resetDraft: true })
+      applyProfileSnapshot(updated)
+      syncAuthDisplayName(updated.displayName)
     }
     saveState.value = 'success'
     showSuccess(t('profileSettings.saved'))
@@ -232,6 +259,14 @@ async function save() {
     errorMessage.value = apiErrorMessage(error) || t('profileSettings.saveFailed')
     fieldErrors.value = apiErrorFields(error)
   }
+}
+
+// 导航栏与其它壳层读的是 auth session 里的 displayName，改名后要一起更新。
+function syncAuthDisplayName(next: string) {
+  if (!authUser.value || authUser.value.displayName === next) {
+    return
+  }
+  setUser({ ...authUser.value, displayName: next })
 }
 
 function openAvatarPicker() {
@@ -265,7 +300,7 @@ async function uploadAvatar(event: Event) {
   avatarBusy.value = true
   try {
     const updated = await profileApi.uploadAvatar(file)
-    applyProfileUpdate(updated)
+    applyProfileData(updated)
     syncAuthAvatar(updated)
     toast.add({
       color: 'primary',
@@ -288,7 +323,7 @@ async function removeAvatar() {
   avatarBusy.value = true
   try {
     const updated = await profileApi.deleteAvatar()
-    applyProfileUpdate(updated)
+    applyProfileData(updated)
     syncAuthAvatar(updated)
     toast.add({
       color: 'primary',
@@ -401,6 +436,16 @@ async function removeAvatar() {
               </div>
             </div>
           </div>
+
+          <SFProfileNicknameField
+            v-model="draft.displayName"
+            class="sforum-settings-profile__field--spaced"
+            :username="profile.username"
+            :policy="nicknameSettings"
+            :state="profile.nickname || null"
+            :busy="saveState === 'saving'"
+            :server-error="fieldErrors.displayName?.[0] || ''"
+          />
 
           <div class="sforum-settings-profile__field sforum-settings-profile__field--spaced">
             <label for="profile-settings-username">{{ t('profileSettings.username') }}</label>

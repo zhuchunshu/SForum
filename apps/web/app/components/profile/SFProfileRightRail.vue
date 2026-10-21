@@ -28,6 +28,9 @@ const websiteHref = computed(() => {
   return raw ? safeUrl(raw) : ''
 })
 
+// 曾用名是可选公开面：只有运营开启 history_public 时接口才会返回，最多一条。
+const previousDisplayName = computed(() => props.profile.previousDisplayNames?.[0] || '')
+
 function extensionTabLabel(tab: NonNullable<PublicProfile['extensionTabs']>[number]) {
   const labels = tab.label || {}
   return labels[String(locale.value)] || labels['zh-CN'] || labels['en-US'] || Object.values(labels)[0] || tab.id
@@ -83,6 +86,10 @@ function extensionTabTo(tab: NonNullable<PublicProfile['extensionTabs']>[number]
         <li>
           <UIcon name="i-lucide-calendar-days" class="size-4" aria-hidden="true" />
           <span>{{ t('profile.joinedOn', { date: formatDateOnly(profile.joinedAt) }) }}</span>
+        </li>
+        <li v-if="previousDisplayName">
+          <UIcon name="i-lucide-history" class="size-4" aria-hidden="true" />
+          <span>{{ t('profile.previousNames') }}：{{ previousDisplayName }}</span>
         </li>
         <li v-if="profile.profile.signature">
           <UIcon name="i-lucide-quote" class="size-4" aria-hidden="true" />

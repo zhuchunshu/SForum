@@ -293,6 +293,8 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 	// 搜索：Host 框架 + 默认站内引擎（PG FTS）；外部引擎经 search.provider 插件。
 	searchProviders := extensionsruntime.NewSearchProviderRegistry(extensionStore)
 	siteEngine := search.NewPostgresSiteEngine(pool)
+	// 改名（自助与管理员）都要回写站内搜索文档里的作者昵称。
+	identityProvider.WithAuthorNameSyncer(siteEngine)
 	searchEngine := extensionsruntime.NewResolvingSearchEngine(searchProviders, extensionRuntime, siteEngine)
 	searchIndexer := search.NewIndexer(searchEngine, nil, jobDispatcher)
 	forumSettingsResolver := providers.NewForumSettingsResolver(optionsService)
@@ -369,6 +371,12 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		WithToolCallReader(providers.NewForumToolCallReader(pool))
 	// 头像与附件管理共用带存储候选目录的服务实例。
 	avatarAttachmentService := attachmentService
+	// 昵称服务：策略来自运行时选项，改名后回写站内搜索文档里的作者昵称。
+	nicknameService := identity.NewNicknameService(
+		identity.NewPostgresNicknameStore(pool),
+		options.NewNicknamePolicySource(optionsService),
+		optionsService,
+	).WithAuthorNameSyncer(siteEngine)
 	profileProvider := providers.NewProfileProviderWithAvatarAndTabs(
 		profileStore,
 		identityStore,
@@ -376,7 +384,7 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		avatarAttachmentService,
 		optionsService,
 		providers.NewExtensionProfileTabProvider(extensionService),
-	)
+	).WithNicknameEditor(nicknameService)
 	moderationReadModels, _ := forumCachedStore.(moderation.DecisionReadModelInvalidator)
 	moderationProvider := providers.NewModerationWorkbenchProviderWithIndexer(moderationStore, forumStore, identityStore, authSessions, searchIndexer, moderationReadModels)
 	// AI 网关：默认关闭，未启用前不产生任何出站调用。密钥只以 Secret Store

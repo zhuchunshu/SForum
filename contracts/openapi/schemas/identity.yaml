@@ -735,6 +735,39 @@ AdminUserDetail:
         format: date-time
         nullable: true
         description: Last password change time when a password credential exists.
+      nicknameHistory:
+        type: array
+        description: Most recent nickname changes (newest first, capped). The history table itself is retained indefinitely.
+        items:
+          "$ref": "#/NicknameChange"
+NicknameChange:
+  type: object
+  required:
+  - id
+  - oldName
+  - newName
+  - source
+  - createdAt
+  properties:
+    id:
+      type: integer
+      format: int64
+    oldName:
+      type: string
+    newName:
+      type: string
+    source:
+      type: string
+      enum: [self, admin]
+      description: Who changed the nickname. Admin changes do not consume the member's cooldown.
+    changedBy:
+      type: integer
+      format: int64
+      nullable: true
+      description: Actor user id; equals the member for self-service changes.
+    createdAt:
+      type: string
+      format: date-time
 AdminUserActivity:
   type: object
   required:

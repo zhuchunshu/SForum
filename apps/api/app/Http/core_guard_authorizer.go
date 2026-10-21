@@ -392,7 +392,7 @@ func requireProfileSelfAuthority(_ context.Context, evaluation routes.CoreGuardE
 		return err
 	}
 	switch evaluation.Descriptor.RouteID {
-	case "core.route.profile.my_profile", "core.route.profile.update_my_profile", "core.route.profile.delete_avatar":
+	case "core.route.profile.my_profile", "core.route.profile.update_my_profile", "core.route.profile.delete_avatar", "core.route.profile.nickname_availability":
 		return nil
 	case "core.route.profile.upload_avatar":
 		return requireCoreGuardPermission(evaluation, identity.PermissionAttachmentUpload)

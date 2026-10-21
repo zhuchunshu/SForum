@@ -241,6 +241,14 @@ const (
 	NameAvatarTargetDimension       = "avatar.target_dimension"
 	NameAvatarCompressQuality       = "avatar.compress_quality"
 
+	// 昵称策略。昵称是展示标签而不是身份（唯一性只属于 username），
+	// 因此这里只有可编辑性、冷却与长度；敏感词复用 identity.username.reserved。
+	NameProfileNicknameAllowUserChange = "profile.nickname.allow_user_change"
+	NameProfileNicknameCooldownMinutes = "profile.nickname.cooldown_minutes"
+	NameProfileNicknameMinLength       = "profile.nickname.min_length"
+	NameProfileNicknameMaxLength       = "profile.nickname.max_length"
+	NameProfileNicknameHistoryPublic   = "profile.nickname.history_public"
+
 	NameNotificationReplyInApp      = "notification.reply.in_app"
 	NameNotificationReplyEmail      = "notification.reply.email"
 	NameNotificationMentionInApp    = "notification.mention.in_app"

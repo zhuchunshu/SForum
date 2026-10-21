@@ -1,6 +1,7 @@
 import { createError, setHeader } from 'h3'
 
 import { getHostIconAsset, renderHostIconDocument } from '../../../../utils/iconSvg'
+import { applyPublicAssetCorsHeaders } from '../../../../utils/pluginRouteProxy'
 
 /**
  * 单图标 SVG：`GET /_sforum/icons/{lucide|tabler}/{name}.svg`
@@ -20,6 +21,7 @@ export default defineEventHandler((event) => {
   setHeader(event, 'content-type', 'image/svg+xml; charset=utf-8')
   setHeader(event, 'cache-control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400')
   setHeader(event, 'x-content-type-options', 'nosniff')
-  setHeader(event, 'cross-origin-resource-policy', 'same-origin')
+  // 图标是公开只读资源，换源链路（X5 云加速/CDN）下也要能加载。
+  applyPublicAssetCorsHeaders(event)
   return renderHostIconDocument(asset)
 })

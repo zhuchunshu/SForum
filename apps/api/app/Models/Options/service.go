@@ -783,8 +783,8 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coerceSiteBrandOptions(coerced, defaults)
 	// Wave 1 社区策略：注册/新人/维护/论坛阅读与行为。
 	coerceCommunityPolicyOptions(coerced, defaults)
-	// 客户端版本策略：脏数据回退到「不限制」默认。
-	coerceClientVersionOptions(coerced, defaults)
+	// 客户端版本与昵称策略：脏数据回退到推荐默认。
+	coercePolicyOptions(coerced, defaults)
 	coerceMailResendOptions(coerced, defaults)
 
 	if provider, ok := normalizeHumanVerificationProvider(coerced[NameHumanVerificationProvider]); ok {

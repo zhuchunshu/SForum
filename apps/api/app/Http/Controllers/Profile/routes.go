@@ -10,6 +10,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	// 当前用户资料读写：登录后只能操作自己。
 	api.Get("/profile", h.myProfile)
 	api.Put("/profile", h.updateMyProfile)
+	// 改名预检：只读，回答可用性/重名数与冲突原因。
+	api.Get("/profile/nickname/availability", h.nicknameAvailability)
 	api.Post("/profile/avatar", h.uploadAvatar)
 	api.Delete("/profile/avatar", h.deleteAvatar)
 }

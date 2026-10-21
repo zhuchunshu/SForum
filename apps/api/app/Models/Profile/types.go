@@ -6,6 +6,7 @@ import (
 	"time"
 
 	forum "github.com/zhuchunshu/sforum/apps/api/app/Models/Forum"
+	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 	avatar "github.com/zhuchunshu/sforum/apps/api/app/Support/Avatar"
 )
 
@@ -19,6 +20,16 @@ const (
 	CodeProfileNotFound      = "profile.not_found"
 	CodeProfileInvalid       = "profile.invalid"
 	CodeAvatarUploadDisabled = "profile.avatar_upload_disabled"
+	CodeNicknameDisabled     = "profile.nickname_disabled"
+	CodeNicknameInvalid      = "profile.nickname_invalid"
+	CodeNicknameCooldown     = "profile.nickname_cooldown"
+)
+
+// NicknameState / NicknameAvailability 复用 Identity 的对外视图，
+// 避免两套同名字段各写一份、日后漂移。
+type (
+	NicknameState        = identity.NicknameState
+	NicknameAvailability = identity.NicknameAvailability
 )
 
 var (
@@ -63,6 +74,12 @@ type PublicProfile struct {
 	JoinedAt     time.Time            `json:"joinedAt"`
 	// ExtensionTabs 来自 forum.profile.tabs 贡献（F4.3）；宿主渲染，无插件 HTML。
 	ExtensionTabs []ProfileExtensionTab `json:"extensionTabs,omitempty"`
+	// Nickname 只在自助端点（GET/PUT /profile）填充：公开资料页不需要暴露
+	// 「还能不能改名」这类账号状态。
+	Nickname *NicknameState `json:"nickname,omitempty"`
+	// PreviousDisplayNames 仅在运营开启 profile.nickname.history_public 时出现，
+	// 最多一条；它属于公开资料页，因此不会出现在自助响应里。
+	PreviousDisplayNames []string `json:"previousDisplayNames,omitempty"`
 }
 
 // ProfileActivity 是公开个人主页的主题/回复时间线条目。
@@ -151,6 +168,9 @@ type UpdateProfileInput struct {
 	Location           *string
 	WebsiteURL         *string
 	AvatarAttachmentID *int64
+	// DisplayName 是昵称。它不落在 user_profiles，而由 Identity 昵称服务
+	// 负责策略、冷却、历史与审计。
+	DisplayName *string
 }
 
 // 公开用户检索的边界。查询词必须非空：空查询等于「列出全站用户」，

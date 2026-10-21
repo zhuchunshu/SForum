@@ -63,6 +63,27 @@ Member public profiles and current-user profile settings.
 Profile update is login-required and current-user only; no admin profile
 editor in V1.
 
+### Nickname（昵称）
+
+- 昵称是展示标签，不是身份：`users.display_name` **不唯一**，唯一性只属于
+  `username_lower`。决策见 `decisions/2026-10-20-nickname-policy.md`。
+- `PUT /api/v1/profile` 接受 `displayName`（空串 = 回退用户名），成功时返回完整
+  `PublicProfile`（含 `nickname` 状态），与 `GET /profile` 同形状。
+- `GET /api/v1/profile/nickname/availability?value=` 只读预检，返回 `available`、
+  `duplicates`（重名只提示）与 `conflict`（i18n key）。路由
+  `core.route.profile.nickname_availability` 走 `core.guard.profile.self`。
+- 策略来自 `profile.nickname.*` 公开选项（开关、冷却分钟、最小/最大长度、
+  曾用名是否公开）；保留词复用 `identity.username.reserved`；昵称不得与另一位成员的
+  `username` 完全同名（大小写不敏感）。
+- 自助改名在 Identity 的 `NicknameService` 里完成：校验 → 冷却（事务内行锁 + 数据库
+  时钟）→ 写入 `users.display_name` / `nickname_changed_at` → `user_nickname_changes`
+  历史 → `audit_events(action=identity.nickname.change)`。管理员改名走既有 admin 事务，
+  只写历史（`source=admin`），不写 `nickname_changed_at`，因此不占用成员的冷却。
+- 改名成功后由 `PostgresSiteEngine.SyncAuthorDisplayName` 回写
+  `search_documents.author_display_name` 与 `metadata_tsv`；失败只记日志，不回滚改名。
+- 公开主页的 `previousDisplayNames` 只在 `profile.nickname.history_public` 开启时出现，
+  最多 1 条；后台用户详情始终可看最近 20 条（`AdminUserDetail.nicknameHistory`）。
+
 ## Frontend
 
 - `/u/{username}` public profile page uses the default theme three-column
@@ -85,6 +106,11 @@ editor in V1.
 - `/settings/profile` current-user settings page with avatar preview,
   upload/remove controls, safe defaults, and a clear save flow (success
   auto-dismisses after 10s; errors do not).
+- 昵称输入由 `components/settings/SFProfileNicknameField.vue` 拥有：本地格式/长度
+  预检、400ms 防抖的 `nickname/availability` 预检、分钟级冷却倒计时（30s 刷新）、
+  重名提示与字段级错误。保存仍由资料页统一提交；成功后页面更新
+  `profile.value.displayName` 与 auth session 的 `displayName`，导航栏即时同步。
+  组件只在昵称真的变化时才提交 `displayName`。
 - `/settings/profile` uses the
   `forum.settings.profile` Page Registry surface with a canvas layout: desktop
   left account rail, center editable profile form, right public preview, and

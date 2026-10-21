@@ -92,6 +92,11 @@ myProfile:
   put:
     summary: Update the current user's editable profile
     operationId: updateMyProfile
+    description: |
+      Omitted fields are left unchanged. `displayName` is the nickname: an
+      empty string falls back to the username. A successful update returns the
+      same `PublicProfile` shape as `GET /profile`, including the recomputed
+      `nickname` state.
     requestBody:
       required: true
       content:
@@ -104,11 +109,36 @@ myProfile:
         content:
           application/json:
             schema:
-              "$ref": "../schemas/profile.yaml#/ApiResponseProfile"
+              "$ref": "../schemas/profile.yaml#/ApiResponsePublicProfile"
       '401':
         "$ref": "../components/responses.yaml#/Unauthorized"
       '422':
         "$ref": "../components/responses.yaml#/UnprocessableEntity"
+profileNicknameAvailability:
+  get:
+    summary: Preview a nickname change
+    operationId: getNicknameAvailability
+    description: |
+      Read-only preflight for the current user. Nicknames are not unique, so
+      `duplicates` is a warning rather than a rejection; `conflict` is the only
+      reason the value cannot be saved. Cooldown and the site switch are
+      enforced on write, not here.
+    parameters:
+    - name: value
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Nickname draft to check. Empty means "show my username".
+    responses:
+      '200':
+        description: Preflight result.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/profile.yaml#/ApiResponseNicknameAvailability"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
 myProfileAvatar:
   post:
     summary: Upload and set the current user's avatar

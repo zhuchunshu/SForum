@@ -284,6 +284,14 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedInt(value, avatarDimensionMin, avatarDimensionMax)
 	case NameAvatarCompressQuality:
 		return normalizeBoundedInt(value, avatarCompressQualityMin, avatarCompressQualityMax)
+	case NameProfileNicknameAllowUserChange, NameProfileNicknameHistoryPublic:
+		return normalizeEnabledOption(value)
+	case NameProfileNicknameCooldownMinutes:
+		return normalizeBoundedInt(value, 0, nicknameCooldownMinutesMax)
+	case NameProfileNicknameMinLength:
+		return normalizeBoundedInt(value, nicknameMinLengthMin, nicknameMinLengthMax)
+	case NameProfileNicknameMaxLength:
+		return normalizeBoundedInt(value, nicknameMaxLengthMin, nicknameMaxLengthMax)
 	case NameNotificationReplyInApp, NameNotificationReplyEmail, NameNotificationMentionInApp, NameNotificationMentionEmail, NameNotificationModerationInApp, NameNotificationModerationEmail:
 		return normalizeEnabledOption(value)
 	default:

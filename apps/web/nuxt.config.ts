@@ -29,6 +29,16 @@ const publicHomepageRouteRule = {
     'cache-control': 'no-store'
   }
 } as const
+// 公开只读资源（hash 定址、immutable）必须允许任意来源读取：QQ X5 云加速、
+// CDN、企业代理会把文档或子资源换源，浏览器随后按跨源校验。构建产物是模块
+// 脚本，模块脚本无条件走 CORS，只能由我们发 ACAO；CORP 同步放开到
+// cross-origin，否则 no-cors 资源（样式、图标）仍会被 same-origin 拦掉。
+// 私有资产 `/_sforum/private-assets/**` 不在此列，保持 same-origin。
+const publicAssetCorsHeaders = {
+  'access-control-allow-origin': '*',
+  'cross-origin-resource-policy': 'cross-origin',
+  'timing-allow-origin': '*'
+} as const
 const nuxtGeneratedIgnores = [
   '.nuxt/**',
   '.nuxt-build/**',
@@ -106,6 +116,10 @@ export default defineNuxtConfig({
     // i18n strategy=no_prefix：URL 不含语言前缀，无需 /en/** 镜像规则。
     // 非默认语 cookie 由 server/middleware/locale-cache.ts 绕过共享 SWR，避免串语言。
     routeRules: {
+      // 公开只读资源：换源链路下仍需可加载，见 publicAssetCorsHeaders 注释。
+      '/_nuxt/**': { headers: publicAssetCorsHeaders },
+      '/_sforum/assets/**': { headers: publicAssetCorsHeaders },
+      '/_sforum/icons/**': { headers: publicAssetCorsHeaders },
       // 首页发布状态必须在审核通过后立即可见；API 的 Redis generation 缓存承担读压。
       '/': publicHomepageRouteRule,
       // 分类、标签、个人主页与主题的 SSR 内容依赖会话、权限或实时数据，不能共享整页缓存。

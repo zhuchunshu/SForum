@@ -43,12 +43,24 @@ describe('profile settings canvas', () => {
 
   test('uses the runtime website domain for the public profile path', () => {
     const src = page()
-    expect(src).toContain('const { siteDomain, avatarSettings } = useWebOptions()')
+    expect(src).toContain('const { siteDomain, avatarSettings, nicknameSettings } = useWebOptions()')
     expect(src).toContain('`${siteDomain.value}/u/`')
     expect(src).toContain('{{ publicProfilePrefix }}')
     expect(src).not.toContain("t('profileSettings.profilePathPrefix')")
     expect(normalizeSiteDomain(' https://Forum.Example.com/// ')).toBe('Forum.Example.com')
     expect(siteDomainFromUrl('https://forum.example.com:8443/base')).toBe('forum.example.com:8443')
+  })
+
+  test('edits the nickname through the same profile save flow', () => {
+    const src = page()
+    expect(src).toContain('import SFProfileNicknameField')
+    expect(src).toContain('v-model="draft.displayName"')
+    expect(src).toContain(':policy="nicknameSettings"')
+    expect(src).toContain('draft.displayName !== baseline.value.displayName')
+    expect(src).toContain('...(nicknameChanged ? { displayName: draft.displayName } : {})')
+    expect(src).toContain('syncAuthDisplayName(updated.displayName)')
+    // 用户名保持只读：昵称才是可改的展示标签。
+    expect(src).toContain(':value="profile.username" type="text" readonly')
   })
 
   test('preserves avatar upload and removal through the real profile API', () => {
@@ -80,6 +92,56 @@ describe('profile settings canvas', () => {
     expect(previewSrc).toContain("t('profile.joinedOn'")
     expect(src).not.toContain('data-preview-signature')
     expect(src).not.toContain("i-lucide-quote")
+  })
+
+  test('ships nickname copy and conflict messages in both locales', () => {
+    const uiKeys = [
+      'nickname',
+      'nicknamePlaceholder',
+      'nicknameHint',
+      'nicknameEmptyHint',
+      'nicknameLocked',
+      'nicknameCooldown',
+      'nicknameCooldownUntil',
+      'nicknameCooldownDays',
+      'nicknameCooldownHours',
+      'nicknameCooldownMinutes',
+      'nicknameDuplicates'
+    ]
+    // 冲突文案与 API 消息包同名（profile.nickname_*），前端直接翻译服务端返回的 key。
+    const conflictKeys = [
+      'nickname_invalid_chars',
+      'nickname_too_short',
+      'nickname_too_long',
+      'nickname_reserved',
+      'nickname_username_taken',
+      'nickname_at_prefix'
+    ]
+    const adminKeys = [
+      'nicknameTitle',
+      'nicknameDescription',
+      'nicknameAllowUserChange',
+      'nicknameAllowUserChangeHint',
+      'nicknameCooldownHint',
+      'nicknameMinLength',
+      'nicknameMaxLength',
+      'nicknameHistoryPublic',
+      'nicknameReservedHint'
+    ]
+    for (const locale of [zhCN(), enUS()]) {
+      for (const key of uiKeys) {
+        expect(locale.profileSettings[key]).toBeTruthy()
+      }
+      for (const key of conflictKeys) {
+        expect(locale.profile[key]).toBeTruthy()
+      }
+      for (const key of adminKeys) {
+        expect(locale.admin.settings.registration[key]).toBeTruthy()
+      }
+      for (const key of ['nicknameHistorySection', 'nicknameHistoryEmpty', 'nicknameHistorySourceAdmin', 'nicknameHistorySourceSelf']) {
+        expect(locale.admin.users[key]).toBeTruthy()
+      }
+    }
   })
 
   test('uses public three-column chrome aligned with home and notifications', () => {

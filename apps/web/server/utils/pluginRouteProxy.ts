@@ -18,6 +18,26 @@ export const INTERNAL_ROUTE_MISS = 'miss'
 const SAFE_PROXY_ATTEMPTS = 10
 const SAFE_PROXY_RETRY_DELAY_MS = 500
 
+/**
+ * 公开只读资产的跨源策略。
+ *
+ * 上游 API 对扩展/主题资产发的是 `Cross-Origin-Resource-Policy: same-origin`
+ * 且不带 ACAO；QQ 内置浏览器（X5 云加速）、CDN 或企业代理把文档或子资源换源
+ * 后，浏览器按跨源校验并拒载入口脚本与样式。这里在 sendProxy 复制完上游头之后
+ * 覆盖，保证换源链路仍可加载。私有资产代理不走这条路径。
+ */
+const PUBLIC_ASSET_CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'cross-origin-resource-policy': 'cross-origin',
+  'timing-allow-origin': '*'
+} as const
+
+export function applyPublicAssetCorsHeaders(event: H3Event) {
+  for (const [name, value] of Object.entries(PUBLIC_ASSET_CORS_HEADERS)) {
+    setResponseHeader(event, name, value)
+  }
+}
+
 type ProbeFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
 export function isCoreAPIPath(pathname: string) {
@@ -156,6 +176,7 @@ export async function proxyRouteRequest(
     onResponse: options.omitCredentials
       ? (proxyEvent, response) => {
           removeResponseHeader(proxyEvent, 'set-cookie')
+          applyPublicAssetCorsHeaders(proxyEvent)
           setResponseHeader(
             proxyEvent,
             'cache-control',

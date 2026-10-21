@@ -17,11 +17,10 @@ const statusCode = computed(() => {
   return Number.isFinite(raw) && raw >= 400 && raw <= 599 ? raw : 500
 })
 
-function reload() {
-  if (import.meta.client) {
-    window.location.reload()
-  }
-}
+// 这里不能用 i18n 或路由相关组合式（本组件就是它们失败后的兜底）。
+// 重试做成真链接：入口 chunk 被拒载时页面没有 JS，按钮点击不会有任何反应。
+const requestURL = useRequestURL()
+const retryHref = `${requestURL.pathname}${requestURL.search}`
 </script>
 
 <template>
@@ -42,13 +41,12 @@ function reload() {
       <p class="mt-1 text-sm text-muted">
         App initialization failed; the error page fell back to a minimal render. Check the browser console for the original error.
       </p>
-      <button
-        type="button"
-        class="mt-6 rounded-md border border-default px-4 py-2 text-sm font-medium"
-        @click="reload"
+      <a
+        :href="retryHref"
+        class="mt-6 inline-flex items-center justify-center rounded-md border border-default px-4 py-2 text-sm font-medium"
       >
         重新加载 / Reload
-      </button>
+      </a>
     </div>
   </div>
 </template>

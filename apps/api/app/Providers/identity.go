@@ -21,6 +21,15 @@ type IdentityProvider struct {
 	controller *identitycontroller.Controller
 }
 
+// WithAuthorNameSyncer 注入派生索引同步（站内搜索的作者昵称）。管理员改名与
+// 自助改名共用同一条回写路径。
+func (p *IdentityProvider) WithAuthorNameSyncer(syncer identity.AuthorNameSyncer) *IdentityProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithAuthorNameSyncer(syncer)
+	}
+	return p
+}
+
 func NewIdentityProvider(store identity.Store, sessions *session.Store) *IdentityProvider {
 	return NewIdentityProviderWithVerifier(store, sessions, humanverify.NewDisabledService())
 }
@@ -36,8 +45,9 @@ func NewIdentityProviderWithAuthSessions(store identity.Store, sessions *authses
 func NewIdentityProviderWithEvents(store identity.Store, sessions *authsession.Manager, verifier humanverify.Verifier, publisher appevents.Publisher) *IdentityProvider {
 	appearanceStore, _ := store.(identity.CurrentUserAppearanceStore)
 	localeStore, _ := store.(identity.CurrentUserLocaleStore)
+	svc := identity.NewServiceWithEvents(store, publisher)
 	return &IdentityProvider{
-		controller: identitycontroller.NewControllerWithAuthSessions(identity.NewServiceWithEvents(store, publisher), sessions, verifier).
+		controller: identitycontroller.NewControllerWithAuthSessions(svc, sessions, verifier).
 			WithAppearancePreferences(identity.NewAppearancePreferenceService(appearanceStore)).
 			WithLocalePreferences(identity.NewLocalePreferenceService(localeStore)),
 	}

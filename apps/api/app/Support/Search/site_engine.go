@@ -47,6 +47,33 @@ func (e *PostgresSiteEngine) EnsureIndex(ctx context.Context) error {
 	return e.Probe(ctx)
 }
 
+// SyncAuthorDisplayName 回写某位作者在站内搜索文档里的展示名。
+//
+// search_documents 是派生索引：昵称改名后不需要重建主题正文，但作者昵称与
+// metadata_tsv 都必须跟着变，否则旧帖会永远搜到旧名字。metadata_tsv 是普通列
+// （不是生成列），所以这里必须按与迁移回填完全相同的表达式重算。
+func (e *PostgresSiteEngine) SyncAuthorDisplayName(ctx context.Context, userID int64, displayName string) error {
+	if e == nil || e.pool == nil {
+		return ErrEngineUnavailable
+	}
+	if userID <= 0 {
+		return fmt.Errorf("search site: invalid author id")
+	}
+	_, err := e.pool.Exec(ctx, `
+		UPDATE search_documents
+		SET author_display_name = $2,
+		    metadata_tsv =
+		      setweight(to_tsvector('simple', concat_ws(' ', author_username, $2)), 'B') ||
+		      setweight(to_tsvector('simple', concat_ws(' ', category_slug, category_name)), 'C') ||
+		      setweight(to_tsvector('simple', concat_ws(' ', slug, array_to_string(tag_slugs, ' '))), 'D')
+		WHERE author_user_id = $1
+	`, userID, displayName)
+	if err != nil {
+		return fmt.Errorf("search site: sync author display name: %w", err)
+	}
+	return nil
+}
+
 func (e *PostgresSiteEngine) Index(ctx context.Context, doc TopicSearchDoc) error {
 	if e == nil || e.pool == nil {
 		return ErrEngineUnavailable

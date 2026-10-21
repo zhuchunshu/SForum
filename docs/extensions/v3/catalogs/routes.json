@@ -5245,7 +5245,7 @@
     "handler": "deleteAvatar",
     "method": "DELETE",
     "path": "/api/v1/profile/avatar",
-    "source": "apps/api/app/Http/Controllers/Profile/routes.go:14",
+    "source": "apps/api/app/Http/Controllers/Profile/routes.go:16",
     "access": "login",
     "policy": "current active actor; attachment.upload for avatar upload",
     "guard": {
@@ -5261,7 +5261,23 @@
     "handler": "uploadAvatar",
     "method": "POST",
     "path": "/api/v1/profile/avatar",
-    "source": "apps/api/app/Http/Controllers/Profile/routes.go:13",
+    "source": "apps/api/app/Http/Controllers/Profile/routes.go:15",
+    "access": "login",
+    "policy": "current active actor; attachment.upload for avatar upload",
+    "guard": {
+      "kind": "contextual",
+      "permissions": [],
+      "evaluatorId": "core.guard.profile.self"
+    }
+  },
+  {
+    "id": "core.route.profile.nickname_availability",
+    "contractVersion": "sforum.route.profile.nickname_availability@1",
+    "module": "profile",
+    "handler": "nicknameAvailability",
+    "method": "GET",
+    "path": "/api/v1/profile/nickname/availability",
+    "source": "apps/api/app/Http/Controllers/Profile/routes.go:14",
     "access": "login",
     "policy": "current active actor; attachment.upload for avatar upload",
     "guard": {

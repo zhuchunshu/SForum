@@ -95,6 +95,17 @@ export type AdminUserDetail = AdminUserSummary & {
   /** 管理端预览：最近登录/注册审计 */
   recentAuthEvents?: AdminAuthEvent[]
   passwordChangedAt?: string | null
+  /** 改名历史（新→旧），后台可见；历史表本身永久保留。 */
+  nicknameHistory?: AdminNicknameChange[]
+}
+
+export type AdminNicknameChange = {
+  id: number
+  oldName: string
+  newName: string
+  source: 'self' | 'admin'
+  changedBy?: number | null
+  createdAt: string
 }
 
 export type AdminUserList = {

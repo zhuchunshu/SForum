@@ -148,11 +148,12 @@ useHead(() => {
     key: `sforum-theme-skin:${href}`,
     'data-sforum-theme-skin': '1'
   }))
+  // 扩展样式不声明 crossorigin：同源时 integrity 仍校验，被 QQ X5 云加速/CDN
+  // 换源时降级为 no-cors 加载，避免 CORS 拒载后整块样式丢失。
   const extensionStyleLinks = publicContentStyles.links.value.map(style => ({
     rel: 'stylesheet',
     href: style.href,
     integrity: style.integrity,
-    crossorigin: 'anonymous' as const,
     key: `sforum-extension-style:${style.handle}`,
     'data-sforum-extension-style': style.handle
   }))

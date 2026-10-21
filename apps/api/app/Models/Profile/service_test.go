@@ -158,11 +158,11 @@ func TestServiceUpdateMyProfileTrimsAndPersists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateMyProfile error: %v", err)
 	}
-	if updated.Bio != "new bio" {
-		t.Fatalf("expected trimmed bio, got %q", updated.Bio)
+	if updated.Profile.Bio != "new bio" {
+		t.Fatalf("expected trimmed bio, got %q", updated.Profile.Bio)
 	}
-	if updated.WebsiteURL != "https://example.com" {
-		t.Fatalf("expected website url, got %q", updated.WebsiteURL)
+	if updated.Profile.WebsiteURL != "https://example.com" {
+		t.Fatalf("expected website url, got %q", updated.Profile.WebsiteURL)
 	}
 }
 
@@ -574,4 +574,110 @@ func (s *fakeProfileOptionStore) Upsert(_ context.Context, input options.UpdateI
 	}
 	s.items[input.Name] = input.Value
 	return options.Option{Name: input.Name, Value: input.Value}, nil
+}
+
+type fakeNicknameEditor struct {
+	state        identity.NicknameState
+	previous     []string
+	availability identity.NicknameAvailability
+	changes      []string
+	err          error
+}
+
+func (f *fakeNicknameEditor) State(context.Context, int64) (identity.NicknameState, error) {
+	return f.state, f.err
+}
+
+func (f *fakeNicknameEditor) Change(_ context.Context, _ identity.Actor, displayName string) (identity.NicknameState, error) {
+	f.changes = append(f.changes, displayName)
+	if f.err != nil {
+		return identity.NicknameState{}, f.err
+	}
+	return f.state, nil
+}
+
+func (f *fakeNicknameEditor) Availability(context.Context, identity.Actor, string) (identity.NicknameAvailability, error) {
+	return f.availability, f.err
+}
+
+func (f *fakeNicknameEditor) PublicPreviousNames(context.Context, int64) ([]string, error) {
+	return f.previous, f.err
+}
+
+func newNicknameProfileService(editor *fakeNicknameEditor) (*Service, *fakeStore) {
+	store := &fakeStore{
+		user:    UserProfileSummary{UserID: 7, Username: "alice", DisplayName: "Alice"},
+		profile: Profile{UserID: 7},
+	}
+	return NewService(store).WithNicknameEditor(editor), store
+}
+
+// 未注入昵称服务时必须拒绝写入，而不是静默丢弃用户的修改。
+func TestServiceUpdateMyProfileRejectsNicknameWithoutEditor(t *testing.T) {
+	service := NewService(&fakeStore{
+		user:    UserProfileSummary{UserID: 7, Username: "alice", DisplayName: "Alice"},
+		profile: Profile{UserID: 7},
+	})
+	name := "Alicia"
+	_, err := service.UpdateMyProfile(context.Background(), identity.Actor{ID: 7}, UpdateProfileInput{DisplayName: &name})
+	if !errors.Is(err, identity.ErrNicknameDisabled) {
+		t.Fatalf("expected nickname disabled, got %v", err)
+	}
+}
+
+func TestServiceUpdateMyProfileChangesNicknameAndReturnsState(t *testing.T) {
+	editor := &fakeNicknameEditor{state: identity.NicknameState{DisplayName: "Alicia", CanChange: false}}
+	service, _ := newNicknameProfileService(editor)
+
+	name := "Alicia"
+	updated, err := service.UpdateMyProfile(context.Background(), identity.Actor{ID: 7}, UpdateProfileInput{DisplayName: &name})
+	if err != nil {
+		t.Fatalf("UpdateMyProfile error: %v", err)
+	}
+	if len(editor.changes) != 1 || editor.changes[0] != "Alicia" {
+		t.Fatalf("nickname changes = %v", editor.changes)
+	}
+	if updated.Nickname == nil || updated.Nickname.DisplayName != "Alicia" {
+		t.Fatalf("nickname state = %+v", updated.Nickname)
+	}
+}
+
+func TestServiceGetMyProfileIncludesNicknameState(t *testing.T) {
+	editor := &fakeNicknameEditor{state: identity.NicknameState{DisplayName: "Alice", CanChange: true, Duplicates: 2}}
+	service, _ := newNicknameProfileService(editor)
+
+	result, err := service.GetMyProfile(context.Background(), 7)
+	if err != nil {
+		t.Fatalf("GetMyProfile error: %v", err)
+	}
+	if result.Nickname == nil || result.Nickname.Duplicates != 2 || !result.Nickname.CanChange {
+		t.Fatalf("nickname state = %+v", result.Nickname)
+	}
+}
+
+// 公开资料页只在昵称服务返回曾用名时才带这个字段。
+func TestServicePublicProfileIncludesPreviousDisplayNames(t *testing.T) {
+	editor := &fakeNicknameEditor{previous: []string{"Old Alice"}}
+	service, _ := newNicknameProfileService(editor)
+
+	result, err := service.GetPublicProfile(context.Background(), "alice")
+	if err != nil {
+		t.Fatalf("GetPublicProfile error: %v", err)
+	}
+	if len(result.PreviousDisplayNames) != 1 || result.PreviousDisplayNames[0] != "Old Alice" {
+		t.Fatalf("previous display names = %v", result.PreviousDisplayNames)
+	}
+}
+
+func TestServiceCheckNicknameAvailability(t *testing.T) {
+	editor := &fakeNicknameEditor{availability: identity.NicknameAvailability{Available: true, Duplicates: 3}}
+	service, _ := newNicknameProfileService(editor)
+
+	result, err := service.CheckNicknameAvailability(context.Background(), identity.Actor{ID: 7}, "Alicia")
+	if err != nil {
+		t.Fatalf("CheckNicknameAvailability error: %v", err)
+	}
+	if !result.Available || result.Duplicates != 3 {
+		t.Fatalf("availability = %+v", result)
+	}
 }

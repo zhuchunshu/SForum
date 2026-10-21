@@ -138,6 +138,11 @@ func (s *PostgresStore) GetAdminUser(ctx context.Context, userID int64) (AdminUs
 	if err := s.loadAdminUserPreview(ctx, &detail); err != nil {
 		return AdminUserDetail{}, err
 	}
+	history, err := loadNicknameHistory(ctx, s.pool, detail.ID, AdminNicknameHistoryLimit)
+	if err != nil {
+		return AdminUserDetail{}, err
+	}
+	detail.NicknameHistory = history
 	return detail, nil
 }
 
@@ -438,6 +443,13 @@ func (s *PostgresStore) updateAdminUser(ctx context.Context, actorUserID int64, 
 	`, targetUserID, next.Username, next.Email, next.DisplayName, next.Locale, string(next.Status), statusChanged, emailChanged, string(next.Kind))
 	if err != nil {
 		return AdminUserDetail{}, fmt.Errorf("update admin user account: %w", err)
+	}
+	// 管理员改名也进历史：运营侧同样需要「谁在什么时候改成了什么」。
+	// 这里不写 nickname_changed_at —— 版务修正不该占用用户的自助改名冷却。
+	if next.DisplayName != current.DisplayName {
+		if err := insertNicknameChange(ctx, tx, targetUserID, current.DisplayName, next.DisplayName, NicknameSourceAdmin, actorUserID); err != nil {
+			return AdminUserDetail{}, err
+		}
 	}
 	if statusChanged && next.Status != UserStatusActive {
 		if _, err := tx.Exec(ctx, `

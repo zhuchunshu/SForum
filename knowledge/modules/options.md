@@ -242,6 +242,15 @@ skin behavior without admin session.
   `avatar.max_size_kb`, `avatar.allow_gif`, and
   `avatar.compress_enabled`.
 
+- 昵称策略（2026-10-20）：`profile.nickname.allow_user_change`（默认开）、
+  `profile.nickname.cooldown_minutes`（默认 `10080` = 7 天，`0` = 不限，精确到分钟）、
+  `profile.nickname.min_length` / `max_length`（默认 2 / 24，按 rune）、
+  `profile.nickname.history_public`（默认关）。五项全部 public，由
+  `settings.site.manage` 管理，后台入口在站点设置 → 注册与用户名（昵称区块）。
+  归一化保证 `max_length >= min_length`，否则双双回落默认。保留词不另立选项，
+  直接复用 `identity.username.reserved`。决策：
+  `decisions/2026-10-20-nickname-policy.md`。
+
 - `human_verification.scenarios.password_reset` and
   `human_verification.scenarios.email_verification` default to enabled across
   the API, public-client fallback, and admin form. The verification provider

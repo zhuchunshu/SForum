@@ -121,6 +121,8 @@
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
+  /* SFButton 传入 href 时渲染成 <a>，链接形态不得出现下划线。 */
+  text-decoration: none;
   transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
 }
 

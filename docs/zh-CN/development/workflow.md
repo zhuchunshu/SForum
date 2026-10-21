@@ -39,6 +39,7 @@
 - 页面：`apps/web/app/pages/`（后台在 `pages/admin`）
 - 组件：`apps/web/app/components/`（`SF` 前缀组件库）
 - i18n：默认 `zh-CN`，同步维护 `en-US`
+- i18n 文案里的 `@`、`|` 是 vue-i18n 语法字符（链接消息 / 复数分隔），要写 `{'@'}` 字面量转义；裸 `@` 会让整份 locale 编译失败（dev overlay + build 失败）
 - 图标：Tabler / Lucide via Nuxt Icon，禁止 emoji 当图标
 - 构建：`bun run build`（`.nuxt-build`）
 - 类型检查：`bun run typecheck`（`.nuxt-typecheck`）
