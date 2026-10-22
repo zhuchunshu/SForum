@@ -159,6 +159,12 @@ Status, logs, backup, restore, restart, and stop remain local `deploy.sh`
 operations so recovery does not depend on GitHub availability. See
 `knowledge/decisions/2026-08-18-verified-release-bootstrap.md`.
 
+An optional repository-side prefetch wrapper, `sforum-latest.sh`, resolves the
+newest Release before any local script runs, downloads and verifies that
+Release's bootstrap, and only then delegates to install or upgrade. It is
+repository tooling rather than a Release asset, so the bootstrap does not
+refresh it.
+
 Normal production deployment uses one API process with an embedded River
 worker. Worker ownership is not configurable; Compose exposes no standalone
 Worker service. Queue concurrency and shutdown controls go to the API-owned

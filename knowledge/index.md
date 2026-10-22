@@ -444,6 +444,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **严格更新入口（2026-10-23，最新）**：新增根目录 `sforum-latest.sh`，每次先解析
+  GitHub 最新 Release、校验其 `sforum-bootstrap.sh` 再交给 install/upgrade；本地旧
+  bootstrap 不参与决策。README 与中英部署指南已同步。详见
+  `sessions/2026-10-23-sforum-latest-entry.md`。
+
 - **首注册者进后台（2026-10-22，最新）**：首位注册者拿到初始 `super_admin` 后直接
   落到后台概览；邮箱验证开启时先验证、验证后落后台。`useAdminRoutes().path()` 改由
   i18n `localePath` 生成，修掉 en 语言下后台入口的客户端 404。web 1508 用例 +

@@ -2,9 +2,10 @@
 
 [← Production deployment](../deployment.md)
 
-This page covers three scripts in depth: `sforum-bootstrap.sh`, `deploy.sh`,
-and `upgrade.sh`. Responsibilities first, then the execution chains, and
-finally state files and failure semantics.
+This page covers three release scripts in depth: `sforum-bootstrap.sh`,
+`deploy.sh`, and `upgrade.sh`, plus the optional repository-side prefetch
+wrapper `sforum-latest.sh`. Responsibilities first, then the execution chains,
+and finally state files and failure semantics.
 
 ## Deliverables and responsibilities
 
@@ -209,6 +210,28 @@ refreshes itself and the complete toolkit, then hands off to the local
 `upgrade.sh`. Refreshing does not modify `.env.production`, `.deployrc`,
 `deploy/runtime/`, or data volumes.
 
+### Prefetch wrapper: `sforum-latest.sh` (optional)
+
+The bootstrap's self-refresh is initiated by the local old script. The prefetch
+wrapper moves network resolution and verification ahead of any local script:
+
+1. Resolve the newest Release. For stable it reads the tag from the
+   `releases/latest` 302 `Location`, spending no GitHub API quota; prereleases
+   use the `/releases` API.
+2. Download that tag's `sforum-bootstrap.sh` and `SHA256SUMS` and verify only
+   the exact filename entry; when the local `gh` supports `attestation`, verify
+   provenance as well.
+3. Back up the previous bootstrap under `.sforum/bootstrap-backups/`, then
+   atomically replace the local file.
+4. Run `sforum-bootstrap.sh install|upgrade --version <TAG>` with the pinned
+   tag.
+
+`--check` performs only the first two steps and prints the target version, the
+SHA-256, whether the local file matches, and the planned action — useful before
+a maintenance window. The script lives in the repository root, is not shipped
+as a Release asset, and `--lang` applies only to install while `--bootstrap`
+applies only to upgrade.
+
 ### Updater: `upgrade.sh`
 
 1. Read the current version from `.deployrc`. When it is missing or invalid,
@@ -301,7 +324,9 @@ That immutable tag is historical fact and will not be moved to `main` or
 | `.deployrc` (failure) | `status=recovery_required`, `attempted_version`, `previous_version`, `reason`, `backup` |
 | `.deploy.lock` | Deployment lock for `deploy.sh`/`upgrade.sh` |
 | `.sforum-bootstrap.lock` | Lock held by the bootstrap while it refreshes the toolkit |
+| `.sforum-latest.lock` | Lock held by `sforum-latest.sh` while it prefetches and replaces the local bootstrap |
 | `.sforum/tooling-backups/` | Backups of replaced managed tooling files |
+| `.sforum/bootstrap-backups/` | Bootstrap backups taken before the prefetch wrapper replaces the file |
 | `backups/` | PostgreSQL backups, `0600` by default; change the path with `SFORUM_BACKUP_DIR` |
 | `deploy/runtime/` | Blue/green Caddy configuration; do not edit by hand |
 

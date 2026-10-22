@@ -13,6 +13,7 @@ host reverse proxy.
 | --- | --- | --- |
 | Brand-new server, fastest way live | `./sforum-bootstrap.sh install` | [One-click install and update](./deployment/one-click.md) |
 | Existing install, update to a new version | `./sforum-bootstrap.sh upgrade` | [One-click install and update](./deployment/one-click.md) |
+| Existing install, re-verify the official bootstrap on every run | `./sforum-latest.sh` | [One-click install and update](./deployment/one-click.md) |
 | Target version has migrations that require downtime | `./upgrade.sh --version <TAG> --confirm-maintenance` | [One-click install and update](./deployment/one-click.md) |
 | No scripts, write your own Compose | Download, migrate, and start manually | [Manual Compose deployment](./deployment/manual.md) |
 | Only backup, restore, logs, restart | `./deploy.sh --action ...` | [Troubleshooting](./deployment/troubleshooting.md) |
@@ -119,6 +120,28 @@ Release's complete deploy toolkit, and finally hands off to `upgrade.sh`:
 ./sforum-bootstrap.sh upgrade --channel prerelease
 ./sforum-bootstrap.sh upgrade --yes
 ```
+
+### Re-fetch the official toolkit on every run (optional)
+
+The bootstrap's self-refresh is initiated by the local old script. When an
+update must prove that the bootstrap came from GitHub, place the
+repository-side `sforum-latest.sh` in the install directory:
+
+```sh
+curl -fsSLo sforum-latest.sh \
+  https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh
+chmod 0755 sforum-latest.sh
+./sforum-latest.sh --check   # resolve and verify; report whether the local bootstrap matches
+./sforum-latest.sh           # install when absent, upgrade when installed
+```
+
+Each run resolves the newest Release, downloads and verifies that Release's
+`sforum-bootstrap.sh`, backs up the previous file under
+`.sforum/bootstrap-backups/`, and only then delegates to install or upgrade.
+`--yes`, `--channel prerelease`, and `--version <TAG>` match the bootstrap
+semantics. The script is repository tooling: it is not a Release asset and the
+bootstrap does not refresh it. Only this wrapper file comes from `main`; the
+bootstrap and the complete toolkit still come from the Release asset.
 
 When adopting the bootstrap for the first time, download and verify it inside
 the existing install directory from the **latest stable Release asset** (do not

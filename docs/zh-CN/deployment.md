@@ -12,6 +12,7 @@ PostgreSQL 和 Redis。只支持 Linux `amd64`/`arm64`，不支持 Windows。对
 | --- | --- | --- |
 | 全新服务器，想最快上线 | `./sforum-bootstrap.sh install` | [一键安装与更新](./deployment/one-click.md) |
 | 已有安装，更新到新版本 | `./sforum-bootstrap.sh upgrade` | [一键安装与更新](./deployment/one-click.md) |
+| 已有安装，每次都要重新校验官方 bootstrap | `./sforum-latest.sh` | [一键安装与更新](./deployment/one-click.md) |
 | 目标版本包含必须停机的迁移 | `./upgrade.sh --version <TAG> --confirm-maintenance` | [一键安装与更新](./deployment/one-click.md) |
 | 不想用脚本，自己写 Compose | 手动下载、迁移、启动 | [手动 Compose 部署](./deployment/manual.md) |
 | 只做备份、恢复、日志、重启 | `./deploy.sh --action ...` | [故障排查](./deployment/troubleshooting.md) |
@@ -106,6 +107,25 @@ PostgreSQL 和 Redis。只支持 Linux `amd64`/`arm64`，不支持 Windows。对
 ./sforum-bootstrap.sh upgrade --channel prerelease
 ./sforum-bootstrap.sh upgrade --yes
 ```
+
+### 每次重新获取官方工具链（可选）
+
+`./sforum-bootstrap.sh upgrade` 的自刷新由本地旧脚本发起。若要求本次使用的
+bootstrap 一定来自 GitHub，把仓库根目录的 `sforum-latest.sh` 放进安装目录：
+
+```sh
+curl -fsSLo sforum-latest.sh \
+  https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh
+chmod 0755 sforum-latest.sh
+./sforum-latest.sh --check   # 解析并校验目标 Release，报告本地 bootstrap 是否一致
+./sforum-latest.sh           # 未安装则 install，已安装则 upgrade
+```
+
+每次运行都会解析最新 Release、下载并校验该 Release 的 `sforum-bootstrap.sh`、
+把旧文件备份到 `.sforum/bootstrap-backups/`，然后才交给 install/upgrade。
+`--yes`、`--channel prerelease`、`--version <TAG>` 与 bootstrap 语义一致。
+这个脚本属于仓库工具，不随 Release 工具包分发，也不由 bootstrap 刷新。只有
+这一个包装器文件来自 `main`；bootstrap 与完整工具包仍来自 Release 资产。
 
 第一次接入 bootstrap 时，在现有安装目录从**最新稳定 Release 资产**下载并
 校验（不要使用 `main` 分支的浮动内容）：

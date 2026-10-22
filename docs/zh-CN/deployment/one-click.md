@@ -2,8 +2,9 @@
 
 [← 生产部署](../deployment.md)
 
-这页写透三个脚本：`sforum-bootstrap.sh`、`deploy.sh`、`upgrade.sh`。先看
-职责，再看执行链，最后看状态文件与失败语义。
+这页写透三个 Release 脚本：`sforum-bootstrap.sh`、`deploy.sh`、`upgrade.sh`，
+以及仓库侧可选的预取包装器 `sforum-latest.sh`。先看职责，再看执行链，最后看
+状态文件与失败语义。
 
 ## 交付物与职责
 
@@ -23,11 +24,16 @@
 | `deploy/router/Caddyfile.example` | 蓝绿入口 Caddy 示例 |
 | `VERSION` | 部署包所属的精确版本 |
 
+`sforum-latest.sh` 不属于 Release 交付物，也不由 bootstrap 刷新。它是仓库提供的
+可选包装器：每次先解析最新 Release 并校验该 Release 的 bootstrap，再交给它执行
+install/upgrade。
+
 调用关系：
 
 ```text
 sforum-bootstrap.sh install ──> deploy.sh --action deploy
 sforum-bootstrap.sh upgrade ──> upgrade.sh
+sforum-latest.sh            ──> sforum-bootstrap.sh upgrade
 ./deploy.sh                  ──> 交互菜单 / --action ...
 ```
 
@@ -189,6 +195,22 @@ https://github.com/zhuchunshu/SForum/releases/download/<TAG>/SHA256SUMS
 工具包，再移交本地 `upgrade.sh`。刷新不会修改 `.env.production`、
 `.deployrc`、`deploy/runtime/` 或数据卷。
 
+### 预取包装器：`sforum-latest.sh`（可选）
+
+`bootstrap upgrade` 的自刷新由本地旧脚本发起。预取包装器把联网解析和校验
+提前到任何本地脚本执行之前：
+
+1. 解析最新 Release。stable 从 `releases/latest` 的 302 `Location` 读取标签，
+   不消耗 GitHub API 配额；预发布走 `/releases` API。
+2. 下载该标签的 `sforum-bootstrap.sh` 与 `SHA256SUMS`，只校验该文件名的精确
+   条目；本机 `gh` 支持 `attestation` 时再做来源校验。
+3. 把旧 bootstrap 备份到 `.sforum/bootstrap-backups/`，再原子替换本地文件。
+4. 用固定标签执行 `sforum-bootstrap.sh install|upgrade --version <TAG>`。
+
+`--check` 只执行前两步，打印目标版本、SHA-256、本地文件是否一致与计划动作，
+适合在维护窗口前预检。脚本位于仓库根目录，不随 Release 分发；`--lang` 只在
+install 生效，`--bootstrap` 只在 upgrade 生效。
+
 ### 更新器：`upgrade.sh`
 
 1. 读 `.deployrc` 的当前版本。缺失或非法时，从运行中的 `api-blue` /
@@ -266,7 +288,9 @@ Worker，切换期间可能短暂同时消费队列；任务领取和重试由 R
 | `.deployrc`（失败） | `status=recovery_required`、`attempted_version`、`previous_version`、`reason`、`backup` |
 | `.deploy.lock` | `deploy.sh`/`upgrade.sh` 的部署锁 |
 | `.sforum-bootstrap.lock` | bootstrap 刷新工具包时的锁 |
+| `.sforum-latest.lock` | `sforum-latest.sh` 预取并替换本地 bootstrap 时的锁 |
 | `.sforum/tooling-backups/` | 被替换的受管工具文件备份 |
+| `.sforum/bootstrap-backups/` | 预取包装器替换前的 bootstrap 备份 |
 | `backups/` | PostgreSQL 备份，默认 `0600`；可用 `SFORUM_BACKUP_DIR` 改路径 |
 | `deploy/runtime/` | 蓝绿 Caddy 配置；不要手工编辑 |
 
