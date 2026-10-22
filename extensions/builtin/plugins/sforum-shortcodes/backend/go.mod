@@ -1,6 +1,6 @@
 module github.com/zhuchunshu/sforum/extensions/builtin/plugins/sforum-shortcodes/backend
 
-go 1.26.9
+go 1.26.10
 
 require (
 	github.com/zhuchunshu/sforum/apps/api v0.0.0
