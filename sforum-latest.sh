@@ -48,7 +48,7 @@ deploy.sh、upgrade.sh、compose 文件、deploy/scripts、Caddy 示例与 VERSI
   --yes, --defaults         跳过 bootstrap/upgrade 的确认（无人值守）
   --bootstrap               已安装目录首次做蓝绿入口转换（upgrade 专用）
   --lang zh|en              全新安装时的安装器语言（install 专用）
-  --allow-git               允许在 Git 检出目录里同步工具链（默认拒绝）
+  --allow-git               允许在 Git 检出目录里同步工具链（默认跳过）
   -h, --help                显示本帮助
 
 示例:
