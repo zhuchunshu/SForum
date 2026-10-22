@@ -70,16 +70,21 @@ func (s *PostgresStore) ReplaceRolePermissions(ctx context.Context, actorUserID 
 	}()
 
 	queries := s.queries.WithTx(tx)
-	role, err := queries.GetRoleByKey(ctx, roleKey)
-	if err != nil {
+	// 角色行是这份映射集合的唯一串行化根：IdentityRegistry 的插件权限审批在写
+	// role_permissions 之前也取同一行的 FOR NO KEY UPDATE。两边都先拿锁，全量替换
+	// 与增量审批才会排队，而不是让替换的 INSERT 撞上审批未提交的同主键行（23505）。
+	var roleID int64
+	if err := tx.QueryRow(ctx, `
+		SELECT id FROM roles WHERE key = $1 FOR NO KEY UPDATE
+	`, roleKey).Scan(&roleID); err != nil {
 		return fmt.Errorf("get role for permissions: %w", err)
 	}
-	if err := queries.DeleteRolePermissions(ctx, role.ID); err != nil {
+	if err := queries.DeleteRolePermissions(ctx, roleID); err != nil {
 		return fmt.Errorf("delete role permissions: %w", err)
 	}
 	for _, permission := range permissions {
 		if err := queries.AddRolePermission(ctx, store.AddRolePermissionParams{
-			RoleID:        role.ID,
+			RoleID:        roleID,
 			PermissionKey: permission,
 		}); err != nil {
 			return fmt.Errorf("add role permission %s: %w", permission, err)

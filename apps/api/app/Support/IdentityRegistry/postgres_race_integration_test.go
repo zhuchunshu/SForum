@@ -133,7 +133,11 @@ func replaceRolePermissionsForTest(
 	defer func() { _ = tx.Rollback(context.Background()) }()
 
 	var roleID int64
-	if err := tx.QueryRow(ctx, `SELECT id FROM roles WHERE key = $1`, roleKey).Scan(&roleID); err != nil {
+	// 与生产 ReplaceRolePermissions 同款：先锁角色行再改映射集合，审批路径持有
+	// 同一把锁，两者才会排队而不是撞 role_permissions 主键。
+	if err := tx.QueryRow(ctx, `
+		SELECT id FROM roles WHERE key = $1 FOR NO KEY UPDATE
+	`, roleKey).Scan(&roleID); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM role_permissions WHERE role_id = $1`, roleID); err != nil {
