@@ -8,7 +8,7 @@ import {
   type AdminNavigationFolderEntry
 } from '../../app/config/adminModules'
 
-const alwaysShowExtensionPageIds = ['/extensions', '/extensions/plugins', '/extensions/themes'] as const
+const alwaysShowExtensionPageIds = ['/extensions', '/extensions/install', '/extensions/plugins', '/extensions/themes'] as const
 const operationsPageIds = ['/database', '/jobs', '/schedules', '/webhooks'] as const
 const systemProfessionalPageIds = ['/settings/features', '/entity-meta'] as const
 

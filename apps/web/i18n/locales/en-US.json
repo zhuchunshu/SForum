@@ -944,6 +944,7 @@
       "attachments": "Attachment settings",
       "extensions": "Extensions",
       "extensionOverview": "Extension overview",
+      "extensionInstall": "Install extension",
       "extensionPlugins": "Plugin management",
       "extensionThemes": "Theme management",
       "extensionStore": "App store",
@@ -1183,6 +1184,70 @@
           "title": "Extensions",
           "description": "{count} installed"
         }
+      }
+    },
+    "extensionInstall": {
+      "title": "Install extension",
+      "intro": "Upload a ZIP or pull one from an HTTPS URL. Installation only stores the artifact; enabling and activation still happen on the plugin and theme pages.",
+      "toolbarHint": "Install stores the artifact; it does not execute extension code",
+      "openPlugins": "Plugin management",
+      "openThemes": "Theme management",
+      "upload": {
+        "title": "Upload ZIP",
+        "description": "Choose an extension package locally, or drag it into the drop zone.",
+        "dropTitle": "Drop a ZIP here",
+        "dropHint": "or click to choose a file · .zip only · up to {max}",
+        "remove": "Remove file",
+        "action": "Upload and install",
+        "uploading": "Uploading…",
+        "failed": "Extension upload failed.",
+        "errorType": "Choose a .zip extension package.",
+        "errorSize": "The extension package must not exceed {max}.",
+        "errorEmpty": "The package is empty or no file is selected."
+      },
+      "url": {
+        "title": "Install from URL",
+        "description": "Enter a public HTTPS URL that returns a ZIP directly; the server downloads and validates it.",
+        "label": "ZIP URL",
+        "placeholder": "https://example.com/extension.zip",
+        "hint": "HTTPS only. The URL must return the ZIP file directly, not a release page.",
+        "checksumLabel": "SHA-256 (optional)",
+        "checksumHint": "Paste the publisher's ZIP digest; the server verifies it before installing.",
+        "checksumPlaceholder": "64-character hexadecimal digest",
+        "action": "Download and install",
+        "fetching": "Downloading…",
+        "fetchingHint": "Large packages can take a while; keep this page open.",
+        "failed": "Extension download or installation failed.",
+        "errorEmpty": "Enter a ZIP URL.",
+        "errorLength": "The URL is too long (2048 characters max).",
+        "errorScheme": "Only HTTPS URLs are supported.",
+        "errorCredentials": "The URL must not contain a username or password.",
+        "errorInvalid": "Enter a valid URL.",
+        "errorChecksum": "SHA-256 must be 64 hexadecimal characters."
+      },
+      "result": {
+        "installed": "Installed",
+        "upgradeStaged": "Upgrade candidate saved",
+        "activationPending": "The current version keeps running until a trusted upgrade is confirmed.",
+        "extensionId": "Extension ID",
+        "source": "Source",
+        "sourceUpload": "Local upload · {file}",
+        "sourceUrl": "URL install · {host}",
+        "sourceUrlGeneric": "URL install",
+        "unknownSource": "Unknown source",
+        "packageDigest": "Artifact digest",
+        "copyDigest": "Copy digest",
+        "digestCopied": "Artifact digest copied.",
+        "digestCopyFailed": "Copy failed; select the digest manually.",
+        "checksumVerified": "SHA-256 verified",
+        "openManagement": "Open management",
+        "installAnother": "Install another",
+        "plugin": "Plugin",
+        "theme": "Theme"
+      },
+      "note": {
+        "title": "Installation does not enable the extension",
+        "body": "Uploading or pulling only stores the artifact. Plugin enabling, theme activation, and executable-code trust confirmation still happen on their own pages."
       }
     },
     "extensions": {

@@ -574,6 +574,13 @@ func canManageThemes(actor identity.Actor) bool {
 	return actor.Can(identity.PermissionExtensionThemeManage) || actor.Can(identity.PermissionExtensionManage)
 }
 
+// CanManageAnyArchive reports whether the actor may install a plugin or theme
+// archive. Transport callers use it before any outbound fetch so an actor
+// without install authority cannot trigger server-side network requests.
+func CanManageAnyArchive(actor identity.Actor) bool {
+	return canManagePlugins(actor) || canManageThemes(actor)
+}
+
 func (s *CatalogService) List(ctx context.Context, actor identity.Actor) ([]Extension, error) {
 	if !canViewExtensions(actor) {
 		return nil, identity.ErrPermissionDenied

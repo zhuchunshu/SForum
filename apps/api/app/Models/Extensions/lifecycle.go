@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -169,7 +170,7 @@ func (s *LifecycleService) InstallOrUpgradeArchive(ctx context.Context, actor id
 			Action:      EventUpgraded,
 			Message:     fmt.Sprintf("Staged upgrade from %s to %s; activation is pending.", previous.Version, candidateVersion),
 		})
-		s.appendAudit(ctx, actor, audit.ActionExtensionUpgraded, map[string]any{
+		upgradeMetadata := map[string]any{
 			"extensionId":          installed.ID,
 			"type":                 installed.Type,
 			"previousVersion":      previous.Version,
@@ -179,7 +180,9 @@ func (s *LifecycleService) InstallOrUpgradeArchive(ctx context.Context, actor id
 			"candidateAdminDigest": candidateAdminDigest,
 			"activationPending":    installed.StagedVersion != nil,
 			"trustRevoked":         false,
-		})
+		}
+		mergeArchiveSourceMetadata(upgradeMetadata, input)
+		s.appendAudit(ctx, actor, audit.ActionExtensionUpgraded, upgradeMetadata)
 	} else {
 		_, _ = s.store.CreateEvent(ctx, EventInput{
 			ExtensionID: installed.ID,
@@ -187,12 +190,40 @@ func (s *LifecycleService) InstallOrUpgradeArchive(ctx context.Context, actor id
 			Action:      EventInstalled,
 			Message:     "Extension archive installed.",
 		})
-		s.appendAudit(ctx, actor, audit.ActionExtensionInstalled, map[string]any{
+		installMetadata := map[string]any{
 			"extensionId": installed.ID,
 			"type":        installed.Type,
-		})
+		}
+		mergeArchiveSourceMetadata(installMetadata, input)
+		s.appendAudit(ctx, actor, audit.ActionExtensionInstalled, installMetadata)
 	}
 	return result, nil
+}
+
+// mergeArchiveSourceMetadata records provenance without letting signed URL
+// credentials or fragments reach the audit log. Install behavior never reads it.
+func mergeArchiveSourceMetadata(metadata map[string]any, input ArchiveInput) {
+	if source := sanitizeArchiveSourceURL(input.SourceURL); source != "" {
+		metadata["sourceUrl"] = source
+	}
+	if digest := strings.TrimSpace(input.SourceDigest); digest != "" {
+		metadata["sourceDigest"] = digest
+	}
+}
+
+func sanitizeArchiveSourceURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" {
+		return ""
+	}
+	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
 }
 
 // discardUnreferencedUploadedSnapshot runs while the per-digest lock is held.

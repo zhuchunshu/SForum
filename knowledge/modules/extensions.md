@@ -791,6 +791,17 @@ Prior partial evidence, not closure:
   extension authoring/CLI guides.
 - Uploaded packages are immutable snapshots under `EXTENSION_ROOT`; they are
   separate from public attachments.
+- The admin extension folder now exposes a dedicated **Install extension** page
+  (`/extensions/install`). It accepts a drag/drop or file-picked ZIP and an
+  HTTPS URL pull (`POST /admin/extensions/install-from-url`). URL installs use
+  the shared SSRF-safe outbound client: HTTPS only, public addresses only, no
+  userinfo, at most three redirects, a 90-second timeout, and the same 50 MB
+  archive ceiling as uploads. An optional `sha256` pins the downloaded ZIP
+  bytes and is checked before the package is stored. Authorization is evaluated
+  before the outbound request, and both install paths record `sourceUrl`
+  (userinfo/query/fragment stripped) plus `sourceDigest` in the install audit.
+  URL installs are inert exactly like uploads: no enable, activation, runtime
+  start, or trust grant.
 - `EXTERNAL_EXTENSION_ROOTS` accepts comma-separated collection roots whose
   children are `plugins/*` and `themes/*`. The API scans them after protected
   built-ins.

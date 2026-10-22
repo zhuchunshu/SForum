@@ -247,6 +247,15 @@ func (p *ExtensionsProvider) WithAdminSurfaces(
 	return p
 }
 
+// WithRemoteArchiveFetcher injects the HTTPS archive downloader used by the
+// install-from-url route. Omitted means that route fails closed.
+func (p *ExtensionsProvider) WithRemoteArchiveFetcher(fetcher extensionscontroller.ArchiveFetcher) *ExtensionsProvider {
+	if p != nil && p.controller != nil {
+		p.controller.WithRemoteArchiveFetcher(fetcher)
+	}
+	return p
+}
+
 type extensionRouteGateway struct {
 	runtime extensionRuntime
 	gateway *extensionsruntime.RouteGateway

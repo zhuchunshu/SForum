@@ -381,6 +381,16 @@ export type AdminExtension = {
   updatedAt: string
 }
 
+export type AdminExtensionInstallResult = {
+  extension: AdminExtension
+  upgraded: boolean
+  previousVersion?: string
+  previousDigest?: string
+  trustRevoked?: boolean
+  requiredReEnable?: boolean
+  activationPending?: boolean
+}
+
 export type AdminMissingArtifactCleanupResult = {
   removed: Array<{
     extensionId: string

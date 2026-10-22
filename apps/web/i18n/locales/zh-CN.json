@@ -990,6 +990,7 @@
       "attachments": "附件设置",
       "extensions": "扩展管理",
       "extensionOverview": "扩展总览",
+      "extensionInstall": "安装扩展",
       "extensionPlugins": "插件管理",
       "extensionThemes": "主题管理",
       "extensionStore": "应用商城",
@@ -1223,6 +1224,70 @@
           "title": "扩展管理",
           "description": "共 {count} 个扩展"
         }
+      }
+    },
+    "extensionInstall": {
+      "title": "安装扩展",
+      "intro": "上传 ZIP 包或从 HTTPS 链接拉取扩展。安装只会保存制品，启用与激活仍在插件、主题管理页完成。",
+      "toolbarHint": "安装只保存制品，不会立即执行扩展代码",
+      "openPlugins": "插件管理",
+      "openThemes": "主题管理",
+      "upload": {
+        "title": "上传 ZIP",
+        "description": "从本地选择扩展包，支持拖拽到下方区域。",
+        "dropTitle": "拖拽 ZIP 到这里",
+        "dropHint": "或点击选择文件 · 仅支持 .zip · 最大 {max}",
+        "remove": "移除文件",
+        "action": "上传并安装",
+        "uploading": "正在上传…",
+        "failed": "扩展上传失败。",
+        "errorType": "请选择 .zip 扩展包。",
+        "errorSize": "扩展包不能超过 {max}。",
+        "errorEmpty": "扩展包为空或未选择文件。"
+      },
+      "url": {
+        "title": "从链接安装",
+        "description": "填写可直接下载 ZIP 的公网 HTTPS 链接，由服务器拉取并校验。",
+        "label": "ZIP 链接",
+        "placeholder": "https://example.com/extension.zip",
+        "hint": "仅支持 https；链接必须直接返回 ZIP 文件，不能是 Release 页面。",
+        "checksumLabel": "SHA-256（可选）",
+        "checksumHint": "填写发布方提供的 ZIP 文件摘要；服务器会在安装前校验。",
+        "checksumPlaceholder": "64 位十六进制摘要",
+        "action": "拉取并安装",
+        "fetching": "正在下载…",
+        "fetchingHint": "下载大文件可能需要几十秒，请保持页面打开。",
+        "failed": "扩展下载或安装失败。",
+        "errorEmpty": "请填写 ZIP 链接。",
+        "errorLength": "链接过长（最多 2048 字符）。",
+        "errorScheme": "仅支持 https 链接。",
+        "errorCredentials": "链接不能包含用户名或密码。",
+        "errorInvalid": "请输入有效的链接。",
+        "errorChecksum": "SHA-256 必须是 64 位十六进制字符。"
+      },
+      "result": {
+        "installed": "安装完成",
+        "upgradeStaged": "升级候选已保存",
+        "activationPending": "当前版本继续运行；完成受信任升级确认后才会激活。",
+        "extensionId": "扩展 ID",
+        "source": "来源",
+        "sourceUpload": "本地上传 · {file}",
+        "sourceUrl": "链接安装 · {host}",
+        "sourceUrlGeneric": "链接安装",
+        "unknownSource": "未知来源",
+        "packageDigest": "制品摘要",
+        "copyDigest": "复制摘要",
+        "digestCopied": "制品摘要已复制。",
+        "digestCopyFailed": "复制失败，请手动选择摘要。",
+        "checksumVerified": "SHA-256 校验通过",
+        "openManagement": "打开管理页",
+        "installAnother": "继续安装",
+        "plugin": "插件",
+        "theme": "主题"
+      },
+      "note": {
+        "title": "安装后不会自动启用",
+        "body": "上传或拉取只会保存扩展制品；插件启用、主题激活和可执行代码信任确认仍在各自管理页完成。"
       }
     },
     "extensions": {

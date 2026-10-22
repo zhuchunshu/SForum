@@ -549,6 +549,7 @@ func TestProductionExtensionsMutationGuardPartitionsCatalogByProvablePolicy(t *t
 		"core.route.extensions.reset_route_provider":      {method: "POST", supported: true, permissions: superAdmin},
 
 		"core.route.extensions.install":                 {method: "POST"},
+		"core.route.extensions.install_from_url":        {method: "POST"},
 		"core.route.extensions.uninstall":               {method: "DELETE"},
 		"core.route.extensions.enable":                  {method: "POST"},
 		"core.route.extensions.restart":                 {method: "POST"},

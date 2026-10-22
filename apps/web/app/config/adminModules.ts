@@ -245,6 +245,14 @@ export const adminPageDefinitions = [
     permissionMode: 'any'
   },
   {
+    id: '/extensions/install',
+    labelKey: 'admin.nav.extensionInstall',
+    icon: 'i-lucide-upload',
+    componentName: 'AdminExtensionInstall',
+    requiredPermissions: ['extension.plugin.manage', 'extension.theme.manage'],
+    permissionMode: 'any'
+  },
+  {
     id: '/extensions/plugins',
     labelKey: 'admin.nav.extensionPlugins',
     icon: 'i-lucide-plug',
@@ -499,6 +507,7 @@ export const adminSidebarNavigation = [
       icon: 'i-lucide-blocks',
       children: [
         { type: 'page', pageId: '/extensions' },
+        { type: 'page', pageId: '/extensions/install' },
         { type: 'page', pageId: '/extensions/plugins' },
         { type: 'page', pageId: '/extensions/themes' },
         { type: 'page', pageId: '/extensions/pages' },

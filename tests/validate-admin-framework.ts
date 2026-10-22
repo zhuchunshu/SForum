@@ -69,6 +69,7 @@ for (const requiredPageId of [
   '/forum/tags',
   '/forum/settings',
   '/extensions',
+  '/extensions/install',
   '/extensions/plugins',
   '/extensions/themes',
   '/extensions/store/themes',
@@ -81,7 +82,7 @@ for (const requiredPageId of [
 assert(adminPageDefinitions.every(page => page.icon.startsWith('i-lucide-')), 'Admin page registry should use lucide icons')
 assert(adminPageDefinitions.find(page => page.id === '/permissions')?.permissionMode === 'any', 'Permission matrix should allow role.manage or user.manage')
 // 扩展相关页使用细粒度权限（view / plugin.manage / theme.manage），不再统一 extension.manage
-for (const extensionPageId of ['/extensions', '/extensions/plugins', '/extensions/themes', '/extensions/settings', '/extensions/events', '/extensions/store/themes', '/extensions/store/plugins']) {
+for (const extensionPageId of ['/extensions', '/extensions/install', '/extensions/plugins', '/extensions/themes', '/extensions/settings', '/extensions/events', '/extensions/store/themes', '/extensions/store/plugins']) {
   const perms = adminPageDefinitions.find(page => page.id === extensionPageId)?.requiredPermissions || []
   assert(
     perms.some(permission => permission.startsWith('extension.')),
@@ -185,6 +186,7 @@ const adminPagePathsById: Record<string, string> = {
   '/forum/settings': 'apps/web/app/pages/admin/forum/settings.vue',
   '/forum/content': 'apps/web/app/pages/admin/forum/content.vue',
   '/extensions': 'apps/web/app/pages/admin/extensions/index.vue',
+  '/extensions/install': 'apps/web/app/pages/admin/extensions/install.vue',
   '/extensions/plugins': 'apps/web/app/pages/admin/extensions/plugins.vue',
   '/extensions/themes': 'apps/web/app/pages/admin/extensions/themes.vue',
   '/extensions/store': 'apps/web/app/pages/admin/extensions/store/index.vue',
@@ -291,6 +293,7 @@ assert(adminModules.includes('i-lucide-server-cog'), 'Operations menu should use
 assert(adminModules.includes('admin.nav.extensions'), 'Admin modules should expose the extension manager menu')
 assert(adminModules.includes('i-lucide-blocks'), 'Extension manager menu should use the blocks icon')
 assert(adminModules.includes('admin.nav.extensionOverview'), 'Admin modules should expose extension overview submenu')
+assert(adminModules.includes('admin.nav.extensionInstall'), 'Admin modules should expose the extension install submenu')
 assert(adminModules.includes('admin.nav.extensionPlugins'), 'Admin modules should expose plugin manager submenu')
 assert(adminModules.includes('admin.nav.extensionThemes'), 'Admin modules should expose theme manager submenu')
 assert(adminModules.includes('admin.nav.extensionSettings'), 'Admin modules should expose extension settings submenu')
@@ -353,7 +356,7 @@ const extensionFolder = firstSidebarGroup.find(entry => entry.type === 'folder' 
 assert(extensionFolder, 'Admin sidebar should expose extensions as an independent folder')
 assert(
   extensionFolder.children?.map(entry => entry.pageId).join(',') ===
-    '/extensions,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-catalog,/extensions/query-catalog,/extensions/route-providers,/extensions/route-inspector,/extensions/cache-inspector,/extensions/asset-inspector,/extensions/template-inspector,/extensions/component-inspector,/extensions/navigation-inspector,/extensions/registry-catalogs,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
+    '/extensions,/extensions/install,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-catalog,/extensions/query-catalog,/extensions/route-providers,/extensions/route-inspector,/extensions/cache-inspector,/extensions/asset-inspector,/extensions/template-inspector,/extensions/component-inspector,/extensions/navigation-inspector,/extensions/registry-catalogs,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
   'Extension folder should keep the approved submenu order without the app store'
 )
 assert(!extensionFolder.children?.some(entry => entry.pageId === '/extensions/store'), 'App store should not live under the extensions folder')

@@ -221,6 +221,23 @@
     "exporter": false
   },
   {
+    "id": "core.admin.page.extensions_install",
+    "source": "apps/web/app/pages/admin/extensions/install.vue",
+    "navigation": true,
+    "dashboard": false,
+    "list": true,
+    "columns": false,
+    "filters": false,
+    "rowActions": false,
+    "bulkActions": false,
+    "forms": false,
+    "notices": false,
+    "editorPanels": false,
+    "detailRegions": false,
+    "importer": true,
+    "exporter": false
+  },
+  {
     "id": "core.admin.page.extensions_navigation_inspector",
     "source": "apps/web/app/pages/admin/extensions/navigation-inspector.vue",
     "navigation": true,

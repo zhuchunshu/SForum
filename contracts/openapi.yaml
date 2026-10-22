@@ -537,6 +537,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminSurfaceInvoke"
   "/admin/extensions":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensions"
+  "/admin/extensions/install-from-url":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionInstallFromURL"
   "/admin/extensions/missing-artifacts/uninstall":
     "$ref": "./openapi/paths/extensions.yaml#/adminMissingArtifactUninstall"
   "/admin/extensions/version-gc/candidates":

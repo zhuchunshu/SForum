@@ -746,6 +746,73 @@ adminExtensions:
           application/json:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+adminExtensionInstallFromURL:
+  post:
+    summary: Download and install or stage an extension ZIP from a URL
+    description: >-
+      Downloads a ZIP archive from a public HTTPS URL and stores it through the
+      same inert install path as a multipart upload. The Host rejects non-HTTPS
+      targets, userinfo, private/loopback/link-local/cloud-metadata addresses,
+      redirects to such addresses, responses that are not a ZIP archive, and
+      bodies above 50 MB. The outbound request uses a 90-second timeout and never
+      follows more than three redirects. An optional sha256 pins the exact ZIP
+      bytes; a mismatch aborts before the package is stored. Installation does
+      not enable, activate, or execute the extension. Plugin archives require
+      extension.plugin.manage; theme archives require extension.theme.manage.
+    operationId: installAdminExtensionFromURL
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            "$ref": "../schemas/extensions.yaml#/ExtensionRemoteInstallInput"
+    responses:
+      '201':
+        description: >-
+          Extension archive installed or saved as an upgrade candidate. data is
+          InstallResult (extension plus activationPending metadata).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionInstallResult"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '409':
+        description: Built-in/system extension cannot be overwritten (extension.not_deletable).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '413':
+        description: The downloaded ZIP exceeds the 50 MB archive ceiling.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '422':
+        description: >-
+          Invalid URL, malformed sha256, digest mismatch, non-ZIP response, or
+          invalid archive/manifest. Reasons include
+          extension.remote_url_invalid, extension.remote_digest_mismatch,
+          extension.archive_invalid, and extension.manifest_invalid.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '502':
+        description: The target could not be downloaded or did not return HTTP 200.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: URL installation is not wired in this deployment.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/common.yaml#/ApiErrorResponse"
 adminMissingArtifactUninstall:
   post:
     summary: Uninstall extensions whose exact artifact files are missing

@@ -11,6 +11,7 @@ import {
   type AdminContributionPointDefinition,
   type AdminEffectiveContribution,
   type AdminExtension,
+  type AdminExtensionInstallResult,
   type AdminExtensionEventDefinition,
   type AdminExtensionEventDelivery,
   type AdminExtensionEvent,
@@ -80,16 +81,6 @@ export const useAdminExtensionsManager = async () => {
 
   function openUpload() {
     fileInput.value?.click()
-  }
-
-  type AdminExtensionInstallResult = {
-    extension: AdminExtension
-    upgraded?: boolean
-    previousVersion?: string
-    previousDigest?: string
-    trustRevoked?: boolean
-    requiredReEnable?: boolean
-    activationPending?: boolean
   }
 
   async function uploadArchive(event: Event) {

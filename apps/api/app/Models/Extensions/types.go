@@ -14,6 +14,10 @@ const (
 	ManifestFileName = extensionmanifest.ManifestFileName
 	DefaultThemeID   = "sforum.default-theme"
 
+	// MaxArchiveBytes is the hard ceiling for a stored extension archive.
+	// URL downloads use the same ceiling so an oversize body fails before parsing.
+	MaxArchiveBytes = maxArchiveBytes
+
 	TypePlugin = extensionmanifest.TypePlugin
 	TypeTheme  = extensionmanifest.TypeTheme
 
@@ -622,6 +626,12 @@ type ExtensionEventDelivery struct {
 type ArchiveInput struct {
 	FileName string
 	Data     []byte
+	// SourceURL records where the archive came from. It is audit-only; install
+	// behavior never reads it.
+	SourceURL string
+	// SourceDigest is the SHA-256 of the archive bytes when the caller computed
+	// it. Audit-only, so operators can pin the exact download.
+	SourceDigest string
 }
 
 type SaveInstalledInput struct {

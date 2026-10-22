@@ -1801,6 +1801,25 @@ Extension:
     updatedAt:
       type: string
       format: date-time
+ExtensionRemoteInstallInput:
+  type: object
+  additionalProperties: false
+  required:
+  - url
+  properties:
+    url:
+      type: string
+      format: uri
+      maxLength: 2048
+      description: >-
+        Direct public HTTPS URL to a ZIP archive. Private, loopback, link-local,
+        and cloud-metadata addresses are rejected before the request.
+    sha256:
+      type: string
+      pattern: '^[A-Fa-f0-9]{64}$'
+      description: >-
+        Optional SHA-256 of the downloaded ZIP bytes (not the extracted package
+        tree digest). A mismatch aborts before installation.
 ExtensionInstallResult:
   type: object
   required:

@@ -17,6 +17,7 @@
 | `core.admin.page.extensions_contributions` | `apps/web/app/pages/admin/extensions/contributions.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_events` | `apps/web/app/pages/admin/extensions/events.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions` | `apps/web/app/pages/admin/extensions/index.vue` | yes | no | yes | no | yes | yes | no | yes | yes | no | yes | yes | no |
+| `core.admin.page.extensions_install` | `apps/web/app/pages/admin/extensions/install.vue` | yes | no | yes | no | no | no | no | no | no | no | no | yes | no |
 | `core.admin.page.extensions_navigation_inspector` | `apps/web/app/pages/admin/extensions/navigation-inspector.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_pages` | `apps/web/app/pages/admin/extensions/pages.vue` | yes | no | yes | no | no | yes | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_plugins` | `apps/web/app/pages/admin/extensions/plugins.vue` | yes | no | yes | no | yes | yes | no | yes | yes | no | no | yes | no |

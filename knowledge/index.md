@@ -468,6 +468,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **后台安装扩展页 + 链接安装（2026-10-23，最新）**：扩展管理新增
+  `/extensions/install`，支持拖拽 ZIP 与 HTTPS 链接拉取；新增
+  `POST /admin/extensions/install-from-url`（SSRF 安全、仅 https、50MB、90s、
+  可选 SHA-256），安装仍为惰性制品，启用/激活/信任确认不变。详见
+  `sessions/2026-10-23-admin-extension-install-page.md` 与
+  `decisions/2026-10-23-admin-extension-url-install.md`。
 - **全量测试提速（2026-10-23，最新）**：`./scripts/test.sh` 从 21:31 降到 7:24（冷）/
   6:14（热），`--fast` 0:41。Go 并行改成集群级分片（`SFORUM_TEST_SHARDS`，片内 `-p 1`），
   因为 `-p>1` 在单个 database 上实测四类跨包竞态；compat 农场并入 `--with-compat`；

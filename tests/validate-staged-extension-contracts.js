@@ -59,7 +59,7 @@ assert(types.includes('stagedVersion?: AdminExtensionVersion'), 'AdminExtension 
 const manager = read('apps/web/app/composables/admin/useAdminExtensionsManager.ts')
 const upgradeFlow = read('apps/web/app/composables/admin/useAdminExtensionUpgradeFlow.ts')
 const lifecyclePresentation = read('apps/web/app/utils/admin/extensions/lifecyclePresentation.ts')
-assert(manager.includes('activationPending?: boolean'), 'upload result type must expose activationPending')
+assert(types.includes('activationPending?: boolean'), 'upload result type must expose activationPending')
 assert(manager.includes("t('admin.extensions.upgradeStagedHint')"), 'staged upload toast must explain pending activation')
 assert(manager.includes("headers: { 'Idempotency-Key': idempotencyKey }"), 'lifecycle requests must send Idempotency-Key')
 assert(manager.includes('globalThis.crypto.randomUUID()'), 'each lifecycle operation must use a UUID idempotency key')

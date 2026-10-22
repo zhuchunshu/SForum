@@ -28,7 +28,7 @@ import (
 	routes "github.com/zhuchunshu/sforum/apps/api/app/Support/Routes"
 )
 
-const maxUploadedArchiveBytes = 60 * 1024 * 1024
+const maxUploadedArchiveBytes = extensions.MaxArchiveBytes
 
 const (
 	PublicFrontendHeaderExtensionID      = "X-SForum-Public-Extension-ID"
@@ -81,6 +81,10 @@ type Controller struct {
 	devTrustSessions DevTrustSessionService
 	// versionGC 是版本 GC 管理端入口的读写边界（阶段 5）；nil 时路由 fail-closed。
 	versionGC VersionGCManagementService
+	// remoteArchives 为 nil 时链接安装路由 fail-closed（503）。
+	remoteArchives ArchiveFetcher
+	// installer 与 service 同源；测试可注入 fake 以验证编排顺序。
+	installer archiveInstaller
 }
 
 type TrustedFrontendService interface {
@@ -125,7 +129,14 @@ func NewController(service *extensions.Service, users identity.ActorStore, sessi
 }
 
 func NewControllerWithGateway(service *extensions.Service, users identity.ActorStore, sessions *authsession.Manager, gateway RouteGateway) *Controller {
-	return &Controller{service: service, users: users, sessions: sessions, gateway: gateway}
+	return &Controller{service: service, users: users, sessions: sessions, gateway: gateway, installer: service}
+}
+
+// WithRemoteArchiveFetcher injects the outbound archive downloader. Without it
+// the install-from-url route fails closed.
+func (h *Controller) WithRemoteArchiveFetcher(fetcher ArchiveFetcher) *Controller {
+	h.remoteArchives = fetcher
+	return h
 }
 
 func (h *Controller) WithTrustedRuntime(frontend TrustedFrontendService) *Controller {
@@ -336,8 +347,9 @@ func (h *Controller) install(c fiber.Ctx) error {
 		return err
 	}
 	result, err := h.service.InstallOrUpgradeArchive(c.Context(), actor, extensions.ArchiveInput{
-		FileName: fileHeader.Filename,
-		Data:     data,
+		FileName:     fileHeader.Filename,
+		Data:         data,
+		SourceDigest: archiveSourceDigest(data),
 	})
 	if err != nil {
 		return mapExtensionError(err)
@@ -783,6 +795,9 @@ func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, bool, error) {
 }
 
 func mapExtensionError(err error) error {
+	if mapped := mapRemoteInstallError(err); mapped != nil {
+		return mapped
+	}
 	if mapped := mapLifecycleInspectionError(err); mapped != nil {
 		return mapped
 	}

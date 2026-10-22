@@ -220,6 +220,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_extension_install_panel",
+    "contractVersion": "sforum.component.admin.sfadmin_extension_install_panel@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/extensions/SFAdminExtensionInstallPanel.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_extension_lifecycle_dialog",
     "contractVersion": "sforum.component.admin.sfadmin_extension_lifecycle_dialog@1",
     "kind": "component",
@@ -1158,6 +1168,17 @@
     "kind": "page",
     "route": "/admin/extensions/:extensionId/pages/:pagePath*",
     "source": "apps/web/app/pages/admin/extensions/[extensionId]/pages/[...pagePath].vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7 Admin Surface Registry"
+  },
+  {
+    "id": "core.component.page.admin.extensions.install",
+    "contractVersion": "sforum.component.page.admin.extensions.install@1",
+    "kind": "page",
+    "route": "/admin/extensions/install",
+    "source": "apps/web/app/pages/admin/extensions/install.vue",
     "owners": [
       "admin"
     ],

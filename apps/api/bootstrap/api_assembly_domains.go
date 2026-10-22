@@ -35,6 +35,7 @@ import (
 	contentregistry "github.com/zhuchunshu/sforum/apps/api/app/Support/ContentRegistry"
 	devhygiene "github.com/zhuchunshu/sforum/apps/api/app/Support/DevHygiene"
 	appevents "github.com/zhuchunshu/sforum/apps/api/app/Support/Events"
+	extensiondownload "github.com/zhuchunshu/sforum/apps/api/app/Support/ExtensionDownload"
 	extensionsruntime "github.com/zhuchunshu/sforum/apps/api/app/Support/Extensions"
 	health "github.com/zhuchunshu/sforum/apps/api/app/Support/Health"
 	hostapi "github.com/zhuchunshu/sforum/apps/api/app/Support/HostAPI"
@@ -447,7 +448,11 @@ func wireAPIDomainServices(ctx context.Context, cfg config.Config, logger *slog.
 		WithEntityRegistry(lifecycleStack.EntityRegistry).
 		WithContentRegistry(lifecycleStack.ContentRegistry).
 		WithMediaRegistry(lifecycleStack.MediaRegistry).
-		WithAdminSurfaces(extensionRuntime, auditWriter)
+		WithAdminSurfaces(extensionRuntime, auditWriter).
+		WithRemoteArchiveFetcher(extensiondownload.New(extensiondownload.Options{
+			MaxBytes: extensions.MaxArchiveBytes,
+			Timeout:  90 * time.Second,
+		}))
 	// 开发期信任会话：仅 development 环境注入；生产装配 devTrustSessions 为 nil，
 	// 对应路由 fail-closed，与 DevHygiene reaper 使用同一环境谓词。
 	if devhygiene.ShouldEnableDevelopmentOrphanReaper(cfg.AppEnv) {

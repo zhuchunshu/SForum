@@ -46,6 +46,7 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/admin/extensions/provider-slots/selection/reset", h.resetProviderSlot)
 	api.Post("/admin/extensions/provider-slots/probe", h.probeProviderSlot)
 	api.Post("/admin/extensions", h.install)
+	api.Post("/admin/extensions/install-from-url", h.installFromURL)
 	api.Post("/admin/extensions/missing-artifacts/uninstall", h.cleanupMissingArtifacts)
 	// 版本 GC（阶段 5）：静态段必须在带 :id 的 extension 路由之前注册。
 	// GET 走 extensions read 粗门 + 服务层 super_admin 权威策略；
