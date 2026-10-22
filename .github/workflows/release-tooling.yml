@@ -9,6 +9,9 @@ on:
       - deploy/**
       - tests/validate-docs_test.sh
       - tests/validate-builtin-plugin-versions.mjs
+      - tests/validate-sforum-latest.sh
+      - sforum-latest.sh
+      - sforum-latest.sh.sha256
   push:
     branches:
       - main
@@ -19,6 +22,9 @@ on:
       - deploy/**
       - tests/validate-docs_test.sh
       - tests/validate-builtin-plugin-versions.mjs
+      - tests/validate-sforum-latest.sh
+      - sforum-latest.sh
+      - sforum-latest.sh.sha256
 
 permissions:
   contents: read
