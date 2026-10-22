@@ -12,6 +12,9 @@ services:
       APP_LOCALE: ${APP_LOCALE:-zh-CN}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-zh-CN,en-US}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # migrate 也会走 config.Load：生产态要求 EXTENSION_ROOT 是绝对路径，
+      # 缺省会 panic 在启动前（发布冒烟的 migrate 步骤就是这么挂的）。
+      EXTENSION_ROOT: ${EXTENSION_ROOT:-/var/lib/sforum/extensions}
       DATABASE_URL: ${DATABASE_URL:-postgres://sforum:change-me@postgres:5432/sforum?sslmode=disable}
       SESSION_HASH_SECRET: ${SESSION_HASH_SECRET:?SESSION_HASH_SECRET is required in production}
       IDENTITY_SUBJECT_HMAC_SECRET: ${IDENTITY_SUBJECT_HMAC_SECRET:?IDENTITY_SUBJECT_HMAC_SECRET is required in production}
