@@ -86,7 +86,6 @@ for (const obsolete of ['layout: false', 'sforum-home__topbar', '<SFFooter', 'to
 for (const token of [
   '<SFHomeNavigation',
   '<SFHomeTopicRow',
-  '<SFPagination',
   'sforum-home__layout--with-right',
   'useActiveThemeSettings',
   'rightRailEnabled',
@@ -94,13 +93,23 @@ for (const token of [
   'buildForumHomeQuery',
   'forumHomeFeedKey',
   'parsePublicPage',
-  'publicPageLocation',
   'IntersectionObserver',
   'hotTopics'
 ]) {
   if (!homeIsland.includes(token)) {
     throw new Error(`SFHomePage.vue is missing the hybrid homepage contract: ${token}`)
   }
+}
+
+// 信息流是纯追加模型（knowledge/decisions/2026-10-23-public-feed-loading-model.md）：
+// 底部状态区是唯一的加载入口，页码控件不得回到 feed 岛。
+for (const removed of ['SFPagination', 'homePageTo', 'sforum-home__pagination']) {
+  if (homeIsland.includes(removed)) {
+    throw new Error(`SFHomePage.vue must keep the feed append-only; pager token returned: ${removed}`)
+  }
+}
+if (!homeIsland.includes('aria-live="polite"')) {
+  throw new Error('SFHomePage.vue must expose the bottom feed status region to assistive tech')
 }
 
 // 主题 L1 壳：presentation 归属 + chrome 岛 + body 岛挂载点。
