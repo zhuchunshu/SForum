@@ -154,7 +154,7 @@ parse_args() {
 
 detect_action() {
   if [ -f "$ROOT_DIR/.env.production" ]; then
-    if [ -f "$ROOT_DIR/.deployrc" ] && grep -Eq '^version=v?[0-9]' "$ROOT_DIR/.deployrc"; then
+    if [ -f "$ROOT_DIR/.deployrc" ] && grep -Eq '^version=v[0-9]+\.[0-9]+\.[0-9]+' "$ROOT_DIR/.deployrc"; then
       ACTION=upgrade
     else
       ACTION=repair
