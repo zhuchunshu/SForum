@@ -237,6 +237,7 @@
       "loadingMore": "Loading more discussions...",
       "loadMoreFailed": "Failed to load more discussions.",
       "retryLoadMore": "Retry",
+      "loadMore": "Load more discussions",
       "end": "You are all caught up",
       "topicColumn": "Topic",
       "authorColumn": "Author",

@@ -183,12 +183,14 @@ const isLoadingMore = ref(false)
 const loadMoreError = ref('')
 const loadMoreTrigger = ref<HTMLElement | null>(null)
 const hasLoadedAllPages = ref(false)
+// 没有 IntersectionObserver 时退化为手动「加载更多」：信息流已无页码控件，
+// 不能再让这类环境彻底无法翻页。
+const canAutoLoad = ref(true)
 
 const categories = computed(() => categoryGroups.value.flatMap((group) => group.categories || []))
 // 列表顺序完全由服务端排序决定（latest / active / hot）：本地重排只能作用于已加载页，
 // 还会破坏置顶优先与 cursor 续页语义，因此前端不做二次排序。
 const topics = computed(() => loadedTopics.value)
-const totalPages = computed(() => Math.ceil(loadedTopicTotal.value / Math.max(topicList.value.perPage, 1)) || 1)
 // hasMore 优先 API 字段 / nextCursor；否则用 total 近似（兼容旧响应）
 const hasMoreTopics = computed(() => {
   if (hasLoadedAllPages.value) {
@@ -400,10 +402,6 @@ function commitFilters(nextFilters: ForumHomeFilters) {
   })
 }
 
-function homePageTo(page: number) {
-  return publicPageLocation(surfacePath.value, page, buildForumHomeQuery(committedFilters.value))
-}
-
 watch(() => committedFilters.value.query, (query) => {
   clearSearchDebounce()
   if (searchDraft.value !== query) {
@@ -512,6 +510,7 @@ function topicActivity(topic: ForumTopicSummary) {
 
 onMounted(() => {
   if (typeof IntersectionObserver === 'undefined') {
+    canAutoLoad.value = false
     return
   }
 
@@ -732,18 +731,12 @@ onBeforeUnmount(() => {
 
         <SFRegionOutlet :page="registryPage" region="list_after" />
 
-        <div v-if="topics.length > 0 && !topicsPending && totalPages > 1" class="sforum-home__pagination">
-          <SFPagination
-            :page="currentPage"
-            :total-pages="totalPages"
-            :page-to="homePageTo"
-          />
-        </div>
-
         <div
           v-if="topics.length > 0 && !topicsPending && !topicsError"
           ref="loadMoreTrigger"
           class="sforum-home__infinite-state"
+          role="status"
+          aria-live="polite"
         >
           <span v-if="isLoadingMore">{{ t('home.feed.loadingMore') }}</span>
           <template v-else-if="loadMoreError">
@@ -754,6 +747,15 @@ onBeforeUnmount(() => {
             </button>
           </template>
           <span v-else-if="!hasMoreTopics">{{ t('home.feed.end') }}</span>
+          <button
+            v-else-if="!canAutoLoad"
+            type="button"
+            class="sf-button sf-button--ghost sf-button--sm"
+            @click="loadMoreTopics()"
+          >
+            <UIcon name="i-lucide-chevron-down" class="size-4" aria-hidden="true" />
+            {{ t('home.feed.loadMore') }}
+          </button>
           <span v-else class="sforum-home__sentinel" aria-hidden="true" />
         </div>
 

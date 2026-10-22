@@ -359,11 +359,7 @@
   text-transform: uppercase;
 }
 
-.sforum-home__pagination {
-  display: none;
-  justify-content: center;
-  padding-top: 16px;
-}
+/* 信息流没有页码控件：翻页只由底部自动加载状态承担。 */
 
 /* 分类/标签页独立面板：完整边框 */
 

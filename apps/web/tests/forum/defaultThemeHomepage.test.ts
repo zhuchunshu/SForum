@@ -267,6 +267,9 @@ describe('default theme V32 left-nav homepage contract', () => {
 
     expect(categoryPage).toContain('sforum-home__main sforum-content-column')
     expect(categoryPage).toContain('SFContentColumnFooter')
+    // 归档页保留页码：它们没有自动加载，需要「跳到第 N 页」的稳定定位。
+    expect(categoryPage).toContain('SFPagination')
+    expect(tagPage).toContain('SFPagination')
 
     // 标签详情页已对齐索引页三栏壳与右栏
     expect(tagPage).toContain('sforum-home__layout--with-right')
@@ -326,7 +329,14 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(page).toContain('hasReachedForumHomeEnd')
     expect(page).toContain('IntersectionObserver')
     expect(page).toContain('parsePublicPage(route.query.page)')
-    expect(page).toContain(':page-to="homePageTo"')
+    // 信息流不再渲染页码：自动加载是唯一翻页入口。主题 CSS 里的
+    // display:flex 曾让页码意外可见，组件移除后该规则不再有匹配元素。
+    expect(page).not.toContain('SFPagination')
+    expect(page).not.toContain('homePageTo')
+    expect(page).not.toContain('sforum-home__pagination')
+    expect(page).toContain('aria-live="polite"')
+    expect(page).toContain('canAutoLoad')
+    expect(page).toContain("t('home.feed.loadMore')")
     expect(page).toContain('feedGeneration')
     expect(feedReset).toContain('feedGeneration += 1')
     expect(page).toContain('existingIds')
@@ -358,6 +368,8 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(css).toContain('white-space: normal !important;')
     expect(css).toContain('width: 100%')
     expect(css).not.toContain('sforum-home__hero')
+    // 信息流无页码：宿主样式不再保留隐藏规则，避免与主题皮肤再次互相覆盖。
+    expect(css).not.toContain('.sforum-home__pagination')
     expect(theme).toContain('--sf-public-sidebar-width')
     expect(theme).toContain('--sf-public-right-rail-width')
     expect(theme).toContain('--sf-public-bg: #ffffff')

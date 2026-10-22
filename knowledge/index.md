@@ -482,6 +482,12 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **公共信息流去掉页码（2026-10-23，最新）**：首页/搜索只保留自动加载，移除
+  `<SFPagination>`、`totalPages`、`homePageTo` 与 core 的 `.sforum-home__pagination`
+  隐藏规则；根因是主题 `display:flex` 覆盖 core `display:none` 让页码意外可见。
+  分类/标签/评论/审核台/后台分页不变，`?page=N` 仍是深链锚点。详见
+  `sessions/2026-10-23-public-feed-pager-removal.md` 与
+  `decisions/2026-10-23-public-feed-loading-model.md`。
 - **后台安装扩展页 + 链接安装（2026-10-23，最新）**：扩展管理新增
   `/extensions/install`，支持拖拽 ZIP 与 HTTPS 链接拉取；新增
   `POST /admin/extensions/install-from-url`（SSRF 安全、仅 https、50MB、90s、
