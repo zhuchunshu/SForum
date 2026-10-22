@@ -83,8 +83,7 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	frontendService := extensions.NewFrontendService(extensionStore, frontendTrustStore).
 		WithAuditor(auditWriter).
 		WithSafeMode(cfg.SafeMode).
-		WithExecutableTrust(executableTrustService, cfg.V3TrustChallenges).
-		WithPublicL2(cfg.V3PublicL2)
+		WithExecutableTrust(executableTrustService, cfg.V3TrustChallenges)
 	// Page Registry：运行时主题 L0/L1，主题激活不重建 Nuxt、不写 current.json。
 	pageRegistryStore := pages.NewPostgresStore(pool)
 	pageRegistry := pages.NewRegistry(pageRegistryStore)

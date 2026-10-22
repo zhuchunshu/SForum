@@ -33,7 +33,6 @@ services:
       MARKETPLACE_ED25519_PUBLIC_KEY_HEX: ${MARKETPLACE_ED25519_PUBLIC_KEY_HEX:?MARKETPLACE_ED25519_PUBLIC_KEY_HEX is required in production}
       MARKETPLACE_ED25519_KEY_ID: ${MARKETPLACE_ED25519_KEY_ID:-marketplace-primary}
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-true}
-      SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}
     restart: unless-stopped
     ports:
       # Host reverse proxies use this loopback-only ingress for WebSocket

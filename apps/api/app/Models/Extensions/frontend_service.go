@@ -34,6 +34,8 @@ type PublicComponentAdmission interface {
 	AdmitPublicComponent(Extension, ManifestComponent) bool
 }
 
+// FrontendService 管理管理端与公开前端的信任、挑战与精确制品发布。
+// 公开 L2 没有独立开关：Safe Mode 与 exact-artifact trust 是仅有的两条关闭路径。
 type FrontendService struct {
 	extensions        FrontendExtensionReader
 	trust             FrontendTrustStore
@@ -43,7 +45,6 @@ type FrontendService struct {
 	challenges        map[string]frontendTrustChallengeState
 	mu                sync.Mutex
 	safeMode          bool
-	publicL2          bool
 	publicAssets      *assetregistry.Registry
 	publicComponents  PublicComponentAdmission
 }
@@ -69,13 +70,6 @@ func (s *FrontendService) WithAuditor(writer audit.Writer) *FrontendService {
 
 func (s *FrontendService) WithSafeMode(enabled bool) *FrontendService {
 	s.safeMode = enabled
-	return s
-}
-
-// WithPublicL2 is a Host migration gate. Safe Mode and exact-artifact trust
-// remain authoritative even when this gate is enabled.
-func (s *FrontendService) WithPublicL2(enabled bool) *FrontendService {
-	s.publicL2 = enabled
 	return s
 }
 

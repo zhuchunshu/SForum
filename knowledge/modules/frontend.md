@@ -639,9 +639,12 @@ Plan: `../plans/2026-07-22-theme-defined-system-error-pages.md`
   extend Nuxt or replace the deployment artifact.
 - Stable Page Registry IDs select page providers and ViewModel contracts.
 - L0 supplies CSS/tokens/fonts/images/locales. L1 supplies reviewed
-  server-rendered templates. Trusted author-prebuilt L2 is optional,
-  digest-authorized, contract-bound, and production-default off through
-  `SFORUM_V3_PUBLIC_L2`.
+  server-rendered templates. Trusted author-prebuilt L2 is digest-authorized and
+  contract-bound, and it is **always enabled**: `SFORUM_V3_PUBLIC_L2` was removed
+  (2026-10-23), so only Safe Mode and exact-artifact trust can close it. The
+  trust gate is also the mechanism that validates the artifact, so
+  `SFORUM_V3_TRUST_CHALLENGES=false` closes public L2 instance-wide; that is the
+  non-production default in `.env.example` and `compose.yaml`.
 - Public body content, metadata, canonical links, structured data, links, and
   pagination must be complete in initial HTML without L2 or hydration.
 - Dynamic add routes enter through `pages/[...sfRegistryPage].vue` and

@@ -298,7 +298,7 @@ func (s *FrontendService) buildPublicAssetPublications(
 
 func (s *FrontendService) publicRuntimeGates(ctx context.Context, extensionID string) error {
 	extensionID = normalizeID(extensionID)
-	if s == nil || ctx == nil || !s.publicL2 || s.safeMode || !s.v3TrustChallenges ||
+	if s == nil || ctx == nil || s.safeMode || !s.v3TrustChallenges ||
 		s.extensions == nil || s.executableTrust == nil || s.publicAssets == nil || extensionID == "" {
 		return ErrPublicFrontendUnavailable
 	}

@@ -37,6 +37,8 @@ describe('public asset cross-origin policy', () => {
       expect(config).toContain('Access-Control-Allow-Origin "*"')
       expect(config).toContain('Cross-Origin-Resource-Policy "cross-origin"')
       expect(config).toContain('/_nuxt/* /_sforum/*')
+      // Caddy 默认在反代之前写头，上游的 same-origin 会再追加一份；defer 才会覆盖。
+      expect(config).toContain('defer')
     }
   })
 })

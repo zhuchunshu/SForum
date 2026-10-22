@@ -21,7 +21,7 @@ export async function fetchPublicPagePolicy(
     })
     return parsePublicFrontendPolicy(raw)
   } catch {
-    // public L2 默认关闭或制品/信任不可用时，调用方应对 L2 失败关闭。
+    // 制品/信任不可用或 Safe Mode 生效时，调用方应对 L2 失败关闭。
     return null
   }
 }

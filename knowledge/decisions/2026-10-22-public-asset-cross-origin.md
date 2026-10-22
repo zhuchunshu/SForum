@@ -43,7 +43,10 @@ Accepted (2026-10-22)
    按 no-cors 加载（opaque 响应自动跳过 SRI），而不是整块样式被 CORS 拒载。
 3. **ingress 冗余**：legacy `deploy/caddy/Caddyfile`、`upgrade.sh` 生成器与
    `deploy/router/Caddyfile.example` 都写同名头，作为"中间层抹头"的兜底，不作为
-   唯一依赖。
+   唯一依赖。**Caddy 的 `header` 必须带 `defer`**：默认在反代之前写头，上游的
+   `same-origin` 会再追加一份，实测响应里同时出现 `cross-origin` 与 `same-origin`
+   两个 CORP 值；加 `defer` 后只剩一个 `cross-origin`（caddy:2.10.2-alpine 实测）。
+   路径匹配器 `/_nuxt/* /_sforum/*` 会跨 `/` 匹配深层路径，无需 `**`。
 4. **错误页动作一律是真链接**：`SFButton` 支持 `href`，`useErrorPageActions()`
    同时给出 href 与事件；有 JS 走 SPA 恢复，无 JS 由浏览器导航。
 

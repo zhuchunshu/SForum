@@ -85,8 +85,6 @@ type Config struct {
 	MarketplaceEd25519KeyID string
 	// V3TrustChallenges 在生产默认开启；非生产仍可显式开启以验证迁移流程。
 	V3TrustChallenges bool
-	// V3PublicL2 允许浏览器加载已授权精确制品中的预构建公开 ESM；Safe Mode 始终覆盖此开关。
-	V3PublicL2        bool
 	TrustChallengeTTL time.Duration
 	// Meilisearch 已拆为可选 search.provider 插件；core 不再读取 MEILI_*。
 	LimiterWriteMax int
@@ -223,7 +221,6 @@ func Load() Config {
 		MarketplaceEd25519PublicKeyHex: env("MARKETPLACE_ED25519_PUBLIC_KEY_HEX", ""),
 		MarketplaceEd25519KeyID:        env("MARKETPLACE_ED25519_KEY_ID", "marketplace-primary"),
 		V3TrustChallenges:              envBool("SFORUM_V3_TRUST_CHALLENGES", isProd),
-		V3PublicL2:                     envBool("SFORUM_V3_PUBLIC_L2", false),
 		TrustChallengeTTL:              envDuration("SFORUM_V3_TRUST_CHALLENGE_TTL", 5*time.Minute),
 		LimiterWriteMax:                envPositiveInt("LIMITER_WRITE_MAX", 30),
 		LimiterWindow:                  envDuration("LIMITER_WINDOW", time.Minute),

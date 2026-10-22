@@ -140,10 +140,18 @@ API 始终内嵌 River Worker，没有独立 Worker 开关。
 | `EXTERNAL_EXTENSION_ROOTS` | 空 | 可选，逗号分隔的容器内路径；需配套只读 volume |
 | `SFORUM_V3_TRUST_CHALLENGES` | `true` | 启用精确制品信任确认 |
 | `SFORUM_V3_TRUST_CHALLENGE_TTL` | `5m` | 信任确认有效期 |
-| `SFORUM_V3_PUBLIC_L2` | `false` | 是否允许公开 L2 组件 |
 | `SFORUM_SAFE_MODE` | 空（等价 `false`） | 设为 `true` 并重启 API 可跳过插件启动；恢复后改回 |
 
 `EXTERNAL_EXTENSION_ROOTS` 必须是容器内路径，不能写宿主机路径。
+
+公开 L2（`components[].l2Component` 与内容区样式）**没有独立开关**，恒为启用：
+只要扩展已启用并通过精确制品信任确认，其预构建 ESM/CSS 就会进入浏览器。
+旧版本中的 `SFORUM_V3_PUBLIC_L2` 已移除，继续设置它不会产生任何效果。
+
+它建立在精确制品信任之上：`SFORUM_V3_TRUST_CHALLENGES=false` 会让公开 L2 整体关闭
+（`.env.example` 与 `compose.yaml` 的非生产默认值就是 `false`，生产默认 `true`）。
+只想关闭某个扩展时，禁用该扩展或撤销其精确制品信任；需要整体关闭时使用
+`SFORUM_SAFE_MODE=true`。
 
 ## 会话、身份与加密
 

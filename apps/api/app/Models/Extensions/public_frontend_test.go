@@ -56,6 +56,22 @@ func TestPublicL2EntryAssetContractTracksComponentMajor(t *testing.T) {
 	}
 }
 
+// 公开 L2 恒开，但 exact-artifact trust 仍是独立门：关掉信任挑战后 L2 必须失败关闭。
+func TestPublicFrontendStaysClosedWithoutTrustChallengeGate(t *testing.T) {
+	extension := publicFrontendFixture(t)
+	reader := &fakeFrontendExtensionReader{item: extension}
+	trust := NewExecutableTrustService(reader, &memoryExecutableTrustStore{})
+	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
+		WithExecutableTrust(trust, false).
+		WithPublicComponentAdmission(allowPublicComponentAdmission{})
+	grantPublicFrontend(t, trust, extension)
+	publishTrustedPublicAssets(t, service, extension)
+
+	if _, err := service.PublicComponent(context.Background(), extension.ID, extension.Manifest.Components[0].ID); !errors.Is(err, ErrPublicFrontendUnavailable) {
+		t.Fatalf("public L2 must fail closed when the trust challenge gate is off, got %v", err)
+	}
+}
+
 func TestPublicFrontendReplaceAllIsIndependentOfFirstRequestAndCatalogOrder(t *testing.T) {
 	owner := publicFrontendFixtureFor(t, "owner.assets", nil)
 	ownerHandle := owner.Manifest.Assets[0].Handle
@@ -362,7 +378,6 @@ func TestPublicFrontendSharedAssetRegistryInstance(t *testing.T) {
 	shared := NewFrontendService(reader, &fakeFrontendTrustStore{}).PublicAssetRegistry()
 	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
 		WithExecutableTrust(exactTrust, true).
-		WithPublicL2(true).
 		WithPublicComponentAdmission(allowPublicComponentAdmission{}).
 		WithPublicAssetRegistry(shared)
 	if service.PublicAssetRegistry() != shared {
@@ -415,8 +430,7 @@ func TestPublicFrontendComponentAdmissionDefaultsClosed(t *testing.T) {
 	exactTrust := NewExecutableTrustService(reader, &memoryExecutableTrustStore{})
 	grantPublicFrontend(t, exactTrust, extension)
 	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(exactTrust, true).
-		WithPublicL2(true)
+		WithExecutableTrust(exactTrust, true)
 	if _, err := service.PublicComponent(t.Context(), extension.ID, extension.Manifest.Components[0].ID); !errors.Is(err, ErrPublicFrontendUnavailable) {
 		t.Fatalf("public L2 must require Component Registry admission, got %v", err)
 	}
@@ -792,7 +806,6 @@ func newAdmittedPublicFrontendService(
 ) *FrontendService {
 	return NewFrontendService(reader, &fakeFrontendTrustStore{}).
 		WithExecutableTrust(trust, true).
-		WithPublicL2(true).
 		WithPublicComponentAdmission(allowPublicComponentAdmission{})
 }
 
@@ -931,8 +944,7 @@ func TestEditorOnlyL2UsesExactPublicPackageAssetBoundary(t *testing.T) {
 	reader := &fakeFrontendExtensionReader{item: extension}
 	trust := NewExecutableTrustService(reader, &memoryExecutableTrustStore{})
 	service := NewFrontendService(reader, &fakeFrontendTrustStore{}).
-		WithExecutableTrust(trust, true).
-		WithPublicL2(true)
+		WithExecutableTrust(trust, true)
 	identity, err := trust.RuntimeIdentity(t.Context(), extension)
 	if err != nil {
 		t.Fatal(err)

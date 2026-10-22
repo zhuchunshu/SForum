@@ -18,8 +18,11 @@
 	# 直接拒载入口 JS，触发 “Cross-origin script load denied” 错误页。
 	# CORP 同步放开：扩展/主题资产在 API 侧是 same-origin，代理层换成它的 CDN
 	# 域后，no-cors 资源（样式、图标）也会被这枚头拦掉。
+	# defer 必须保留：默认 header 在反代之前写入，上游的 same-origin 会再追加
+	# 一份，响应里出现两个 CORP 值（实测 `cross-origin` + `same-origin`）。
 	@cors_assets path /_nuxt/* /_sforum/*
 	header @cors_assets {
+		defer
 		Access-Control-Allow-Origin "*"
 		Timing-Allow-Origin "*"
 		Cross-Origin-Resource-Policy "cross-origin"

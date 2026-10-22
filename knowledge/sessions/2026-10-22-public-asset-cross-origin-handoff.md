@@ -15,7 +15,9 @@
   `href`：`SFSystemErrorActions`、`SFErrorPagePanel`、`SFSystemErrorBootstrapFallback`
   的动作全部改为真链接，JS 只做增强。
 - `deploy/caddy/Caddyfile`、`upgrade.sh` 的 `write_router_config()`、
-  `deploy/router/Caddyfile.example`：补 `Cross-Origin-Resource-Policy "cross-origin"`。
+  `deploy/router/Caddyfile.example`：补 `Cross-Origin-Resource-Policy "cross-origin"`
+  与 `defer`（Caddy 默认在反代前写头，缺 `defer` 会与上游的 `same-origin` 并存，
+  响应里出现两个 CORP 值；caddy:2.10.2-alpine 实测）。
 
 ## Decisions
 

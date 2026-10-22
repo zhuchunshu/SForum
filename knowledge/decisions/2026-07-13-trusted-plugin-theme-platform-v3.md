@@ -4,6 +4,10 @@ Date: 2026-07-13
 Status: Accepted active direction; P0-P12 complete, P13 LTS residual and
 production-rewire honesty remediation remain open
 
+Superseded in part (2026-10-23): the public L2 migration gate
+`SFORUM_V3_PUBLIC_L2` is removed and public L2 is always enabled. See
+`2026-10-23-public-l2-always-on.md`. Everything else in this ADR stands.
+
 P0 governance, initial stable identities, Extension Surface Matrix, performance
 baseline, and the authoritative 99-row traceability matrix live under
 `docs/extensions/v3/` and

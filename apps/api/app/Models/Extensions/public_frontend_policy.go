@@ -229,7 +229,7 @@ func (s *FrontendService) PublicPagePolicy(
 }
 
 func (s *FrontendService) publicPagePolicyGates(ctx context.Context) error {
-	if s == nil || ctx == nil || !s.publicL2 || s.safeMode || !s.v3TrustChallenges ||
+	if s == nil || ctx == nil || s.safeMode || !s.v3TrustChallenges ||
 		s.extensions == nil || s.executableTrust == nil || s.publicAssets == nil || s.publicComponents == nil {
 		return &PublicPagePolicyError{Code: PublicPagePolicyRuntimeUnavailable, Cause: ErrPublicFrontendUnavailable}
 	}
@@ -778,7 +778,7 @@ type PublicContentStyleCatalog struct {
 }
 
 func (s *FrontendService) PublicContentStyles(ctx context.Context) (PublicContentStyleCatalog, error) {
-	if s == nil || ctx == nil || !s.publicL2 || s.safeMode || !s.v3TrustChallenges ||
+	if s == nil || ctx == nil || s.safeMode || !s.v3TrustChallenges ||
 		s.extensions == nil || s.executableTrust == nil || s.publicAssets == nil {
 		return PublicContentStyleCatalog{}, ErrPublicFrontendUnavailable
 	}

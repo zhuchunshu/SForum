@@ -303,7 +303,6 @@ trap cleanup EXIT HUP INT TERM
     'BUILTIN_EXTENSION_ROOT=/app/extensions/builtin' \
     'SFORUM_V3_TRUST_CHALLENGES=true' \
     'SFORUM_V3_TRUST_CHALLENGE_TTL=5m' \
-    'SFORUM_V3_PUBLIC_L2=false' \
     'NUXT_PUBLIC_API_BASE_URL=/api/v1' \
     'NUXT_API_INTERNAL_BASE_URL=http://api:8080/api/v1' \
     "NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=$admin_prefix"

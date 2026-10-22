@@ -14,9 +14,17 @@ assert(
   config.includes('envBool("SFORUM_V3_TRUST_CHALLENGES", isProd)'),
   'bare production API processes must default exact-artifact trust on'
 )
+
+// 公开 L2 不再是迁移门：它恒开，只有 Safe Mode 与 exact-artifact trust 能关闭它。
+// 下面这组断言防止该开关被重新引入（配置、装配、Compose、env 模板、生产初始化脚本）。
+const FORBIDDEN_GATE_KEY = 'SFORUM_V3_PUBLIC_L2'
 assert(
-  config.includes('envBool("SFORUM_V3_PUBLIC_L2", false)'),
-  'bare processes must keep public L2 opt-in until the P9 production gate closes'
+  !config.includes(FORBIDDEN_GATE_KEY),
+  'public L2 must not reintroduce a configuration gate in the API config'
+)
+assert(
+  !read('apps/api/bootstrap/api_assembly_extensions.go').includes('WithPublicL2'),
+  'frontend assembly must not accept a public L2 switch'
 )
 
 const compose = read('compose.yaml')
@@ -29,8 +37,8 @@ assert(
   'base Compose must pass the challenge TTL to the API'
 )
 assert(
-  occurrences(compose, 'SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}') === 1,
-  'base Compose must pass the opt-in public L2 gate only to the API'
+  !compose.includes(FORBIDDEN_GATE_KEY),
+  'base Compose must not pass a public L2 switch to the API'
 )
 
 const productionCompose = read('compose.prod.yaml')
@@ -39,8 +47,8 @@ assert(
   'production Compose must enable exact-artifact trust for the API'
 )
 assert(
-  occurrences(productionCompose, 'SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}') === 1,
-  'production Compose must keep public L2 opt-in until its production gate closes'
+  !productionCompose.includes(FORBIDDEN_GATE_KEY),
+  'production Compose must not pass a public L2 switch to the API'
 )
 
 const developmentEnv = read('.env.example')
@@ -49,8 +57,8 @@ assert(
   'development env must document the explicit migration default'
 )
 assert(
-  developmentEnv.includes('SFORUM_V3_PUBLIC_L2=false'),
-  'development env must document that public L2 is opt-in'
+  !developmentEnv.includes(FORBIDDEN_GATE_KEY),
+  'development env must not document a public L2 switch'
 )
 const productionEnv = read('.env.production.example')
 assert(
@@ -62,8 +70,12 @@ assert(
   'production env must document the bounded challenge TTL'
 )
 assert(
-  productionEnv.includes('SFORUM_V3_PUBLIC_L2=false'),
-  'production env must not enable public L2 before the P9 acceptance gate'
+  !productionEnv.includes(FORBIDDEN_GATE_KEY),
+  'production env must not offer a public L2 switch'
+)
+assert(
+  !read('deploy/scripts/configure-production.sh').includes(FORBIDDEN_GATE_KEY),
+  'production env bootstrap must not emit a public L2 switch'
 )
 
 console.log('V3 production trust deployment validation passed.')

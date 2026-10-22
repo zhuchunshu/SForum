@@ -152,11 +152,21 @@ concurrency without a bound.
 | `EXTERNAL_EXTENSION_ROOTS` | empty | optional, comma-separated container paths; requires matching read-only volumes |
 | `SFORUM_V3_TRUST_CHALLENGES` | `true` | enable exact-artifact trust confirmation |
 | `SFORUM_V3_TRUST_CHALLENGE_TTL` | `5m` | trust confirmation lifetime |
-| `SFORUM_V3_PUBLIC_L2` | `false` | whether public L2 components are allowed |
 | `SFORUM_SAFE_MODE` | empty (equivalent to `false`) | set to `true` and restart the API to skip plugin startup; change it back after recovery |
 
 `EXTERNAL_EXTENSION_ROOTS` must be container paths; host paths are not
 accepted.
+
+Public L2 (`components[].l2Component` and content-surface styles) has **no
+separate switch** and is always enabled: once an extension is enabled and its
+exact artifact is trusted, its prebuilt ESM/CSS reaches the browser. The former
+`SFORUM_V3_PUBLIC_L2` variable is removed; setting it has no effect.
+
+It builds on exact-artifact trust, so `SFORUM_V3_TRUST_CHALLENGES=false` closes
+public L2 for the whole instance (that is the non-production default in
+`.env.example` and `compose.yaml`; production defaults to `true`). To close a
+single extension, disable it or revoke its exact-artifact trust; to close every
+extension, set `SFORUM_SAFE_MODE=true`.
 
 ## Sessions, identity, and encryption
 

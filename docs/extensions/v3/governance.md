@@ -84,10 +84,17 @@ phase may expose an operator diagnostic, but extensions cannot enable a gate.
 | `SFORUM_V3_WORKFLOW_REGISTRIES` | off | P7 |
 | `SFORUM_V3_THEME_COMPILER` | off | P8 |
 | `SFORUM_V3_COMPONENT_REGISTRY` | off | P9 |
-| `SFORUM_V3_PUBLIC_L2` | off | P9 |
 | `SFORUM_V3_CONTENT_MEDIA_REGISTRIES` | off | P10 |
 | `SFORUM_V3_PLATFORM_SERVICES` | off | P11 |
 | `SFORUM_V3_DISTRIBUTION` | off | P12 |
+
+Public L2 is no longer a migration gate. It is always enabled once an extension
+is enabled and its exact artifact is trusted; operators cannot switch it off per
+extension. `SFORUM_SAFE_MODE` and exact-artifact trust are the only two ways to
+close it, and the former `SFORUM_V3_PUBLIC_L2` variable has been removed.
+`SFORUM_V3_TRUST_CHALLENGES=false` (the non-production default) also closes
+public L2 instance-wide, because without the trust gate there is no grant to
+validate the published artifact against.
 
 `SFORUM_SAFE_MODE=1` always wins. Safe mode ignores every V3 gate, every desired
 extension revision, and every system-tier extension. It starts no third-party

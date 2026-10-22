@@ -114,7 +114,6 @@ func TestPublicL2UploadTrustActivateMountRestartAndRevokeFallback(t *testing.T) 
 		"BUILTIN_EXTENSION_ROOT":      builtinRoot,
 		"SFORUM_SAFE_MODE":            "false",
 		"SFORUM_V3_TRUST_CHALLENGES":  "true",
-		"SFORUM_V3_PUBLIC_L2":         "true",
 		"HUMAN_VERIFICATION_PROVIDER": "disabled",
 		"CSRF_ENABLED":                "false",
 		"LOG_LEVEL":                   "warn",

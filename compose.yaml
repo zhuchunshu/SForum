@@ -92,9 +92,9 @@ services:
       BUILTIN_EXTENSION_ROOT: /app/extensions/builtin
       # Compose 中必须使用容器内路径；同时在 override 中添加对应的只读 volume。
       EXTERNAL_EXTENSION_ROOTS: ${EXTERNAL_EXTENSION_ROOTS:-}
+      # 关闭它会同时关闭公开 L2（组件与内容区样式）；生产 Compose 默认 true。
       SFORUM_V3_TRUST_CHALLENGES: ${SFORUM_V3_TRUST_CHALLENGES:-false}
       SFORUM_V3_TRUST_CHALLENGE_TTL: ${SFORUM_V3_TRUST_CHALLENGE_TTL:-5m}
-      SFORUM_V3_PUBLIC_L2: ${SFORUM_V3_PUBLIC_L2:-false}
     volumes:
       - attachment_uploads:/app/storage/app/attachments
       - extension_packages:/var/lib/sforum/extensions

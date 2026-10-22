@@ -150,7 +150,7 @@ const renderState = computed(() => {
 })
 
 // SSR：按页面实际 L2 岛聚合 Host document CSP。
-// 策略不可用（public L2 默认关 / 信任撤销）时不写 header；widget 自身回退 L1。
+// 策略不可用（信任撤销 / Safe Mode / 制品不可用）时不写 header；widget 自身回退 L1。
 const publicL2Refs = computed(() => {
   const themeRefs = (() => {
     if (renderState.value.error) return []

@@ -386,9 +386,15 @@ Public L2 (package-local prebuilt ESM/CSS mounted by `SFExtensionWidget`) is
 **fully trusted browser code**, not a sandbox. When a contribution mounts, the
 Host bridge sets `trust: fully_trusted_browser_code` and the public widget
 carries the same value as a machine-readable `data-l2-trust` attribute; no
-in-page trust banner is rendered. Enable `SFORUM_V3_PUBLIC_L2`
-only for extensions you trust. SSR/L1 slot content remains the fallback when L2
-fails, is quarantined, or is disabled.
+in-page trust banner is rendered. Public L2 is always enabled: trust only
+extensions whose browser code you accept. SSR/L1 slot content remains the
+fallback when L2 fails, is quarantined, or is disabled by Safe Mode.
+
+There is no per-package switch, but two prerequisites gate the mount: the
+extension must be enabled, and exact-artifact trust confirmation must be on
+(`SFORUM_V3_TRUST_CHALLENGES=true`). `.env.example` and `compose.yaml` default it
+to `false` for local development, so a fresh checkout shows only the SSR/L1
+fallback until you turn it on. Production Compose defaults it to `true`.
 
 Themes remain presentation-only. They may declare templates, assets,
 components, navigation/regions, settings, package files, and other presentation

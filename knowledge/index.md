@@ -6,7 +6,6 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
-
 ### 全量测试提速（Go 分片并行 + 三线并行）
 
 - Status: **landed (2026-10-23)**，本地全绿；CI 待 PR。`scripts/test.sh` 现在三条线
@@ -21,6 +20,19 @@ load archived sessions or completed plans as current context.
 - 计时：21:31 → 7:24（冷）/ 6:14（热）/ 0:41（`--fast`），154 个包两轮冷跑零失败。
 - Handoff: `sessions/2026-10-23-test-suite-speedup-handoff.md`；
   决策：`decisions/2026-10-23-test-gate-parallelism.md`。
+
+### 公开 L2 恒开（移除 `SFORUM_V3_PUBLIC_L2`）
+
+- Status: **landed (2026-10-23)**。删除配置字段、env 读取、`WithPublicL2` 与装配点，
+  以及两份 Compose / 两份 env 模板 / 生产 env 生成脚本中的该变量；三处 gate 只保留
+  Safe Mode 与 exact-artifact trust。`tests/validate-v3-production-trust.mjs` 反转为
+  禁止再引入该变量；新增"信任门关掉时 L2 仍失败关闭"的测试。
+- 隐含前提：`SFORUM_V3_TRUST_CHALLENGES=false` 会连带关闭公开 L2（没有信任门就没有可
+  校验的授权），而 `.env.example` 与 `compose.yaml` 的非生产默认值正是 `false`；中英
+  部署文档与 `authoring-guide` 已就地标注，避免新环境按默认配置只看到 SSR fallback。
+- 行为变更：旧部署仍设 `SFORUM_V3_PUBLIC_L2=false` 会被静默忽略；内置
+  `sforum-shortcodes` 的内容区样式从此默认生效。
+- Handoff: `sessions/2026-10-23-public-l2-always-on-handoff.md`
 
 ### 发布 v3.0.13-alpha.1
 
@@ -461,6 +473,12 @@ load archived sessions or completed plans as current context.
   因为 `-p>1` 在单个 database 上实测四类跨包竞态；compat 农场并入 `--with-compat`；
   三线并行日志落 `tests/.logs/`；typecheck 增量。154 个包两轮冷缓存真跑零失败，
   CI 三个 gate job 待 PR 确认。详见 `sessions/2026-10-23-test-suite-speedup-handoff.md`。
+- **公开 L2 恒开（2026-10-23，最新）**：`SFORUM_V3_PUBLIC_L2` 已彻底移除，公开 L2
+  恒开，只有 `SFORUM_SAFE_MODE` 与 exact-artifact trust 能关闭它。改动覆盖 API config、
+  `FrontendService`、装配、Compose、env 模板、生产 env 生成脚本、中英部署文档与
+  governance gate 表；验证门禁改为"禁止再引入该变量"。详见
+  `sessions/2026-10-23-public-l2-always-on-handoff.md` 与
+  `decisions/2026-10-23-public-l2-always-on.md`。
 - **严格更新入口（2026-10-23，最新）**：新增根目录 `sforum-latest.sh`，每次先解析
   GitHub 最新 Release，校验完整 `sforum-deploy.tar.gz` 后把 `deploy.sh`、`upgrade.sh`、
   compose、`deploy/scripts`、Caddy 示例与 `VERSION` 同步到该版本，再交给
