@@ -262,13 +262,9 @@ func newLifecycleMigrationRuntimeActivationFixture(
 	}
 	fixture.source, fixture.target = source, target
 
-	var actorID int64
 	username := strings.ReplaceAll(extensionID, ".", "_")
-	if err := pool.QueryRow(ctx, `
-		INSERT INTO users (username, username_lower, email, email_lower, display_name)
-		VALUES ($1, $1, $2, $2, 'P12 migration runtime actor')
-		RETURNING id
-	`, username, username+"@example.test").Scan(&actorID); err != nil {
+	actorID, err := insertLifecycleActorFixture(ctx, pool, username, "P12 migration runtime actor")
+	if err != nil {
 		t.Fatal(err)
 	}
 	for _, extension := range []extensions.Extension{source, target} {

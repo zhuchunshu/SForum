@@ -184,9 +184,11 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Nuxt web app. The repo uses Bun (bun.lock); Dependabot tracks
-  # package.json for its npm ecosystem and opens PRs for manual review.
-  - package-ecosystem: "npm"
+  # Nuxt web app. The repo is Bun-only (`bun.lock`, no package-lock/yarn/pnpm
+  # lockfile), so this entry must use the "bun" ecosystem: `npm_and_yarn`
+  # cannot update `bun.lock` and every scheduled run failed with
+  # `misconfigured_tooling` while this directory was declared as npm.
+  - package-ecosystem: "bun"
     directory: "/apps/web"
     schedule:
       interval: "weekly"

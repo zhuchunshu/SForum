@@ -6,6 +6,17 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 发布前 CI / Dependabot 红色修复
+
+- Status: **landed (2026-10-22)**。main 的 `CI / Contracts and static gates` 由过时
+  的 `useAdminRoutes` 静态断言引起（`useI18n`/`defaultLocale` vs 现行
+  `useLocalePath` 委托），已按现行契约改写；`Extensions` 集成 fixture 的
+  `users_pkey` 冲突改为 23505 重试；`/apps/web` Dependabot 生态从 `npm` 改为 `bun`
+  （原配置每周以 `misconfigured_tooling` 失败）。
+- 验证：`contracts-gate.sh` 全流程 + 全量 `go test ./...` + actionlint 全绿；
+  pkey 冲突在同一库状态下「旧代码红 / 新代码绿」对照复现。
+- Handoff: `sessions/2026-10-22-ci-gates-red-fix.md`
+
 ### 登录强化人机验证触发条件
 
 - Status: **landed (2026-10-22)**，浏览器 QA 通过。`login_risk` 从「失败后」扩成三个

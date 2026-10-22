@@ -47,10 +47,8 @@ func TestPostgresProviderSlotSelectionExactArtifactCASAuditAndInvalidation(t *te
 		t.Fatal(err)
 	}
 
-	var actorID int64
-	if err := pool.QueryRow(ctx, `INSERT INTO users
-		(username,username_lower,email,email_lower,display_name) VALUES ($1,$1,$2,$2,$1) RETURNING id`,
-		unique, unique+"@example.test").Scan(&actorID); err != nil {
+	actorID, err := insertLifecycleActorFixture(ctx, pool, unique, unique)
+	if err != nil {
 		t.Fatal(err)
 	}
 	ownerVersionID := insertProviderSlotSelectionExtension(t, ctx, pool, owner, unique+"-owner")

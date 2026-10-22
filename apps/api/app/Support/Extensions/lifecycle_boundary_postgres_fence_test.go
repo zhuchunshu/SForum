@@ -122,14 +122,12 @@ func newLifecycleBoundaryFenceIntegration(
 	request.TargetExtension.ID = unique
 	request.TargetExtension.Manifest.ID = unique
 	request.TargetBinding.ExtensionID = unique
-	if err := pool.QueryRow(ctx, `
-		INSERT INTO users (username, username_lower, email, email_lower, display_name)
-		VALUES ($1, $1, $2, $2, 'Lifecycle Fence')
-		RETURNING id
-	`, unique, unique+"@example.com").Scan(&request.ActorUserID); err != nil {
+	actorUserID, err := insertLifecycleActorFixture(ctx, pool, unique, "Lifecycle Fence")
+	if err != nil {
 		pool.Close()
 		t.Fatal(err)
 	}
+	request.ActorUserID = actorUserID
 	request.AuditEventID = time.Now().UnixNano()
 	path, err := extensions.RecommendedLifecyclePath(request.Operation)
 	if err != nil {

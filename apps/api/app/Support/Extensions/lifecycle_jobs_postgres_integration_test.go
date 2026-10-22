@@ -428,13 +428,11 @@ func newLifecycleJobPublicationIntegration(t *testing.T) *lifecycleJobPublicatio
 	}
 
 	unique := fmt.Sprintf("lifecycle-job-fence-%d", time.Now().UnixNano())
-	if err := pool.QueryRow(ctx, `
-		INSERT INTO users (username, username_lower, email, email_lower, display_name)
-		VALUES ($1, $1, $2, $2, 'Lifecycle Job Fence')
-		RETURNING id
-	`, unique, unique+"@example.com").Scan(&request.ActorUserID); err != nil {
+	actorUserID, err := insertLifecycleActorFixture(ctx, pool, unique, "Lifecycle Job Fence")
+	if err != nil {
 		t.Fatal(err)
 	}
+	request.ActorUserID = actorUserID
 	request.AuditEventID = time.Now().UnixNano()
 	path, err := extensions.RecommendedLifecyclePath(request.Operation)
 	if err != nil {

@@ -98,9 +98,9 @@ assert(
 )
 
 const adminRoutesComposable = read('apps/web/app/composables/admin/useAdminRoutes.ts')
-assert(adminRoutesComposable.includes('useI18n'), 'Admin routes should read the active locale directly')
-assert(adminRoutesComposable.includes('defaultLocale'), 'Admin routes should compare against the default locale')
-assert(!adminRoutesComposable.includes('useLocalePath'), 'Admin routes should not rely on stale i18n path resources')
+assert(adminRoutesComposable.includes('useLocalePath'), 'Admin routes should delegate localization to the i18n localePath authority')
+assert(adminRoutesComposable.includes('normalizeAdminRoutePrefix'), 'Admin routes should follow the operator adminRoutePrefix')
+assert(!adminRoutesComposable.includes('locale.value'), 'Admin routes should not hand-roll a locale segment')
 
 const nuxtConfig = read('apps/web/nuxt.config.ts')
 assert(nuxtConfig.includes('NUXT_PUBLIC_ADMIN_ROUTE_PREFIX'), 'Nuxt config should expose the admin route prefix')

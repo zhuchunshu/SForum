@@ -281,12 +281,7 @@ func newLifecycleMigrationIntegration(
 	}
 	request := lifecyclePublicationTestRequest(t, operation, position)
 	unique := fmt.Sprintf("migration-proof-%d", time.Now().UnixNano())
-	var actorID int64
-	err = pool.QueryRow(ctx, `
-		INSERT INTO users (username, username_lower, email, email_lower, display_name)
-		VALUES ($1, $1, $2, $2, 'Lifecycle Migration Proof')
-		RETURNING id
-	`, unique, unique+"@example.com").Scan(&actorID)
+	actorID, err := insertLifecycleActorFixture(ctx, pool, unique, "Lifecycle Migration Proof")
 	if err != nil {
 		pool.Close()
 		t.Fatal(err)
