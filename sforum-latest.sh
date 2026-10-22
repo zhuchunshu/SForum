@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# sforum-latest.sh — 每次都从 GitHub Release 取回官方部署工具链，再安装或更新。
+# sforum-latest.sh — 每次都从 GitHub Release 取回完整部署工具链，再安装或更新。
 #
-# 与直接执行 ./sforum-bootstrap.sh upgrade 的差别：bootstrap 的“自刷新”由本地
-# 旧脚本先解析版本、再替换自己；本脚本不信任本地脚本，先联网下载目标 Release
-# 的 sforum-bootstrap.sh，校验 SHA-256（以及可用时的构建来源），然后用它接管。
-# 因此本地残留的旧 bootstrap 不参与任何版本或工具链决策。
+# 与直接执行 ./sforum-bootstrap.sh upgrade 的差别：bootstrap 的自刷新由本地旧
+# 脚本发起；本脚本不信任本地脚本，先联网下载目标 Release 的完整部署包
+# （sforum-deploy.tar.gz），校验后把 deploy.sh、upgrade.sh、Compose 文件、
+# deploy/scripts、Caddy 示例和 VERSION 全部同步到安装目录，再交给同一 Release
+# 的 bootstrap 执行 install/upgrade。任何过期或缺失的受管文件都会在这里被替换。
 set -euo pipefail
 export LC_ALL=C
 
@@ -18,32 +19,40 @@ BOOTSTRAP="$ROOT_DIR/sforum-bootstrap.sh"
 CHANNEL="stable"
 TARGET_TAG=""
 CHECK_ONLY=false
+ALLOW_GIT=false
 ACTION=""
-BOOTSTRAP_SHA=""
+BUNDLE_SHA=""
 ATTESTATION_STATUS="skipped-no-gh"
 LOCK_HELD=false
 PASSTHROUGH=()
 STAGE=""
+BUNDLE_ROOT=""
+MANAGED_LIST=""
+DIFF_FILE=""
+BACKUP_ROOT=""
 
 usage() {
   cat <<'EOF'
 用法: ./sforum-latest.sh [选项]
 
-始终下载 GitHub 上最新的官方 sforum-bootstrap.sh，校验后交给它执行。当前目录
-已有 .env.production 与 .deployrc 时执行 upgrade，两者都不存在时执行 install。
+始终下载 GitHub 上最新 Release 的完整部署包，校验后把安装目录里的
+deploy.sh、upgrade.sh、compose 文件、deploy/scripts、Caddy 示例与 VERSION
+同步到该 Release 的版本，再交给 bootstrap 执行 install/upgrade。当前目录已有
+.env.production 与 .deployrc 时执行 upgrade，两者都不存在时执行 install。
 
 选项:
-  --check, --dry-run        只解析并校验目标工具链，不替换、不执行
+  --check, --dry-run        只下载、校验并报告哪些受管文件需要更新，不写入
   --channel stable|prerelease
                             选择解析渠道（默认 stable；prerelease 取最新发布版）
   --version VERSION         固定到不可变标签（如 v3.0.9），跳过联网解析
   --yes, --defaults         跳过 bootstrap/upgrade 的确认（无人值守）
   --bootstrap               已安装目录首次做蓝绿入口转换（upgrade 专用）
   --lang zh|en              全新安装时的安装器语言（install 专用）
+  --allow-git               允许在 Git 检出目录里同步工具链（默认拒绝）
   -h, --help                显示本帮助
 
 示例:
-  ./sforum-latest.sh --check            先看会用什么版本、本地是否一致
+  ./sforum-latest.sh --check            先看目标版本和哪些工具文件过期
   ./sforum-latest.sh                    交互式更新到最新稳定版
   ./sforum-latest.sh --yes              无人值守更新到最新稳定版
   ./sforum-latest.sh --channel prerelease
@@ -106,6 +115,7 @@ parse_args() {
         CHANNEL="$2"
         shift 2
         ;;
+      --channel=*) CHANNEL="${1#*=}"; shift ;;
       --version)
         [ "$#" -ge 2 ] || die "--version 需要一个值"
         [ -z "$TARGET_TAG" ] || die "只指定一次目标版本"
@@ -124,6 +134,7 @@ parse_args() {
         ;;
       --lang=*) PASSTHROUGH+=("$1"); shift ;;
       --yes|--defaults|--bootstrap) PASSTHROUGH+=("$1"); shift ;;
+      --allow-git) ALLOW_GIT=true; shift ;;
       --confirm-maintenance|--confirm-maintenance=*)
         die "维护窗口参数由 upgrade.sh 直接处理：./upgrade.sh --version <TAG> --confirm-maintenance"
         ;;
@@ -198,39 +209,58 @@ resolve_tag() {
   normalize_tag "$tag"
 }
 
-stage_bootstrap() {
-  local tag="$1" sha
+stage_bundle() {
+  local tag="$1" entry sha
   STAGE="$(mktemp -d "$ROOT_DIR/.sforum-latest.XXXXXX")"
 
-  curl -fsSLo "$STAGE/sforum-bootstrap.sh" --connect-timeout 10 --max-time 120 \
-    "$DOWNLOAD_ROOT/$tag/sforum-bootstrap.sh" || \
-    die "下载 sforum-bootstrap.sh 失败（$tag）"
   curl -fsSLo "$STAGE/SHA256SUMS" --connect-timeout 10 --max-time 120 \
     "$DOWNLOAD_ROOT/$tag/SHA256SUMS" || \
     die "下载 SHA256SUMS 失败（$tag）"
+  curl -fsSLo "$STAGE/sforum-deploy.tar.gz" --connect-timeout 10 --max-time 120 \
+    "$DOWNLOAD_ROOT/$tag/sforum-deploy.tar.gz" || \
+    die "下载 sforum-deploy.tar.gz 失败（$tag）"
 
   (
     cd "$STAGE"
-    awk '$2 == "sforum-bootstrap.sh" { print }' SHA256SUMS > sforum-bootstrap.sha256
-    [ "$(wc -l < sforum-bootstrap.sha256 | tr -d '[:space:]')" = 1 ]
+    awk '$2 == "sforum-deploy.tar.gz" { print }' SHA256SUMS > sforum-deploy.sha256
+    [ "$(wc -l < sforum-deploy.sha256 | tr -d '[:space:]')" = 1 ]
     if command -v sha256sum >/dev/null 2>&1; then
-      sha256sum -c sforum-bootstrap.sha256
+      sha256sum -c sforum-deploy.sha256
     else
-      shasum -a 256 -c sforum-bootstrap.sha256
+      shasum -a 256 -c sforum-deploy.sha256
     fi
-  ) >/dev/null || die "sforum-bootstrap.sh 的 SHA-256 校验失败（$tag）"
+  ) >/dev/null || die "sforum-deploy.tar.gz 的 SHA-256 校验失败（$tag）"
 
-  bash -n "$STAGE/sforum-bootstrap.sh" || die "下载的 bootstrap 语法检查失败（$tag）"
+  while IFS= read -r entry; do
+    case "$entry" in
+      sforum-deploy|sforum-deploy/*) ;;
+      *) die "部署包包含意外路径: $entry" ;;
+    esac
+    case "/$entry/" in
+      */../*) die "部署包包含路径穿越: $entry" ;;
+    esac
+  done < <(tar -tzf "$STAGE/sforum-deploy.tar.gz")
+
+  mkdir -p "$STAGE/bundle"
+  tar -xzf "$STAGE/sforum-deploy.tar.gz" -C "$STAGE/bundle"
+  BUNDLE_ROOT="$STAGE/bundle/sforum-deploy"
+  [ -d "$BUNDLE_ROOT" ] || die "部署包根目录不符合预期"
+  [ "$(sed -n 's/^version=//p' "$BUNDLE_ROOT/VERSION")" = "${tag#v}" ] || \
+    die "部署包 VERSION 与 $tag 不一致"
+
+  bash -n "$BUNDLE_ROOT/sforum-bootstrap.sh" || die "部署包 bootstrap 语法检查失败"
+  bash -n "$BUNDLE_ROOT/deploy.sh" || die "部署包 deploy.sh 语法检查失败"
+  bash -n "$BUNDLE_ROOT/upgrade.sh" || die "部署包 upgrade.sh 语法检查失败"
 
   ATTESTATION_STATUS="skipped-no-gh"
   if [ "${SFORUM_SKIP_ATTESTATION:-false}" = true ]; then
     ATTESTATION_STATUS="skipped-env"
   elif command -v gh >/dev/null 2>&1; then
     if gh attestation --help >/dev/null 2>&1; then
-      if gh attestation verify "$STAGE/sforum-bootstrap.sh" --repo "$REPOSITORY" >/dev/null; then
+      if gh attestation verify "$STAGE/sforum-deploy.tar.gz" --repo "$REPOSITORY" >/dev/null; then
         ATTESTATION_STATUS="verified"
       else
-        die "bootstrap 构建来源校验失败（$tag）"
+        die "部署包构建来源校验失败（$tag）"
       fi
     else
       # 旧版 gh 没有 attestation 子命令；同步给 bootstrap，避免它内部的同样调用失败。
@@ -241,11 +271,107 @@ stage_bootstrap() {
   fi
 
   if command -v sha256sum >/dev/null 2>&1; then
-    sha="$(sha256sum "$STAGE/sforum-bootstrap.sh" | awk '{print $1}')"
+    sha="$(sha256sum "$STAGE/sforum-deploy.tar.gz" | awk '{print $1}')"
   else
-    sha="$(shasum -a 256 "$STAGE/sforum-bootstrap.sh" | awk '{print $1}')"
+    sha="$(shasum -a 256 "$STAGE/sforum-deploy.tar.gz" | awk '{print $1}')"
   fi
-  BOOTSTRAP_SHA="$sha"
+  BUNDLE_SHA="$sha"
+}
+
+extract_managed_files() {
+  MANAGED_LIST="$STAGE/managed-files.txt"
+  awk '
+    /^managed_files\(\) \{/ { in_fn = 1; next }
+    in_fn && /cat <<.EOF.$/ { in_list = 1; next }
+    in_list && /^EOF$/ { exit }
+    in_list { print }
+  ' "$BUNDLE_ROOT/sforum-bootstrap.sh" > "$MANAGED_LIST"
+  [ -s "$MANAGED_LIST" ] || die "无法从部署包 bootstrap 提取受管文件清单"
+}
+
+validate_bundle() {
+  local rel
+  while IFS= read -r rel; do
+    case "$rel" in
+      ""|/*|..|../*|*/..|*/../*) die "部署包清单包含非法路径: $rel" ;;
+    esac
+    [ -f "$BUNDLE_ROOT/$rel" ] || die "部署包缺少受管文件: $rel"
+  done < "$MANAGED_LIST"
+}
+
+executable_file() {
+  case "$1" in
+    sforum-bootstrap.sh|deploy.sh|upgrade.sh|deploy/scripts/*.sh) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+promote_file() {
+  local source="$1" destination="$2" mode="$3" directory temp_file
+  directory="$(dirname "$destination")"
+  mkdir -p "$directory"
+  temp_file="$(mktemp "$directory/.sforum-tool.XXXXXX")"
+  cp "$source" "$temp_file"
+  chmod "$mode" "$temp_file"
+  mv -f "$temp_file" "$destination"
+}
+
+toolkit_diff() {
+  local rel
+  : > "$DIFF_FILE"
+  while IFS= read -r rel; do
+    if [ ! -f "$ROOT_DIR/$rel" ]; then
+      printf 'missing %s\n' "$rel" >> "$DIFF_FILE"
+    elif ! cmp -s "$BUNDLE_ROOT/$rel" "$ROOT_DIR/$rel"; then
+      printf 'stale   %s\n' "$rel" >> "$DIFF_FILE"
+    fi
+  done < "$MANAGED_LIST"
+}
+
+backup_toolkit() {
+  local rel copied=false
+  BACKUP_ROOT=""
+  while IFS= read -r rel; do
+    [ -f "$ROOT_DIR/$rel" ] || continue
+    if [ "$copied" = false ]; then
+      BACKUP_ROOT="$ROOT_DIR/.sforum/tooling-backups/$(date -u +%Y%m%dT%H%M%SZ)-${TARGET_TAG}"
+      mkdir -p "$BACKUP_ROOT"
+      copied=true
+    fi
+    mkdir -p "$BACKUP_ROOT/$(dirname "$rel")"
+    cp -p "$ROOT_DIR/$rel" "$BACKUP_ROOT/$rel"
+  done < "$MANAGED_LIST"
+  if [ "$copied" = true ]; then
+    printf '旧工具链备份: %s\n' "$BACKUP_ROOT"
+  else
+    BACKUP_ROOT=""
+  fi
+}
+
+restore_toolkit() {
+  local rel mode
+  [ -n "$BACKUP_ROOT" ] || return 0
+  while IFS= read -r rel; do
+    if [ -f "$BACKUP_ROOT/$rel" ]; then
+      mode=0644
+      executable_file "$rel" && mode=0755
+      promote_file "$BACKUP_ROOT/$rel" "$ROOT_DIR/$rel" "$mode" || true
+    else
+      rm -f "$ROOT_DIR/$rel"
+    fi
+  done < "$MANAGED_LIST"
+}
+
+promote_toolkit() {
+  local rel mode
+  while IFS= read -r rel; do
+    mode=0644
+    executable_file "$rel" && mode=0755
+    if ! promote_file "$BUNDLE_ROOT/$rel" "$ROOT_DIR/$rel" "$mode"; then
+      restore_toolkit
+      die "写入受管文件失败: $rel；旧工具链已尝试恢复"
+    fi
+  done < "$MANAGED_LIST"
 }
 
 print_attestation() {
@@ -258,41 +384,23 @@ print_attestation() {
 }
 
 report() {
-  local tag="$1"
+  local tag="$1" count
   printf '目标 Release: %s\n' "$tag"
-  printf 'bootstrap SHA-256: %s\n' "$BOOTSTRAP_SHA"
+  printf '部署包 SHA-256: %s\n' "$BUNDLE_SHA"
   print_attestation
-  if [ ! -f "$BOOTSTRAP" ]; then
-    printf '本地 bootstrap: 缺失，执行前写入\n'
-  elif cmp -s "$STAGE/sforum-bootstrap.sh" "$BOOTSTRAP"; then
-    printf '本地 bootstrap: 与目标一致\n'
+  if [ -s "$DIFF_FILE" ]; then
+    count="$(wc -l < "$DIFF_FILE" | tr -d '[:space:]')"
+    printf '受管工具链: %s 个文件需要更新\n' "$count"
+    sed -n '1,10p' "$DIFF_FILE" | sed 's/^/  /'
+    [ "$count" -le 10 ] || printf '  ...（其余 %s 个）\n' "$((count - 10))"
   else
-    printf '本地 bootstrap: 与目标不同，执行前替换（旧文件备份到 .sforum/bootstrap-backups/）\n'
+    printf '受管工具链: 已是最新\n'
   fi
   case "$ACTION" in
     install) printf '安装状态: 未安装，计划动作 install\n' ;;
     upgrade) printf '安装状态: 已安装，计划动作 upgrade\n' ;;
     *) printf '安装状态: 不完整（.env.production 与 .deployrc 需同时存在），需要先人工修复\n' ;;
   esac
-}
-
-promote_bootstrap() {
-  local tag="$1" backup_dir tmp_file
-  if [ -f "$BOOTSTRAP" ] && cmp -s "$STAGE/sforum-bootstrap.sh" "$BOOTSTRAP"; then
-    return 0
-  fi
-  if [ -f "$BOOTSTRAP" ]; then
-    backup_dir="$ROOT_DIR/.sforum/bootstrap-backups/$(date -u +%Y%m%dT%H%M%SZ)-${tag}"
-    mkdir -p "$backup_dir"
-    cp -p "$BOOTSTRAP" "$backup_dir/sforum-bootstrap.sh"
-    printf '旧 bootstrap 备份: %s\n' "$backup_dir/sforum-bootstrap.sh"
-  fi
-  # 同目录临时文件 + mv，保证替换是原子的；不依赖额外工具。
-  tmp_file="$(mktemp "$ROOT_DIR/.sforum-bootstrap.XXXXXX")"
-  cp "$STAGE/sforum-bootstrap.sh" "$tmp_file"
-  chmod 0755 "$tmp_file"
-  mv -f "$tmp_file" "$BOOTSTRAP"
-  printf '已写入 %s\n' "$BOOTSTRAP"
 }
 
 main() {
@@ -311,12 +419,19 @@ main() {
   if [ "$ACTION" = incomplete ] && [ "$CHECK_ONLY" != true ]; then
     die "安装状态不完整：先执行 ./deploy.sh --action deploy --version <TAG> 修复"
   fi
+  if [ -d "$ROOT_DIR/.git" ] && [ "$CHECK_ONLY" != true ] && [ "$ALLOW_GIT" != true ]; then
+    die "当前目录是 Git 检出，不是官方安装目录；确认要在这里同步 Release 工具链时加 --allow-git"
+  fi
 
   command -v curl >/dev/null 2>&1 || die "需要 curl"
   command -v tar >/dev/null 2>&1 || die "需要 tar"
 
   TARGET_TAG="$(resolve_tag)"
-  stage_bootstrap "$TARGET_TAG"
+  stage_bundle "$TARGET_TAG"
+  extract_managed_files
+  validate_bundle
+  DIFF_FILE="$STAGE/toolkit-diff.txt"
+  toolkit_diff
 
   if [ "$CHECK_ONLY" = true ]; then
     report "$TARGET_TAG"
@@ -324,15 +439,36 @@ main() {
   fi
 
   printf '目标 Release: %s\n' "$TARGET_TAG"
-  printf 'bootstrap SHA-256: %s\n' "$BOOTSTRAP_SHA"
+  printf '部署包 SHA-256: %s\n' "$BUNDLE_SHA"
   print_attestation
   acquire_lock
-  promote_bootstrap "$TARGET_TAG"
+
+  if [ -s "$DIFF_FILE" ]; then
+    printf '同步受管工具链: %s 个文件\n' "$(wc -l < "$DIFF_FILE" | tr -d '[:space:]')"
+    backup_toolkit
+    promote_toolkit
+  else
+    printf '受管工具链: 已是最新\n'
+  fi
+
+  printf '执行: ./sforum-bootstrap.sh %s --version %s\n' "$ACTION" "$TARGET_TAG"
+  set +e
+  "$BOOTSTRAP" "$ACTION" --version "$TARGET_TAG" ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
+  local status=$?
+  set -e
+
+  if [ "$status" -eq 0 ]; then
+    toolkit_diff
+    if [ -s "$DIFF_FILE" ]; then
+      printf '执行后工具链仍与 %s 不一致：\n' "$TARGET_TAG" >&2
+      sed -n '1,20p' "$DIFF_FILE" >&2
+      status=1
+    fi
+  fi
 
   cleanup
   trap - EXIT HUP INT TERM
-  printf '执行: ./sforum-bootstrap.sh %s --version %s\n' "$ACTION" "$TARGET_TAG"
-  exec "$BOOTSTRAP" "$ACTION" --version "$TARGET_TAG" ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
+  exit "$status"
 }
 
 main "$@"

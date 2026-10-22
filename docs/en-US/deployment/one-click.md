@@ -218,11 +218,13 @@ wrapper moves network resolution and verification ahead of any local script:
 1. Resolve the newest Release. For stable it reads the tag from the
    `releases/latest` 302 `Location`, spending no GitHub API quota; prereleases
    use the `/releases` API.
-2. Download that tag's `sforum-bootstrap.sh` and `SHA256SUMS` and verify only
-   the exact filename entry; when the local `gh` supports `attestation`, verify
-   provenance as well.
-3. Back up the previous bootstrap under `.sforum/bootstrap-backups/`, then
-   atomically replace the local file.
+2. Download that tag's `sforum-deploy.tar.gz` and `SHA256SUMS`, verify the exact
+   entry, the archive paths, and `VERSION`; when the local `gh` supports
+   `attestation`, verify provenance as well.
+3. Extract the authoritative managed-file list from the bundle's bootstrap and
+   atomically replace every missing or stale `deploy.sh`, `upgrade.sh`, Compose
+   file, `deploy/scripts` entry, Caddy example, and `VERSION`; the previous
+   files are backed up under `.sforum/tooling-backups/`.
 4. Run `sforum-bootstrap.sh install|upgrade --version <TAG>` with the pinned
    tag.
 
@@ -238,11 +240,12 @@ chmod 0755 sforum-latest.sh && \
 
 Replace the last line with `./sforum-latest.sh` to run the install or update.
 
-`--check` performs only the first two steps and prints the target version, the
-SHA-256, whether the local file matches, and the planned action — useful before
-a maintenance window. The script lives in the repository root, is not shipped
-as a Release asset, and `--lang` applies only to install while `--bootstrap`
-applies only to upgrade.
+`--check` performs only the first two steps plus the comparison and prints the
+target version, the bundle SHA-256, which files are missing or stale, and the
+planned action — useful before a maintenance window. The script lives in the
+repository root, is not shipped as a Release asset, and `--lang` applies only to
+install while `--bootstrap` applies only to upgrade. In a Git checkout, syncing
+requires the explicit `--allow-git` flag.
 
 ### Updater: `upgrade.sh`
 
@@ -338,7 +341,6 @@ That immutable tag is historical fact and will not be moved to `main` or
 | `.sforum-bootstrap.lock` | Lock held by the bootstrap while it refreshes the toolkit |
 | `.sforum-latest.lock` | Lock held by `sforum-latest.sh` while it prefetches and replaces the local bootstrap |
 | `.sforum/tooling-backups/` | Backups of replaced managed tooling files |
-| `.sforum/bootstrap-backups/` | Bootstrap backups taken before the prefetch wrapper replaces the file |
 | `backups/` | PostgreSQL backups, `0600` by default; change the path with `SFORUM_BACKUP_DIR` |
 | `deploy/runtime/` | Blue/green Caddy configuration; do not edit by hand |
 

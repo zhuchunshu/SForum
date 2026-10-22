@@ -15,6 +15,10 @@ fail() {
 [ -f sforum-latest.sh ] || fail "sforum-latest.sh is missing"
 [ -f sforum-latest.sh.sha256 ] || fail "sforum-latest.sh.sha256 is missing"
 bash -n sforum-latest.sh || fail "sforum-latest.sh has invalid shell syntax"
+grep -q 'sforum-deploy\.tar\.gz' sforum-latest.sh || \
+  fail "sforum-latest.sh must sync the complete deploy bundle, not only the bootstrap"
+grep -q 'managed_files' sforum-latest.sh || \
+  fail "sforum-latest.sh must read the bundle's managed-file list"
 
 if command -v sha256sum >/dev/null 2>&1; then
   sha256sum -c sforum-latest.sh.sha256 >/dev/null || \

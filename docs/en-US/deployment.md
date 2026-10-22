@@ -137,13 +137,18 @@ chmod 0755 sforum-latest.sh && \
 ./sforum-latest.sh
 ```
 
-Each run resolves the newest Release, downloads and verifies that Release's
-`sforum-bootstrap.sh`, backs up the previous file under
-`.sforum/bootstrap-backups/`, and only then delegates to install or upgrade.
-`--yes`, `--channel prerelease`, and `--version <TAG>` match the bootstrap
-semantics. The script is repository tooling: it is not a Release asset and the
-bootstrap does not refresh it. Only this wrapper file comes from `main`; the
-bootstrap and the complete toolkit still come from the Release asset.
+Each run resolves the newest Release, downloads and verifies its complete
+`sforum-deploy.tar.gz`, syncs every managed toolkit file (`deploy.sh`,
+`upgrade.sh`, Compose files, `deploy/scripts`, Caddy examples, `VERSION`) to
+that version, backs up the previous files under `.sforum/tooling-backups/`, and
+only then delegates to install or upgrade. `--check` lists exactly which files
+are missing or stale without writing anything. `--yes`,
+`--channel prerelease`, and `--version <TAG>` match the bootstrap semantics.
+The script is repository tooling: it is not a Release asset and the bootstrap
+does not refresh it. Only this wrapper file comes from `main`; the bootstrap and
+the complete toolkit still come from the Release asset. In a Git checkout,
+syncing requires the explicit `--allow-git` flag so source files are not
+replaced by accident.
 
 When adopting the bootstrap for the first time, download and verify it inside
 the existing install directory from the **latest stable Release asset** (do not

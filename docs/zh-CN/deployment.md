@@ -123,11 +123,14 @@ chmod 0755 sforum-latest.sh && \
 ./sforum-latest.sh
 ```
 
-每次运行都会解析最新 Release、下载并校验该 Release 的 `sforum-bootstrap.sh`、
-把旧文件备份到 `.sforum/bootstrap-backups/`，然后才交给 install/upgrade。
+每次运行都会解析最新 Release、下载并校验其完整部署包 `sforum-deploy.tar.gz`，
+把 `deploy.sh`、`upgrade.sh`、compose 文件、`deploy/scripts`、Caddy 示例与
+`VERSION` 全部同步到该版本，旧文件备份到 `.sforum/tooling-backups/`，然后才交给
+install/upgrade。`--check` 只列出缺失或过期的文件，不写入任何内容。
 `--yes`、`--channel prerelease`、`--version <TAG>` 与 bootstrap 语义一致。
 这个脚本属于仓库工具，不随 Release 工具包分发，也不由 bootstrap 刷新。只有
 这一个包装器文件来自 `main`；bootstrap 与完整工具包仍来自 Release 资产。
+在 Git 检出目录里实际同步需要显式加 `--allow-git`，避免误覆盖源码。
 
 第一次接入 bootstrap 时，在现有安装目录从**最新稳定 Release 资产**下载并
 校验（不要使用 `main` 分支的浮动内容）：

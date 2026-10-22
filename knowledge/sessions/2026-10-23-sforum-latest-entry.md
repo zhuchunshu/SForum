@@ -42,3 +42,7 @@
 - 增加 `sforum-latest.sh.sha256` 与 `tests/validate-sforum-latest.sh`，文档入口改成
   一条 curl（下载包装器 + SHA-256 校验 + 执行），并在 release-tooling gate 中防止
   哈希与文档入口漂移。
+- 包装器改为同步完整 `sforum-deploy.tar.gz`：校验 tar.gz 与 `VERSION`，从包内
+  bootstrap 提取权威受管清单，把 `deploy.sh`、`upgrade.sh`、compose 文件、
+  `deploy/scripts`、Caddy 示例与 `VERSION` 一并原子替换；`--check` 报告缺失或过期
+  的文件。Git 检出目录里实际同步需要 `--allow-git`，避免覆盖源码。
