@@ -207,13 +207,19 @@ https://github.com/zhuchunshu/SForum/releases/download/<TAG>/SHA256SUMS
 3. 从部署包内的 bootstrap 提取权威受管清单，把安装目录里缺失或过期的
    `deploy.sh`、`upgrade.sh`、compose 文件、`deploy/scripts`、Caddy 示例与
    `VERSION` 原子替换；旧文件备份到 `.sforum/tooling-backups/`。
-4. 用固定标签执行 `sforum-bootstrap.sh install|upgrade --version <TAG>`。
+4. 用固定标签执行 `sforum-bootstrap.sh install|upgrade --version <TAG>`；如果
+   `.env.production` 存在但 `.deployrc` 没有有效版本记录，改用
+   `deploy.sh --action deploy --version <TAG>` 重建状态。
 
 在安装目录执行：
 
 ```sh
-curl -fsSLo sforum-latest.sh https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
-curl -fsSLo sforum-latest.sh.sha256 https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+# 重复运行会原子替换包装器，不需要先删除旧文件
+tmp="$(mktemp ./.sforum-latest.XXXXXX)" && \
+curl -fsSLo "$tmp" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
+curl -fsSLo "$tmp.sha256" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+mv -f "$tmp.sha256" sforum-latest.sh.sha256 && \
+mv -f "$tmp" sforum-latest.sh && \
 { sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
 chmod 0755 sforum-latest.sh && \
 ./sforum-latest.sh --check

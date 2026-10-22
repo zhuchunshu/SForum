@@ -226,13 +226,19 @@ wrapper moves network resolution and verification ahead of any local script:
    file, `deploy/scripts` entry, Caddy example, and `VERSION`; the previous
    files are backed up under `.sforum/tooling-backups/`.
 4. Run `sforum-bootstrap.sh install|upgrade --version <TAG>` with the pinned
-   tag.
+   tag. When `.env.production` exists but `.deployrc` has no usable version
+   record, run `deploy.sh --action deploy --version <TAG>` instead to rebuild the
+   managed state.
 
 Run this inside the install directory:
 
 ```sh
-curl -fsSLo sforum-latest.sh https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
-curl -fsSLo sforum-latest.sh.sha256 https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+# Rerunning replaces the wrapper atomically; no manual deletion is needed.
+tmp="$(mktemp ./.sforum-latest.XXXXXX)" && \
+curl -fsSLo "$tmp" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
+curl -fsSLo "$tmp.sha256" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+mv -f "$tmp.sha256" sforum-latest.sh.sha256 && \
+mv -f "$tmp" sforum-latest.sh && \
 { sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
 chmod 0755 sforum-latest.sh && \
 ./sforum-latest.sh --check

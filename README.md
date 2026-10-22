@@ -150,9 +150,13 @@ repository-side wrapper from the install directory. This is one copy-paste and
 verifies the wrapper's own SHA-256 before executing it:
 
 ```sh
-# Run inside the install directory.
-curl -fsSLo sforum-latest.sh https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
-curl -fsSLo sforum-latest.sh.sha256 https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+# Run inside the install directory. Rerunning replaces the wrapper atomically;
+# no manual deletion is needed.
+tmp="$(mktemp ./.sforum-latest.XXXXXX)" && \
+curl -fsSLo "$tmp" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
+curl -fsSLo "$tmp.sha256" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+mv -f "$tmp.sha256" sforum-latest.sh.sha256 && \
+mv -f "$tmp" sforum-latest.sh && \
 { sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
 chmod 0755 sforum-latest.sh && \
 ./sforum-latest.sh
@@ -163,7 +167,10 @@ Each run resolves the newest Release, downloads and verifies its complete
 `upgrade.sh`, Compose files, `deploy/scripts`, Caddy examples, `VERSION`) to
 that version, backs up the previous files under `.sforum/tooling-backups/`, and
 only then delegates to install or upgrade. `--check` lists exactly which files
-are missing or stale without writing anything. `--yes`,
+are missing or stale without writing anything. When `.env.production` exists but
+`.deployrc` has no usable version record (for example a manual-Compose install),
+the wrapper runs `./deploy.sh --action deploy --version <TAG>` once to rebuild
+the managed state instead of stopping inside `upgrade.sh`. `--yes`,
 `--channel prerelease`, and `--version <TAG>` behave as they do for the
 bootstrap. The script itself is repository tooling, not a Release asset; only
 this one wrapper file comes from `main`.

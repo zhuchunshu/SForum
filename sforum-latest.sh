@@ -37,8 +37,9 @@ usage() {
 
 始终下载 GitHub 上最新 Release 的完整部署包，校验后把安装目录里的
 deploy.sh、upgrade.sh、compose 文件、deploy/scripts、Caddy 示例与 VERSION
-同步到该 Release 的版本，再交给 bootstrap 执行 install/upgrade。当前目录已有
-.env.production 与 .deployrc 时执行 upgrade，两者都不存在时执行 install。
+同步到该 Release 的版本，再交给 bootstrap 执行 install/upgrade。当前目录有
+.env.production 且 .deployrc 含有效版本时执行 upgrade；有 .env.production 但
+.deployrc 缺失或没有版本记录时执行 deploy 重建状态；两者都不存在时执行 install。
 
 选项:
   --check, --dry-run        只下载、校验并报告哪些受管文件需要更新，不写入
@@ -152,12 +153,16 @@ parse_args() {
 }
 
 detect_action() {
-  if [ -f "$ROOT_DIR/.env.production" ] && [ -f "$ROOT_DIR/.deployrc" ]; then
-    ACTION=upgrade
-  elif [ ! -f "$ROOT_DIR/.env.production" ] && [ ! -f "$ROOT_DIR/.deployrc" ]; then
-    ACTION=install
-  else
+  if [ -f "$ROOT_DIR/.env.production" ]; then
+    if [ -f "$ROOT_DIR/.deployrc" ] && grep -Eq '^version=v?[0-9]' "$ROOT_DIR/.deployrc"; then
+      ACTION=upgrade
+    else
+      ACTION=repair
+    fi
+  elif [ -f "$ROOT_DIR/.deployrc" ]; then
     ACTION=incomplete
+  else
+    ACTION=install
   fi
 }
 
@@ -399,7 +404,21 @@ report() {
   case "$ACTION" in
     install) printf '安装状态: 未安装，计划动作 install\n' ;;
     upgrade) printf '安装状态: 已安装，计划动作 upgrade\n' ;;
-    *) printf '安装状态: 不完整（.env.production 与 .deployrc 需同时存在），需要先人工修复\n' ;;
+    repair) printf '安装状态: .deployrc 缺少有效版本记录，计划动作 deploy（重建状态）\n' ;;
+    *) printf '安装状态: 不完整（只有 .deployrc，没有 .env.production），需要先人工修复\n' ;;
+  esac
+}
+
+run_action() {
+  case "$ACTION" in
+    install|upgrade)
+      printf '执行: ./sforum-bootstrap.sh %s --version %s\n' "$ACTION" "$TARGET_TAG"
+      "$BOOTSTRAP" "$ACTION" --version "$TARGET_TAG" ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
+      ;;
+    repair)
+      printf '执行: ./deploy.sh --action deploy --version %s\n' "$TARGET_TAG"
+      "$ROOT_DIR/deploy.sh" --action deploy --version "$TARGET_TAG" ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
+      ;;
   esac
 }
 
@@ -413,7 +432,7 @@ main() {
   if [ "$ACTION" = upgrade ] && passthrough_has --lang; then
     die "--lang 只用于 install"
   fi
-  if [ "$ACTION" = install ] && passthrough_has --bootstrap; then
+  if [ "$ACTION" != upgrade ] && passthrough_has --bootstrap; then
     die "--bootstrap 只用于 upgrade"
   fi
   if [ "$ACTION" = incomplete ] && [ "$CHECK_ONLY" != true ]; then
@@ -451,9 +470,8 @@ main() {
     printf '受管工具链: 已是最新\n'
   fi
 
-  printf '执行: ./sforum-bootstrap.sh %s --version %s\n' "$ACTION" "$TARGET_TAG"
   set +e
-  "$BOOTSTRAP" "$ACTION" --version "$TARGET_TAG" ${PASSTHROUGH[@]+"${PASSTHROUGH[@]}"}
+  run_action
   local status=$?
   set -e
 

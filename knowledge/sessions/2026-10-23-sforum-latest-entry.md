@@ -46,3 +46,8 @@
   bootstrap 提取权威受管清单，把 `deploy.sh`、`upgrade.sh`、compose 文件、
   `deploy/scripts`、Caddy 示例与 `VERSION` 一并原子替换；`--check` 报告缺失或过期
   的文件。Git 检出目录里实际同步需要 `--allow-git`，避免覆盖源码。
+- 增加 `repair` 动作：有 `.env.production` 但 `.deployrc` 缺少有效 `version=` 时，
+  直接执行 `deploy.sh --action deploy --version <TAG>` 重建状态，避免
+  `upgrade.sh` 以 “currently deployed version is unknown” 退出。
+- 文档的一行入口改为“临时文件 + `mv -f` 原子替换”，重复运行不需要先删除
+  `sforum-latest.sh`；这样也不会碰到正在执行文件的覆盖问题。

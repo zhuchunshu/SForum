@@ -115,9 +115,12 @@ bootstrap 一定来自 GitHub，在安装目录执行下面这一条命令。它
 的 SHA-256，再运行：
 
 ```sh
-# 在安装目录执行
-curl -fsSLo sforum-latest.sh https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
-curl -fsSLo sforum-latest.sh.sha256 https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+# 在安装目录执行；重复运行会原子替换包装器，不需要先删除旧文件
+tmp="$(mktemp ./.sforum-latest.XXXXXX)" && \
+curl -fsSLo "$tmp" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
+curl -fsSLo "$tmp.sha256" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+mv -f "$tmp.sha256" sforum-latest.sh.sha256 && \
+mv -f "$tmp" sforum-latest.sh && \
 { sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
 chmod 0755 sforum-latest.sh && \
 ./sforum-latest.sh
@@ -127,7 +130,10 @@ chmod 0755 sforum-latest.sh && \
 把 `deploy.sh`、`upgrade.sh`、compose 文件、`deploy/scripts`、Caddy 示例与
 `VERSION` 全部同步到该版本，旧文件备份到 `.sforum/tooling-backups/`，然后才交给
 install/upgrade。`--check` 只列出缺失或过期的文件，不写入任何内容。
-`--yes`、`--channel prerelease`、`--version <TAG>` 与 bootstrap 语义一致。
+如果 `.env.production` 存在但 `.deployrc` 没有有效版本记录（例如早期手动 Compose
+部署），脚本会先执行一次 `./deploy.sh --action deploy --version <TAG>` 重建受管
+状态，而不是在 `upgrade.sh` 里报当前版本未知。`--yes`、`--channel prerelease`、
+`--version <TAG>` 与 bootstrap 语义一致。
 这个脚本属于仓库工具，不随 Release 工具包分发，也不由 bootstrap 刷新。只有
 这一个包装器文件来自 `main`；bootstrap 与完整工具包仍来自 Release 资产。
 在 Git 检出目录里实际同步需要显式加 `--allow-git`，避免误覆盖源码。
