@@ -40,6 +40,25 @@
   Dependabot 的 `bun in /apps/web` 更新 run（`39781552970`）success，并新开了
   10 个 `dependabot/bun/apps/web/*` PR（diff 只含 `bun.lock` + `package.json`）。
 
+## 追加：actions 大版本升级与 #168 / #171 处置（同日）
+
+- 合并 #174（vite 8.1.5 → **8.3.4**，承接 #171 想修的 5 条 GHSA）。
+- 新 PR #182 承接 #168：4 个 workflow 的 action 升到 checkout v7.0.1、setup-go
+  v7.0.0、setup-node v7.1.0、buildx v4.4.1、login v4.6.0、metadata v6.2.0、
+  build-push v7.4.0、upload-artifact v7.0.2、download-artifact v8.0.2，trivy 与
+  attest 重新指向当前 SHA；同时把 `release_workflow_test.rb` 的 setup-node pin
+  同步到 `949feb2413d6458794dcd2491c4babbbce0c15c1`（仍断言 Node 24 /
+  registry-url / package-manager-cache=false），并留注释说明这是人工审查点。
+- 升级前逐项核实：每个新 SHA 用 `gh api repos/{owner}/{repo}/commits/{sha}` 确认
+  存在且对应标注版本；新版本 `action.yml` 的 inputs 与仓库用法全部兼容
+  （setup-node 仍有 `package-manager-cache`，upload v7 有 `name`/`path`，
+  download v8 有 `pattern`/`merge-multiple`，build-push v7 保留
+  `outputs`/`platforms`/`push`/`provenance`/`sbom`/`cache-*`）；运行时均为 node24。
+- #168 与 #171 已关闭，留言写清承接方。#171 的 composer 清账记录落到
+  `sessions/2026-10-22-dependabot-alert-triage.md`。
+- 遗留风险：release.yml 里只在发 tag 时执行的 action（login/metadata/attest/
+  upload/download）无法在合并前做行为验证，下次发版是首次真跑。
+
 ## Next
 
 - 推送后确认 main 的 `CI` 三个 job 全绿（发布 workflow 的 `verify-main-ci` 会等它）。已确认。
@@ -48,7 +67,8 @@
 - `dependabot/github_actions/*`（PR #168）的 `Release tooling` 红是**设计上的评审点**：
   `scripts/ci/release_workflow_test.rb` 硬编码 `actions/setup-node` 的 reviewed SHA
   与 Node 24 / Trusted Publishing 参数。合并该 PR 必须同步更新这条 pin，否则 main 的
-  `Release tooling` 会被自己拦红。不要为了“变绿”直接放宽该断言。
+  `Release tooling` 会被自己拦红。不要为了“变绿”直接放宽该断言。已通过 #182 处理。
+- 下次打 tag 时盯一遍 release 全流程（尤其 upload/download artifact 的 v7/v8 行为）。
 
 ## Open Questions
 
