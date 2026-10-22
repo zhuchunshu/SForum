@@ -153,8 +153,8 @@ verifies the wrapper's own SHA-256 before executing it:
 # Run inside the install directory. Rerunning replaces the wrapper atomically;
 # no manual deletion is needed.
 tmp="$(mktemp ./.sforum-latest.XXXXXX)" && \
-curl -fsSLo "$tmp" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
-curl -fsSLo "$tmp.sha256" https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+curl -fsSLo "$tmp" "https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh?$(date +%s)" && \
+curl -fsSLo "$tmp.sha256" "https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256?$(date +%s)" && \
 mv -f "$tmp.sha256" sforum-latest.sh.sha256 && \
 mv -f "$tmp" sforum-latest.sh && \
 { sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
