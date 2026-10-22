@@ -56,6 +56,13 @@ ruby -rjson -e '
     abort "compose-production_test.sh: migrate #{key} is empty" if actual.empty?
   end
   abort "compose-production_test.sh: migrate APP_ENV is not production" unless migrate["APP_ENV"] == "production"
+  # config.Load 在生产态拒绝相对 EXTENSION_ROOT；migrate 也必须拿到绝对路径，
+  # 否则发布冒烟会在 migrate 步骤 panic（2026-10-22 v3.0.13-alpha.1 实测）。
+  migrate_extension_root = migrate.fetch("EXTENSION_ROOT", "")
+  abort "compose-production_test.sh: migrate EXTENSION_ROOT must be set" if migrate_extension_root.empty?
+  unless migrate_extension_root.start_with?("/")
+    abort "compose-production_test.sh: migrate EXTENSION_ROOT must be absolute, got #{migrate_extension_root.inspect}"
+  end
   api = services.fetch("api")
   abort "compose-production_test.sh: API still exposes Worker ownership configuration" if api.fetch("environment").key?("EMBED_WORKER_IN_API")
   abort "compose-production_test.sh: default topology includes standalone Worker" if services.key?("worker")

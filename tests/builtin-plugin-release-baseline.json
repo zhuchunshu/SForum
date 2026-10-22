@@ -2,36 +2,36 @@
   "sharedRuntimeDigest": "4f9416cd3e28064c7372995f7901b5e1ee03322f4577833ff971515e8b10ba00",
   "plugins": {
     "sforum.auth-github": {
-      "version": "1.0.7",
-      "sourceDigest": "39e005ce3983bb0d0d06c20bae7c6d1be08131093e563e38d114dad224e83cd9"
+      "version": "1.0.8",
+      "sourceDigest": "1fc6ccd767548d1776f6ede8746c4b138eff7c5447151b86849d6c20b8985628"
     },
     "sforum.content-policy": {
-      "version": "1.1.6",
-      "sourceDigest": "9d0ea0b223d9a0b26ce79916251f92ce7f451f5997557cdb4be23744a5726f2c"
+      "version": "1.1.7",
+      "sourceDigest": "06258e7a9fedd0de2bd1b2be257b100c6fb22c85e6da9a336482f5a003091ff4"
     },
     "sforum.search-site": {
-      "version": "1.0.6",
-      "sourceDigest": "41633521d5086023efa2414fbc7a03224493cee5c4e8730b87a8ec3f68df4d65"
+      "version": "1.0.7",
+      "sourceDigest": "6df8d22044b003f14fe25d80a29b87ff3b5d3d99452c03fff68b382f0c5c4da2"
     },
     "sforum-shortcodes": {
-      "version": "1.3.4",
-      "sourceDigest": "d4eb11279d33d77aee794086fc91ab59fde58b7ed2f17abe22012e31bc7a5755"
+      "version": "1.3.5",
+      "sourceDigest": "ae585fcb062279650f068326a978d8abfa9f572e3ede49f100431dbe99e440ae"
     },
     "sforum.smtp": {
-      "version": "1.1.6",
-      "sourceDigest": "8a073d893a832977140c3d4c093b9ab16a7de043035d1b0f2682b2ced72fdb10"
+      "version": "1.1.7",
+      "sourceDigest": "e075435d6818ca44a645ac8ebe090bca23df7001f9ec8597eab52efc559cb32a"
     },
     "sforum.storage-fs": {
-      "version": "1.1.7",
-      "sourceDigest": "740e80d09b5cd3eb8eea2acb3311cd91e2e2519391a73c1346f55ae64262d95e"
+      "version": "1.1.8",
+      "sourceDigest": "54691739e90e8d2787642b0fc6693e75e26c03fa768202793727d3d231976bd0"
     },
     "sforum.storage-s3": {
-      "version": "1.0.8",
-      "sourceDigest": "48acb6e8b96ef34d407d9dce4b3715b2dcbd09221bec12d96ca5ead2e012ff1d"
+      "version": "1.0.9",
+      "sourceDigest": "38d1716a224f50cbe7d24b9656a84c3ca444c9ce7172e220b1efbdc9d6011cb6"
     },
     "sforum.web-push": {
-      "version": "1.0.6",
-      "sourceDigest": "436400f89b716dc2f78f0b7b7ecfc64df41a8df50e5988ce608c96ab891db32f"
+      "version": "1.0.7",
+      "sourceDigest": "73219b94cef184219bb6269a990a768c2fa459c95d5d10d98795126e3f3960c9"
     }
   }
 }
