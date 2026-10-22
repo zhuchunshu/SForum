@@ -296,7 +296,7 @@ beyond the earlier search/cache read-path work:
 
 ## Planned Stack
 
-- Go 1.26.9+ (the toolchain anchor is `apps/api/go.mod`; docs and CI must
+- Go 1.26.10+ (the toolchain anchor is `apps/api/go.mod`; docs and CI must
   follow it).
 - Go Fiber v3.
 - PostgreSQL with `pgx/v5`.
