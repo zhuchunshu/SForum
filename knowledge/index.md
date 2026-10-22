@@ -6,6 +6,15 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### Dependabot 告警清账与依赖刷新
+
+- Status: **landed (2026-10-22)**。45 条 open 告警里 5 条真实（vite 的 GHSA，8.1.6 起
+  patched，本次直接升到 8.3.4 合并），40 条 composer 告警算的是 2023 年 PHP 时代、
+  `main` 全历史都不存在的 lock，按 `not_used` dismiss。
+- Next：在 Settings 关/开一次 Dependency graph 清陈旧快照，确认
+  `dependencyGraphManifests` 不再含 composer 条目。
+- Handoff: `sessions/2026-10-22-dependabot-alert-triage.md`
+
 ### 发布前 CI / Dependabot 红色修复
 
 - Status: **landed (2026-10-22)**。main 的 `CI / Contracts and static gates` 由过时

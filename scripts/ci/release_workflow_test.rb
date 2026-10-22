@@ -78,7 +78,10 @@ unless sdk_permissions["contents"] == "read" && sdk_permissions["id-token"] == "
 end
 sdk_steps = sdk_publish.fetch("steps")
 setup_node = sdk_steps.find { |step| step["uses"].to_s.include?("actions/setup-node@") }
-unless setup_node && setup_node["uses"] == "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38" &&
+# setup-node 的 pin 是人工审查点：dependabot 把 action 升到新 SHA 时必须在这里同步，
+# 并重新确认下方三个参数仍然满足 npm Trusted Publishing 的要求。放宽成前缀/标签匹配
+# 会让这条闸门失去意义。
+unless setup_node && setup_node["uses"] == "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1" &&
        setup_node.dig("with", "node-version") == "24.19.0" &&
        setup_node.dig("with", "registry-url") == "https://registry.npmjs.org" &&
        setup_node.dig("with", "package-manager-cache") == false
