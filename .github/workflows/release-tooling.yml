@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # 这一段是必需的，不是可选优化：gate 的最后一步 verify-web-sdks.mjs 会真的
       # 起一个离线 consumer 构建来验证打出来的 SDK 包（vite + @vitejs/plugin-vue +
