@@ -117,9 +117,15 @@ Build, typecheck, lint, test:
 - `cd apps/api && go build ./...` / `go test ./...` — Go build and tests.
 - `node tests/validate-architecture-boundaries.mjs` — enforce file-size,
   flat-directory, fixed-tab, and legacy God-object non-growth guardrails.
-- `./scripts/test.sh` — full repo test gate: `go test ./...`, OpenAPI ref
-  validation, Nuxt typecheck, and the product `tests/validate-*` scripts wired in
-  `scripts/test.sh` (demos remain optional offline checks).
+- `./scripts/test.sh` — full repo test gate, run as three concurrent lines:
+  Go tests plus the compatibility farm and `go build ./...`; Nuxt typecheck,
+  `bun test`, and the production build; the static contract/release gates and
+  the product `tests/validate-*` scripts (demos remain optional offline
+  checks). Per-line logs land in `tests/.logs/`.
+- `./scripts/test.sh --fast` — local daily loop: the same Go tests and Nuxt
+  typecheck plus `bun test`, but skips the production web build, the
+  compatibility farm, and the release/deploy tooling gate, which CI already
+  covers in full. Without the flag the gate keeps its full meaning.
 - `ruby scripts/validate-openapi-refs.rb` — validate OpenAPI `$ref`s after
   editing any contract file.
 

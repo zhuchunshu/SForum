@@ -518,18 +518,19 @@ func newThemePublicationPGFixtureWithInitialPublication(
 	}
 	schema := fmt.Sprintf("theme_publication_%d", time.Now().UnixNano())
 	quotedSchema := pgx.Identifier{schema}.Sanitize()
-	setup, err := admin.Acquire(ctx)
-	if err != nil {
-		admin.Close()
-		t.Fatal(err)
-	}
-	defer setup.Release()
+	// admin 必须晚于 setup 归还才关闭：puddle 的 Pool.Close 会等待所有已取出的
+	// 连接归还，defer 顺序反了就会在 fixture 失败时永久挂住（并行跑时整包挂死）。
 	keepAdmin := false
 	defer func() {
 		if !keepAdmin {
 			admin.Close()
 		}
 	}()
+	setup, err := admin.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer setup.Release()
 	if _, err := setup.Exec(ctx, `SELECT pg_advisory_lock(202607150020)`); err != nil {
 		t.Fatal(err)
 	}

@@ -6,6 +6,22 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+
+### 全量测试提速（Go 分片并行 + 三线并行）
+
+- Status: **landed (2026-10-23)**，本地全绿；CI 待 PR。`scripts/test.sh` 现在三条线
+  并发（api / web / static，日志在 `tests/.logs/`），Go 段从「一个 database 上 `-p 1`」
+  改成「多个一次性集群分片，片内 `-p 1`」（`SFORUM_TEST_SHARDS` 默认 min(nproc,4)）；
+  compat 农场并入同一次调用（`--with-compat`）；新增 `--fast` 本地分层；typecheck 走
+  vue-tsc 增量。
+- 关键结论：任务书原定的「`-p` 提到 8」实测不安全——跑迁移链/写 public 共享行的包会
+  互相踩出 `extension database physical resource conflict`、
+  `lifecycle operation already in progress`、`could not open relation with OID`、
+  `core database authority conflicts` 四类失败。所以并行度挪到集群级。
+- 计时：21:31 → 7:24（冷）/ 6:14（热）/ 0:41（`--fast`），154 个包两轮冷跑零失败。
+- Handoff: `sessions/2026-10-23-test-suite-speedup-handoff.md`；
+  决策：`decisions/2026-10-23-test-gate-parallelism.md`。
+
 ### 发布 v3.0.13-alpha.1
 
 - Status: **已发布 (2026-10-22)**。`ghcr.io/zhuchunshu/sforum-{api,migrate,web}:3.0.13-alpha.1`
@@ -440,6 +456,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **全量测试提速（2026-10-23，最新）**：`./scripts/test.sh` 从 21:31 降到 7:24（冷）/
+  6:14（热），`--fast` 0:41。Go 并行改成集群级分片（`SFORUM_TEST_SHARDS`，片内 `-p 1`），
+  因为 `-p>1` 在单个 database 上实测四类跨包竞态；compat 农场并入 `--with-compat`；
+  三线并行日志落 `tests/.logs/`；typecheck 增量。154 个包两轮冷缓存真跑零失败，
+  CI 三个 gate job 待 PR 确认。详见 `sessions/2026-10-23-test-suite-speedup-handoff.md`。
 - **严格更新入口（2026-10-23，最新）**：新增根目录 `sforum-latest.sh`，每次先解析
   GitHub 最新 Release，校验完整 `sforum-deploy.tar.gz` 后把 `deploy.sh`、`upgrade.sh`、
   compose、`deploy/scripts`、Caddy 示例与 `VERSION` 同步到该版本，再交给

@@ -38,6 +38,9 @@ bun-debug.log*
 .playwright-cli/
 .playwright-*.json
 
+# scripts/test.sh 三线并行的每线日志
+tests/.logs/
+
 # Temporary files
 tmp/
 temp/
