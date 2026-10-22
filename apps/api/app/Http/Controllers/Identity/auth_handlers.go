@@ -19,6 +19,7 @@ import (
 	clientip "github.com/zhuchunshu/sforum/apps/api/app/Support/ClientIP"
 	humanverify "github.com/zhuchunshu/sforum/apps/api/app/Support/HumanVerify"
 	localization "github.com/zhuchunshu/sforum/apps/api/app/Support/Localization"
+	useragent "github.com/zhuchunshu/sforum/apps/api/app/Support/UserAgent"
 )
 
 func (h *Controller) register(c fiber.Ctx) error {
@@ -100,6 +101,11 @@ func (h *Controller) login(c fiber.Ctx) error {
 		Login:    req.Login,
 		Password: req.Password,
 		ClientIP: clientip.FromCtx(c),
+		// 与会话登记同口径的 UA 指纹：login_risk 的新设备判定依赖它。
+		DeviceFingerprint: useragent.Parse(c.Get(fiber.HeaderUserAgent), clientip.FromCtx(c)).UserAgentRaw,
+		// 登录同时签发 API Token 的请求豁免人机验证。这是已记录的取舍：
+		// 该请求仍会签发浏览器会话，因此等同保留一处可绕过的验证豁免面。
+		SkipHumanVerification: req.IssueAPIToken != nil,
 	}
 	current, err := h.service.Login(c.Context(), loginInput)
 	if errors.Is(err, identity.ErrLoginVerificationRequired) {

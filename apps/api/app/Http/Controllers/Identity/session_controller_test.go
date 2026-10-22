@@ -8,6 +8,7 @@ import (
 	nethttp "net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -140,11 +141,14 @@ func (s *sessionTestStore) CreateSession(_ context.Context, input authsession.Se
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
+	// fasthttp 会复用请求缓冲区：UA 字符串必须克隆后再存，
+	// 否则下一次请求会就地改写已落库的指纹。
+	userAgentRaw := strings.Clone(input.UserAgentRaw)
 	for i, row := range s.sessions {
 		if row.sid == input.SID {
 			s.sessions[i] = sessionTestRow{
 				userID: input.UserID, sid: input.SID, deviceName: input.DeviceName,
-				browser: input.Browser, os: input.OS, userAgentRaw: input.UserAgentRaw, ipPrefix: input.IPPrefix,
+				browser: input.Browser, os: input.OS, userAgentRaw: userAgentRaw, ipPrefix: input.IPPrefix,
 				createdAt: now, lastSeenAt: now,
 			}
 			return nil
@@ -152,7 +156,7 @@ func (s *sessionTestStore) CreateSession(_ context.Context, input authsession.Se
 	}
 	s.sessions = append(s.sessions, sessionTestRow{
 		userID: input.UserID, sid: input.SID, deviceName: input.DeviceName,
-		browser: input.Browser, os: input.OS, userAgentRaw: input.UserAgentRaw, ipPrefix: input.IPPrefix,
+		browser: input.Browser, os: input.OS, userAgentRaw: userAgentRaw, ipPrefix: input.IPPrefix,
 		createdAt: now, lastSeenAt: now,
 	})
 	return nil

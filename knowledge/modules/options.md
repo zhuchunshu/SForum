@@ -221,6 +221,7 @@ skin behavior without admin session.
   `human_verification.scenarios.email_verification`,
   `human_verification.scenarios.login_risk`,
   `human_verification.scenarios.post_risk`,
+  `human_verification.login_risk.always`,
   `human_verification.altcha.widget.type`,
   `human_verification.altcha.widget.auto`,
   `human_verification.altcha.widget.display`,
@@ -256,10 +257,18 @@ skin behavior without admin session.
   the API, public-client fallback, and admin form. The verification provider
   itself remains disabled until an operator configures ALTCHA and its secret,
   so these defaults do not block a fresh installation.
+- Login hardening triggers default to disabled and are gated by
+  `human_verification.scenarios.login_risk`. `human_verification.rate_limit.per_minute`
+  is bounded to 1–600 with a recommended default of 60 and replaces the former
+  hardcoded challenge/verify limit. Decision:
+  `decisions/2026-10-22-login-human-verification-triggers.md`.
 - Current admin-only options are `site.admin_email` (operator contact, not
   SMTP From and not public), `human_verification.altcha.secret`,
   `human_verification.altcha.challenge_ttl`,
-  `human_verification.altcha.cost`, attachment provider selection, path
+  `human_verification.altcha.cost`,
+  `human_verification.login_risk.new_device`,
+  `human_verification.login_risk.privileged`,
+  `human_verification.rate_limit.per_minute`, attachment provider selection, path
   template, public base URL, default visibility, cleanup retention, all
   provider-specific credential/connection options, and avatar-only processing
   knobs `avatar.default_static_url`, `avatar.max_dimension`,

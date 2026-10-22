@@ -24,6 +24,7 @@ type Service struct {
 	// loginLockout 可选；缺省时不锁定。
 	loginLockout       LoginLockoutStore
 	loginLockoutPolicy LoginLockoutPolicyResolver
+	loginVerification  LoginVerificationPolicyResolver
 	identityRegistry   identityregistry.Store
 }
 
@@ -131,15 +132,6 @@ type RegisterInput struct {
 	Password    string
 	DisplayName string
 	Locale      string
-}
-
-type LoginInput struct {
-	Login    string
-	Password string
-	// ClientIP 用于分层登录节流（account+IP / IP）；可空。
-	ClientIP string
-	// HumanVerified 仅由 HTTP 层在 login_risk 验证成功后设置。
-	HumanVerified bool
 }
 
 // RegistrationStatus 返回注册相关状态。该端点公开可访问（注册页加载时调用），
@@ -523,7 +515,7 @@ func (s *Service) Login(ctx context.Context, input LoginInput) (CurrentUser, err
 		_ = s.recordLoginFailure(ctx, loginKey, clientIP)
 		return CurrentUser{}, ErrInvalidCredentials
 	}
-	if required, err := s.loginRequiresVerification(ctx, loginKey); err != nil {
+	if required, err := loginRequiresVerification(s, ctx, loginKey, credential, input); err != nil {
 		return CurrentUser{}, err
 	} else if required && !input.HumanVerified {
 		return CurrentUser{}, ErrLoginVerificationRequired
@@ -556,13 +548,6 @@ func (s *Service) recordLoginFailure(ctx context.Context, loginKey, clientIP str
 		return nil
 	}
 	return s.loginLockout.RecordFailure(ctx, loginKey, clientIP, policy.MaxFailures, time.Duration(policy.LockoutMinutes)*time.Minute)
-}
-
-func (s *Service) loginRequiresVerification(ctx context.Context, loginKey string) (bool, error) {
-	if s.loginLockout == nil {
-		return false, nil
-	}
-	return s.loginLockout.RequiresVerification(ctx, loginKey)
 }
 
 func (s *Service) clearLoginFailures(ctx context.Context, loginKey, clientIP string) error {

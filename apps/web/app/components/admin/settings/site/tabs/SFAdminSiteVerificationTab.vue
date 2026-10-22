@@ -45,10 +45,18 @@ const scenarios = computed(() => [
 const typeOptions = computed(() => altchaWidgetTypes.map(value => ({ value, label: t(`admin.settings.verification.widget.typeOptions.${value}`) })))
 const autoOptions = computed(() => altchaWidgetAutoModes.map(value => ({ value, label: t(`admin.settings.verification.widget.autoOptions.${value}`) })))
 const displayOptions = computed(() => altchaWidgetDisplays.map(value => ({ value, label: t(`admin.settings.verification.widget.displayOptions.${value}`) })))
-
+const loginTriggers = computed(() => [
+  { key: 'always' as const, field: 'loginAlways' as const, label: t('admin.settings.verification.login.always.label'), description: t('admin.settings.verification.login.always.description'), icon: 'i-lucide-shield-check' },
+  { key: 'new_device' as const, field: 'loginNewDevice' as const, label: t('admin.settings.verification.login.newDevice.label'), description: t('admin.settings.verification.login.newDevice.description'), icon: 'i-lucide-monitor-smartphone' },
+  { key: 'privileged' as const, field: 'loginPrivileged' as const, label: t('admin.settings.verification.login.privileged.label'), description: t('admin.settings.verification.login.privileged.description'), icon: 'i-lucide-user-cog' }
+])
 const form = reactive({
   provider: 'disabled' as 'disabled' | 'altcha',
   scenarios: { ...scenarioFallbacks },
+  loginAlways: false,
+  loginNewDevice: false,
+  loginPrivileged: false,
+  rateLimit: 60,
   secret: '',
   secretSet: false,
   challengeTTLMinutes: 10,
@@ -61,9 +69,18 @@ const form = reactive({
   widgetWorkers: 2,
   widgetMinDuration: 500
 })
+// 触发条件已开但总闸/provider 没开时，明确告诉运营「现在不会生效」，避免静默失效。
+const loginTriggersInactive = computed(() => {
+  const anyTrigger = form.loginAlways || form.loginNewDevice || form.loginPrivileged
+  return anyTrigger && (form.provider !== 'altcha' || !form.scenarios.login_risk)
+})
 const initial = computed(() => ({
   provider: normalizeProvider(map.value['human_verification.provider']?.value),
   scenarios: readScenarioSettings(map.value),
+  loginAlways: normalizeEnabledOption(map.value['human_verification.login_risk.always']?.value, false),
+  loginNewDevice: normalizeEnabledOption(map.value['human_verification.login_risk.new_device']?.value, false),
+  loginPrivileged: normalizeEnabledOption(map.value['human_verification.login_risk.privileged']?.value, false),
+  rateLimit: boundedInteger(map.value['human_verification.rate_limit.per_minute']?.value, 60, 1, 600),
   secretSet: map.value['human_verification.altcha.secret']?.secretSet === true,
   challengeTTLMinutes: durationToMinutes(map.value['human_verification.altcha.challenge_ttl']?.value || '10m'),
   cost: normalizeCost(map.value['human_verification.altcha.cost']?.value),
@@ -106,6 +123,7 @@ async function save() {
       form.cost = normalizeCost(form.cost)
       form.widgetWorkers = boundedInteger(form.widgetWorkers, 2, 1, 16)
       form.widgetMinDuration = boundedInteger(form.widgetMinDuration, 500, 0, 10000)
+      form.rateLimit = boundedInteger(form.rateLimit, 60, 1, 600)
     },
     save: async () => {
       const payload: WebOption[] = [
@@ -114,6 +132,10 @@ async function save() {
           name: humanVerificationScenarioOptionName(scenario.key),
           value: enabledOptionValue(form.scenarios[scenario.key])
         })),
+        { name: 'human_verification.login_risk.always', value: enabledOptionValue(form.loginAlways) },
+        { name: 'human_verification.login_risk.new_device', value: enabledOptionValue(form.loginNewDevice) },
+        { name: 'human_verification.login_risk.privileged', value: enabledOptionValue(form.loginPrivileged) },
+        { name: 'human_verification.rate_limit.per_minute', value: String(form.rateLimit) },
         { name: 'human_verification.altcha.challenge_ttl', value: `${form.challengeTTLMinutes}m` },
         { name: 'human_verification.altcha.cost', value: String(form.cost) },
         { name: 'human_verification.altcha.widget.type', value: form.widgetType },
@@ -141,6 +163,10 @@ function restoreRecommended() {
     apply: () => Object.assign(form, {
       provider: 'disabled',
       scenarios: { ...scenarioFallbacks },
+      loginAlways: false,
+      loginNewDevice: false,
+      loginPrivileged: false,
+      rateLimit: 60,
       secret: '',
       challengeTTLMinutes: 10,
       cost: 1000,
@@ -244,6 +270,21 @@ function blockNonIntegerKey(event: KeyboardEvent) {
               <span><strong class="flex items-center gap-2"><UIcon :name="scenario.icon" class="size-4" />{{ scenario.label }}</strong><span class="mt-1 block text-xs text-muted">{{ scenario.description }}</span></span>
             </label>
           </div>
+        </section>
+
+        <section class="space-y-3 border-t border-slate-200 pt-4 dark:border-zinc-800">
+          <div><h3 class="text-sm font-semibold">{{ t('admin.settings.verification.login.title') }}</h3><p class="mt-1 text-xs text-muted">{{ t('admin.settings.verification.login.description') }}</p></div>
+          <div class="grid gap-3 md:grid-cols-3">
+            <label v-for="trigger in loginTriggers" :key="trigger.key" class="flex cursor-pointer gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-950/60">
+              <input v-model="form[trigger.field]" type="checkbox" class="mt-1 size-4">
+              <span><strong class="flex items-center gap-2"><UIcon :name="trigger.icon" class="size-4" />{{ trigger.label }}</strong><span class="mt-1 block text-xs text-muted">{{ trigger.description }}</span></span>
+            </label>
+          </div>
+          <UFormField :label="t('admin.settings.verification.login.rateLimit')" name="human-verification-rate-limit">
+            <UInput v-model.number="form.rateLimit" type="number" min="1" max="600" required class="w-40" @keydown="blockNonIntegerKey" />
+            <p class="mt-2 text-xs text-muted">{{ t('admin.settings.verification.login.rateLimitHint') }}</p>
+          </UFormField>
+          <p v-if="loginTriggersInactive" class="text-xs text-amber-600 dark:text-amber-400">{{ t('admin.settings.verification.login.inactiveHint') }}</p>
         </section>
 
         <UFormField :label="t('admin.settings.verification.altchaSecret')" name="altcha-secret" class="border-t border-slate-200 pt-4 dark:border-zinc-800">

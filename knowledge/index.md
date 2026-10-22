@@ -6,6 +6,19 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 登录强化人机验证触发条件
+
+- Status: **landed (2026-10-22)**，浏览器 QA 通过。`login_risk` 从「失败后」扩成三个
+  可叠加触发条件：总是验证 / 新设备（UA 指纹）/ 管理员账号，全部受 `login_risk`
+  总闸约束；限流改为可配置（1–600，默认 60）。
+- 取舍：登录同时签发 PAT 的请求豁免验证（已知可绕过面，已记录）；OAuth 登录本轮
+  不接入；`post_risk` 仍是死开关。
+- 验证：Go build + `app/...`/`bootstrap/...` 测试全绿；web 1508 用例 + typecheck；
+  OpenAPI refs OK。
+- Handoff: `sessions/2026-10-22-login-human-verification.md`
+- Decision: `decisions/2026-10-22-login-human-verification-triggers.md`
+- Modules: `modules/identity.md`、`modules/options.md`
+
 ### 首注册者注册后进入后台
 
 - Status: **landed (2026-10-22)**。零用户站点首位注册者（初始 `super_admin`）注册

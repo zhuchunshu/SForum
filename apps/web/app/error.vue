@@ -68,6 +68,8 @@ if (i18nReady && isThemeableSystemError.value) {
           rel: 'stylesheet',
           href,
           key: `sforum-theme-skin:${href}`,
+          // 与 app.vue 同契约：皮肤永远排在宿主 CSS 之前。
+          tagPriority: 'critical' as const,
           'data-sforum-theme-skin': '1'
         }))
       ],

@@ -251,6 +251,8 @@ const fallbackOptions: Record<string, string> = {
   'human_verification.scenarios.email_verification': enabledOption,
   'human_verification.scenarios.login_risk': disabledOption,
   'human_verification.scenarios.post_risk': disabledOption,
+  // 登录强化触发条件：总是验证需要前端提前知道，进入登录页即渲染 ALTCHA。
+  'human_verification.login_risk.always': disabledOption,
   'human_verification.altcha.widget.type': 'checkbox',
   'human_verification.altcha.widget.auto': 'off',
   'human_verification.altcha.widget.display': 'standard',
@@ -448,6 +450,12 @@ export const useWebOptions = () => {
     ) as Record<HumanVerificationScenario, boolean>
   })
   const altchaWidgetSettings = computed(() => resolveAltchaWidgetSettings(options.value))
+  // 登录强化「总是验证」：只有这个触发条件需要前端预判，其余由服务端 422 驱动。
+  const loginRiskAlways = computed(() => {
+    return humanVerificationProvider.value === 'altcha'
+      && humanVerificationScenarioSettings.value.login_risk
+      && normalizeEnabledOption(webOption('human_verification.login_risk.always'), false)
+  })
   const passwordPolicy = computed(() => resolvePasswordPolicy(options.value))
   // 开放注册运营意图（不含 bootstrap 覆盖；权威仍看 /auth/registration-status）。
   const registrationEnabled = computed(() => normalizeEnabledOption(webOption('identity.registration.enabled'), true))
@@ -507,6 +515,7 @@ export const useWebOptions = () => {
     humanVerificationProvider,
     humanVerificationScenarioSettings,
     altchaWidgetSettings,
+    loginRiskAlways,
     passwordPolicy,
     registrationEnabled,
     seoSettings,

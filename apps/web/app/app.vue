@@ -146,6 +146,8 @@ useHead(() => {
     rel: 'stylesheet',
     href,
     key: `sforum-theme-skin:${href}`,
+    // 皮肤是基底、宿主 CSS 细化：固定在 head 最前，避免管理端往返重挂后反超宿主。
+    tagPriority: 'critical' as const,
     'data-sforum-theme-skin': '1'
   }))
   // 扩展样式不声明 crossorigin：同源时 integrity 仍校验，被 QQ X5 云加速/CDN

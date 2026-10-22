@@ -512,6 +512,7 @@ async function loadRegisterPageForSubmitTest(options: { registerError?: unknown 
       siteTagline: ref(''),
       webOption: (_name: string, fallback = '') => fallback,
       humanVerificationEnabledFor: () => false,
+      loginRiskAlways: ref(false),
       altchaWidgetSettings: ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off' }),
       passwordPolicy: ref({ minLength: 8, requireLetter: false, requireNumber: false, requireSymbol: false })
     }),
@@ -597,6 +598,7 @@ async function loadLoginPageForSubmitTest() {
     'reactive',
     'ref',
     'computed',
+    'watch',
     'apiErrorMessage',
     'navigateTo',
     executable
@@ -645,6 +647,7 @@ async function loadLoginPageForSubmitTest() {
       siteName: ref('SForum'),
       siteTagline: ref(''),
       webOption: (_name: string, fallback = '') => fallback,
+      loginRiskAlways: ref(false),
       altchaWidgetSettings: ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off' })
     }),
     async (_key: string, loader: () => Promise<unknown>) => ({ data: ref(await loader()) }),
@@ -655,6 +658,7 @@ async function loadLoginPageForSubmitTest() {
     reactive,
     ref,
     computed,
+    watch,
     () => '',
     async (path: string) => {
       navigations.push(path)

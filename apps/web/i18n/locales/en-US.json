@@ -4152,12 +4152,31 @@
           },
           "loginRisk": {
             "label": "Login risk",
-            "description": "Require verification for suspicious IPs, repeated failures, or new-device login risk."
+            "description": "Master switch for login hardening; when off, all three triggers below are inert."
           },
           "postRisk": {
             "label": "Posting risk",
             "description": "Require verification when publishing, replying, or high-frequency actions trigger risk controls."
           }
+        },
+        "login": {
+          "title": "Login hardening",
+          "description": "Applies when the login-risk master switch is on and ALTCHA is configured. Triggers stack: any match requires verification.",
+          "always": {
+            "label": "Always verify",
+            "description": "Require verification on every password login. Strictest, but it taxes everyday sign-in."
+          },
+          "newDevice": {
+            "label": "New device",
+            "description": "Require verification when this browser fingerprint has no active session for the account."
+          },
+          "privileged": {
+            "label": "Privileged accounts",
+            "description": "Require verification for super_admin, the initial super admin, or any account with admin panel access."
+          },
+          "rateLimit": "Verification rate limit (per minute per IP)",
+          "rateLimitHint": "Challenge and verify attempts allowed per scenario, per IP, per minute. Raise it for offices behind NAT.",
+          "inactiveHint": "This configuration has no effect yet: enable the ALTCHA service and the login-risk master switch."
         },
         "costOptions": {
           "1000": "1000 light",

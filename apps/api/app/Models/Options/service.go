@@ -445,7 +445,7 @@ func (s *Service) RegistrationEnabledTx(ctx context.Context, tx pgx.Tx) (bool, e
 			values[name] = value
 		}
 	}
-	values = s.coerceValueSet(values)
+	values = coerceValueSet(s, values)
 	if mode, ok := normalizeRegistrationMode(values[NameIdentityRegistrationMode]); ok && mode != "open" {
 		return false, nil
 	}
@@ -682,7 +682,7 @@ func (s *Service) loadMapWithFreshness(ctx context.Context, forceFresh bool) (ma
 			}
 		}
 	}
-	values = s.coerceValueSet(values)
+	values = coerceValueSet(s, values)
 
 	s.cached = values
 	s.siteURLOverride = siteURLOverride
@@ -752,7 +752,7 @@ func (s *Service) defaultValues() map[string]string {
 	return copyValues(s.defaults)
 }
 
-func (s *Service) coerceValueSet(values map[string]string) map[string]string {
+func coerceValueSet(s *Service, values map[string]string) map[string]string {
 	defaults := s.defaultValues()
 	coerced := copyValues(values)
 
@@ -787,54 +787,7 @@ func (s *Service) coerceValueSet(values map[string]string) map[string]string {
 	coercePolicyOptions(coerced, defaults)
 	coerceMailResendOptions(coerced, defaults)
 
-	if provider, ok := normalizeHumanVerificationProvider(coerced[NameHumanVerificationProvider]); ok {
-		coerced[NameHumanVerificationProvider] = provider
-	} else {
-		coerced[NameHumanVerificationProvider] = defaults[NameHumanVerificationProvider]
-	}
-	if coerced[NameHumanVerificationProvider] == humanverify.ProviderAltcha && strings.TrimSpace(coerced[NameAltchaSecret]) == "" {
-		coerced[NameHumanVerificationProvider] = humanverify.ProviderDisabled
-	}
-	for _, scenario := range humanVerificationScenarios {
-		value, ok := normalizeEnabledOption(coerced[scenario.name])
-		if !ok {
-			coerced[scenario.name] = defaults[scenario.name]
-			continue
-		}
-		coerced[scenario.name] = value
-	}
-
-	if _, ok := parsePositiveDuration(coerced[NameAltchaChallengeTTL]); !ok {
-		coerced[NameAltchaChallengeTTL] = defaults[NameAltchaChallengeTTL]
-	}
-	if _, ok := parsePositiveInt(coerced[NameAltchaCost]); !ok {
-		coerced[NameAltchaCost] = defaults[NameAltchaCost]
-	}
-	if _, ok := normalizeAltchaWidgetType(coerced[NameAltchaWidgetType]); !ok {
-		coerced[NameAltchaWidgetType] = defaults[NameAltchaWidgetType]
-	}
-	if _, ok := normalizeAltchaWidgetAuto(coerced[NameAltchaWidgetAuto]); !ok {
-		coerced[NameAltchaWidgetAuto] = defaults[NameAltchaWidgetAuto]
-	}
-	if _, ok := normalizeAltchaWidgetDisplay(coerced[NameAltchaWidgetDisplay]); !ok {
-		coerced[NameAltchaWidgetDisplay] = defaults[NameAltchaWidgetDisplay]
-	}
-	if value, ok := normalizeEnabledOption(coerced[NameAltchaWidgetHideLogo]); ok {
-		coerced[NameAltchaWidgetHideLogo] = value
-	} else {
-		coerced[NameAltchaWidgetHideLogo] = defaults[NameAltchaWidgetHideLogo]
-	}
-	if value, ok := normalizeEnabledOption(coerced[NameAltchaWidgetHideFooter]); ok {
-		coerced[NameAltchaWidgetHideFooter] = value
-	} else {
-		coerced[NameAltchaWidgetHideFooter] = defaults[NameAltchaWidgetHideFooter]
-	}
-	if _, ok := parseBoundedInt(coerced[NameAltchaWidgetWorkers], altchaWidgetWorkersMin, altchaWidgetWorkersMax); !ok {
-		coerced[NameAltchaWidgetWorkers] = defaults[NameAltchaWidgetWorkers]
-	}
-	if _, ok := parseBoundedInt(coerced[NameAltchaWidgetMinDuration], altchaWidgetMinDurationMin, altchaWidgetMinDurationMax); !ok {
-		coerced[NameAltchaWidgetMinDuration] = defaults[NameAltchaWidgetMinDuration]
-	}
+	coerceHumanVerificationOptions(coerced, defaults)
 	coerceAppearanceOptions(coerced, defaults)
 	if _, ok := normalizeFooterCopyright(coerced[NameFooterCopyrightZHCN]); !ok {
 		coerced[NameFooterCopyrightZHCN] = defaults[NameFooterCopyrightZHCN]
@@ -983,6 +936,10 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameHumanVerificationEmailVerification:  enabledOptionValue(true),
 		NameHumanVerificationLoginRisk:          enabledOptionValue(false),
 		NameHumanVerificationPostRisk:           enabledOptionValue(false),
+		NameHumanVerificationLoginAlways:        enabledOptionValue(false),
+		NameHumanVerificationLoginNewDevice:     enabledOptionValue(false),
+		NameHumanVerificationLoginPrivileged:    enabledOptionValue(false),
+		NameHumanVerificationRateLimit:          strconv.Itoa(humanVerificationRateLimitDefault),
 		NameAltchaSecret:                        "",
 		NameAltchaChallengeTTL:                  (10 * time.Minute).String(),
 		NameAltchaCost:                          "1000",

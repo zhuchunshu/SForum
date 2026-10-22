@@ -580,8 +580,11 @@ Initial identity foundation is implemented.
 - Keep human verification disabled by default; use ALTCHA as the first
   supported self-hosted provider for deployments that enable registration and
   password-reset checks.
-- Do not challenge every login by default; require human verification for login
-  only after suspicious failure patterns.
+- Keep login hardening off by default. `human_verification.scenarios.login_risk`
+  gates three optional triggers (`human_verification.login_risk.always`,
+  `.new_device`, `.privileged`); with the gate off, only the Redis failure-lockout
+  step-up can still ask for verification. Decision:
+  `decisions/2026-10-22-login-human-verification-triggers.md`.
 - Never use the account-wide failure counter as a hard lock. Pair/IP limits own
   brute-force blocking; the account dimension owns step-up verification so a
   distributed attacker cannot deny all legitimate login sources.
@@ -696,6 +699,18 @@ Initial identity foundation is implemented.
   reads provider, ALTCHA secret, TTL, and cost from Options on each
   challenge/verify request. Environment values remain first-run fallbacks for
   seeding missing options.
+- Login hardening is decided in `identity.Service.loginRequiresVerification`
+  (`app/Models/Identity/login_verification.go`): explicit PAT exemption → Redis
+  failure lockout (independent of Options) → `login_risk` master gate → `always`
+  → `new_device` (UA fingerprint via `HasKnownDevice`/`HasSessionFingerprint`) →
+  `privileged` (`super_admin`, initial super admin, or `admin.access`). The check
+  runs after password verification, so wrong passwords never consume a token.
+  Options or fingerprint read failures fail open. `POST /auth/login` computes the
+  fingerprint from `useragent.Parse(...).UserAgentRaw` — the same value sessions
+  store — and exempts requests that also issue an API token (documented bypass).
+  Only `always` is a public option, so the login island can render ALTCHA before
+  the first 422; `new_device`/`privileged` stay server-driven to avoid account
+  enumeration.
 - The Host registration island
   (`apps/web/app/components/identity/SFRegisterFormPage.vue`, mounted by
   `pages/register.vue` through `SFPageOutlet page="auth.register"`)

@@ -116,6 +116,7 @@ describe('auth route support contracts', () => {
 
   test('mounts the production login form with password fallback and generic provider start', async () => {
     const starts: Array<[string, string]> = []
+    const loginRiskAlways = mountVue.ref(false)
     const locale = mountVue.ref('en-US')
     const providers = mountVue.ref([{
       id: 'example.provider.auth', kind: 'auth', contractVersion: 'example.auth@1', priority: 1,
@@ -133,7 +134,7 @@ describe('auth route support contracts', () => {
       useApiClient: () => ({ apiBaseUrl: 'http://api.test', request: async (path: string) => path === '/auth/registration-status' ? { nextUserIsInitialSuperAdmin: false, registrationEnabled: true } : { id: 1 } }),
       useAuthSession: () => ({ setUser: () => {} }),
       useAuthReturnNavigation: () => ({ returnFromAuth: async () => {}, authPageLink: (path: string) => path, destination: mountVue.ref('/') }),
-      useWebOptions: () => ({ siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''), altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0 }) }),
+      useWebOptions: () => ({ siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''), altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0 }), loginRiskAlways }),
       useAuthProviders: () => ({ loginProviders: providers, redirectToProvider: async (id: string, operation: string) => { starts.push([id, operation]) } }),
       useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
       useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),
@@ -158,6 +159,10 @@ describe('auth route support contracts', () => {
       await mountVue.nextTick()
       expect(wrapper.find('[data-testid="auth-provider-buttons"]').exists()).toBe(false)
       expect(wrapper.get('#login-input').exists()).toBe(true)
+      // 登录强化「总是验证」：公开选项生效时，进入页面就应渲染 ALTCHA，而不是先吃一次 422。
+      loginRiskAlways.value = true
+      await mountVue.nextTick()
+      expect(wrapper.find('#login-human-verification-label').exists()).toBe(true)
     } finally {
       wrapper.unmount()
     }

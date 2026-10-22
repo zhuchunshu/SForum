@@ -115,6 +115,10 @@ authLogin:
       令牌规则与 `POST /auth/tokens` 完全一致：`name` 必填、`scopes` 必须显式声明且
       是当前账号权限的子集，签发后按 `scopes ∩ 当前权限` 收窄鉴权。
       令牌请求的形状错误在会话签发前返回 422，不会留下半成功状态。
+      人机验证：当 `human_verification.scenarios.login_risk` 启用且命中「登录强化」触发条件
+      （总是验证 / 新设备 / 管理员账号）或账号处于失败锁定验证期时，首次请求返回 422
+      `human_verification.required`，携带 `humanVerification` 重试即可。携带 `issueApiToken`
+      的请求豁免该验证；这是已知取舍，该请求仍会签发浏览器会话。
     requestBody:
       required: true
       content:

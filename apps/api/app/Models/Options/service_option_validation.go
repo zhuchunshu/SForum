@@ -50,6 +50,14 @@ func isValidValueSet(values map[string]string) bool {
 			return false
 		}
 	}
+	for _, name := range humanVerificationLoginTriggerOptions {
+		if _, ok := normalizeEnabledOption(values[name]); !ok {
+			return false
+		}
+	}
+	if _, ok := parseBoundedInt(values[NameHumanVerificationRateLimit], humanVerificationRateLimitMin, humanVerificationRateLimitMax); !ok {
+		return false
+	}
 	if _, ok := parsePositiveDuration(values[NameAltchaChallengeTTL]); !ok {
 		return false
 	}

@@ -4192,12 +4192,31 @@
           },
           "loginRisk": {
             "label": "登录风险",
-            "description": "异常 IP、失败次数过多或新设备登录时可要求验证码。"
+            "description": "登录强化的总开关；关闭时下方「登录强化」的三个触发条件一律不生效。"
           },
           "postRisk": {
             "label": "发帖风险",
             "description": "发布、回复或高频操作触发风控时可要求验证码。"
           }
+        },
+        "login": {
+          "title": "登录强化",
+          "description": "在「登录风险」总开关开启且 ALTCHA 服务可用时生效；触发条件可叠加，满足任一条件即要求验证码。",
+          "always": {
+            "label": "总是验证",
+            "description": "每次密码登录都先完成验证码，最严但最影响日常登录。"
+          },
+          "newDevice": {
+            "label": "新设备",
+            "description": "当前浏览器指纹在该账号的活跃会话中没有记录时要求验证码。"
+          },
+          "privileged": {
+            "label": "管理员账号",
+            "description": "super_admin、初始超管或拥有后台访问权限的账号登录时要求验证码。"
+          },
+          "rateLimit": "验证码限流（次/分/IP）",
+          "rateLimitHint": "每个场景、每个 IP 每分钟允许的挑战与校验次数。NAT 后的办公网可适当调高。",
+          "inactiveHint": "当前配置不会生效：需要启用 ALTCHA 服务并开启「登录风险」总开关。"
         },
         "costOptions": {
           "1000": "1000 轻量",

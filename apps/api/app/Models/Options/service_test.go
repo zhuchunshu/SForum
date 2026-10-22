@@ -91,6 +91,15 @@ func TestServiceListsOnlyPublicOptions(t *testing.T) {
 	if adminValueFromPublic(items, NameHumanVerificationLoginRisk) != "disabled" {
 		t.Fatalf("expected public login risk verification scenario, got %#v", items)
 	}
+	if adminValueFromPublic(items, NameHumanVerificationLoginAlways) != "disabled" {
+		t.Fatalf("expected public login always trigger, got %#v", items)
+	}
+	for _, item := range items {
+		switch item.Name {
+		case NameHumanVerificationLoginNewDevice, NameHumanVerificationLoginPrivileged, NameHumanVerificationRateLimit:
+			t.Fatalf("public list should not expose %s: %#v", item.Name, items)
+		}
+	}
 	if adminValueFromPublic(items, NameSEOTwitterCard) != "summary_large_image" {
 		t.Fatalf("expected public SEO option default, got %#v", items)
 	}
@@ -714,6 +723,65 @@ func TestServiceHumanVerificationScenarioOptions(t *testing.T) {
 	}
 	if _, err := service.Update(context.Background(), actor, UpdateInput{Name: NameHumanVerificationPostRisk, Value: "sometimes"}); !errors.Is(err, ErrInvalidOption) {
 		t.Fatalf("expected invalid scenario value, got %v", err)
+	}
+}
+
+func TestServiceHumanVerificationLoginTriggersAndRateLimit(t *testing.T) {
+	store := &fakeStore{items: map[string]string{
+		NameAltchaSecret: "existing-secret",
+	}}
+	service := NewServiceWithCacheTTL(store, time.Minute)
+	actor := settingsActor()
+	ctx := context.Background()
+
+	policy, err := service.LoginVerificationPolicy(ctx)
+	if err != nil {
+		t.Fatalf("LoginVerificationPolicy returned error: %v", err)
+	}
+	if policy.Enabled || policy.Always || policy.NewDevice || policy.Privileged {
+		t.Fatalf("expected all login triggers disabled by default, got %#v", policy)
+	}
+	cfg, err := service.HumanVerificationConfig(ctx)
+	if err != nil {
+		t.Fatalf("HumanVerificationConfig returned error: %v", err)
+	}
+	if cfg.RateLimit != humanVerificationRateLimitDefault {
+		t.Fatalf("expected default rate limit %d, got %d", humanVerificationRateLimitDefault, cfg.RateLimit)
+	}
+
+	updated, err := service.UpdateMany(ctx, actor, []UpdateInput{
+		{Name: NameHumanVerificationProvider, Value: "altcha"},
+		{Name: NameHumanVerificationLoginRisk, Value: "enabled"},
+		{Name: NameHumanVerificationLoginAlways, Value: "enabled"},
+		{Name: NameHumanVerificationLoginNewDevice, Value: "true"},
+		{Name: NameHumanVerificationRateLimit, Value: "120"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateMany returned error: %v", err)
+	}
+	if got := adminValue(updated, NameHumanVerificationLoginNewDevice); got != "enabled" {
+		t.Fatalf("expected normalized new device trigger, got %q", got)
+	}
+	policy, err = service.LoginVerificationPolicy(ctx)
+	if err != nil {
+		t.Fatalf("LoginVerificationPolicy returned error: %v", err)
+	}
+	if !policy.Enabled || !policy.Always || !policy.NewDevice || policy.Privileged {
+		t.Fatalf("unexpected login trigger policy: %#v", policy)
+	}
+	cfg, err = service.HumanVerificationConfig(ctx)
+	if err != nil {
+		t.Fatalf("HumanVerificationConfig returned error: %v", err)
+	}
+	if cfg.RateLimit != 120 {
+		t.Fatalf("expected configured rate limit 120, got %d", cfg.RateLimit)
+	}
+
+	if _, err := service.Update(ctx, actor, UpdateInput{Name: NameHumanVerificationRateLimit, Value: "0"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected out-of-range rate limit to be rejected, got %v", err)
+	}
+	if _, err := service.Update(ctx, actor, UpdateInput{Name: NameHumanVerificationLoginAlways, Value: "sometimes"}); !errors.Is(err, ErrInvalidOption) {
+		t.Fatalf("expected invalid trigger value to be rejected, got %v", err)
 	}
 }
 

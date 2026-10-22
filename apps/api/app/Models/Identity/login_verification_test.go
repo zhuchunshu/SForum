@@ -1,0 +1,169 @@
+package identity
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+)
+
+type staticLoginVerificationPolicy struct {
+	policy LoginVerificationPolicy
+}
+
+func (p staticLoginVerificationPolicy) LoginVerificationPolicy(context.Context) (LoginVerificationPolicy, error) {
+	return p.policy, nil
+}
+
+type failingLoginVerificationPolicy struct{}
+
+func (failingLoginVerificationPolicy) LoginVerificationPolicy(context.Context) (LoginVerificationPolicy, error) {
+	return LoginVerificationPolicy{}, errors.New("options unavailable")
+}
+
+const loginVerificationTestPassword = "correct horse battery staple"
+
+func newLoginVerificationTest(t *testing.T, policy LoginVerificationPolicyResolver) (*Service, *fakeStore, CurrentUser) {
+	t.Helper()
+	service, store := newTestService(t)
+	registered, err := service.Register(testContext(t), RegisterInput{
+		Username: "victim", Email: "victim@example.com", Password: loginVerificationTestPassword,
+	})
+	if err != nil {
+		t.Fatalf("Register returned error: %v", err)
+	}
+	service.WithLoginVerification(policy)
+	return service, store, registered
+}
+
+func TestLoginVerificationAlwaysRequiresVerification(t *testing.T) {
+	service, _, _ := newLoginVerificationTest(t, staticLoginVerificationPolicy{
+		policy: LoginVerificationPolicy{Enabled: true, Always: true},
+	})
+	ctx := testContext(t)
+
+	if _, err := service.Login(ctx, LoginInput{Login: "victim", Password: loginVerificationTestPassword}); !errors.Is(err, ErrLoginVerificationRequired) {
+		t.Fatalf("expected verification requirement, got %v", err)
+	}
+	current, err := service.Login(ctx, LoginInput{
+		Login: "victim", Password: loginVerificationTestPassword, HumanVerified: true,
+	})
+	if err != nil {
+		t.Fatalf("verified login returned error: %v", err)
+	}
+	if current.Username != "victim" {
+		t.Fatalf("unexpected current user: %#v", current)
+	}
+}
+
+func TestLoginVerificationGateOffIgnoresTriggers(t *testing.T) {
+	service, _, _ := newLoginVerificationTest(t, staticLoginVerificationPolicy{
+		policy: LoginVerificationPolicy{Always: true, NewDevice: true, Privileged: true},
+	})
+	if _, err := service.Login(testContext(t), LoginInput{Login: "victim", Password: loginVerificationTestPassword}); err != nil {
+		t.Fatalf("gate off must not require verification, got %v", err)
+	}
+}
+
+func TestLoginVerificationSkipFlagBypassesTriggers(t *testing.T) {
+	service, _, _ := newLoginVerificationTest(t, staticLoginVerificationPolicy{
+		policy: LoginVerificationPolicy{Enabled: true, Always: true},
+	})
+	if _, err := service.Login(testContext(t), LoginInput{
+		Login: "victim", Password: loginVerificationTestPassword, SkipHumanVerification: true,
+	}); err != nil {
+		t.Fatalf("skip flag must bypass verification, got %v", err)
+	}
+}
+
+func TestLoginVerificationPolicyFailureFailsOpen(t *testing.T) {
+	service, _, _ := newLoginVerificationTest(t, failingLoginVerificationPolicy{})
+	if _, err := service.Login(testContext(t), LoginInput{Login: "victim", Password: loginVerificationTestPassword}); err != nil {
+		t.Fatalf("policy read failure must fail open, got %v", err)
+	}
+}
+
+func TestLoginVerificationLockoutStillAppliesWithGateOff(t *testing.T) {
+	service, _, _ := newLoginVerificationTest(t, staticLoginVerificationPolicy{
+		policy: LoginVerificationPolicy{Enabled: false, Always: true},
+	})
+	service.WithLoginLockout(&fakeLoginLockout{verificationRequired: true}, staticLoginLockoutPolicy{})
+	if _, err := service.Login(testContext(t), LoginInput{Login: "victim", Password: loginVerificationTestPassword}); !errors.Is(err, ErrLoginVerificationRequired) {
+		t.Fatalf("lockout requirement must survive the disabled gate, got %v", err)
+	}
+}
+
+func TestLoginVerificationWrongPasswordStaysGeneric(t *testing.T) {
+	service, _, _ := newLoginVerificationTest(t, staticLoginVerificationPolicy{
+		policy: LoginVerificationPolicy{Enabled: true, Always: true},
+	})
+	if _, err := service.Login(testContext(t), LoginInput{Login: "victim", Password: "wrong password"}); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("wrong password must stay generic, got %v", err)
+	}
+}
+
+func TestLoginVerificationNewDevice(t *testing.T) {
+	service, store, registered := newLoginVerificationTest(t, staticLoginVerificationPolicy{
+		policy: LoginVerificationPolicy{Enabled: true, NewDevice: true},
+	})
+	ctx := testContext(t)
+
+	// 无指纹（客户端未送 UA）视为已知设备。
+	if _, err := service.Login(ctx, LoginInput{Login: "victim", Password: loginVerificationTestPassword}); err != nil {
+		t.Fatalf("empty fingerprint must be treated as known, got %v", err)
+	}
+	// 陌生 UA：未命中活跃会话。
+	if _, err := service.Login(ctx, LoginInput{
+		Login: "victim", Password: loginVerificationTestPassword, DeviceFingerprint: "UnknownAgent/1.0",
+	}); !errors.Is(err, ErrLoginVerificationRequired) {
+		t.Fatalf("unknown device must require verification, got %v", err)
+	}
+	// 已有活跃会话命中同一指纹：放行。
+	store.sessions = append(store.sessions, fakeSessionRow{
+		userID: registered.ID, sid: "sid-known", userAgentRaw: "KnownAgent/1.0",
+		createdAt: time.Now().UTC(), lastSeenAt: time.Now().UTC(),
+	})
+	if _, err := service.Login(ctx, LoginInput{
+		Login: "victim", Password: loginVerificationTestPassword, DeviceFingerprint: "KnownAgent/1.0",
+	}); err != nil {
+		t.Fatalf("known device must pass, got %v", err)
+	}
+}
+
+func TestLoginVerificationPrivilegedAccount(t *testing.T) {
+	service, store, registered := newLoginVerificationTest(t, staticLoginVerificationPolicy{
+		policy: LoginVerificationPolicy{Enabled: true, Privileged: true},
+	})
+	ctx := testContext(t)
+
+	// 首个注册者会同时拿到 member 与 super_admin 角色并被标记为初始超管；
+	// 这里退回纯 member，验证普通账号路径。
+	store.userRoleIDs[registered.ID] = []int64{2}
+	member := store.users[registered.ID]
+	member.IsInitialSuperAdmin = false
+	store.users[registered.ID] = member
+
+	// 默认 member：不要求验证。
+	if _, err := service.Login(ctx, LoginInput{Login: "victim", Password: loginVerificationTestPassword}); err != nil {
+		t.Fatalf("member account must not require verification, got %v", err)
+	}
+	// super_admin 角色：要求验证。
+	store.userRoleIDs[registered.ID] = []int64{1}
+	if _, err := service.Login(ctx, LoginInput{Login: "victim", Password: loginVerificationTestPassword}); !errors.Is(err, ErrLoginVerificationRequired) {
+		t.Fatalf("super admin must require verification, got %v", err)
+	}
+}
+
+func TestLoginVerificationPrivilegedByAdminAccessPermission(t *testing.T) {
+	service, store, registered := newLoginVerificationTest(t, staticLoginVerificationPolicy{
+		policy: LoginVerificationPolicy{Enabled: true, Privileged: true},
+	})
+	// 只授予后台访问权限、不挂 super_admin 角色键，验证判定不依赖单一角色名。
+	store.seedRole(Role{ID: 77, Key: "helpdesk", Alias: "Helpdesk", IsEnabled: true})
+	store.rolePerms[77] = []string{PermissionAdminAccess}
+	store.userRoleIDs[registered.ID] = []int64{77}
+
+	if _, err := service.Login(testContext(t), LoginInput{Login: "victim", Password: loginVerificationTestPassword}); !errors.Is(err, ErrLoginVerificationRequired) {
+		t.Fatalf("admin.access holder must require verification, got %v", err)
+	}
+}

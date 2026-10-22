@@ -24,7 +24,7 @@ const localePath = useLocalePath()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser } = useAuthSession()
 const { returnFromAuth, authPageLink, destination } = useAuthReturnNavigation()
-const { altchaWidgetSettings } = useWebOptions()
+const { altchaWidgetSettings, loginRiskAlways } = useWebOptions()
 const {
   loginProviders,
   redirectToProvider
@@ -64,6 +64,10 @@ const submitting = ref(false)
 const providerStartingId = ref('')
 const errorMessage = ref('')
 const humanVerificationRequired = ref(false)
+// 登录强化「总是验证」：进入页面即渲染 ALTCHA，而不是先吃一次 422。
+watch(loginRiskAlways, (required) => {
+  if (required) humanVerificationRequired.value = true
+}, { immediate: true })
 const humanVerificationToken = ref('')
 const altchaWidget = ref<AltchaWidgetElement | null>(null)
 const surfaceError = computed(() => errorMessage.value || externalAlertMessage.value)

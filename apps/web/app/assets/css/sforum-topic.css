@@ -432,6 +432,17 @@
   background: var(--sf-public-surface-muted);
 }
 
+/* 列线的所有者是宿主。默认主题 artifact 里仍有 border-right/border-left: 0，
+ * 且皮肤链在管理端↔公开端往返时会重挂到 head 末尾（主题 CSS 反超宿主 CSS）。
+ * 因此列线再用容器作用域声明一次，赢在特异性而不是加载顺序。 */
+.sforum-topic-page .sforum-topic-page__sidebar {
+  border-right: 1px solid var(--sf-public-border);
+}
+
+.sforum-topic-page .sforum-topic-page__side {
+  border-left: 1px solid var(--sf-public-border);
+}
+
 .sf-topic-side-card {
   margin-bottom: 12px;
   border: 1px solid var(--sf-public-border);

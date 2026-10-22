@@ -67,6 +67,8 @@ func NewIdentityProviderWithPasswordResetAndLockout(store identity.Store, sessio
 	svc := identity.NewServiceWithPolicies(store, publisher, optionSettings, optionSettings)
 	if optionSettings != nil {
 		svc.WithUsernamePolicy(optionSettings)
+		// 登录强化策略（总是/新设备/特权账号）随 Options 实时生效。
+		svc.WithLoginVerification(optionSettings)
 		if lockout != nil {
 			svc.WithLoginLockout(lockout, optionSettings)
 		}
@@ -98,6 +100,7 @@ type optionsResolver interface {
 	RegistrationEnabled(ctx context.Context) (bool, error)
 	UsernamePolicy(ctx context.Context) (identity.UsernamePolicy, error)
 	LoginLockoutPolicy(ctx context.Context) (identity.LoginLockoutPolicy, error)
+	LoginVerificationPolicy(ctx context.Context) (identity.LoginVerificationPolicy, error)
 }
 
 // WithAPITokens 启用 PAT 管理路由（F3.4）。

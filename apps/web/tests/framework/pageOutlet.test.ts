@@ -64,6 +64,10 @@ describe('SFPageOutlet catalog wiring', () => {
     expect(errorPage).toContain('systemErrorPageIdForStatus')
     expect(errorPage).toContain('useActiveThemeSkin()')
     expect(errorPage).toContain("'data-sforum-theme-skin': '1'")
+    // 皮肤是基底、宿主 CSS 细化：两条渲染路径都必须把皮肤链固定在 head 最前，
+    // 否则管理端往返重挂皮肤后会反超宿主 CSS，列线等基础几何被主题清零。
+    expect(errorPage).toContain("tagPriority: 'critical' as const")
+    expect(read('app/app.vue')).toContain("tagPriority: 'critical' as const")
     expect(errorPage).toContain("'data-sforum-theme': appliedAppearanceTheme.value.dataTheme")
     expect(errorPage).toContain("'data-sforum-light-background': appliedLightBackground.value")
     expect(errorPage).toContain("'data-sforum-error': String(systemPage.value.statusCode)")

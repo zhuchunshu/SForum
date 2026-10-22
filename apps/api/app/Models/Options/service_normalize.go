@@ -75,8 +75,15 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizePublicSurfaceRevision(value)
 	case NameHumanVerificationProvider:
 		return normalizeHumanVerificationProvider(value)
-	case NameHumanVerificationRegister, NameHumanVerificationPasswordReset, NameHumanVerificationEmailVerification, NameHumanVerificationLoginRisk, NameHumanVerificationPostRisk:
+	case NameHumanVerificationRegister, NameHumanVerificationPasswordReset, NameHumanVerificationEmailVerification, NameHumanVerificationLoginRisk, NameHumanVerificationPostRisk,
+		NameHumanVerificationLoginAlways, NameHumanVerificationLoginNewDevice, NameHumanVerificationLoginPrivileged:
 		return normalizeEnabledOption(value)
+	case NameHumanVerificationRateLimit:
+		parsed, ok := parseBoundedInt(value, humanVerificationRateLimitMin, humanVerificationRateLimitMax)
+		if !ok {
+			return "", false
+		}
+		return strconv.Itoa(parsed), true
 	case NameAltchaSecret:
 		return value, true
 	case NameAltchaChallengeTTL:
