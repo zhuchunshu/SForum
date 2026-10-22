@@ -34,13 +34,21 @@
 - `./scripts/ci/contracts-gate.sh` 全流程通过；`bun tests/validate-admin-framework.ts`
   通过；`actionlint v1.7.12` 无输出。
 - `./scripts/test-api-isolated.sh`（全量 `go test ./...`）通过；
-  `--compat` + `go build ./...` 见后续 handoff 结论。
+  `./scripts/test-api-isolated.sh --compat`（required cells 全 pass）与
+  `go build ./...` 通过。
+- 推送 `0e5dca970` 后，main 的 `CI` run `39781534509` 五个 job 全 success；
+  Dependabot 的 `bun in /apps/web` 更新 run（`39781552970`）success，并新开了
+  10 个 `dependabot/bun/apps/web/*` PR（diff 只含 `bun.lock` + `package.json`）。
 
 ## Next
 
-- 推送后确认 main 的 `CI` 三个 job 全绿（发布 workflow 的 `verify-main-ci` 会等它）。
+- 推送后确认 main 的 `CI` 三个 job 全绿（发布 workflow 的 `verify-main-ci` 会等它）。已确认。
 - 到 Dependabot 面板点一次 `apps/web` 的 “Check for updates”，让 bun 生态跑出
-  新结果，历史红色 run 才会在列表里被新绿 run 取代。
+  新结果，历史红色 run 才会在列表里被新绿 run 取代。已自动触发并 success。
+- `dependabot/github_actions/*`（PR #168）的 `Release tooling` 红是**设计上的评审点**：
+  `scripts/ci/release_workflow_test.rb` 硬编码 `actions/setup-node` 的 reviewed SHA
+  与 Node 24 / Trusted Publishing 参数。合并该 PR 必须同步更新这条 pin，否则 main 的
+  `Release tooling` 会被自己拦红。不要为了“变绿”直接放宽该断言。
 
 ## Open Questions
 
