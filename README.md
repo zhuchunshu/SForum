@@ -167,7 +167,12 @@ Each run resolves the newest Release, downloads and verifies its complete
 `upgrade.sh`, Compose files, `deploy/scripts`, Caddy examples, `VERSION`) to
 that version, backs up the previous files under `.sforum/tooling-backups/`, and
 only then delegates to install or upgrade. `--check` lists exactly which files
-are missing or stale without writing anything. When `.env.production` exists but
+are missing or stale without writing anything. Interactive runs ask for the
+channel first: stable, the newest published release including alpha/beta, or an
+explicit tag; `--channel prerelease` and `--version <TAG>` skip the prompt. A
+target older than the version recorded in `.deployrc` is caught before any
+download, and a migration failure prints the migrated Core version with the
+command that matches it. When `.env.production` exists but
 `.deployrc` has no usable version record (for example a manual-Compose install),
 the wrapper runs `./deploy.sh --action deploy --version <TAG>` once to rebuild
 the managed state instead of stopping inside `upgrade.sh`. `--yes`,

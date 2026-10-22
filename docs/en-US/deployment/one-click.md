@@ -215,9 +215,10 @@ refreshes itself and the complete toolkit, then hands off to the local
 The bootstrap's self-refresh is initiated by the local old script. The prefetch
 wrapper moves network resolution and verification ahead of any local script:
 
-1. Resolve the newest Release. For stable it reads the tag from the
-   `releases/latest` 302 `Location`, spending no GitHub API quota; prereleases
-   use the `/releases` API.
+1. Resolve the target Release. Interactive runs ask for the channel first
+   (stable, newest published release, or explicit tag); for stable it reads the
+   tag from the `releases/latest` 302 `Location`, spending no GitHub API quota;
+   prereleases use the `/releases` API.
 2. Download that tag's `sforum-deploy.tar.gz` and `SHA256SUMS`, verify the exact
    entry, the archive paths, and `VERSION`; when the local `gh` supports
    `attestation`, verify provenance as well.
@@ -248,7 +249,8 @@ Replace the last line with `./sforum-latest.sh` to run the install or update.
 
 `--check` performs only the first two steps plus the comparison and prints the
 target version, the bundle SHA-256, which files are missing or stale, and the
-planned action — useful before a maintenance window. The script lives in the
+planned action — useful before a maintenance window. A target older than the
+`.deployrc` record is reported as a warning first. The script lives in the
 repository root, is not shipped as a Release asset, and `--lang` applies only to
 install while `--bootstrap` applies only to upgrade. In a Git checkout, syncing
 requires the explicit `--allow-git` flag.

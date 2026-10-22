@@ -132,7 +132,10 @@ chmod 0755 sforum-latest.sh && \
 install/upgrade。`--check` 只列出缺失或过期的文件，不写入任何内容。
 如果 `.env.production` 存在但 `.deployrc` 没有有效版本记录（例如早期手动 Compose
 部署），脚本会先执行一次 `./deploy.sh --action deploy --version <TAG>` 重建受管
-状态，而不是在 `upgrade.sh` 里报当前版本未知。`--yes`、`--channel prerelease`、
+状态，而不是在 `upgrade.sh` 里报当前版本未知。不带参数运行时会先询问渠道：正式版
+stable、最新发布版（含 alpha/beta）或指定标签；`--channel` 与 `--version` 跳过
+询问。目标版本低于 `.deployrc` 记录时会在下载前被拦下；数据库迁移失败时，脚本会
+打印已迁移到的 Core 版本和匹配的命令。`--yes`、`--channel prerelease`、
 `--version <TAG>` 与 bootstrap 语义一致。
 这个脚本属于仓库工具，不随 Release 工具包分发，也不由 bootstrap 刷新。只有
 这一个包装器文件来自 `main`；bootstrap 与完整工具包仍来自 Release 资产。

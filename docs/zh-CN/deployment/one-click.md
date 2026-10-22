@@ -200,8 +200,9 @@ https://github.com/zhuchunshu/SForum/releases/download/<TAG>/SHA256SUMS
 `bootstrap upgrade` 的自刷新由本地旧脚本发起。预取包装器把联网解析和校验
 提前到任何本地脚本执行之前：
 
-1. 解析最新 Release。stable 从 `releases/latest` 的 302 `Location` 读取标签，
-   不消耗 GitHub API 配额；预发布走 `/releases` API。
+1. 解析目标 Release。交互运行先询问渠道（正式版 / 最新发布版 / 指定标签）；
+   stable 从 `releases/latest` 的 302 `Location` 读取标签，不消耗 GitHub API
+   配额；预发布走 `/releases` API。
 2. 下载该标签的 `sforum-deploy.tar.gz` 与 `SHA256SUMS`，校验 tar.gz 的精确
    条目、包内路径与 `VERSION`；本机 `gh` 支持 `attestation` 时再做来源校验。
 3. 从部署包内的 bootstrap 提取权威受管清单，把安装目录里缺失或过期的
@@ -228,9 +229,9 @@ chmod 0755 sforum-latest.sh && \
 把最后一行换成 `./sforum-latest.sh` 即执行安装或更新。
 
 `--check` 只执行前两步并对比清单，打印目标版本、部署包 SHA-256、哪些文件缺失或
-过期与计划动作，适合在维护窗口前预检。脚本位于仓库根目录，不随 Release 分发；
-`--lang` 只在 install 生效，`--bootstrap` 只在 upgrade 生效；Git 检出目录里实际
-同步需要 `--allow-git`。
+过期与计划动作，适合在维护窗口前预检；目标低于 `.deployrc` 记录时会先给出警告。
+脚本位于仓库根目录，不随 Release 分发；`--lang` 只在 install 生效，
+`--bootstrap` 只在 upgrade 生效；Git 检出目录里实际同步需要 `--allow-git`。
 
 ### 更新器：`upgrade.sh`
 

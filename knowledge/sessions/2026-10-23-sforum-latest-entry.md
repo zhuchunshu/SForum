@@ -51,3 +51,6 @@
   `upgrade.sh` 以 “currently deployed version is unknown” 退出。
 - 文档的一行入口改为“临时文件 + `mv -f` 原子替换”，重复运行不需要先删除
   `sforum-latest.sh`；这样也不会碰到正在执行文件的覆盖问题。
+- 增加交互渠道选择：不带 `--channel` / `--version` / `--yes` 时询问正式版、
+  最新发布版（含 alpha/beta）或指定标签。目标版本低于 `.deployrc` 记录时在下载前
+  拦下；迁移失败时解析 `migrated Core=` 并打印匹配的 `--version` 命令。

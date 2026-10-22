@@ -448,8 +448,9 @@ load archived sessions or completed plans as current context.
   GitHub 最新 Release，校验完整 `sforum-deploy.tar.gz` 后把 `deploy.sh`、`upgrade.sh`、
   compose、`deploy/scripts`、Caddy 示例与 `VERSION` 同步到该版本，再交给
   install/upgrade；本地旧工具链不参与决策。`.deployrc` 缺少有效版本记录时自动改走
-  `deploy.sh --action deploy` 重建状态。文档提供一条 curl 入口（临时文件 + 原子替换
-  + 包装器 SHA-256 校验），README 与中英部署指南已同步。详见
+  `deploy.sh --action deploy` 重建状态。交互运行可选择正式版 / 最新发布版 /
+  指定标签，目标低于 `.deployrc` 记录时会在下载前拦下。文档提供一条 curl 入口
+  （临时文件 + 原子替换 + 包装器 SHA-256 校验），README 与中英部署指南已同步。详见
   `sessions/2026-10-23-sforum-latest-entry.md`。
 
 - **首注册者进后台（2026-10-22，最新）**：首位注册者拿到初始 `super_admin` 后直接

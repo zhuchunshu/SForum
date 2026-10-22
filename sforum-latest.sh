@@ -17,6 +17,8 @@ LOCK_DIR="$ROOT_DIR/.sforum-latest.lock"
 BOOTSTRAP="$ROOT_DIR/sforum-bootstrap.sh"
 
 CHANNEL="stable"
+CHANNEL_EXPLICIT=false
+ASSUME_YES=false
 TARGET_TAG=""
 CHECK_ONLY=false
 ALLOW_GIT=false
@@ -30,6 +32,7 @@ BUNDLE_ROOT=""
 MANAGED_LIST=""
 DIFF_FILE=""
 BACKUP_ROOT=""
+CURRENT_VERSION=""
 
 usage() {
   cat <<'EOF'
@@ -54,7 +57,7 @@ deploy.sh、upgrade.sh、compose 文件、deploy/scripts、Caddy 示例与 VERSI
 
 示例:
   ./sforum-latest.sh --check            先看目标版本和哪些工具文件过期
-  ./sforum-latest.sh                    交互式更新到最新稳定版
+  ./sforum-latest.sh                    交互选择正式版/预发布版/指定版本
   ./sforum-latest.sh --yes              无人值守更新到最新稳定版
   ./sforum-latest.sh --channel prerelease
   ./sforum-latest.sh --version v3.0.9
@@ -107,6 +110,39 @@ normalize_tag() {
   printf '%s' "$tag"
 }
 
+version_is_older() {
+  local a="${1#v}" b="${2#v}"
+  a="${a%%-*}"
+  b="${b%%-*}"
+  local IFS=.
+  local -a ap bp
+  read -r -a ap <<< "$a"
+  read -r -a bp <<< "$b"
+  local i x y
+  for i in 0 1 2; do
+    x="${ap[$i]:-0}"
+    y="${bp[$i]:-0}"
+    [ "$x" -lt "$y" ] && return 0
+    [ "$x" -gt "$y" ] && return 1
+  done
+  return 1
+}
+
+prompt_channel() {
+  local choice tag
+  printf '请选择发布渠道：\n  1) 正式版 stable（推荐）\n  2) 最新发布版（含 alpha/beta）\n  3) 指定版本\n'
+  read -r -p '渠道 [1]: ' choice || choice=1
+  case "${choice:-1}" in
+    1|stable) CHANNEL=stable ;;
+    2|prerelease) CHANNEL=prerelease ;;
+    3)
+      read -r -p '版本标签（如 v3.0.12-alpha.6）: ' tag || die "未读取到版本标签"
+      TARGET_TAG="$(normalize_tag "$tag")"
+      ;;
+    *) die "无效的渠道选择: $choice" ;;
+  esac
+}
+
 parse_args() {
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -114,9 +150,10 @@ parse_args() {
       --channel)
         [ "$#" -ge 2 ] || die "--channel 需要一个值"
         CHANNEL="$2"
+        CHANNEL_EXPLICIT=true
         shift 2
         ;;
-      --channel=*) CHANNEL="${1#*=}"; shift ;;
+      --channel=*) CHANNEL="${1#*=}"; CHANNEL_EXPLICIT=true; shift ;;
       --version)
         [ "$#" -ge 2 ] || die "--version 需要一个值"
         [ -z "$TARGET_TAG" ] || die "只指定一次目标版本"
@@ -134,7 +171,8 @@ parse_args() {
         shift 2
         ;;
       --lang=*) PASSTHROUGH+=("$1"); shift ;;
-      --yes|--defaults|--bootstrap) PASSTHROUGH+=("$1"); shift ;;
+      --yes|--defaults) ASSUME_YES=true; PASSTHROUGH+=("$1"); shift ;;
+      --bootstrap) PASSTHROUGH+=("$1"); shift ;;
       --allow-git) ALLOW_GIT=true; shift ;;
       --confirm-maintenance|--confirm-maintenance=*)
         die "维护窗口参数由 upgrade.sh 直接处理：./upgrade.sh --version <TAG> --confirm-maintenance"
@@ -429,6 +467,11 @@ main() {
   parse_args "$@"
   detect_action
 
+  if [ -z "$TARGET_TAG" ] && [ "$CHANNEL_EXPLICIT" != true ] && \
+     [ "$ASSUME_YES" != true ] && [ -t 0 ]; then
+    prompt_channel
+  fi
+
   if [ "$ACTION" = upgrade ] && passthrough_has --lang; then
     die "--lang 只用于 install"
   fi
@@ -446,6 +489,15 @@ main() {
   command -v tar >/dev/null 2>&1 || die "需要 tar"
 
   TARGET_TAG="$(resolve_tag)"
+  CURRENT_VERSION="$(sed -n 's/^version=//p' "$ROOT_DIR/.deployrc" 2>/dev/null | head -n1)"
+  if [ -n "$CURRENT_VERSION" ] && version_is_older "$TARGET_TAG" "$CURRENT_VERSION"; then
+    if [ "$CHECK_ONLY" = true ]; then
+      printf '警告: 目标 %s 低于当前记录的 %s，直接部署会被数据库迁移拒绝。\n' \
+        "$TARGET_TAG" "$CURRENT_VERSION" >&2
+    else
+      die "目标 $TARGET_TAG 低于当前记录的 $CURRENT_VERSION；改用 --version $CURRENT_VERSION 或更高版本"
+    fi
+  fi
   stage_bundle "$TARGET_TAG"
   extract_managed_files
   validate_bundle
@@ -470,10 +522,22 @@ main() {
     printf '受管工具链: 已是最新\n'
   fi
 
+  local status
   set +e
-  run_action
-  local status=$?
+  run_action 2>&1 | tee "$STAGE/action.log"
+  status=${PIPESTATUS[0]}
   set -e
+
+  if [ "$status" -ne 0 ]; then
+    local migrated
+    migrated="$(grep -o 'migrated Core=[0-9A-Za-z._-]*' "$STAGE/action.log" 2>/dev/null \
+      | head -n1 | cut -d= -f2 || true)"
+    if [ -n "$migrated" ]; then
+      printf '\n数据库已迁移到 %s，目标 %s 更旧。\n' "$migrated" "$TARGET_TAG" >&2
+      printf '改用：./sforum-latest.sh --version %s\n' "${migrated#v}" >&2
+      printf '或：./sforum-latest.sh --channel prerelease\n' >&2
+    fi
+  fi
 
   if [ "$status" -eq 0 ]; then
     toolkit_diff
