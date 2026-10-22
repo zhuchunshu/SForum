@@ -71,8 +71,10 @@ useSForumSeo({
       </div>
     </main>
   </div>
+  <!-- 与根 catch-all 同一理由：resolve 抛出的 404/403 会让 Vue SSR 以空 setupState
+       继续渲染本组件，外壳绑定因此为 undefined；只在有解析结果时渲染外壳。 -->
   <SFRegistryPageShell
-    v-else
+    v-else-if="data || error"
     :layout="data?.layout"
     :shell-html="data?.shellHtml"
     :shell-provider="data?.shellProvider"

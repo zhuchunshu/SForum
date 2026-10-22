@@ -88,8 +88,12 @@ useSForumSeo({
       </div>
     </main>
   </div>
+  <!-- 只在解析真的产出结果时渲染外壳：404/403 由 resolve 抛出后，Vue SSR 会吞掉
+       async setup 的拒绝并带着空 setupState 继续渲染本组件，此时 data/error 均不存在，
+       外壳绑定会是 undefined（Invalid vnode type + Anonymous 两条警告）。错误文档由
+       Nuxt 错误页负责，这里不渲染半成品。 -->
   <SFRegistryPageShell
-    v-else
+    v-else-if="data || error"
     :layout="data?.layout"
     :shell-html="data?.shellHtml"
     :shell-provider="data?.shellProvider"

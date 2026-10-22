@@ -215,6 +215,11 @@ export default defineNuxtConfig({
         'altcha/i18n/zh-cn',
         'dompurify',
         'parse5',
+        // 富文本渲染器只在遇到对应围栏时才 import()：不预打包的话，用户第一次看到
+        // 公式/图表/流程图就会触发一次运行时发现 + 整页 reload。
+        'katex',
+        'mermaid',
+        'chart.js/auto',
         'highlight.js/lib/common',
         'highlight.js/lib/languages/dart',
         'highlight.js/lib/languages/dockerfile',
@@ -222,6 +227,7 @@ export default defineNuxtConfig({
         'highlight.js/lib/languages/nginx',
         'highlight.js/lib/languages/powershell',
         '@tiptap/vue-3',
+        '@tiptap/vue-3/menus',
         '@tiptap/extension-character-count',
         '@tiptap/extension-image',
         '@tiptap/extension-link',
@@ -241,6 +247,13 @@ export default defineNuxtConfig({
     compilerOptions: {
       isCustomElement: (tag) => tag === 'altcha-widget'
     }
+  },
+  // nuxt-seo-utils 的 useSeoMeta tree-shaking 需要 @unhead/bundler，而该包只有 v3
+  // 系列（本仓仍随 Nuxt 4.4 使用 Unhead v2），装不上也跑不了，只会每次启动告警。
+  // 关掉它：useSeoMeta 不再按字段裁剪，体积差异可忽略。Nuxt 升到自带 unhead v3
+  // vite 插件（>=4.5）后可移除此项恢复裁剪。
+  seo: {
+    treeShakeUseSeoMeta: false
   },
   schemaOrg: {
     enabled: false
