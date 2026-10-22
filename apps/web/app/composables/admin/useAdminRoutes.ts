@@ -6,18 +6,13 @@ import {
 
 export const useAdminRoutes = () => {
   const config = useRuntimeConfig()
-  const { locale, defaultLocale } = useI18n()
+  // 后台路径的本地化交给 i18n：no_prefix 下 localePath 恒等返回，客户端导航
+  // 不会落到不存在的 `/<locale><prefix>` 路由；历史带语言前缀的外链仍由
+  // server/middleware/locale-prefix-compat.ts 301 剥前缀。
+  const localePath = useLocalePath()
   const prefix = normalizeAdminRoutePrefix(config.public.adminRoutePrefix as string)
 
-  const path = (childPath = '/') => {
-    const adminPath = joinAdminRoutePath(prefix, childPath)
-
-    if (locale.value && locale.value !== defaultLocale) {
-      return `/${locale.value}${adminPath}`
-    }
-
-    return adminPath
-  }
+  const path = (childPath = '/') => localePath(joinAdminRoutePath(prefix, childPath))
 
   const routeId = (routePath: string) => {
     return resolveAdminRouteChildPath(prefix, routePath)

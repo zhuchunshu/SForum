@@ -40,7 +40,7 @@ describe('email verification waiting flow', () => {
   test('redirects required unverified registrations before the normal auth return', () => {
     expect(register).toContain("path: localePath('/email-verification')")
     expect(register.indexOf("path: localePath('/email-verification')"))
-      .toBeLessThan(register.indexOf('await returnFromAuth()', register.indexOf('async function finishRegistration')))
+      .toBeLessThan(register.indexOf('await returnFromAuth(', register.indexOf('async function finishRegistration')))
   })
 
   test('describes the implemented link flow instead of deferred mail work', () => {

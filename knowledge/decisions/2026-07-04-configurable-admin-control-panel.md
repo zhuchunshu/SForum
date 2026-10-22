@@ -33,4 +33,17 @@ template direction with Nuxt UI and Nuxt Icon.
 - Admin navigation should use `useAdminRoutes().path(...)`.
 - If Nuxt i18n route generation changes, verify `useAdminRoutes()` still emits
   `/control-panel` for the default locale and locale-prefixed paths for
-  secondary locales.
+  secondary locales. (Superseded 2026-10-22 — see Update below.)
+
+## Update 2026-10-22
+
+- `useAdminRoutes().path()` no longer hand-rolls a locale segment; it delegates
+  to i18n's `localePath`. The app runs the `no_prefix` strategy, so
+  `/<locale><prefix>` is not a registered route: client-side navigation to it
+  hit the Page Registry catch-all, while the server-side 301 in
+  `server/middleware/locale-prefix-compat.ts` only covers full page loads.
+  Legacy bookmarks under `/en/**` still 301 to the unprefixed path.
+- The first registered account (initial `super_admin`) lands on
+  `useAdminRoutes().path('/')` after registration; every other registration
+  keeps the normal auth return. See
+  `sessions/2026-10-22-first-admin-admin-landing.md`.

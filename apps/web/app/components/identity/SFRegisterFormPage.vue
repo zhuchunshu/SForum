@@ -3,6 +3,7 @@ import { useExternalAuthFeedback } from '~/composables/identity/useExternalAuthF
 import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { useAuthReturnNavigation } from '~/composables/identity/useAuthReturnNavigation'
 import { useAuthProviders } from '~/composables/identity/useAuthProviders'
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { useSForumSeo } from '~/composables/seo/useSForumSeo'
 import SFAuthProviderButtons from '~/components/identity/SFAuthProviderButtons.vue'
 import SFAuthShell from '~/components/identity/auth/SFAuthShell.vue'
@@ -36,6 +37,7 @@ const router = useRouter()
 const { apiBaseUrl, request } = useApiClient()
 const { setUser } = useAuthSession()
 const { returnFromAuth, authPageLink, destination } = useAuthReturnNavigation()
+const adminRoutes = useAdminRoutes()
 const { humanVerificationEnabledFor, altchaWidgetSettings, passwordPolicy, webOption } = useWebOptions()
 const {
   registrationProviders,
@@ -232,6 +234,10 @@ function passwordRequirementLabel(key: string) {
 
 async function finishRegistration(currentUser: CurrentUser) {
   setUser(currentUser)
+  // 首注册者即初始 super_admin：注册成功直接落到后台概览，省掉「注册完还要
+  // 自己找入口」的断点。该落地优先于 ?redirect= 与 referrer —— 零用户站点
+  // 没有已配置的插件/OAuth 回跳，bootstrap 引导优先；非首注册者仍走常规回跳。
+  const landing = currentUser.isInitialSuperAdmin ? adminRoutes.path('/') : destination.value
   const needsEmailVerification = emailVerificationRequired.value && !currentUser.emailVerified
   toast.add({
     color: 'success',
@@ -252,11 +258,11 @@ async function finishRegistration(currentUser: CurrentUser) {
   if (needsEmailVerification) {
     await router.replace({
       path: localePath('/email-verification'),
-      query: destination.value === '/' ? undefined : { redirect: destination.value }
+      query: landing === '/' ? undefined : { redirect: landing }
     })
     return
   }
-  await returnFromAuth()
+  await returnFromAuth(landing)
 }
 
 async function submitPasswordRegister() {

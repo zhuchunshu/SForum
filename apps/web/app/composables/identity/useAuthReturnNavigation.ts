@@ -33,8 +33,10 @@ export function useAuthReturnNavigation(options?: { explicitRedirect: unknown })
   // 回跳目标是 API / 插件端点时必须整页导航：客户端路由只会命中
   // `[...sfRegistryPage]` catch-all，端点永远收不到请求（例如 OAuth2 的
   // `/api/oauth/authorize`，登录后回跳会停在 “Failed to load extension page”）。
-  const returnFromAuth = async () => {
-    const target = destination.value
+  // overrideDestination 供认证流程自身改写落地页（首注册者直接进后台），
+  // 仍复用同一套端点整页导航与 replace 语义。
+  const returnFromAuth = async (overrideDestination?: string) => {
+    const target = overrideDestination || destination.value
     if (requiresDocumentNavigation(target)) {
       if (import.meta.client) {
         window.location.assign(target)

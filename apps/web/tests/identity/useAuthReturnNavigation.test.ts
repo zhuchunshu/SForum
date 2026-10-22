@@ -20,7 +20,7 @@ const sourcePath = new URL(
 )
 
 type Harness = {
-  returnFromAuth: () => Promise<unknown>
+  returnFromAuth: (overrideDestination?: string) => Promise<unknown>
   documentAssignments: string[]
   navigateCalls: Array<{ target: string, options?: Record<string, unknown> }>
 }
@@ -105,6 +105,17 @@ describe('useAuthReturnNavigation returnFromAuth', () => {
     expect(harness.documentAssignments).toEqual([])
     expect(harness.navigateCalls).toEqual([
       { target: '/settings/security', options: { replace: true } }
+    ])
+  })
+
+  test('honors an explicit landing override for the same replace semantics', async () => {
+    const harness = loadComposable('/settings/security')
+
+    await harness.returnFromAuth('/control-panel')
+
+    expect(harness.documentAssignments).toEqual([])
+    expect(harness.navigateCalls).toEqual([
+      { target: '/control-panel', options: { replace: true } }
     ])
   })
 })

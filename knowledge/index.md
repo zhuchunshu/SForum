@@ -6,6 +6,21 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 首注册者注册后进入后台
+
+- Status: **landed (2026-10-22)**。零用户站点首位注册者（初始 `super_admin`）注册
+  成功后直接落到后台概览（`useAdminRoutes().path('/')`，默认 `/control-panel`），
+  不再回到 referrer/首页；其他注册者维持常规认证回跳。邮箱验证开启时先验证，验证后
+  落后台。
+- 顺带修正：`useAdminRoutes().path()` 改为经 i18n `localePath` 生成。`no_prefix` 下
+  手工拼 `/<locale><prefix>` 的客户端导航会落到 Page Registry catch-all；后台入口
+  对 en 语言恢复正确。
+- 验证：web 1508 用例（含新增 `adminRouteLocalization` 与首注册者验证落地）+
+  typecheck 通过；dev 上 `/control-panel` 确认为真实路由。
+- Handoff: `sessions/2026-10-22-first-admin-admin-landing.md`
+- Decision: `decisions/2026-07-04-configurable-admin-control-panel.md`（2026-10-22 更新段）
+- Modules: `modules/identity.md`、`modules/frontend.md`
+
 ### 公开资产跨源发布（QQ 内置浏览器 500）
 
 - Status: **landed (2026-10-22)**，待部署后复测。QQ 内置浏览器（X5 云加速）换源后
@@ -381,6 +396,11 @@ load archived sessions or completed plans as current context.
   dev server on port 3000; do not kill it.
 
 ## Latest Handoff
+
+- **首注册者进后台（2026-10-22，最新）**：首位注册者拿到初始 `super_admin` 后直接
+  落到后台概览；邮箱验证开启时先验证、验证后落后台。`useAdminRoutes().path()` 改由
+  i18n `localePath` 生成，修掉 en 语言下后台入口的客户端 404。web 1508 用例 +
+  typecheck 通过。详见 `sessions/2026-10-22-first-admin-admin-landing.md`。
 
 - **公开资产跨源（2026-10-22，最新）**：QQ 内置浏览器（X5 云加速）换源后拒载入口
   chunk 与扩展样式，表现为 `500 – Cross-origin script load denied`（那是 X5 内核

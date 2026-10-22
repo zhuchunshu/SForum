@@ -696,8 +696,9 @@ Initial identity foundation is implemented.
   reads provider, ALTCHA secret, TTL, and cost from Options on each
   challenge/verify request. Environment values remain first-run fallbacks for
   seeding missing options.
-- The default theme registration page
-  (`extensions/builtin/themes/sforum-default/layer/app/pages/register.vue`)
+- The Host registration island
+  (`apps/web/app/components/identity/SFRegisterFormPage.vue`, mounted by
+  `pages/register.vue` through `SFPageOutlet page="auth.register"`)
   renders the ALTCHA widget client-side only when public option
   `human_verification.provider` is `altcha`, reads the public ALTCHA widget
   type/auto/display/worker/min-duration settings, and maps
@@ -707,6 +708,14 @@ Initial identity foundation is implemented.
   `auth.initialSuperAdminGranted` after a registration whose response reports
   `isInitialSuperAdmin`, blocks repeated submit attempts while a request is in
   flight, and resets the ALTCHA widget after verification failures.
+- The same response decides the post-registration landing: an
+  `isInitialSuperAdmin` registration is sent straight to
+  `useAdminRoutes().path('/')` (default `/control-panel`) through
+  `returnFromAuth(landing)`, taking precedence over `?redirect=` and the
+  referrer because a zero-user site has no configured plugin/OAuth return flow.
+  Every other registration keeps the normal auth return. When email
+  verification is required the detour still comes first, with `redirect`
+  pointing at the admin panel so verification lands there.
 - Registration builds and loads the returned current-user access inside the
   bootstrap transaction so response construction failures roll back account
   creation instead of leaving a created user behind a 500 response.

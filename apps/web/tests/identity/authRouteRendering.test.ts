@@ -67,6 +67,11 @@ const SFExternalAuthContinuationPage = await compileMountedComponent(
   { SFAuthShell }
 )
 
+// 与生产一致：后台入口跟随 adminRoutePrefix，默认 /control-panel。
+const useAdminRoutesStub = () => ({
+  path: (childPath = '/') => childPath === '/' ? '/control-panel' : `/control-panel${childPath}`
+})
+
 describe('auth route support contracts', () => {
   test('shares the persisted language menu through the authentication shell', () => {
     expect(authShellSource).toContain("from '~/composables/navigation/useNavbarLanguageMenu'")
@@ -229,6 +234,7 @@ describe('auth route support contracts', () => {
       useApiClient: () => ({ apiBaseUrl: 'http://api.test', request: async (path: string) => path === '/auth/registration-status' ? { nextUserIsInitialSuperAdmin: false, registrationEnabled: true } : { id: 1 } }),
       useAuthSession: () => ({ setUser: () => {} }),
       useAuthReturnNavigation: () => ({ returnFromAuth: async () => {}, authPageLink: (path: string) => path, destination: mountVue.ref('/') }),
+      useAdminRoutes: useAdminRoutesStub,
       useWebOptions: () => ({ siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''), webOption: (_name: string, fallback = '') => fallback, humanVerificationEnabledFor: () => false, altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }), passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 }) }),
       useAuthProviders: () => ({ registrationProviders: providers, redirectToProvider: async (id: string, operation: string) => { starts.push([id, operation]); throw new Error('provider start failed') } }),
       useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
@@ -283,6 +289,7 @@ describe('auth route support contracts', () => {
         authPageLink: (path: string) => path,
         destination: mountVue.ref('/topics')
       }),
+      useAdminRoutes: useAdminRoutesStub,
       useWebOptions: () => ({
         siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''),
         webOption: (name: string, fallback = '') => name === 'identity.registration.require_email_verification' ? 'enabled' : fallback,
@@ -345,6 +352,7 @@ describe('auth route support contracts', () => {
       }),
       useAuthSession: () => ({ setUser: () => {} }),
       useAuthReturnNavigation: () => ({ returnFromAuth: async () => {}, authPageLink: (path: string) => path, destination: mountVue.ref('/topics') }),
+      useAdminRoutes: useAdminRoutesStub,
       useWebOptions: () => ({ webOption: (_name: string, fallback = '') => fallback, humanVerificationEnabledFor: () => false, altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }), passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 }) }),
       useAuthProviders: () => ({ registrationProviders: mountVue.ref([]), redirectToProvider: async () => {} }),
       useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
@@ -375,6 +383,7 @@ describe('auth route support contracts', () => {
   test('announces super administrator access only to the registration that actually received it', async () => {
     const toasts: Array<Record<string, unknown>> = []
     const sessionUsers: Array<{ isInitialSuperAdmin?: boolean }> = []
+    const landingOverrides: Array<string | undefined> = []
     let returnedFromAuth = false
     const registerPayload = { id: 7, username: 'first-user', emailVerified: true, isInitialSuperAdmin: true }
     Object.assign(globalThis, {
@@ -394,10 +403,14 @@ describe('auth route support contracts', () => {
       }),
       useAuthSession: () => ({ setUser: (user: { isInitialSuperAdmin?: boolean }) => { sessionUsers.push(user) } }),
       useAuthReturnNavigation: () => ({
-        returnFromAuth: async () => { returnedFromAuth = true },
+        returnFromAuth: async (overrideDestination?: string) => {
+          returnedFromAuth = true
+          landingOverrides.push(overrideDestination)
+        },
         authPageLink: (path: string) => path,
         destination: mountVue.ref('/')
       }),
+      useAdminRoutes: useAdminRoutesStub,
       useWebOptions: () => ({
         siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''),
         webOption: (_name: string, fallback = '') => fallback,
@@ -425,6 +438,8 @@ describe('auth route support contracts', () => {
 
       expect(sessionUsers).toHaveLength(1)
       expect(returnedFromAuth).toBe(true)
+      // 首注册者直接落到后台概览，而不是常规认证回跳目标（此处为 '/'）。
+      expect(landingOverrides).toEqual(['/control-panel'])
       expect(toasts.map(toast => toast.title)).toContain('auth.initialSuperAdminGranted')
 
       toasts.length = 0
@@ -432,6 +447,69 @@ describe('auth route support contracts', () => {
       await wrapper.get('form').trigger('submit')
       await flushPromises()
       expect(toasts.map(toast => toast.title)).not.toContain('auth.initialSuperAdminGranted')
+      expect(landingOverrides[1]).toBe('/')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  test('routes the first administrator through email verification back to the admin panel', async () => {
+    const navigations: unknown[] = []
+    let returnedFromAuth = false
+    Object.assign(globalThis, {
+      computed: mountVue.computed, ref: mountVue.ref, reactive: mountVue.reactive, watch: mountVue.watch,
+      useI18n: () => ({ locale: mountVue.ref('zh-CN'), t: (key: string) => key }),
+      useToast: () => ({ add: () => {} }), useLocalePath: () => (path: string) => path,
+      useRoute: () => ({ path: '/register', query: {} }),
+      useRouter: () => ({ replace: async (target: unknown) => { navigations.push(target) } }),
+      useApiClient: () => ({
+        apiBaseUrl: 'http://api.test',
+        request: async (path: string) => {
+          if (path === '/auth/registration-status') return { nextUserIsInitialSuperAdmin: false, registrationEnabled: true }
+          if (path === '/auth/register') {
+            return { id: 9, username: 'first-user', emailVerified: false, isInitialSuperAdmin: true }
+          }
+          throw new Error(`unexpected request ${path}`)
+        }
+      }),
+      useAuthSession: () => ({ setUser: () => {} }),
+      useAuthReturnNavigation: () => ({
+        returnFromAuth: async () => { returnedFromAuth = true },
+        authPageLink: (path: string) => path,
+        destination: mountVue.ref('/topics')
+      }),
+      useAdminRoutes: useAdminRoutesStub,
+      useWebOptions: () => ({
+        siteName: mountVue.ref('SForum'), siteTagline: mountVue.ref(''),
+        webOption: (name: string, fallback = '') => name === 'identity.registration.require_email_verification' ? 'enabled' : fallback,
+        humanVerificationEnabledFor: () => false,
+        altchaWidgetSettings: mountVue.ref({ hideLogo: true, hideFooter: true, minDuration: 0, type: 'checkbox', auto: 'off', display: 'default', workers: 1 }),
+        passwordPolicy: mountVue.ref({ minLength: 1, maxLength: 64 })
+      }),
+      useAuthProviders: () => ({ registrationProviders: mountVue.ref([]), redirectToProvider: async () => {} }),
+      useExternalAuthFeedback: () => ({ alertMessage: mountVue.ref(''), alertVariant: mountVue.ref('danger') }),
+      useAsyncData: async (_key: string, handler: () => Promise<unknown>) => ({ data: mountVue.ref(await handler()), pending: mountVue.ref(false) }),
+      useSeoMeta: () => {}, apiErrorFields: () => ({}), apiErrorMessage: () => '', apiErrorReason: () => '',
+      registerErrorMessage: () => '', passwordPolicyProgress: () => 100, passwordPolicyProgressLevel: () => 'strong', passwordPolicyRequirements: () => []
+    })
+    const wrapper = mount({ components: { SFRegisterFormPage }, template: '<Suspense><SFRegisterFormPage /></Suspense>' }, {
+      global: { stubs: { NuxtLink: { template: '<a><slot /></a>' }, UIcon: true, SFAlert: true, ClientOnly: true, 'altcha-widget': true, SFAuthProviderButtons } }
+    })
+    try {
+      await flushPromises()
+      await wrapper.get('#username-input').setValue('first-user')
+      await wrapper.get('#email-input').setValue('first@example.com')
+      await wrapper.get('#displayname-input').setValue('First User')
+      await wrapper.get('#reg-password-input').setValue('password')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+
+      expect(returnedFromAuth).toBe(false)
+      // 验证前置仍然生效，但验证后的落点是后台，而不是 referrer（'/topics'）。
+      expect(navigations).toEqual([{
+        path: '/email-verification',
+        query: { redirect: '/control-panel' }
+      }])
     } finally {
       wrapper.unmount()
     }

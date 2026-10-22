@@ -252,7 +252,10 @@ responsibilities.
   with, so `super_admin` (via `can()`'s role bypass) plus the `moderator`,
   `operator`, and `tech_admin` templates qualify while `member` does not — and
   resolves its href through `useAdminRoutes` so it follows the operator's
-  `adminRoutePrefix` instead of a hardcoded `/control-panel`. The authenticated
+  `adminRoutePrefix` instead of a hardcoded `/control-panel`. `useAdminRoutes().path()`
+  localizes through i18n's `localePath`; under the `no_prefix` strategy it never
+  emits a `/<locale><prefix>` URL that only a full-page load could 301 away, so
+  admin links resolve identically for every locale. The authenticated
   drawer heading is "个人中心" rather than repeating the page-owned rail heading,
   and its account actions are collapsed by default behind the accessible
   identity-row toggle.
