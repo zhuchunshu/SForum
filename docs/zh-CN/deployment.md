@@ -111,14 +111,16 @@ PostgreSQL 和 Redis。只支持 Linux `amd64`/`arm64`，不支持 Windows。对
 ### 每次重新获取官方工具链（可选）
 
 `./sforum-bootstrap.sh upgrade` 的自刷新由本地旧脚本发起。若要求本次使用的
-bootstrap 一定来自 GitHub，把仓库根目录的 `sforum-latest.sh` 放进安装目录：
+bootstrap 一定来自 GitHub，在安装目录执行下面这一条命令。它会先校验包装器自身
+的 SHA-256，再运行：
 
 ```sh
-curl -fsSLo sforum-latest.sh \
-  https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh
-chmod 0755 sforum-latest.sh
-./sforum-latest.sh --check   # 解析并校验目标 Release，报告本地 bootstrap 是否一致
-./sforum-latest.sh           # 未安装则 install，已安装则 upgrade
+# 在安装目录执行
+curl -fsSLo sforum-latest.sh https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
+curl -fsSLo sforum-latest.sh.sha256 https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+{ sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
+chmod 0755 sforum-latest.sh && \
+./sforum-latest.sh
 ```
 
 每次运行都会解析最新 Release、下载并校验该 Release 的 `sforum-bootstrap.sh`、

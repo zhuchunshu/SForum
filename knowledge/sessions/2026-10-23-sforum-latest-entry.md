@@ -36,3 +36,9 @@
   `scripts/ci/finalize-release-assets.sh`、`sforum-bootstrap.sh` 的
   `managed_files` 与 `deploy/scripts/bootstrap_test.sh`，并处理旧 Release 兼容。
 - 脚本推送到 `main` 后，文档里的 raw 获取地址才会生效。
+
+## Follow-up（2026-10-23）
+
+- 增加 `sforum-latest.sh.sha256` 与 `tests/validate-sforum-latest.sh`，文档入口改成
+  一条 curl（下载包装器 + SHA-256 校验 + 执行），并在 release-tooling gate 中防止
+  哈希与文档入口漂移。

@@ -226,6 +226,18 @@ wrapper moves network resolution and verification ahead of any local script:
 4. Run `sforum-bootstrap.sh install|upgrade --version <TAG>` with the pinned
    tag.
 
+Run this inside the install directory:
+
+```sh
+curl -fsSLo sforum-latest.sh https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
+curl -fsSLo sforum-latest.sh.sha256 https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+{ sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
+chmod 0755 sforum-latest.sh && \
+./sforum-latest.sh --check
+```
+
+Replace the last line with `./sforum-latest.sh` to run the install or update.
+
 `--check` performs only the first two steps and prints the target version, the
 SHA-256, whether the local file matches, and the planned action — useful before
 a maintenance window. The script lives in the repository root, is not shipped

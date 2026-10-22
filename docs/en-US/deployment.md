@@ -124,15 +124,17 @@ Release's complete deploy toolkit, and finally hands off to `upgrade.sh`:
 ### Re-fetch the official toolkit on every run (optional)
 
 The bootstrap's self-refresh is initiated by the local old script. When an
-update must prove that the bootstrap came from GitHub, place the
-repository-side `sforum-latest.sh` in the install directory:
+update must prove that the bootstrap came from GitHub, run this one command
+inside the install directory; it verifies the wrapper's own SHA-256 before
+executing it:
 
 ```sh
-curl -fsSLo sforum-latest.sh \
-  https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh
-chmod 0755 sforum-latest.sh
-./sforum-latest.sh --check   # resolve and verify; report whether the local bootstrap matches
-./sforum-latest.sh           # install when absent, upgrade when installed
+# Run inside the install directory.
+curl -fsSLo sforum-latest.sh https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
+curl -fsSLo sforum-latest.sh.sha256 https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+{ sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
+chmod 0755 sforum-latest.sh && \
+./sforum-latest.sh
 ```
 
 Each run resolves the newest Release, downloads and verifies that Release's

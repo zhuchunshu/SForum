@@ -145,22 +145,25 @@ Prereleases are never selected implicitly: pass
 immutable `vX.Y.Z` tag — floating `latest` images are never used in production
 Compose.
 
-For updates that must not trust the bootstrap already on disk, keep the
-repository-side `sforum-latest.sh` in the install directory:
+For updates that must not trust the bootstrap already on disk, run the
+repository-side wrapper from the install directory. This is one copy-paste and
+verifies the wrapper's own SHA-256 before executing it:
 
 ```sh
-curl -fsSLo sforum-latest.sh \
-  https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh
-chmod 0755 sforum-latest.sh
-./sforum-latest.sh --check   # resolve and verify; report whether the local bootstrap matches
-./sforum-latest.sh           # install when absent, upgrade when installed
+# Run inside the install directory.
+curl -fsSLo sforum-latest.sh https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
+curl -fsSLo sforum-latest.sh.sha256 https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+{ sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
+chmod 0755 sforum-latest.sh && \
+./sforum-latest.sh
 ```
 
 Each run resolves the newest Release, downloads and verifies that Release's
 `sforum-bootstrap.sh`, backs up the previous file under
 `.sforum/bootstrap-backups/`, and only then delegates to install or upgrade.
 `--yes`, `--channel prerelease`, and `--version <TAG>` behave as they do for the
-bootstrap. The script itself is repository tooling, not a Release asset.
+bootstrap. The script itself is repository tooling, not a Release asset; only
+this one wrapper file comes from `main`.
 
 Production uses one API process with an embedded River worker, sharing the
 database pool, SecretStore-backed settings, and extension runtime. Existing

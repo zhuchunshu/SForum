@@ -207,6 +207,18 @@ https://github.com/zhuchunshu/SForum/releases/download/<TAG>/SHA256SUMS
 3. 把旧 bootstrap 备份到 `.sforum/bootstrap-backups/`，再原子替换本地文件。
 4. 用固定标签执行 `sforum-bootstrap.sh install|upgrade --version <TAG>`。
 
+在安装目录执行：
+
+```sh
+curl -fsSLo sforum-latest.sh https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh && \
+curl -fsSLo sforum-latest.sh.sha256 https://raw.githubusercontent.com/zhuchunshu/SForum/main/sforum-latest.sh.sha256 && \
+{ sha256sum -c sforum-latest.sh.sha256 2>/dev/null || shasum -a 256 -c sforum-latest.sh.sha256; } && \
+chmod 0755 sforum-latest.sh && \
+./sforum-latest.sh --check
+```
+
+把最后一行换成 `./sforum-latest.sh` 即执行安装或更新。
+
 `--check` 只执行前两步，打印目标版本、SHA-256、本地文件是否一致与计划动作，
 适合在维护窗口前预检。脚本位于仓库根目录，不随 Release 分发；`--lang` 只在
 install 生效，`--bootstrap` 只在 upgrade 生效。
