@@ -6,6 +6,20 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 发布 v3.0.13-alpha.1（阻塞在 npm Trusted Publishing）
+
+- Status: **进行中 (2026-10-22)**。tag 已推、镜像候选与冒烟全过；`Publish versioned
+  Web SDKs` 卡在 `npm publish @sforum/admin-sdk@1.1.0` 的 404——两个 `@sforum`
+  包上还没有 `zhuchunshu/SForum` + `release.yml` 的 trusted publisher 授权
+  （旧版本 1.0.0 已存在，历次发布都走 skip，所以从未验证过）。
+- 途中修掉三处真实缺陷：Go stdlib CVE-2026-111943（toolchain → 1.26.10，26 个
+  go.mod 同步）、migrate 缺绝对 `EXTENSION_ROOT`、内置插件源码契约漂移（8 个插件
+  patch 版本 bump）。
+- Next：`npm trust github @sforum/admin-sdk --file release.yml --repo
+  zhuchunshu/SForum --allow-publish`（plugin-ui 同理），再用 `workflow_dispatch`
+  传 `tag=v3.0.13-alpha.1` 重跑，不必重建 tag。
+- Handoff: `sessions/2026-10-22-release-v3.0.13-alpha.1.md`
+
 ### Dependabot 告警清账与依赖刷新
 
 - Status: **landed (2026-10-22)**。45 条 open 告警里 5 条真实（vite 的 GHSA，8.1.6 起
