@@ -13,6 +13,10 @@ cat .deployrc
 `.deployrc` 的 `status=recovery_required` 是判断“旧应用已停、新版本未健康”
 的关键。没有它时，先看 `docker compose ps` 和 API 日志。
 
+如果你用 `sforum-latest.sh`，先跑 `./sforum-latest.sh --check`：它会解析目标
+Release、校验部署包、列出需要更新的受管工具文件，并显示计划动作（install /
+upgrade / deploy 重建状态），全程不写入。
+
 本页命令默认在安装目录执行，并复用这个数组：
 
 ```sh
@@ -50,6 +54,8 @@ COMPOSE=(docker compose --env-file .env.production \
 | --- | --- | --- |
 | `an existing installation was detected; use the upgrade command` | 目录里已有 `.env.production` 或 `.deployrc` | 改用 `./sforum-bootstrap.sh upgrade`；不要为了重装删数据卷 |
 | `.deployrc is missing; run install first` | 只完成了一半安装 | 先跑 `./deploy.sh --action deploy --version <TAG>` 补齐状态，再回到 bootstrap upgrade |
+| `The currently deployed version is unknown; re-run ./deploy.sh to restore state.` | `.deployrc` 没有有效 `version=vX.Y.Z`，也没有可反查的蓝绿槽容器 | 跑 `./deploy.sh --action deploy --version <TAG>` 重建状态；`./sforum-latest.sh` 会自动识别并走这一步 |
+| `core upgrade is incompatible ... target=... is older than migrated Core=...` | 数据库已迁移到更高的 Core 版本，目标版本比它旧 | 用 `./sforum-latest.sh --version <migrated Core 版本>` 或 `--channel prerelease`；需要真正回退时先恢复部署前备份，不要只回退镜像 |
 | `.env.production is missing; run install first` | 配置被移走或安装未完成 | 恢复配置或重新跑安装向导；不要凭空生成数据库密码 |
 | `生产配置不完整或不安全。... <KEY>` | 环境变量契约不满足 | 按提示修对应键；规则见[环境变量与密钥](./environment.md) |
 | `以下本机端口已被其他程序占用：` | `WEB_PORT`/`API_PORT` 被占 | 停掉占用进程，或在 `.env.production` 改端口；蓝绿拓扑还要检查 `edge` |

@@ -14,6 +14,11 @@ cat .deployrc
 application stopped and the new version never became healthy". When it is
 absent, check `docker compose ps` and the API logs first.
 
+If you use `sforum-latest.sh`, run `./sforum-latest.sh --check` first: it
+resolves the target Release, verifies the deploy bundle, lists the managed
+toolkit files that need updating, and shows the planned action (install,
+upgrade, or a deploy repair) without writing anything.
+
 Commands on this page run in the install directory and reuse this array:
 
 ```sh
@@ -51,6 +56,8 @@ COMPOSE=(docker compose --env-file .env.production \
 | --- | --- | --- |
 | `an existing installation was detected; use the upgrade command` | the directory already contains `.env.production` or `.deployrc` | Use `./sforum-bootstrap.sh upgrade`; do not delete data volumes just to reinstall |
 | `.deployrc is missing; run install first` | the installation only completed halfway | Run `./deploy.sh --action deploy --version <TAG>` first to record state, then return to bootstrap upgrade |
+| `The currently deployed version is unknown; re-run ./deploy.sh to restore state.` | `.deployrc` has no valid `version=vX.Y.Z` and there is no blue/green slot container to infer it from | Run `./deploy.sh --action deploy --version <TAG>` to rebuild the state; `./sforum-latest.sh` detects this and takes that path |
+| `core upgrade is incompatible ... target=... is older than migrated Core=...` | the database has already migrated to a higher Core version and the target is older | Use `./sforum-latest.sh --version <migrated Core version>` or `--channel prerelease`; to truly roll back, restore the pre-deployment backup instead of only rolling back images |
 | `.env.production is missing; run install first` | the configuration was moved away or installation never finished | Restore the configuration or rerun the install wizard; do not invent a database password |
 | `The production configuration is incomplete or unsafe. ... <KEY>` | the environment variable contract is not satisfied | Fix the named key; the rules are in [environment variables and secrets](./environment.md) |
 | `A required loopback port is already used by another process:` | `WEB_PORT`/`API_PORT` is taken | Stop the process holding it, or change the ports in `.env.production`; blue/green topologies must also check `edge` |

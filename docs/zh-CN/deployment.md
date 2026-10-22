@@ -135,8 +135,9 @@ install/upgrade。`--check` 只列出缺失或过期的文件，不写入任何�
 状态，而不是在 `upgrade.sh` 里报当前版本未知。不带参数运行时会先询问渠道：正式版
 stable、最新发布版（含 alpha/beta）或指定标签；`--channel` 与 `--version` 跳过
 询问。目标版本低于 `.deployrc` 记录时会在下载前被拦下；数据库迁移失败时，脚本会
-打印已迁移到的 Core 版本和匹配的命令。`--yes`、`--channel prerelease`、
-`--version <TAG>` 与 bootstrap 语义一致。
+打印已迁移到的 Core 版本和匹配的命令。数据库已经迁移到更高版本时，stable 的旧
+标签会在迁移阶段中止；按[故障排查](./deployment/troubleshooting.md)改用匹配的
+版本。`--yes`、`--channel prerelease`、`--version <TAG>` 与 bootstrap 语义一致。
 这个脚本属于仓库工具，不随 Release 工具包分发，也不由 bootstrap 刷新。只有
 这一个包装器文件来自 `main`；bootstrap 与完整工具包仍来自 Release 资产。
 在 Git 检出目录里实际同步需要显式加 `--allow-git`，避免误覆盖源码。
