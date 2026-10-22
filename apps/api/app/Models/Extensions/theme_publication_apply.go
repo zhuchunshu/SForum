@@ -108,11 +108,18 @@ func (s *ThemeService) ApplyThemeRuntimePublication(ctx context.Context, publica
 		}
 		return errors.Join(ErrThemeRuntimeApplyFailed, publishErr)
 	}
-	if publication.CoreReplacementsApproved {
+	switch {
+	case publication.CoreReplacementsApproved && publication.ApprovalSource == ThemeApprovalSourceHost:
+		// Host 批准只可能来自受保护内置默认主题（store 层已强制），
+		// 绑定写 host 来源而不是伪造审批用户。
+		err = s.pageRegistry.RegisterThemePackageReplacingHostApproved(
+			ctx, target, publication.SourceThemeID,
+		)
+	case publication.CoreReplacementsApproved:
 		err = s.pageRegistry.RegisterThemePackageReplacingApproved(
 			ctx, target, publication.SourceThemeID, publication.ActorUserID,
 		)
-	} else {
+	default:
 		err = s.pageRegistry.RegisterThemePackageReplacing(ctx, target, publication.SourceThemeID)
 	}
 	if err != nil {
@@ -180,4 +187,38 @@ func (s *serviceCore) themePublicationSource(
 		return nil, ErrThemePublicationConflict
 	}
 	return &exact, nil
+}
+
+// EnsureDefaultThemeActive 是首次安装、启动修复与恢复路径共用的默认主题激活入口。
+// 受保护内置默认主题由 Host 批准核心页替换；其它主题仍走人工审批。
+func (s *ThemeService) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {
+	active, err := s.store.ActiveTheme(ctx)
+	if err == nil && active.ID == DefaultThemeID && active.Source == SourceBuiltin {
+		return active, nil
+	}
+	defaultTheme, getErr := s.store.Get(ctx, DefaultThemeID)
+	if getErr != nil {
+		if err != nil {
+			return Extension{}, err
+		}
+		return Extension{}, getErr
+	}
+	if defaultTheme.Type != TypeTheme || defaultTheme.Source != SourceBuiltin {
+		return Extension{}, ErrInvalidManifest
+	}
+	result, err := s.store.ActivateTheme(ctx, DefaultThemeID)
+	if err != nil {
+		return Extension{}, err
+	}
+	if result.Publication.CoreReplacementsApproved &&
+		result.Publication.ApprovalSource == ThemeApprovalSourceHost {
+		// 首次安装/启动修复没有人类 actor：Host 批准自己的受保护默认主题，
+		// 用一条事件让运维在扩展日志里能看到这次自动批准。
+		_, _ = s.store.CreateEvent(ctx, EventInput{
+			ExtensionID: DefaultThemeID,
+			Action:      EventThemeActivated,
+			Message:     "host-approved protected built-in default theme (first install or startup repair)",
+		})
+	}
+	return result.Extension, nil
 }

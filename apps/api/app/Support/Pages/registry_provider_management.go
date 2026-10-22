@@ -110,6 +110,7 @@ func (r *Registry) ApproveReplace(ctx context.Context, binding ProviderBinding) 
 
 	binding.TemplatePath = matched.Template
 	binding.ContractVersion = matched.Contract
+	binding.ApprovalSource = BindingApprovalAdmin
 	if err := r.store.UpsertBinding(ctx, binding); err != nil {
 		return err
 	}

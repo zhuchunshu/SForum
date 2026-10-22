@@ -131,6 +131,9 @@ func (r *digestAwarePageRegistry) RegisterThemePackageReplacing(ctx context.Cont
 func (r *digestAwarePageRegistry) RegisterThemePackageReplacingApproved(ctx context.Context, extension Extension, previous string, _ int64) error {
 	return r.RegisterThemePackageReplacing(ctx, extension, previous)
 }
+func (r *digestAwarePageRegistry) RegisterThemePackageReplacingHostApproved(ctx context.Context, extension Extension, previous string) error {
+	return r.RegisterThemePackageReplacing(ctx, extension, previous)
+}
 
 func (r *digestAwarePageRegistry) ClearExtension(extensionID string) {
 	if r.cleared == nil {

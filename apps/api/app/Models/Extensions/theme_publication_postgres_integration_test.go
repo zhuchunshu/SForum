@@ -2,6 +2,7 @@ package extensions
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -569,7 +570,10 @@ func newThemePublicationPGFixtureWithInitialPublication(
 		removeSchema()
 		t.Fatalf("migrate isolated theme schema to registry: %v", err)
 	}
-	for _, version := range []int64{202607150019, 202607150020, 202607150021, 202607160027, 202607300002} {
+	for _, version := range []int64{
+		202607150019, 202607150020, 202607150021, 202607160027,
+		202607270063, 202607300002, 202610230001,
+	} {
 		if _, err := provider.ApplyVersion(ctx, version, true); err != nil {
 			db.Close()
 			removeSchema()
@@ -683,5 +687,149 @@ func exactThemeActivationInput(current, target Extension, actorID int64, approve
 		Version: target.Version, PackageDigest: target.PackageDigest,
 		CurrentThemeID: current.ID, CurrentThemeVersion: current.Version, CurrentThemeDigest: current.PackageDigest,
 		ApproveCoreReplacements: approve, ActorUserID: actorID,
+	}
+}
+
+func (f *themePublicationPGFixture) saveBuiltinTheme(id, label, version, digit string) Extension {
+	f.t.Helper()
+	item, err := f.store.SaveBuiltin(f.ctx, SaveBuiltinInput{
+		Manifest:    Manifest{ID: id, Name: label, Version: version, Type: TypeTheme},
+		PackagePath: "/tmp/" + id, PackageDigest: strings.Repeat(digit, 64),
+	})
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	f.extensionIDs = append(f.extensionIDs, id)
+	return item
+}
+
+func (f *themePublicationPGFixture) publicationRow(revision int64) (bool, string, sql.NullInt64) {
+	f.t.Helper()
+	var approved bool
+	var source string
+	var actor sql.NullInt64
+	if err := f.pool.QueryRow(f.ctx, `
+		SELECT core_replacements_approved, approval_source, actor_user_id
+		FROM theme_runtime_publications WHERE revision = $1
+	`, revision).Scan(&approved, &source, &actor); err != nil {
+		f.t.Fatal(err)
+	}
+	return approved, source, actor
+}
+
+// 首次安装/启动修复：Host 自带的受保护默认主题由 Host 自己批准核心页替换，
+// 发布账本记录 host 来源且不带审批用户。
+func TestPostgresStartupRepairHostApprovesProtectedDefaultTheme(t *testing.T) {
+	fixture := newThemePublicationPGFixture(t, "host-approve-default")
+	fixture.saveBuiltinTheme(DefaultThemeID, "default", "1.0.0", "e")
+
+	result, err := fixture.store.ActivateTheme(fixture.ctx, DefaultThemeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publication := result.Publication
+	if !publication.CoreReplacementsApproved || publication.ApprovalSource != ThemeApprovalSourceHost ||
+		publication.ActorUserID != 0 || publication.Reason != ThemeRuntimePublicationStartupRepair ||
+		publication.ThemeID != DefaultThemeID {
+		t.Fatalf("startup repair publication=%+v", publication)
+	}
+	approved, source, actor := fixture.publicationRow(publication.Revision)
+	if !approved || source != ThemeApprovalSourceHost || actor.Valid {
+		t.Fatalf("persisted approval=%v source=%q actor=%v", approved, source, actor)
+	}
+}
+
+// 受保护判定必须同时满足「默认主题 ID + builtin + system + 不可删除」：
+// 其它内置主题仍然需要 super_admin 显式批准。
+func TestPostgresStartupRepairDoesNotHostApproveOtherThemes(t *testing.T) {
+	fixture := newThemePublicationPGFixture(t, "host-approve-other")
+	other := fixture.saveBuiltinTheme(fixture.prefix+".other-builtin", "other", "1.0.0", "f")
+
+	result, err := fixture.store.ActivateTheme(fixture.ctx, other.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Publication.CoreReplacementsApproved ||
+		result.Publication.ApprovalSource == ThemeApprovalSourceHost || result.Publication.ActorUserID != 0 {
+		t.Fatalf("non-default builtin theme was host-approved: %+v", result.Publication)
+	}
+	uploaded := fixture.saveTheme("uploaded", "1.0.0", strings.Repeat("a", 64))
+	result, err = fixture.store.ActivateTheme(fixture.ctx, uploaded.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Publication.CoreReplacementsApproved {
+		t.Fatalf("uploaded theme was auto-approved: %+v", result.Publication)
+	}
+}
+
+// 升级前的老库：已有活动主题、发布账本为空。默认主题由 Host 批准，
+// 上传主题保持未批准（必须由 super_admin 显式批准）。
+func TestPostgresGenesisHostApprovesOnlyProtectedDefaultTheme(t *testing.T) {
+	fixture := newThemePublicationPGFixtureWithoutPublication(t, "genesis-host")
+	fixture.saveBuiltinTheme(DefaultThemeID, "default", "1.0.0", "b")
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		UPDATE extensions SET status = 'disabled' WHERE type = 'theme' AND id <> $1
+	`, DefaultThemeID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.pool.Exec(fixture.ctx, `
+		UPDATE extensions SET status = 'enabled' WHERE id = $1
+	`, DefaultThemeID); err != nil {
+		t.Fatal(err)
+	}
+	publication, err := fixture.store.EnsureInitialThemeRuntimePublication(fixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !publication.CoreReplacementsApproved || publication.ApprovalSource != ThemeApprovalSourceHost ||
+		publication.ActorUserID != 0 || publication.ThemeID != DefaultThemeID {
+		t.Fatalf("genesis publication=%+v", publication)
+	}
+
+	uploadedFixture := newThemePublicationPGFixtureWithoutPublication(t, "genesis-uploaded")
+	uploaded := uploadedFixture.activeTheme()
+	if uploaded.Source == SourceBuiltin {
+		t.Fatalf("fixture active theme should be uploaded, got %#v", uploaded)
+	}
+	uploadedPublication, err := uploadedFixture.store.EnsureInitialThemeRuntimePublication(uploadedFixture.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uploadedPublication.CoreReplacementsApproved ||
+		uploadedPublication.ApprovalSource == ThemeApprovalSourceHost {
+		t.Fatalf("uploaded theme genesis was host-approved: %+v", uploadedPublication)
+	}
+}
+
+// 人工激活永远保留人工来源：批准 → admin + actor；不批准 → 未批准。
+func TestPostgresHumanActivationKeepsAdminProvenance(t *testing.T) {
+	fixture := newThemePublicationPGFixture(t, "human-approval")
+	defaultTheme := fixture.saveBuiltinTheme(DefaultThemeID, "default", "1.0.0", "c")
+	actor := fixture.addUser("approver")
+	current := fixture.activeTheme()
+
+	unapproved, err := fixture.store.ActivateThemeExact(
+		fixture.ctx, defaultTheme.ID, exactThemeActivationInput(current, defaultTheme, actor, false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unapproved.Publication.CoreReplacementsApproved ||
+		unapproved.Publication.ApprovalSource == ThemeApprovalSourceHost {
+		t.Fatalf("human activation without approval was approved: %+v", unapproved.Publication)
+	}
+
+	current = fixture.activeTheme()
+	approved, err := fixture.store.ActivateThemeExact(
+		fixture.ctx, defaultTheme.ID, exactThemeActivationInput(current, defaultTheme, actor, true),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !approved.Publication.CoreReplacementsApproved ||
+		approved.Publication.ApprovalSource != ThemeApprovalSourceAdmin ||
+		approved.Publication.ActorUserID != actor {
+		t.Fatalf("human approval provenance=%+v", approved.Publication)
 	}
 }

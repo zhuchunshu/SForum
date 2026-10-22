@@ -335,25 +335,6 @@ func (s *serviceCore) restoreSafeModeThemeRegistry(ctx context.Context) error {
 	return nil
 }
 
-func (s *ThemeService) EnsureDefaultThemeActive(ctx context.Context) (Extension, error) {
-	active, err := s.store.ActiveTheme(ctx)
-	if err == nil && active.ID == DefaultThemeID && active.Source == SourceBuiltin {
-		return active, nil
-	}
-	defaultTheme, getErr := s.store.Get(ctx, DefaultThemeID)
-	if getErr != nil {
-		if err != nil {
-			return Extension{}, err
-		}
-		return Extension{}, getErr
-	}
-	if defaultTheme.Type != TypeTheme || defaultTheme.Source != SourceBuiltin {
-		return Extension{}, ErrInvalidManifest
-	}
-	result, err := s.store.ActivateTheme(ctx, DefaultThemeID)
-	return result.Extension, err
-}
-
 func (s *serviceCore) verifyExtension(ctx context.Context, extension Extension) error {
 	if err := validateInstalledPackage(extension); err != nil {
 		if extension.Type == TypeTheme {

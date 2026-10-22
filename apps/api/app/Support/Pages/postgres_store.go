@@ -3,6 +3,7 @@ package pages
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,10 +18,20 @@ func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
 	return &PostgresStore{pool: pool}
 }
 
+// bindingApprovalSource 归一化审批来源。历史/测试构造的绑定可能只带
+// ApprovedBy，此时按 'admin' 记录；空来源不能落到 host。
+func bindingApprovalSource(binding ProviderBinding) string {
+	if strings.TrimSpace(binding.ApprovalSource) == BindingApprovalHost {
+		return BindingApprovalHost
+	}
+	return BindingApprovalAdmin
+}
+
 func (s *PostgresStore) ListBindings(ctx context.Context) ([]ProviderBinding, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT page_id, extension_id, contribution_id, version, package_digest,
-		       COALESCE(approved_by, 0), COALESCE(template_path, ''), COALESCE(contract_version, '')
+		       COALESCE(approved_by, 0), COALESCE(template_path, ''), COALESCE(contract_version, ''),
+		       COALESCE(NULLIF(approval_source, ''), 'admin')
 		FROM page_provider_bindings
 		ORDER BY page_id`)
 	if err != nil {
@@ -32,7 +43,7 @@ func (s *PostgresStore) ListBindings(ctx context.Context) ([]ProviderBinding, er
 		var b ProviderBinding
 		if err := rows.Scan(
 			&b.PageID, &b.ExtensionID, &b.ContributionID, &b.Version, &b.PackageDigest,
-			&b.ApprovedBy, &b.TemplatePath, &b.ContractVersion,
+			&b.ApprovedBy, &b.TemplatePath, &b.ContractVersion, &b.ApprovalSource,
 		); err != nil {
 			return nil, err
 		}
@@ -45,11 +56,12 @@ func (s *PostgresStore) GetBinding(ctx context.Context, pageID string) (Provider
 	var b ProviderBinding
 	err := s.pool.QueryRow(ctx, `
 		SELECT page_id, extension_id, contribution_id, version, package_digest,
-		       COALESCE(approved_by, 0), COALESCE(template_path, ''), COALESCE(contract_version, '')
+		       COALESCE(approved_by, 0), COALESCE(template_path, ''), COALESCE(contract_version, ''),
+		       COALESCE(NULLIF(approval_source, ''), 'admin')
 		FROM page_provider_bindings WHERE page_id = $1`, pageID).
 		Scan(
 			&b.PageID, &b.ExtensionID, &b.ContributionID, &b.Version, &b.PackageDigest,
-			&b.ApprovedBy, &b.TemplatePath, &b.ContractVersion,
+			&b.ApprovedBy, &b.TemplatePath, &b.ContractVersion, &b.ApprovalSource,
 		)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ProviderBinding{}, false, nil
@@ -64,12 +76,12 @@ func (s *PostgresStore) UpsertBinding(ctx context.Context, binding ProviderBindi
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO page_provider_bindings (
 			page_id, extension_id, contribution_id, version, package_digest,
-			approved_by, template_path, contract_version, updated_at
+			approved_by, template_path, contract_version, approval_source, updated_at
 		)
 			VALUES (
 				$1, $2, $3, $4, $5,
 				CASE WHEN EXISTS (SELECT 1 FROM users WHERE id = NULLIF($6, 0)) THEN NULLIF($6, 0) END,
-				$7, $8, NOW()
+				$7, $8, $9, NOW()
 			)
 		ON CONFLICT (page_id) DO UPDATE SET
 			extension_id = EXCLUDED.extension_id,
@@ -79,9 +91,11 @@ func (s *PostgresStore) UpsertBinding(ctx context.Context, binding ProviderBindi
 			approved_by = EXCLUDED.approved_by,
 			template_path = EXCLUDED.template_path,
 			contract_version = EXCLUDED.contract_version,
+			approval_source = EXCLUDED.approval_source,
 			updated_at = NOW()`,
 		binding.PageID, binding.ExtensionID, binding.ContributionID, binding.Version,
-		binding.PackageDigest, binding.ApprovedBy, binding.TemplatePath, binding.ContractVersion)
+		binding.PackageDigest, binding.ApprovedBy, binding.TemplatePath, binding.ContractVersion,
+		bindingApprovalSource(binding))
 	return err
 }
 
@@ -105,11 +119,11 @@ func (s *PostgresStore) ReplaceExtensionBindings(ctx context.Context, extensionI
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO page_provider_bindings (
 				page_id, extension_id, contribution_id, version, package_digest,
-				approved_by, template_path, contract_version, updated_at
+				approved_by, template_path, contract_version, approval_source, updated_at
 				) VALUES (
 					$1, $2, $3, $4, $5,
 					CASE WHEN EXISTS (SELECT 1 FROM users WHERE id = NULLIF($6, 0)) THEN NULLIF($6, 0) END,
-					$7, $8, NOW()
+					$7, $8, $9, NOW()
 				)
 			ON CONFLICT (page_id) DO UPDATE SET
 				extension_id = EXCLUDED.extension_id,
@@ -119,9 +133,11 @@ func (s *PostgresStore) ReplaceExtensionBindings(ctx context.Context, extensionI
 				approved_by = EXCLUDED.approved_by,
 				template_path = EXCLUDED.template_path,
 				contract_version = EXCLUDED.contract_version,
+				approval_source = EXCLUDED.approval_source,
 				updated_at = NOW()`,
 			binding.PageID, binding.ExtensionID, binding.ContributionID, binding.Version,
-			binding.PackageDigest, binding.ApprovedBy, binding.TemplatePath, binding.ContractVersion); err != nil {
+			binding.PackageDigest, binding.ApprovedBy, binding.TemplatePath, binding.ContractVersion,
+			bindingApprovalSource(binding)); err != nil {
 			return err
 		}
 	}
@@ -145,7 +161,8 @@ func (s *PostgresStore) ReconcileExtensionBindings(ctx context.Context, activeEx
 	}
 	rows, err := tx.Query(ctx, `
 		SELECT page_id, extension_id, contribution_id, version, package_digest,
-		       COALESCE(approved_by, 0), COALESCE(template_path, ''), COALESCE(contract_version, '')
+		       COALESCE(approved_by, 0), COALESCE(template_path, ''), COALESCE(contract_version, ''),
+		       COALESCE(NULLIF(approval_source, ''), 'admin')
 		FROM page_provider_bindings WHERE extension_id = $1`, activeExtensionID)
 	if err != nil {
 		return err
@@ -154,7 +171,8 @@ func (s *PostgresStore) ReconcileExtensionBindings(ctx context.Context, activeEx
 	for rows.Next() {
 		var binding ProviderBinding
 		if err := rows.Scan(&binding.PageID, &binding.ExtensionID, &binding.ContributionID, &binding.Version,
-			&binding.PackageDigest, &binding.ApprovedBy, &binding.TemplatePath, &binding.ContractVersion); err != nil {
+			&binding.PackageDigest, &binding.ApprovedBy, &binding.TemplatePath, &binding.ContractVersion,
+			&binding.ApprovalSource); err != nil {
 			rows.Close()
 			return err
 		}

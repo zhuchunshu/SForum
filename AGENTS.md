@@ -431,6 +431,10 @@ future generated clients. Keep it modular as the product surface grows.
   exact digest, activate that staged version through the normal admin flow,
   and verify both `/site/active-theme/skin` and `/pages/resolve` identify the
   expected provider/digest. Source-only unit tests are not runtime evidence.
+  A *fresh install* is the exception and needs no manual step: startup repair
+  host-approves the protected built-in default theme's Core replacements
+  (`approval_source = 'host'`), so the theme renders on first boot; a staged
+  new digest still requires the explicit activation above.
 - For every new or changed Page Registry route, rendered Browser evidence must
   also show the expected `data-provider` and `data-template="1"`. A page that
   merely opens through `provider="core"`, `data-template="0"`, or the visible

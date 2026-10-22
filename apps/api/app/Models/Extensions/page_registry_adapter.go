@@ -167,6 +167,50 @@ func (a *PageRegistryAdapter) RegisterThemePackageReplacingApproved(
 	previousActiveThemeID string,
 	approvedBy int64,
 ) error {
+	if approvedBy > 0 {
+		return a.registerThemePackageReplacing(ctx, extension, previousActiveThemeID,
+			func(contributions []pages.PageContribution) error {
+				return a.Bridge.Registry.ActivateThemeContributions(
+					ctx, extension.ID, contributions, previousActiveThemeID, approvedBy,
+				)
+			})
+	}
+	return a.registerThemePackageReplacing(ctx, extension, previousActiveThemeID,
+		func(contributions []pages.PageContribution) error {
+			return a.Bridge.Registry.SwitchThemeContributions(
+				ctx, extension.ID, contributions, previousActiveThemeID,
+			)
+		})
+}
+
+// RegisterThemePackageReplacingHostApproved 是受保护内置默认主题的 Host 批准
+// 注册路径。适配器层再次确认目标身份：上传/第三方主题无法经由此路径拿到
+// 核心页替换权限。
+func (a *PageRegistryAdapter) RegisterThemePackageReplacingHostApproved(
+	ctx context.Context,
+	extension Extension,
+	previousActiveThemeID string,
+) error {
+	if a == nil || a.Bridge == nil {
+		return nil
+	}
+	if !isProtectedBuiltinDefaultTheme(extension) {
+		return ErrInvalidManifest
+	}
+	return a.registerThemePackageReplacing(ctx, extension, previousActiveThemeID,
+		func(contributions []pages.PageContribution) error {
+			return a.Bridge.Registry.ActivateThemeContributionsHostApproved(
+				ctx, extension.ID, contributions, previousActiveThemeID,
+			)
+		})
+}
+
+func (a *PageRegistryAdapter) registerThemePackageReplacing(
+	ctx context.Context,
+	extension Extension,
+	previousActiveThemeID string,
+	publish func([]pages.PageContribution) error,
+) error {
 	if a == nil || a.Bridge == nil {
 		return nil
 	}
@@ -187,13 +231,7 @@ func (a *PageRegistryAdapter) RegisterThemePackageReplacingApproved(
 		return err
 	}
 	publication := a.Bridge.Registry.CaptureThemePublication(extension.ID, previousActiveThemeID)
-	var publishErr error
-	if approvedBy > 0 {
-		publishErr = a.Bridge.Registry.ActivateThemeContributions(ctx, extension.ID, contributions, previousActiveThemeID, approvedBy)
-	} else {
-		publishErr = a.Bridge.Registry.SwitchThemeContributions(ctx, extension.ID, contributions, previousActiveThemeID)
-	}
-	if publishErr != nil {
+	if publishErr := publish(contributions); publishErr != nil {
 		return errors.Join(publishErr, a.rollbackStagedThemeRuntime(snapshot, staged))
 	}
 	if err := a.activateThemeRuntime(snapshot); err != nil {

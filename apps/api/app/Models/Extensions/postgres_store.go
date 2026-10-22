@@ -497,13 +497,17 @@ func (s *PostgresStore) Enable(ctx context.Context, id string, extensionType str
 }
 
 func (s *PostgresStore) ActivateTheme(ctx context.Context, id string) (ThemeActivationResult, error) {
-	return s.activateThemePublished(ctx, id, nil, ThemeRuntimePublicationStartupRepair, 0, false)
+	// 启动修复原语：没有人类 actor。目标若是 Host 自带的受保护默认主题，
+	// 由 Host 自己批准核心页替换（首次安装/主题丢失后的恢复），否则维持未批准。
+	return s.activateThemePublished(
+		ctx, id, nil, ThemeRuntimePublicationStartupRepair, 0, false, true,
+	)
 }
 
 func (s *PostgresStore) ActivateThemeExact(ctx context.Context, id string, expected ThemeActivationInput) (ThemeActivationResult, error) {
 	return s.activateThemePublished(
 		ctx, id, &expected, ThemeRuntimePublicationActivation,
-		expected.ActorUserID, expected.ApproveCoreReplacements,
+		expected.ActorUserID, expected.ApproveCoreReplacements, false,
 	)
 }
 

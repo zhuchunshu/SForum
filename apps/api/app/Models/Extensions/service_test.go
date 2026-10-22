@@ -1805,10 +1805,11 @@ func TestServiceActivatesOnlyExactPreviewedStagedThemeArtifact(t *testing.T) {
 }
 
 type themeActivationApprovalRegistry struct {
-	ordinary   int
-	approved   int
-	approvedBy int64
-	err        error
+	ordinary     int
+	approved     int
+	hostApproved int
+	approvedBy   int64
+	err          error
 }
 
 func (*themeActivationApprovalRegistry) PreflightThemePackage(context.Context, Extension, string) error {
@@ -1830,6 +1831,10 @@ func (r *themeActivationApprovalRegistry) RegisterThemePackageReplacing(context.
 func (r *themeActivationApprovalRegistry) RegisterThemePackageReplacingApproved(_ context.Context, _ Extension, _ string, approvedBy int64) error {
 	r.approved++
 	r.approvedBy = approvedBy
+	return r.err
+}
+func (r *themeActivationApprovalRegistry) RegisterThemePackageReplacingHostApproved(context.Context, Extension, string) error {
+	r.hostApproved++
 	return r.err
 }
 func (*themeActivationApprovalRegistry) RegisterPluginPackage(context.Context, Extension) error {

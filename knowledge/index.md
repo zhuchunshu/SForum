@@ -6,6 +6,20 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 全新安装默认主题免手动激活（Host 批准）
+
+- Status: **landed (2026-10-23)**。全新库首启不再停在 Core fallback：受保护内置默认
+  主题由 Host 在启动修复/首次导入时批准核心页替换
+  （`approval_source = 'host'`，无 actor），上传/第三方主题仍必须 super_admin 显式
+  批准，内置主题新 digest 仍要人工激活一次。
+- 根因：审批只读 `page_provider_bindings.approved_by`（FK → `users`），新库 0 用户
+  时结构上不可能批准，于是 `SwitchThemeContributions` 只登记候选、不写绑定。
+- 运行时证据：空库 → 单条 `startup_repair` 发布 `(approved=t, host, actor=NULL)`、
+  34 条 host 绑定、`/pages/resolve?id=forum.home` → `provider=sforum.default-theme`、
+  渲染三栏壳；重启后不重复发布、不降级。
+- Handoff: `sessions/2026-10-23-host-approved-default-theme-handoff.md`；
+  决策：`decisions/2026-10-23-host-approved-default-theme.md`。
+
 ### 全量测试提速（Go 分片并行 + 三线并行）
 
 - Status: **landed (2026-10-23)**，本地全绿；CI 待 PR。`scripts/test.sh` 现在三条线

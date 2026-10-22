@@ -56,9 +56,21 @@ func (s *PostgresStore) EnsureInitialThemeRuntimePublication(
 	if err != nil {
 		return ThemeRuntimePublication{}, err
 	}
-	approved, actorUserID, err := lockThemeApproval(ctx, tx, active.ID)
+	approved, actorUserID, approvalSource, err := lockThemeApproval(ctx, tx, active.ID)
 	if err != nil {
 		return ThemeRuntimePublication{}, fmt.Errorf("lock initial theme replacement approval: %w", err)
+	}
+	if !approved {
+		// 升级前的老库可能已有活动主题但还没有发布账本。若它就是 Host 自带的
+		// 受保护默认主题，Host 自己批准核心页替换，避免升级后停在 Core fallback；
+		// 其它主题（上传/第三方）仍必须由 super_admin 显式批准。
+		protectedDefault, protectedErr := lockProtectedBuiltinDefault(ctx, tx, active.ID)
+		if protectedErr != nil {
+			return ThemeRuntimePublication{}, protectedErr
+		}
+		if protectedDefault {
+			approved, approvalSource = true, ThemeApprovalSourceHost
+		}
 	}
 	publication, err := insertThemeRuntimePublication(ctx, tx, ThemeRuntimePublication{
 		DesiredState:             ThemeRuntimePublicationActive,
@@ -66,6 +78,7 @@ func (s *PostgresStore) EnsureInitialThemeRuntimePublication(
 		ThemeVersion:             active.Version,
 		PackageDigest:            active.Digest,
 		CoreReplacementsApproved: approved,
+		ApprovalSource:           approvalSource,
 		ActorUserID:              actorUserID,
 		Reason:                   ThemeRuntimePublicationStartupRepair,
 	})

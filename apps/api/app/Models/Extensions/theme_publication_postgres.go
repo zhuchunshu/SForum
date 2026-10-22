@@ -32,6 +32,7 @@ func (s *PostgresStore) activateThemePublished(
 	reason ThemeRuntimePublicationReason,
 	actorUserID int64,
 	approveCoreReplacements bool,
+	hostApproveProtectedDefault bool,
 ) (ThemeActivationResult, error) {
 	if s == nil || s.pool == nil || ctx == nil || !validThemePublicationReason(reason) ||
 		(approveCoreReplacements && actorUserID <= 0) {
@@ -67,9 +68,33 @@ func (s *PostgresStore) activateThemePublished(
 			return ThemeActivationResult{}, ErrThemePreviewStale
 		}
 	}
-	sourceApproved, sourceActor, err := lockThemeApproval(ctx, tx, current.ID)
+	sourceApproved, sourceActor, sourceApprovalSource, err := lockThemeApproval(ctx, tx, current.ID)
 	if err != nil {
 		return ThemeActivationResult{}, err
+	}
+	approvalSource := ThemeApprovalSourceAdmin
+	if !approveCoreReplacements && actorUserID == 0 && hostApproveProtectedDefault {
+		// 只有 Host 自带的受保护默认主题可以在没有人类 actor 的启动修复/
+		// 首次导入中由 Host 自己批准核心页替换。精确制品已有人工审批时
+		// 保留人工来源，不降级成 host。
+		protectedDefault, protectedErr := lockProtectedBuiltinDefault(ctx, tx, target.ID)
+		if protectedErr != nil {
+			return ThemeActivationResult{}, protectedErr
+		}
+		if protectedDefault {
+			approved, approvedActor, approvedSource, approvalErr := lockThemeExactArtifactApproval(
+				ctx, tx, target.ID, target.Version, target.Digest,
+			)
+			if approvalErr != nil {
+				return ThemeActivationResult{}, approvalErr
+			}
+			approveCoreReplacements = true
+			if approved && approvedSource == ThemeApprovalSourceAdmin && approvedActor > 0 {
+				actorUserID, approvalSource = approvedActor, ThemeApprovalSourceAdmin
+			} else {
+				approvalSource = ThemeApprovalSourceHost
+			}
+		}
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE extensions SET status = 'disabled', updated_at = now()
@@ -96,7 +121,9 @@ func (s *PostgresStore) activateThemePublished(
 		ThemeID:      target.ID, ThemeVersion: target.Version, PackageDigest: target.Digest,
 		SourceThemeID: current.ID, SourceThemeVersion: current.Version, SourcePackageDigest: current.Digest,
 		SourceCoreReplacementsApproved: sourceApproved, SourceActorUserID: sourceActor,
+		SourceApprovalSource:     sourceApprovalSource,
 		CoreReplacementsApproved: approveCoreReplacements,
+		ApprovalSource:           approvalSource,
 		ActorUserID:              actorUserID, Reason: reason,
 	})
 	if err != nil {
@@ -110,6 +137,26 @@ func (s *PostgresStore) activateThemePublished(
 		return ThemeActivationResult{}, err
 	}
 	return ThemeActivationResult{Extension: extension, Publication: publication}, nil
+}
+
+// lockProtectedBuiltinDefault 判定目标是否是 Host 自带的受保护默认主题。
+// 调用方已持有该 extensions 行的锁。
+func lockProtectedBuiltinDefault(ctx context.Context, tx pgx.Tx, id string) (bool, error) {
+	if id == "" {
+		return false, nil
+	}
+	var source string
+	var isSystem, isDeletable bool
+	err := tx.QueryRow(ctx, `
+		SELECT source, is_system, is_deletable FROM extensions WHERE id = $1
+	`, id).Scan(&source, &isSystem, &isDeletable)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, ErrExtensionNotFound
+	}
+	if err != nil {
+		return false, err
+	}
+	return id == DefaultThemeID && source == SourceBuiltin && isSystem && !isDeletable, nil
 }
 
 func (s *PostgresStore) CompensateThemeActivation(
@@ -142,6 +189,7 @@ func (s *PostgresStore) CompensateThemeActivation(
 		SourceThemeID: current.ID, SourceThemeVersion: current.Version, SourcePackageDigest: current.Digest,
 		SourceCoreReplacementsApproved: failed.CoreReplacementsApproved,
 		SourceActorUserID:              failed.ActorUserID,
+		SourceApprovalSource:           failed.ApprovalSource,
 		ActorUserID:                    failed.ActorUserID, Reason: ThemeRuntimePublicationCompensation,
 	}
 	if previous == nil {
@@ -193,6 +241,7 @@ func (s *PostgresStore) CompensateThemeActivation(
 		publication.CoreReplacementsApproved = failed.SourceCoreReplacementsApproved
 		if publication.CoreReplacementsApproved {
 			publication.ActorUserID = failed.SourceActorUserID
+			publication.ApprovalSource = failed.SourceApprovalSource
 		}
 	}
 	publication, err = insertThemeRuntimePublication(ctx, tx, publication)
@@ -226,8 +275,8 @@ func (s *PostgresStore) ThemeRuntimePublicationByRevision(ctx context.Context, r
 const themeRuntimePublicationSelect = `
 	SELECT revision, desired_state, theme_id, theme_version, package_digest,
 	       source_theme_id, source_theme_version, source_package_digest,
-	       source_core_replacements_approved, source_actor_user_id,
-	       core_replacements_approved, actor_user_id, reason, created_at
+	       source_core_replacements_approved, source_actor_user_id, source_approval_source,
+	       core_replacements_approved, actor_user_id, approval_source, reason, created_at
 	FROM theme_runtime_publications`
 
 type themePublicationQuerier interface {
@@ -250,8 +299,8 @@ func scanThemeRuntimePublication(row pgx.Row) (ThemeRuntimePublication, error) {
 	if err := row.Scan(
 		&result.Revision, &result.DesiredState, &themeID, &themeVersion, &digest,
 		&sourceID, &sourceVersion, &sourceDigest,
-		&result.SourceCoreReplacementsApproved, &sourceActor,
-		&result.CoreReplacementsApproved, &actor, &result.Reason, &result.CreatedAt,
+		&result.SourceCoreReplacementsApproved, &sourceActor, &result.SourceApprovalSource,
+		&result.CoreReplacementsApproved, &actor, &result.ApprovalSource, &result.Reason, &result.CreatedAt,
 	); errors.Is(err, pgx.ErrNoRows) {
 		return ThemeRuntimePublication{}, ErrThemePublicationNotFound
 	} else if err != nil {
@@ -276,20 +325,31 @@ func insertThemeRuntimePublication(
 		INSERT INTO theme_runtime_publications (
 			desired_state, theme_id, theme_version, package_digest,
 			source_theme_id, source_theme_version, source_package_digest,
-			source_core_replacements_approved, source_actor_user_id,
-			core_replacements_approved, actor_user_id, reason
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			source_core_replacements_approved, source_actor_user_id, source_approval_source,
+			core_replacements_approved, actor_user_id, approval_source, reason
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING revision, created_at
 	`, publication.DesiredState,
 		nullableThemePublicationValue(publication.ThemeID), nullableThemePublicationValue(publication.ThemeVersion), nullableThemePublicationValue(publication.PackageDigest),
 		nullableThemePublicationValue(publication.SourceThemeID), nullableThemePublicationValue(publication.SourceThemeVersion), nullableThemePublicationValue(publication.SourcePackageDigest),
 		publication.SourceCoreReplacementsApproved, nullableThemePublicationActor(publication.SourceActorUserID),
-		publication.CoreReplacementsApproved, nullableThemePublicationActor(publication.ActorUserID), publication.Reason,
+		themeApprovalSourceOrAdmin(publication.SourceApprovalSource),
+		publication.CoreReplacementsApproved, nullableThemePublicationActor(publication.ActorUserID),
+		themeApprovalSourceOrAdmin(publication.ApprovalSource), publication.Reason,
 	).Scan(&publication.Revision, &publication.CreatedAt)
 	if err != nil {
 		return ThemeRuntimePublication{}, fmt.Errorf("insert theme runtime publication: %w", err)
 	}
 	return publication, nil
+}
+
+// themeApprovalSourceOrAdmin 归一化落库值：未批准的发布不带来源语义，
+// 统一写 'admin'（列默认值），只有 host 批准会写 'host'。
+func themeApprovalSourceOrAdmin(source string) string {
+	if source == ThemeApprovalSourceHost {
+		return ThemeApprovalSourceHost
+	}
+	return ThemeApprovalSourceAdmin
 }
 
 func lockCurrentThemeTuple(ctx context.Context, tx pgx.Tx) (themePublicationTuple, bool, error) {
@@ -381,39 +441,85 @@ func lockExactThemeActivationTarget(
 	return result, stagedVersionID != 0 && result.VersionID == stagedVersionID && result.VersionID != activeVersionID, nil
 }
 
-func lockThemeApproval(ctx context.Context, tx pgx.Tx, extensionID string) (bool, int64, error) {
+// lockThemeApproval 读取某扩展是否存在已批准的核心页替换绑定（任意制品）。
+// 人工批准优先于 host 批准：只要有一条 admin 绑定，来源就记 admin。
+func lockThemeApproval(ctx context.Context, tx pgx.Tx, extensionID string) (bool, int64, string, error) {
 	if extensionID == "" {
-		return false, 0, nil
+		return false, 0, "", nil
 	}
-	rows, err := tx.Query(ctx, `
-		SELECT approved_by
+	return scanThemeApprovalRows(ctx, tx, `
+		SELECT COALESCE(approved_by, 0), approval_source
 		FROM page_provider_bindings
-		WHERE extension_id = $1 AND approved_by IS NOT NULL
+		WHERE extension_id = $1 AND (approved_by IS NOT NULL OR approval_source = 'host')
 		FOR UPDATE
 	`, extensionID)
+}
+
+// lockThemeExactArtifactApproval 只认匹配 version + package digest 的绑定：
+// 新 digest 不会被旧制品的审批顺带放行。
+func lockThemeExactArtifactApproval(
+	ctx context.Context,
+	tx pgx.Tx,
+	extensionID string,
+	version string,
+	digest string,
+) (bool, int64, string, error) {
+	if extensionID == "" {
+		return false, 0, "", nil
+	}
+	return scanThemeApprovalRows(ctx, tx, `
+		SELECT COALESCE(approved_by, 0), approval_source
+		FROM page_provider_bindings
+		WHERE extension_id = $1 AND version = $2 AND package_digest = $3
+		  AND (approved_by IS NOT NULL OR approval_source = 'host')
+		FOR UPDATE
+	`, extensionID, version, digest)
+}
+
+func scanThemeApprovalRows(
+	ctx context.Context,
+	tx pgx.Tx,
+	query string,
+	args ...any,
+) (bool, int64, string, error) {
+	rows, err := tx.Query(ctx, query, args...)
 	if err != nil {
-		return false, 0, err
+		return false, 0, "", err
 	}
 	defer rows.Close()
 	var actor int64
+	hostSeen := false
 	for rows.Next() {
 		var current int64
-		if err := rows.Scan(&current); err != nil {
-			return false, 0, err
+		var source string
+		if err := rows.Scan(&current, &source); err != nil {
+			return false, 0, "", err
 		}
-		if actor != 0 && actor != current {
-			return false, 0, ErrThemePublicationConflict
+		if current > 0 {
+			if actor != 0 && actor != current {
+				return false, 0, "", ErrThemePublicationConflict
+			}
+			actor = current
+			continue
 		}
-		actor = current
+		if source == ThemeApprovalSourceHost {
+			hostSeen = true
+		}
 	}
 	if err := rows.Err(); err != nil {
-		return false, 0, err
+		return false, 0, "", err
 	}
-	return actor > 0, actor, nil
+	if actor > 0 {
+		return true, actor, ThemeApprovalSourceAdmin, nil
+	}
+	if hostSeen {
+		return true, 0, ThemeApprovalSourceHost, nil
+	}
+	return false, 0, "", nil
 }
 
 func validThemeRuntimePublication(value ThemeRuntimePublication) bool {
-	if !validThemePublicationReason(value.Reason) || (value.CoreReplacementsApproved && value.ActorUserID <= 0) ||
+	if !validThemePublicationReason(value.Reason) ||
 		value.ActorUserID < 0 || value.SourceActorUserID < 0 {
 		return false
 	}
@@ -422,15 +528,44 @@ func validThemeRuntimePublication(value ThemeRuntimePublication) bool {
 	if !sourceEmpty && !sourceExact {
 		return false
 	}
-	if value.SourceCoreReplacementsApproved != (value.SourceActorUserID > 0) ||
-		(value.SourceCoreReplacementsApproved && !sourceExact) {
+	if value.SourceCoreReplacementsApproved {
+		if !sourceExact || !validThemeApprovalProvenance(value.SourceApprovalSource, value.SourceActorUserID) {
+			return false
+		}
+	} else if value.SourceActorUserID != 0 {
 		return false
+	}
+	if value.CoreReplacementsApproved {
+		if !validThemeApprovalProvenance(value.ApprovalSource, value.ActorUserID) {
+			return false
+		}
+		// host 批准只属于 Host 自带的受保护默认主题。
+		if value.ApprovalSource == ThemeApprovalSourceHost && value.ThemeID != DefaultThemeID {
+			return false
+		}
 	}
 	switch value.DesiredState {
 	case ThemeRuntimePublicationActive:
 		return value.ThemeID != "" && value.ThemeVersion != "" && validPackageDigest(value.PackageDigest)
 	case ThemeRuntimePublicationNone:
 		return value.ThemeID == "" && value.ThemeVersion == "" && value.PackageDigest == "" && !value.CoreReplacementsApproved
+	default:
+		return false
+	}
+}
+
+// validThemeApprovalProvenance 约束「已批准」与「谁批准」的对应关系：
+// admin 必须有真实 actor，host 必须没有 actor。空来源等价 admin（与列默认值
+// 一致），因此「忘记写 host」只会 fail-closed，不会悄悄变成 host 批准。
+func validThemeApprovalProvenance(source string, actor int64) bool {
+	if strings.TrimSpace(source) == "" {
+		source = ThemeApprovalSourceAdmin
+	}
+	switch source {
+	case ThemeApprovalSourceAdmin:
+		return actor > 0
+	case ThemeApprovalSourceHost:
+		return actor == 0
 	default:
 		return false
 	}
@@ -454,7 +589,10 @@ func sameThemeRuntimePublication(left, right ThemeRuntimePublication) bool {
 		left.ThemeID == right.ThemeID && left.ThemeVersion == right.ThemeVersion && strings.EqualFold(left.PackageDigest, right.PackageDigest) &&
 		left.SourceThemeID == right.SourceThemeID && left.SourceThemeVersion == right.SourceThemeVersion && strings.EqualFold(left.SourcePackageDigest, right.SourcePackageDigest) &&
 		left.SourceCoreReplacementsApproved == right.SourceCoreReplacementsApproved && left.SourceActorUserID == right.SourceActorUserID &&
-		left.CoreReplacementsApproved == right.CoreReplacementsApproved && left.ActorUserID == right.ActorUserID && left.Reason == right.Reason
+		themeApprovalSourceOrAdmin(left.SourceApprovalSource) == themeApprovalSourceOrAdmin(right.SourceApprovalSource) &&
+		left.CoreReplacementsApproved == right.CoreReplacementsApproved && left.ActorUserID == right.ActorUserID &&
+		themeApprovalSourceOrAdmin(left.ApprovalSource) == themeApprovalSourceOrAdmin(right.ApprovalSource) &&
+		left.Reason == right.Reason
 }
 
 func nullableThemePublicationValue(value string) any {

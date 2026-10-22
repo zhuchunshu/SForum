@@ -102,5 +102,6 @@ func cloneBinding(b ProviderBinding) ProviderBinding {
 	b.PackageDigest = strings.Clone(b.PackageDigest)
 	b.ContractVersion = strings.Clone(b.ContractVersion)
 	b.TemplatePath = strings.Clone(b.TemplatePath)
+	b.ApprovalSource = strings.Clone(b.ApprovalSource)
 	return b
 }

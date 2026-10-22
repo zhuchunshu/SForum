@@ -137,6 +137,9 @@ type PageRegistry interface {
 	// RegisterThemePackageReplacing 原子替换旧活动主题贡献（同路径切换允许）。
 	RegisterThemePackageReplacing(ctx context.Context, extension Extension, previousActiveThemeID string) error
 	RegisterThemePackageReplacingApproved(ctx context.Context, extension Extension, previousActiveThemeID string, approvedBy int64) error
+	// RegisterThemePackageReplacingHostApproved 只用于受保护内置默认主题的
+	// Host 批准：绑定写 approval_source=host，不伪造审批用户。
+	RegisterThemePackageReplacingHostApproved(ctx context.Context, extension Extension, previousActiveThemeID string) error
 	// RegisterPluginPackage 插件 enable 时注册页面贡献（统一 theme.json pages 契约）。
 	RegisterPluginPackage(ctx context.Context, extension Extension) error
 	// ClearExtension 禁用/卸载/切换时撤销贡献。

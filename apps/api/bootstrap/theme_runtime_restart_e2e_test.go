@@ -104,7 +104,7 @@ func TestThemeSwitchSurvivesProductionAPIAndNitroRestartAndConcurrentActivation(
 		"node", filepath.Join(nitroOutput, "server/index.mjs"),
 	)
 	waitForThemeE2EHTTP(t, nitro, nitroBaseURL+"/", 45*time.Second)
-	assertThemeE2ECoreRendered(t, nitroBaseURL)
+	assertThemeE2EDefaultThemeRendered(t, nitroBaseURL)
 
 	current := assertThemeE2EActive(t, store, defaultTheme)
 	activateThemeE2EExact(t, store, current, signalGarden, actorID)
@@ -366,12 +366,18 @@ func assertThemeE2ERendered(t *testing.T, nitroBaseURL string, want extensions.E
 	}
 }
 
-func assertThemeE2ECoreRendered(t *testing.T, nitroBaseURL string) {
+// 全新安装首启必须直接渲染 Host 自带的受保护默认主题：Host 在启动修复中
+// 批准核心页替换，不需要任何管理员先点一次「重新激活」。
+func assertThemeE2EDefaultThemeRendered(t *testing.T, nitroBaseURL string) {
 	t.Helper()
 	html := fetchThemeE2EHTML(t, nitroBaseURL)
-	for _, marker := range []string{`data-page="forum.home"`, `data-provider="core"`} {
+	for _, marker := range []string{
+		`data-page="forum.home"`,
+		`data-provider="` + extensions.DefaultThemeID + `"`,
+		`data-template="1"`,
+	} {
 		if !strings.Contains(html, marker) {
-			t.Fatalf("initial Nitro home did not render the core fallback; missing %q", marker)
+			t.Fatalf("initial Nitro home did not render the protected default theme; missing %q", marker)
 		}
 	}
 }

@@ -209,8 +209,13 @@ async function validateLiveSmoke() {
   {
     const r = await getJSON(`${API}/api/v1/pages/resolve?id=forum.home`)
     assert.equal(r.status, 200, 'resolve core status')
-    assert.equal(r.body?.data?.provider, 'core', 'default provider is core unless approved replace')
-    console.log('✓ resolve core home')
+    // 全新安装由 Host 批准受保护默认主题的核心页替换；其它未批准主题仍是 core。
+    const provider = r.body?.data?.provider
+    assert.ok(
+      provider === 'core' || provider === 'sforum.default-theme',
+      `home provider must be core or the host-approved default theme, got ${provider}`
+    )
+    console.log(`✓ resolve home (provider=${provider})`)
   }
 
   {

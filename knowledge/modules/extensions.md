@@ -473,6 +473,19 @@ does not rebuild Nuxt.
   asset-publication transition; both are usually leftover state, and the
   `extension.build_failed` copy now names that family in both locales.
   See `decisions/2026-10-16-theme-activation-preflight-truth.md`.
+- Host approval of the protected default theme (2026-10-23): a fresh install
+  used to render the Core fallback until an admin re-activated the shipped
+  theme, because Core replacement approval was read only from
+  `page_provider_bindings.approved_by` (FK to `users`) and a new database has
+  no users. Approval provenance is now explicit
+  (`approval_source = admin | host` on `page_provider_bindings` and
+  `theme_runtime_publications`); only the protected built-in default theme can
+  be `host`-approved, only on startup-repair/legacy-genesis activations, and a
+  staged new digest still needs one explicit admin activation. Runtime proof:
+  empty database → one `startup_repair` revision with `approval_source=host`,
+  34 host bindings, `/pages/resolve?id=forum.home` →
+  `provider=sforum.default-theme`. See
+  `decisions/2026-10-23-host-approved-default-theme.md`.
 - Route A composition check (2026-10-16): `tests/registry-page-shell-runtime-evidence.mjs`
   is the persistent runtime check for the public shell path — theme shell vs host
   fallback vs explicit bare, exactly one navbar owner and one footer, layout vs shell

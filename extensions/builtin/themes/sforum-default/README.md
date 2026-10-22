@@ -58,9 +58,18 @@ final comment.
 
 ## Dev activation
 
+A fresh install needs no manual step: on first boot `SyncBuiltins` activates this
+protected built-in default theme and the Host itself approves its Core page
+replacements (`theme_runtime_publications.approval_source = 'host'`), so the
+public pages render `data-provider="sforum.default-theme"` immediately. That
+automatic approval only covers this protected package, only on startup-repair /
+legacy-genesis activations, and never a new digest.
+
 After package edits: rsync to `storage/builtin-dev/themes/sforum-default/`,
 restart API (`SyncBuiltins` stages a new digest), then super_admin activate
-with `approveCoreReplacements` when L1 bindings must refresh.
+with `approveCoreReplacements` when L1 bindings must refresh. A staged digest is
+a new artifact, so it still needs that one human confirmation.
 
-Uploaded themes use the same `theme.json` + assets/templates contract.
-Activation switches Page Registry + skin; it does not rebuild Nuxt.
+Uploaded themes use the same `theme.json` + assets/templates contract and always
+require explicit `super_admin` approval. Activation switches Page Registry + skin;
+it does not rebuild Nuxt.

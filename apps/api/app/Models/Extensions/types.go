@@ -327,6 +327,20 @@ const (
 	ThemeRuntimePublicationStartupRepair ThemeRuntimePublicationReason = "startup_repair"
 )
 
+// 核心页替换审批的来源。'admin' 必须携带真实 actor；'host' 只允许受保护内置
+// 默认主题在首次安装/启动修复时使用，且不带 actor。
+const (
+	ThemeApprovalSourceAdmin = "admin"
+	ThemeApprovalSourceHost  = "host"
+)
+
+// isProtectedBuiltinDefaultTheme 判定 Host 自带的受保护默认主题。
+// 只有它可以被 Host 自动批准核心页替换：包来自发行包、is_system 且不可删除。
+func isProtectedBuiltinDefaultTheme(extension Extension) bool {
+	return extension.ID == DefaultThemeID && extension.Source == SourceBuiltin &&
+		extension.IsSystem && !extension.IsDeletable
+}
+
 type ThemeRuntimePublication struct {
 	Revision                       int64                         `json:"revision"`
 	DesiredState                   ThemeRuntimePublicationState  `json:"desiredState"`
@@ -338,7 +352,9 @@ type ThemeRuntimePublication struct {
 	SourcePackageDigest            string                        `json:"sourcePackageDigest,omitempty"`
 	SourceCoreReplacementsApproved bool                          `json:"sourceCoreReplacementsApproved"`
 	SourceActorUserID              int64                         `json:"sourceActorUserId,omitempty"`
+	SourceApprovalSource           string                        `json:"sourceApprovalSource,omitempty"`
 	CoreReplacementsApproved       bool                          `json:"coreReplacementsApproved"`
+	ApprovalSource                 string                        `json:"approvalSource,omitempty"`
 	ActorUserID                    int64                         `json:"actorUserId,omitempty"`
 	Reason                         ThemeRuntimePublicationReason `json:"reason"`
 	CreatedAt                      time.Time                     `json:"createdAt"`

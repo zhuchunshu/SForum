@@ -722,6 +722,8 @@ func (s *LifecycleService) VerifyExtension(ctx context.Context, actor identity.A
 	return s.decorateRuntime(ctx, extension), nil
 }
 
+// ActivateTheme 是无预览的兼容入口（无 HTTP 路由，走 startup-repair 语义）。
+// 若将来开路由，必须改走 ActivateThemeFromPreview，否则受保护默认主题会变成 Host 批准。
 func (s *LifecycleService) ActivateTheme(ctx context.Context, actor identity.Actor, id string) (Extension, error) {
 	return s.activateTheme(ctx, actor, id, ThemeActivationInput{}, false)
 }

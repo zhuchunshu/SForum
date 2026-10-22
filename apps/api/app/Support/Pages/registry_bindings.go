@@ -11,6 +11,8 @@ func cloneBindings(input map[string]ProviderBinding) map[string]ProviderBinding 
 	return result
 }
 
+// sameProviderArtifact 只比对制品身份：审批来源（admin/host）是审计属性，
+// 不是制品的一部分，重启恢复时必须随绑定原样保留而不是导致绑定被删除。
 func sameProviderArtifact(current, exact ProviderBinding) bool {
 	return current.PageID == exact.PageID && current.ExtensionID == exact.ExtensionID &&
 		current.ContributionID == exact.ContributionID && current.Version == exact.Version &&

@@ -542,6 +542,14 @@ func (r *blockingThemeRuntimeSafetyRegistry) RegisterThemePackageReplacingApprov
 	return r.RegisterThemePackageReplacing(ctx, extension, previous)
 }
 
+func (r *blockingThemeRuntimeSafetyRegistry) RegisterThemePackageReplacingHostApproved(
+	ctx context.Context,
+	extension Extension,
+	previous string,
+) error {
+	return r.RegisterThemePackageReplacing(ctx, extension, previous)
+}
+
 func (*blockingThemeRuntimeSafetyRegistry) RegisterPluginPackage(context.Context, Extension) error {
 	return nil
 }

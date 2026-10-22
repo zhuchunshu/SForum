@@ -120,6 +120,9 @@ func (r *safeModePageRegistry) RegisterThemePackageReplacing(_ context.Context, 
 func (r *safeModePageRegistry) RegisterThemePackageReplacingApproved(ctx context.Context, extension Extension, previous string, _ int64) error {
 	return r.RegisterThemePackageReplacing(ctx, extension, previous)
 }
+func (r *safeModePageRegistry) RegisterThemePackageReplacingHostApproved(ctx context.Context, extension Extension, previous string) error {
+	return r.RegisterThemePackageReplacing(ctx, extension, previous)
+}
 func (r *safeModePageRegistry) ClearExtension(extensionID string) {
 	if r.cleared == nil {
 		r.cleared = map[string]bool{}
