@@ -37,6 +37,7 @@ import {
 } from '~/utils/sfEditor'
 import { imageFilesFromList, useEditorImageUpload } from '~/composables/editor/useEditorImageUpload'
 import { useMentionSuggestions } from '~/composables/editor/useMentionSuggestions'
+import { insertSForumLink } from '~/utils/editor/link'
 import {
   buildSForumProtectedTransaction,
   inspectSForumShortcodeMarkdown,
@@ -429,6 +430,10 @@ function setLink() {
   if (!currentEditor || props.disabled) {
     return
   }
+  // 代码块不允许 mark；光标或整块选中代码块时，链接按钮保持无操作。
+  if (currentEditor.isActive('codeBlock')) {
+    return
+  }
 
   const previousUrl = currentEditor.getAttributes('link').href || ''
   const rawUrl = window.prompt('输入链接地址', previousUrl)
@@ -441,6 +446,14 @@ function setLink() {
 
   if (!href) {
     currentEditor.chain().focus().unsetLink().run()
+    return
+  }
+
+  // 空选区不能 setMark：stored mark 会把之后输入的所有文字都变成链接。
+  // 这里直接把 URL 作为链接文字插入，光标停在链接之后（link 不再 inclusive）。
+  const { empty } = currentEditor.state.selection
+  if (empty && !currentEditor.isActive('link')) {
+    insertSForumLink(currentEditor, href)
     return
   }
 

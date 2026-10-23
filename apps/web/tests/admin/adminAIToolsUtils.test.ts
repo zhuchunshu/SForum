@@ -15,6 +15,7 @@ import {
   purposeToolSupportState,
   referencedButUnregistered,
   removeToolFromAllPurposes,
+  resetPurposeTools,
   setPurposeTool,
   toolDisplayEnglish,
   toolOriginLabel
@@ -63,6 +64,13 @@ describe('purpose tool auto-convergence', () => {
     expect(setPurposeTool(declared, added, 'vendor-tool', false)).toBeUndefined()
   })
 
+  test('a bare tools object is an explicit empty allowlist, not the declaration', () => {
+    // 后端 PurposeSettings.ToolAllowlist() 把 `{"tools":{}}` 当显式空列表；
+    // 前端必须同口径，否则界面显示声明默认、运行期一个工具都不给。
+    expect(setPurposeTool(['forum-search'], { tools: {} }, 'vendor-tool', true))
+      .toEqual({ tools: { allowed: ['vendor-tool'] } })
+  })
+
   test('failurePosture survives convergence instead of being dropped with tools', () => {
     const declared = ['forum-search']
     const posture = 'fail_closed'
@@ -88,6 +96,23 @@ describe('purpose tool auto-convergence', () => {
     expect(setPurposeTool(['forum-search'], undefined, '   ', true)).toBeUndefined()
     expect(setPurposeTool(['forum-search'], { failurePosture: 'fail_open' }, '', false))
       .toEqual({ failurePosture: 'fail_open' })
+  })
+})
+
+describe('resetting one purpose to its declared tool list', () => {
+  test('drops tools and keeps the failure posture', () => {
+    expect(resetPurposeTools({ tools: { allowed: ['vendor-tool'] }, failurePosture: 'fail_closed' }))
+      .toEqual({ failurePosture: 'fail_closed' })
+  })
+
+  test('returns undefined when nothing else is overridden', () => {
+    expect(resetPurposeTools({ tools: { allowed: [] } })).toBeUndefined()
+    expect(resetPurposeTools(undefined)).toBeUndefined()
+    expect(resetPurposeTools({ failurePosture: '   ' })).toBeUndefined()
+  })
+
+  test('a bare tools object is still a tool override to reset', () => {
+    expect(resetPurposeTools({ tools: {} })).toBeUndefined()
   })
 })
 
@@ -374,7 +399,21 @@ describe('admin AI tools copy', () => {
     'admin.ai.tools.usedByNone',
     'admin.ai.tools.usedByNoneHint',
     'admin.ai.tools.unusedCount',
-    'admin.ai.tools.overrideMark',
+    'admin.ai.tools.tooMany',
+    'admin.ai.tools.resetPurpose',
+    'admin.ai.tools.resetPurposeDone',
+    'admin.ai.tools.unregisteredCount',
+    'admin.ai.tools.manualAdd.title',
+    'admin.ai.tools.manualAdd.hint',
+    'admin.ai.tools.manualAdd.purpose',
+    'admin.ai.tools.manualAdd.purposeMissing',
+    'admin.ai.tools.manualAdd.namePlaceholder',
+    'admin.ai.tools.manualAdd.add',
+    'admin.ai.tools.manualAdd.added',
+    'admin.ai.tools.manualAdd.alreadyPresent',
+    'admin.ai.tools.manualAdd.nameInvalid',
+    'admin.ai.tools.manualAdd.registered',
+    'admin.ai.tools.manualAdd.empty',
     'admin.ai.tools.removeEverywhere',
     'admin.ai.tools.removeEverywhereDone',
     'admin.ai.tools.copyName',

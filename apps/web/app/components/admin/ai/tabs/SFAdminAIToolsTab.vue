@@ -3,14 +3,15 @@ import type { AdminAIPurposeOverride, AdminAIToolAvailability, AdminAIValidatedP
 import type { AIToolFilterOrigin } from '~/utils/admin/adminAITools'
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { ADMIN_AI_DRAFT_KEY } from '~/composables/admin/useAdminAISettingsForm'
+import SFAdminAIToolReferencesBlock from '~/components/admin/ai/blocks/SFAdminAIToolReferencesBlock.vue'
 import { toSettingsOverride, toSettingsOverrides } from '~/components/admin/ai/toolOverrides'
-import { MAX_TOOLS_PER_REQUEST, selectedPurposeTools } from '~/utils/admin/adminAI'
+import { MAX_TOOLS_PER_REQUEST, purposeToolsAreOverridden, selectedPurposeTools } from '~/utils/admin/adminAI'
 import {
   filterTools,
   purposeToolExposure,
   purposeToolSupportState,
-  referencedButUnregistered,
   removeToolFromAllPurposes,
+  resetPurposeTools,
   setPurposeTool,
   toolDisplayEnglish,
   toolOriginLabel
@@ -44,16 +45,6 @@ const displayPurposes = computed<AdminAIValidatedPurpose[]>(() => {
 function localized(text: { default: string, 'en-US'?: string } | undefined) {
   if (!text) return ''
   return locale.value?.toLowerCase().startsWith('en') && text['en-US'] ? text['en-US'] : text.default
-}
-
-function purposeById(id: string) {
-  return catalog.value.find(purpose => purpose.id === id)
-}
-
-// 未注册名字只带着用途 id 回来，界面要显示运营者认得的用途名。
-function purposeLabel(id: string) {
-  const purpose = purposeById(id)
-  return purpose ? localized(purpose.label) : id
 }
 
 const query = ref('')
@@ -118,10 +109,6 @@ const diagnostics = computed(() => {
   return items
 })
 
-const unregistered = computed(() =>
-  referencedButUnregistered(catalog.value, form.value?.purposes, tools.value.map(tool => tool.name))
-)
-
 function overrideFor(id: string): AdminAIPurposeOverride | undefined {
   return form.value?.purposes?.[id]
 }
@@ -130,8 +117,28 @@ function effectiveFor(purpose: AdminAIValidatedPurpose, tool: AdminAIToolAvailab
   return selectedPurposeTools(purpose.declaredTools, overrideFor(purpose.id)).includes(tool.name)
 }
 
+// 与复选框的生效集合共用同一个判定：`{"tools":{}}` 也算接管（显式空列表），
+// 否则列头会说「已自定义」而单元格又说「跟随声明」。
 function purposeOverridden(purpose: AdminAIValidatedPurpose) {
-  return Boolean(overrideFor(purpose.id)?.tools)
+  return purposeToolsAreOverridden(overrideFor(purpose.id))
+}
+
+// 恢复只清掉工具覆盖，失败姿态原样保留：两个决定互不隶属，顺手清掉另一项会让
+// 运营者以为自己在改工具时丢了降级策略。
+function resetPurpose(purpose: AdminAIValidatedPurpose) {
+  const current = form.value
+  if (!current || readOnly.value) return
+  const purposes: Record<string, AdminAIPurposeOverride> = { ...(current.purposes ?? {}) }
+  const converted = toSettingsOverride(resetPurposeTools(overrideFor(purpose.id)))
+  if (converted) purposes[purpose.id] = converted
+  else delete purposes[purpose.id]
+  current.purposes = purposes
+  toast.add({
+    color: 'success',
+    icon: 'i-lucide-rotate-ccw',
+    title: t('admin.ai.tools.resetPurposeDone', { purpose: localized(purpose.label) }),
+    duration: 10000
+  })
 }
 
 // 勾选一个用途就是往它的白名单里加这个名字。上限只在「新增」时拦：取消勾选永远
@@ -144,7 +151,7 @@ function toggle(purpose: AdminAIValidatedPurpose, tool: AdminAIToolAvailability,
     toast.add({
       color: 'warning',
       icon: 'i-lucide-triangle-alert',
-      title: t('admin.ai.purposes.tools.tooMany', { max: MAX_TOOLS_PER_REQUEST }),
+      title: t('admin.ai.tools.tooMany', { max: MAX_TOOLS_PER_REQUEST }),
       duration: 10000
     })
     return
@@ -271,30 +278,6 @@ function clearEnglish() {
   })
 }
 
-// 未注册名字的移除逐用途走 setPurposeTool：每个用途各自自动收敛，某个用途因此回到
-// 声明值时它的 tools 字段会被整个删掉，而不是留下一个与声明同值、却永远显示
-// 「已自定义」的覆盖。
-function removeUnregistered(entry: { name: string, purposes: string[] }) {
-  const current = form.value
-  if (!current || readOnly.value) return
-  const purposes: Record<string, AdminAIPurposeOverride> = { ...(current.purposes ?? {}) }
-  for (const id of entry.purposes) {
-    const purpose = purposeById(id)
-    if (!purpose) continue
-    const next = setPurposeTool(purpose.declaredTools, purposes[id], entry.name, false)
-    const converted = toSettingsOverride(next)
-    if (converted) purposes[id] = converted
-    else delete purposes[id]
-  }
-  current.purposes = purposes
-  toast.add({
-    color: 'success',
-    icon: 'i-lucide-check',
-    title: t('admin.ai.tools.removeEverywhereDone', { name: entry.name }),
-    duration: 10000
-  })
-}
-
 function parameterNames(tool: AdminAIToolAvailability) {
   return tool.parameters?.names ?? []
 }
@@ -393,10 +376,18 @@ function requiredNames(tool: AdminAIToolAvailability) {
               :title="purpose.id"
             >
               {{ localized(purpose.label) }}
-              <span
+              <!-- 有覆盖时列头给出恢复入口：只清工具白名单，失败姿态保留。 -->
+              <UButton
                 v-if="purposeOverridden(purpose)"
-                class="ml-1 inline-block size-1.5 rounded-full bg-[var(--sf-accent)] align-middle dark:bg-[var(--sf-accent-dark)]"
-                :title="t('admin.ai.tools.overrideMark')"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-rotate-ccw"
+                class="ml-1 size-5 p-0"
+                :disabled="readOnly"
+                :aria-label="t('admin.ai.tools.resetPurpose', { purpose: localized(purpose.label) })"
+                :title="t('admin.ai.tools.resetPurpose', { purpose: localized(purpose.label) })"
+                @click="resetPurpose(purpose)"
               />
             </th>
           </tr>
@@ -518,7 +509,7 @@ function requiredNames(tool: AdminAIToolAvailability) {
                 <UCheckbox
                   :model-value="effectiveFor(purpose, tool)"
                   :disabled="readOnly"
-                  :aria-label="`${tool.name} · ${purposeLabel(purpose.id)}`"
+                  :aria-label="`${tool.name} · ${localized(purpose.label)}`"
                   @update:model-value="(checked: boolean | 'indeterminate') => toggle(purpose, tool, checked === true)"
                 />
 
@@ -539,41 +530,8 @@ function requiredNames(tool: AdminAIToolAvailability) {
       :title="t('admin.ai.tools.noResults')"
     />
 
-    <!-- 白名单比工具活得久：插件停用或卸载后，名字还留在用途里，服务端会静默跳过。
-         只报一句「有脏名字」不够——必须给出逐条可执行的移除入口。 -->
-    <section
-      v-if="unregistered.length > 0"
-      class="min-w-0 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40"
-    >
-      <p class="text-sm font-semibold text-amber-800 dark:text-amber-200">{{ t('admin.ai.tools.unregisteredTitle') }}</p>
-      <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">{{ t('admin.ai.tools.unregisteredHint') }}</p>
-      <ul class="mt-2 flex flex-col gap-1.5">
-        <li
-          v-for="entry in unregistered"
-          :key="entry.name"
-          class="flex flex-wrap items-center justify-between gap-2"
-        >
-          <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <span class="truncate font-mono text-sm text-slate-900 dark:text-zinc-100">{{ entry.name }}</span>
-            <UBadge v-for="id in entry.purposes" :key="id" color="neutral" variant="soft" size="sm">
-              {{ purposeLabel(id) }}
-            </UBadge>
-          </div>
-          <UButton
-            size="xs"
-            color="warning"
-            variant="soft"
-            icon="i-lucide-x"
-            :disabled="readOnly"
-            :aria-label="t('admin.ai.tools.unregisteredRemove', { name: entry.name })"
-            :title="t('admin.ai.tools.unregisteredRemove', { name: entry.name })"
-            @click="removeUnregistered(entry)"
-          >
-            {{ t('admin.ai.tools.removeEverywhere') }}
-          </UButton>
-        </li>
-      </ul>
-    </section>
+    <!-- 白名单比工具活得久：未注册名字与「先配策略、后装插件」的手动点名都在这里。 -->
+    <SFAdminAIToolReferencesBlock />
 
     <p v-if="draft.dirty.value" class="text-sm text-amber-600 dark:text-amber-400">
       {{ t('admin.ai.tools.dirtyHint') }}

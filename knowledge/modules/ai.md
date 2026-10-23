@@ -238,12 +238,15 @@ live in configuration, not in Core code.
   绝不回退成「无白名单」或「全部工具」。
 - 控制台 `GET /admin/ai/settings` 返回 `purposes` 清单（声明与生效参数、覆盖标记），
   `PATCH` 接受 `purposes`；`/control-panel/ai?tab=purposes` 的用途页签
-  （`blocks/SFAdminAIPurposesBlock.vue`）按用途提供失败姿态与工具白名单覆盖，
-  「跟随声明」与「自定义」是两种事实，声明默认与生效值并列展示，一键恢复声明默认。
+  （`blocks/SFAdminAIPurposesBlock.vue`）按用途提供失败姿态覆盖与工具白名单的只读
+  摘要（生效数量 + 声明/已自定义徽标 + 深链）。工具编辑统一在 `?tab=tools`，用途
+  页签不再持有工具复选框；「跟随声明」与「自定义」的事实仍由
+  `purposes[id].tools` 是否存在表达，一键恢复声明默认会同时清掉失败姿态与工具覆盖。
   页面壳 `await ai.ready` 后才渲染——AI 控制台所有页签共享的三个 useAsyncData 必须在
   SSR 渲染前完成，否则服务端按空兜底渲染、客户端按真实载荷水合，hydration 必然
-  mismatch（2026-10-12 修复）。**窄屏渲染 QA 待做**（390x844）。决策：
-  `decisions/2026-10-12-ai-purpose-registry.md`。
+  mismatch（2026-10-12 修复）。决策：
+  `decisions/2026-10-12-ai-purpose-registry.md`、
+  `decisions/2026-10-23-ai-tool-visibility-single-owner.md`。
 
 ## 模型工具目录与统一配置（2026-10-19）
 
@@ -271,11 +274,20 @@ live in configuration, not in Core code.
   插件启停变化），控制台按活表过滤。
 - **暴露编辑自动收敛**：`setPurposeTool` 把生效集合与用途声明比较，一致时删掉
   `purposes[id].tools` 整个字段——「勾上再取消」必须回到未覆盖状态，否则界面会永远
-  显示「已自定义」。`removeToolFromAllPurposes` 对每个用途单独收敛，只处理当前目录里
-  的用途，不静默删除看不见的配置。
+  显示「已自定义」。`resetPurposeTools` 只移除 `tools`、保留 `failurePosture`，供
+  矩阵列头的「恢复声明工具列表」使用；`removeToolFromAllPurposes` 对每个用途单独
+  收敛，只处理当前目录里的用途，不静默删除看不见的配置。
+- **单一编辑面**：`purposes[id].tools.allowed` 只在 `/control-panel/ai?tab=tools`
+  编辑。矩阵列头在有覆盖时给出恢复入口；`SFAdminAIToolReferencesBlock` 承载未注册
+  引用的清理与「先配策略、后装插件」的手动点名。用途页签只读，避免同一字段出现两个
+  交互语义不同的编辑器（见 `decisions/2026-10-23-ai-tool-visibility-single-owner.md`）。
 - **未注册引用可见且可清理**：`referencedButUnregistered` 反向列出「白名单里有、登记表
   里没有」的名字及引用它的用途。服务端本来就会静默跳过它们，界面必须给出「从所有用途
-  移除」，否则运营者只能看到一个勾着的死名字。
+  移除」，否则运营者只能看到一个勾着的死名字。手动点名只接受尚未注册的名字；已注册
+  工具回到矩阵勾选，两个入口不会同时写同一个名字。
+- **前后端覆盖判定对齐**：`{"tools":{}}` 在后端是显式空列表（`Tools != nil`），前端
+  `purposeToolsAreOverridden` 同样以「`tools` 字段存在」为准；`prunePurposeOverrides`
+  把它归一成 `{"tools":{"allowed":[]}}`，保存后再读回是同一份文档。
 - **三种诊断**：`gates.toolCallsPerReply` 解析为 0（工具预算关闭）、用途的成本等级没有
   绑定 profile、绑定的 profile 声明 `supportsTools: false`。三者对应三个不同的修复
   动作，因此不合并成一句「工具不可用」。

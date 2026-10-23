@@ -22,7 +22,6 @@ function lookup(catalog: Record<string, unknown>, key: string): unknown {
 
 const pageShell = source('../../app/pages/admin/ai.vue')
 const tab = source('../../app/components/admin/ai/tabs/SFAdminAIToolsTab.vue')
-const purposesBlock = source('../../app/components/admin/ai/blocks/SFAdminAIPurposesBlock.vue')
 const composable = source('../../app/composables/admin/useAdminAI.ts')
 const zh = locale('zh-CN')
 const en = locale('en-US')
@@ -111,12 +110,13 @@ describe('admin AI tools tab renders only', () => {
     expect(tab).toContain('admin.ai.tools.noResults')
   })
 
-  test('removes unregistered references per purpose so each one auto-converges', () => {
-    expect(tab).toContain('referencedButUnregistered')
-    expect(tab).toContain('admin.ai.tools.unregisteredTitle')
-    expect(tab).toContain('admin.ai.tools.unregisteredRemove')
-    expect(tab).toContain('setPurposeTool(purpose.declaredTools, purposes[id], entry.name, false)')
-    expect(tab).toContain('admin.ai.tools.removeEverywhereDone')
+  test('delegates unregistered references and manual naming to the shared block', () => {
+    // 白名单比工具活得久：清理入口与「先配策略、后装插件」的手动点名都在新区块里，
+    // 页签本体不再持有这段交互。
+    expect(tab).toContain('import SFAdminAIToolReferencesBlock')
+    expect(tab).toContain('<SFAdminAIToolReferencesBlock />')
+    expect(tab).not.toContain('referencedButUnregistered')
+    expect(tab).not.toContain('removeUnregistered')
   })
 })
 
@@ -124,15 +124,18 @@ describe('admin AI tools matrix', () => {
   test('toggles each purpose through setPurposeTool and caps new additions', () => {
     expect(tab).toContain('setPurposeTool(purpose.declaredTools, overrideFor(purpose.id), tool.name, checked)')
     expect(tab).toContain('MAX_TOOLS_PER_REQUEST')
-    expect(tab).toContain('admin.ai.purposes.tools.tooMany')
+    expect(tab).toContain('admin.ai.tools.tooMany')
     expect(MAX_TOOLS_PER_REQUEST).toBe(16)
     // 上限只拦新增：取消勾选永远允许，否则超限配置会把运营者锁在界面里。
     expect(tab).toContain('!effective.includes(tool.name)')
   })
 
-  test('marks overridden purpose columns and removes the tool from every purpose', () => {
+  test('marks overridden purpose columns and resets them to the declared list', () => {
     expect(tab).toContain('purposeOverridden(purpose)')
-    expect(tab).toContain('admin.ai.tools.overrideMark')
+    expect(tab).toContain('purposeToolsAreOverridden(overrideFor(purpose.id))')
+    expect(tab).toContain('resetPurposeTools(overrideFor(purpose.id))')
+    expect(tab).toContain('admin.ai.tools.resetPurpose')
+    expect(tab).toContain('admin.ai.tools.resetPurposeDone')
     expect(tab).toContain('removeToolFromAllPurposes(catalog.value, current.purposes, tool.name)')
     expect(tab).toContain('admin.ai.tools.removeEverywhereDone')
   })
@@ -201,18 +204,6 @@ describe('admin AI tool plugin settings jump', () => {
   })
 })
 
-describe('admin AI purposes block uses the shared tool writers', () => {
-  test('toggleTool goes through setPurposeTool so exposure edits auto-converge', () => {
-    expect(purposesBlock).toContain('setPurposeTool(purpose.declaredTools, overrideFor(purpose.id), name, checked)')
-    expect(purposesBlock).not.toContain('tools: { allowed: next }')
-  })
-
-  test('toolLabel keeps its name but labels origin through the shared helper', () => {
-    expect(purposesBlock).toContain('toolLabel(name)')
-    expect(purposesBlock).toContain('toolOriginLabel(toolOrigin(name))')
-  })
-})
-
 describe('admin AI tools tab localization', () => {
   test('ships every admin.ai.tools.* key in both locales', () => {
     for (const key of [
@@ -244,7 +235,21 @@ describe('admin AI tools tab localization', () => {
       'admin.ai.tools.usedByNone',
       'admin.ai.tools.usedByNoneHint',
       'admin.ai.tools.unusedCount',
-      'admin.ai.tools.overrideMark',
+      'admin.ai.tools.tooMany',
+      'admin.ai.tools.resetPurpose',
+      'admin.ai.tools.resetPurposeDone',
+      'admin.ai.tools.unregisteredCount',
+      'admin.ai.tools.manualAdd.title',
+      'admin.ai.tools.manualAdd.hint',
+      'admin.ai.tools.manualAdd.purpose',
+      'admin.ai.tools.manualAdd.purposeMissing',
+      'admin.ai.tools.manualAdd.namePlaceholder',
+      'admin.ai.tools.manualAdd.add',
+      'admin.ai.tools.manualAdd.added',
+      'admin.ai.tools.manualAdd.alreadyPresent',
+      'admin.ai.tools.manualAdd.nameInvalid',
+      'admin.ai.tools.manualAdd.registered',
+      'admin.ai.tools.manualAdd.empty',
       'admin.ai.tools.removeEverywhere',
       'admin.ai.tools.removeEverywhereDone',
       'admin.ai.tools.copyName',

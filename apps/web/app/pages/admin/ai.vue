@@ -41,6 +41,12 @@ provide(ADMIN_AI_DRAFT_KEY, draft)
 const validTabs: AITab[] = ['providers', 'replyPrompt', 'purposes', 'tools', 'diagnose', 'observability']
 const activeTab = ref<AITab>(normalizeTab(route.query.tab))
 
+// 深链与浏览器前进/后退只改 query，不会重新挂载页面。不把 query 同步回本地状态，
+// 从用途页签的「在模型工具中管理」跳过来只会改地址栏，内容仍停在原页签。
+watch(() => route.query.tab, (value) => {
+  activeTab.value = normalizeTab(value)
+})
+
 const tabs = computed(() => [
   { id: 'providers', label: t('admin.ai.tabs.providers'), icon: 'i-lucide-server' },
   { id: 'replyPrompt', label: t('admin.ai.tabs.replyPrompt'), icon: 'i-lucide-message-square-text' },

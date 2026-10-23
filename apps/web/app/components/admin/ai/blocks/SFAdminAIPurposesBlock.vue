@@ -1,18 +1,14 @@
 <script setup lang="ts">
-import type { AdminAIPurposeOverride, AdminAIToolAvailability, AdminAIToolOrigin, AdminAIValidatedPurpose } from '~/composables/admin/useAdminAI'
+import type { AdminAIPurposeOverride, AdminAIValidatedPurpose } from '~/composables/admin/useAdminAI'
 import type { AIPurposeOverride } from '~/utils/admin/adminAI'
 import { ADMIN_AI_DRAFT_KEY } from '~/composables/admin/useAdminAISettingsForm'
+import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { toSettingsOverride } from '~/components/admin/ai/toolOverrides'
 import {
   AI_FAILURE_POSTURES,
-  MAX_TOOLS_PER_REQUEST,
-  isValidPurposeToolName,
-  normalizePurposeToolNames,
-  purposeToolOptions,
   purposeToolsAreOverridden,
   selectedPurposeTools
 } from '~/utils/admin/adminAI'
-import { setPurposeTool, toolOriginLabel } from '~/utils/admin/adminAITools'
 
 // 用途清单是「站内有哪些 AI 行为」的唯一可枚举答案。每一行都同时展示声明与生效
 // 两份事实：运营者要能看出「这个用途原本是什么」与「我把它改成了什么」，否则一次
@@ -22,14 +18,9 @@ const toast = useToast()
 const draft = inject(ADMIN_AI_DRAFT_KEY)!
 const { form, ai, canManage, readOnly } = draft
 
-// 每行正在输入的工具名与错误提示。它们是纯界面状态，不进配置文档。
-const pendingToolName = ref<Record<string, string>>({})
-const toolNameError = ref<Record<string, string>>({})
+const adminRoutes = useAdminRoutes()
 
 const catalog = computed<AdminAIValidatedPurpose[]>(() => ai.purposes.value ?? [])
-// 站内已注册的工具（Core 内置 + 已启用插件）。旧载荷没有这一项时为空，界面退化
-// 成「声明列表 + 手动输入」，与引入工具目录之前一致。
-const availableTools = computed<AdminAIToolAvailability[]>(() => ai.availableTools.value ?? [])
 
 function localized(text: { default: string, 'en-US'?: string } | undefined) {
   if (!text) return ''
@@ -68,36 +59,6 @@ function selectedTools(purpose: AdminAIValidatedPurpose) {
   return selectedPurposeTools(purpose.declaredTools, overrideFor(purpose.id))
 }
 
-function toolChoices(purpose: AdminAIValidatedPurpose) {
-  // 已注册但未声明的工具（插件贡献）也必须出现在选项里：让运营者手打一个拼错的
-  // 名字，再让服务端静默跳过，是这条链路上最容易犯的错。
-  //
-  // declaredTools 在旧载荷上可能是 null（没有声明任何工具的用途），因此这里必须
-  // 用 ?? [] 兜底：直接展开 null 会让整个页签渲染失败。
-  return purposeToolOptions(
-    [...(purpose.declaredTools ?? []), ...availableTools.value.map(tool => tool.name)],
-    overrideFor(purpose.id)?.tools?.allowed
-  )
-}
-
-function toolOrigin(name: string): AdminAIToolOrigin | undefined {
-  return availableTools.value.find(tool => tool.name === name)?.origin
-}
-
-// 插件工具在标签里带上扩展标识：运营者要能看出这个名字是谁提供的，而不是靠工具名
-// 的形状去猜。Core 内置仍然只显示名字，保持这一列不被 @Core 噪音填满。
-function toolLabel(name: string) {
-  const label = toolOriginLabel(toolOrigin(name))
-  return label === 'Core' ? name : `${name} · ${label}`
-}
-
-// 真正「未注册」的选中项：既不在用途声明里，也不在站内工具目录里。服务端会跳过
-// 这些名字，因此必须让运营者看见它们。
-function unknownTools(purpose: AdminAIValidatedPurpose) {
-  const known = new Set([...(purpose.declaredTools ?? []), ...availableTools.value.map(tool => tool.name)])
-  return selectedTools(purpose).filter(name => !known.has(name))
-}
-
 function postureValue(purpose: AdminAIValidatedPurpose): string {
   return overrideFor(purpose.id)?.failurePosture ?? ''
 }
@@ -133,80 +94,8 @@ function onPostureChange(purpose: AdminAIValidatedPurpose, value: string) {
   writeOverride(purpose.id, Object.keys(next).length > 0 ? next : undefined)
 }
 
-// 「跟随声明」与「自定义」是两种不同的事实：前者删除覆盖字段（声明即生效值），后者
-// 显式写下允许列表（哪怕是空列表）。合并成一种状态会让「恢复默认」变成不可能。
-function useDeclaredTools(purpose: AdminAIValidatedPurpose) {
-  const current = overrideFor(purpose.id)
-  const next: AdminAIPurposeOverride = {}
-  if (current?.failurePosture) next.failurePosture = current.failurePosture
-  writeOverride(purpose.id, Object.keys(next).length > 0 ? next : undefined)
-}
-
-function useCustomTools(purpose: AdminAIValidatedPurpose) {
-  const current = overrideFor(purpose.id)
-  const next: AdminAIPurposeOverride = {
-    tools: { allowed: normalizePurposeToolNames(selectedTools(purpose)) }
-  }
-  if (current?.failurePosture) next.failurePosture = current.failurePosture
-  writeOverride(purpose.id, next)
-}
-
-// 勾选与取消都走 setPurposeTool：它把生效集合物化后增删名字，再与用途声明比较——
-// 一旦结果与声明一致就把整个 tools 字段删掉，于是「勾上再取消」会回到「未覆盖」，
-// 而不是留下一个与声明同值、却永远显示「已自定义」的覆盖。
-function toggleTool(purpose: AdminAIValidatedPurpose, name: string, checked: boolean) {
-  const current = normalizePurposeToolNames(selectedTools(purpose))
-  // 上限只在「新增」时拦：取消勾选永远允许，否则超限的配置会把运营者锁在界面里。
-  if (checked && !current.includes(name) && current.length >= MAX_TOOLS_PER_REQUEST) return
-  writeOverride(purpose.id, setPurposeTool(purpose.declaredTools, overrideFor(purpose.id), name, checked))
-}
-
-// 每行的输入框是纯界面状态：它不进配置文档，也不参与脏判定。
-function setPendingToolName(purpose: AdminAIValidatedPurpose, value: string) {
-  pendingToolName.value = { ...pendingToolName.value, [purpose.id]: value }
-}
-
-function addTool(purpose: AdminAIValidatedPurpose) {
-  const raw = (pendingToolName.value[purpose.id] ?? '').trim()
-  if (!raw) return
-  if (!isValidPurposeToolName(raw)) {
-    toolNameError.value = { ...toolNameError.value, [purpose.id]: t('admin.ai.purposes.tools.nameInvalid') }
-    return
-  }
-  const current = normalizePurposeToolNames(selectedTools(purpose))
-  if (current.includes(raw)) {
-    pendingToolName.value = { ...pendingToolName.value, [purpose.id]: '' }
-    return
-  }
-  if (current.length >= MAX_TOOLS_PER_REQUEST) {
-    toolNameError.value = {
-      ...toolNameError.value,
-      [purpose.id]: t('admin.ai.purposes.tools.tooMany', { max: MAX_TOOLS_PER_REQUEST })
-    }
-    return
-  }
-  const existing = overrideFor(purpose.id)
-  const override: AdminAIPurposeOverride = {
-    tools: { allowed: normalizePurposeToolNames([...current, raw]) }
-  }
-  if (existing?.failurePosture) override.failurePosture = existing.failurePosture
-  writeOverride(purpose.id, override)
-  const errors = { ...toolNameError.value }
-  delete errors[purpose.id]
-  toolNameError.value = errors
-  pendingToolName.value = { ...pendingToolName.value, [purpose.id]: '' }
-}
-
-function removeTool(purpose: AdminAIValidatedPurpose, name: string) {
-  toggleTool(purpose, name, false)
-}
-
 function restorePurpose(purpose: AdminAIValidatedPurpose) {
   writeOverride(purpose.id, undefined)
-  const errors = { ...toolNameError.value }
-  delete errors[purpose.id]
-  toolNameError.value = errors
-  pendingToolName.value = { ...pendingToolName.value, [purpose.id]: '' }
   toast.add({
     color: 'success',
     icon: 'i-lucide-rotate-ccw',
@@ -265,6 +154,7 @@ function restorePurpose(purpose: AdminAIValidatedPurpose) {
           variant="outline"
           size="md"
           :disabled="!canManage || !isCustomized(purpose)"
+          :title="t('admin.ai.purposes.restoreHint')"
           @click="restorePurpose(purpose)"
         >
           {{ t('admin.ai.purposes.restore') }}
@@ -293,84 +183,21 @@ function restorePurpose(purpose: AdminAIValidatedPurpose) {
         <div class="min-w-0">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <span class="text-sm font-medium text-slate-600 dark:text-zinc-300">{{ t('admin.ai.purposes.columns.tools') }}</span>
-            <div class="flex items-center gap-1">
-              <UButton
-                size="sm"
-                :color="toolsOverridden(purpose) ? 'neutral' : 'primary'"
-                :variant="toolsOverridden(purpose) ? 'ghost' : 'soft'"
-                :disabled="readOnly"
-                @click="useDeclaredTools(purpose)"
-              >
-                {{ t('admin.ai.purposes.tools.followDeclared') }}
-              </UButton>
-              <UButton
-                size="sm"
-                :color="toolsOverridden(purpose) ? 'primary' : 'neutral'"
-                :variant="toolsOverridden(purpose) ? 'soft' : 'ghost'"
-                :disabled="readOnly"
-                @click="useCustomTools(purpose)"
-              >
-                {{ t('admin.ai.purposes.tools.custom') }}
-              </UButton>
-            </div>
+            <UBadge :color="toolsOverridden(purpose) ? 'primary' : 'neutral'" variant="soft" size="sm">
+              {{ t(toolsOverridden(purpose) ? 'admin.ai.purposes.tools.overriddenBadge' : 'admin.ai.purposes.tools.declaredBadge') }}
+            </UBadge>
           </div>
-          <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
-            {{ toolsOverridden(purpose) ? t('admin.ai.purposes.tools.customHint') : t('admin.ai.purposes.tools.followDeclaredHint') }}
+          <p class="mt-1 text-sm text-slate-900 dark:text-zinc-100" :title="selectedTools(purpose).join(' · ')">
+            {{ t('admin.ai.purposes.tools.summary', { count: selectedTools(purpose).length }) }}
           </p>
-
-          <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
-            <UCheckbox
-              v-for="name in toolChoices(purpose)"
-              :key="name"
-              :model-value="selectedTools(purpose).includes(name)"
-              :disabled="readOnly"
-              :label="toolLabel(name)"
-              :aria-label="name"
-              @update:model-value="(checked: boolean | 'indeterminate') => toggleTool(purpose, name, checked === true)"
-            />
-          </div>
-
-          <div class="mt-2">
-            <div class="flex items-center gap-2">
-              <UInput
-                :model-value="pendingToolName[purpose.id] ?? ''"
-                :placeholder="t('admin.ai.purposes.tools.addPlaceholder')"
-                size="md"
-                class="min-w-0 flex-1"
-                :disabled="readOnly"
-                @update:model-value="(value: string) => setPendingToolName(purpose, value)"
-                @keydown.enter.prevent="addTool(purpose)"
-              />
-              <UButton size="md" color="neutral" variant="outline" :disabled="readOnly" @click="addTool(purpose)">
-                {{ t('admin.ai.purposes.tools.add') }}
-              </UButton>
-            </div>
-            <p v-if="toolNameError[purpose.id]" class="mt-1 text-xs text-red-600 dark:text-red-400">
-              {{ toolNameError[purpose.id] }}
-            </p>
-            <div v-if="unknownTools(purpose).length > 0" class="mt-2 flex flex-wrap gap-1">
-              <UBadge
-                v-for="name in unknownTools(purpose)"
-                :key="name"
-                color="warning"
-                variant="soft"
-                size="sm"
-                class="font-mono"
-              >
-                {{ name }}
-                <button
-                  v-if="!readOnly"
-                  type="button"
-                  class="ml-1 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200"
-                  :aria-label="t('admin.ai.purposes.tools.remove', { name })"
-                  @click="removeTool(purpose, name)"
-                >
-                  <UIcon name="i-lucide-x" class="size-3" />
-                </button>
-              </UBadge>
-            </div>
-            <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">{{ t('admin.ai.purposes.tools.unknownHint') }}</p>
-          </div>
+          <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">{{ t('admin.ai.purposes.tools.managedHint') }}</p>
+          <NuxtLink
+            :to="{ path: adminRoutes.path('ai'), query: { tab: 'tools' } }"
+            class="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[var(--sf-accent)] hover:underline dark:text-[var(--sf-accent-dark)]"
+          >
+            {{ t('admin.ai.purposes.tools.manage') }}
+            <UIcon name="i-lucide-arrow-up-right" class="size-3.5" />
+          </NuxtLink>
         </div>
       </div>
     </section>

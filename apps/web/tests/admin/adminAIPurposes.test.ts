@@ -4,13 +4,11 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import {
-  MAX_TOOLS_PER_REQUEST,
   isValidPurposeToolName,
   normalizedAISettingsForComparison,
   normalizePurposeToolNames,
   prunePurposeOverrides,
   purposeOverrideIsEmpty,
-  purposeToolOptions,
   purposeToolsAreOverridden,
   selectedPurposeTools
 } from '../../app/utils/admin/adminAI'
@@ -41,6 +39,9 @@ describe('purpose override shapes', () => {
     expect(purposeToolsAreOverridden({ failurePosture: 'fail_closed' })).toBe(false)
     expect(purposeToolsAreOverridden({ tools: { allowed: [] } })).toBe(true)
     expect(purposeToolsAreOverridden({ tools: { allowed: ['forum-search'] } })).toBe(true)
+    // 与后端 PurposeSettings.ToolAllowlist() 对齐：`{"tools":{}}` 也是接管，
+    // 语义是「一个工具都不给」，不是「沿用声明」。
+    expect(purposeToolsAreOverridden({ tools: {} })).toBe(true)
   })
 
   test('an override that overrides nothing is empty', () => {
@@ -55,12 +56,8 @@ describe('purpose override shapes', () => {
     const declared = ['forum-search', 'time-now']
     expect(selectedPurposeTools(declared, undefined)).toEqual(['forum-search', 'time-now'])
     expect(selectedPurposeTools(declared, { tools: { allowed: [] } })).toEqual([])
+    expect(selectedPurposeTools(declared, { tools: {} })).toEqual([])
     expect(selectedPurposeTools(declared, { tools: { allowed: ['vendor-tool'] } })).toEqual(['vendor-tool'])
-  })
-
-  test('tool choices are the union of declared and configured names, sorted', () => {
-    expect(purposeToolOptions(['time-now', 'forum-search'], ['vendor-tool', 'forum-search']))
-      .toEqual(['forum-search', 'time-now', 'vendor-tool'])
   })
 
   test('normalizes tool names so selection order is not a change', () => {
@@ -94,6 +91,14 @@ describe('purpose overrides survive the settings round trip', () => {
     })
   })
 
+  test('normalizes a bare tools object into an explicit empty allowlist', () => {
+    // 后端会把 `{"tools":{}}` 归一成 `{"tools":{"allowed":[]}}`；前端提交前保持同形，
+    // 保存后再读回来才是同一份文档，脏判定也不会因为形状差异误报。
+    expect(prunePurposeOverrides({ 'forum.reply': { tools: {} } })).toEqual({
+      'forum.reply': { tools: { allowed: [] } }
+    })
+  })
+
   test('stored defaults and an untouched form compare equal', () => {
     // 服务端会丢弃空覆盖并省略字段；界面上一打开就持有空对象，两者必须等价，
     // 否则面板一进来就显示「有未保存的改动」。
@@ -123,6 +128,13 @@ describe('admin AI purposes console surface', () => {
     expect(pageShell).toContain('purposes: SFAdminAIPurposesTab')
   })
 
+  test('syncs the active tab with the query so deep links switch panes', () => {
+    // router.replace 只改地址栏，不重新挂载页面；没有这个 watch，从用途页签跳到
+    // ?tab=tools 只会更新 URL，内容仍停在原页签。
+    expect(pageShell).toContain('watch(() => route.query.tab')
+    expect(pageShell).toContain('activeTab.value = normalizeTab(value)')
+  })
+
   test('the tab renders the block and shares the page draft', () => {
     expect(tab).toContain('SFAdminAIPurposesBlock')
     expect(tab).toContain('ADMIN_AI_DRAFT_KEY')
@@ -137,11 +149,24 @@ describe('admin AI purposes console surface', () => {
     expect(block).toContain('writeOverride')
   })
 
-  test('exposes both facts: what is declared and what is in effect', () => {
-    expect(block).toContain('purpose.declaredTools')
-    expect(block).toContain('selectedTools(purpose)')
+  test('shows the effective tool count without owning an editor', () => {
+    // 工具可见性只有一个编辑面（模型工具页签）：这里保留声明/生效两份事实，
+    // 但只读——计数、徽标与深链足够让运营者知道该去哪里改。
+    expect(block).toContain('selectedPurposeTools')
+    expect(block).toContain('admin.ai.purposes.tools.summary')
+    expect(block).toContain('admin.ai.purposes.tools.managedHint')
+    expect(block).toContain('admin.ai.purposes.tools.manage')
+    expect(block).toContain("query: { tab: 'tools' }")
+    expect(block).toContain("adminRoutes.path('ai')")
     expect(block).toContain('admin.ai.purposes.tools.declaredBadge')
     expect(block).toContain('admin.ai.purposes.tools.overriddenBadge')
+  })
+
+  test('no longer edits tool visibility; the model tools tab owns it', () => {
+    expect(block).not.toContain('setPurposeTool')
+    expect(block).not.toContain('UCheckbox')
+    expect(block).not.toContain('availableTools')
+    expect(block).not.toContain('MAX_TOOLS_PER_REQUEST')
   })
 
   test('keeps the failure posture selectable and restorable', () => {
@@ -173,11 +198,6 @@ describe('admin AI purposes console surface', () => {
     expect(block).toContain('ai.purposes.value')
   })
 
-  test('caps the allowlist at what one request can carry', () => {
-    expect(block).toContain('MAX_TOOLS_PER_REQUEST')
-    expect(MAX_TOOLS_PER_REQUEST).toBe(16)
-  })
-
   test('ships complete zh-CN and en-US copy', () => {
     const zh = locale('zh-CN')
     const en = locale('en-US')
@@ -204,14 +224,12 @@ describe('admin AI purposes console surface', () => {
       'admin.ai.purposes.blastRadius.single',
       'admin.ai.purposes.blastRadius.batch',
       'admin.ai.purposes.blastRadius.site',
-      'admin.ai.purposes.tools.followDeclared',
-      'admin.ai.purposes.tools.custom',
       'admin.ai.purposes.tools.declaredBadge',
       'admin.ai.purposes.tools.overriddenBadge',
-      'admin.ai.purposes.tools.addPlaceholder',
-      'admin.ai.purposes.tools.unknownHint',
-      'admin.ai.purposes.tools.nameInvalid',
-      'admin.ai.purposes.tools.tooMany',
+      'admin.ai.purposes.tools.summary',
+      'admin.ai.purposes.tools.managedHint',
+      'admin.ai.purposes.tools.manage',
+      'admin.ai.purposes.restoreHint',
       'admin.ai.purposes.resourceType',
       'admin.ai.purposes.promptVersion'
     ]) {
@@ -221,25 +239,12 @@ describe('admin AI purposes console surface', () => {
   })
 })
 
-describe('tool catalog', () => {
-  const block = source('../../app/components/admin/ai/blocks/SFAdminAIPurposesBlock.vue')
+describe('tool catalog payload', () => {
   const composable = source('../../app/composables/admin/useAdminAI.ts')
 
   test('the payload carries the registered tool catalog', () => {
     expect(composable).toContain('AdminAIToolAvailability')
     expect(composable).toContain('availableTools?: AdminAIToolAvailability[]')
     expect(composable).toContain('payload.data.value?.availableTools')
-  })
-
-  test('registered plugin tools are offered instead of typed from memory', () => {
-    // 手打一个拼错的名字会被服务端静默跳过：选项里必须包含站内已注册的工具。
-    expect(block).toContain('ai.availableTools.value')
-    expect(block).toContain('availableTools.value.map(tool => tool.name)')
-    expect(block).toContain('toolLabel(name)')
-  })
-
-  test('only genuinely unregistered names are flagged', () => {
-    expect(block).toContain('unknownTools(purpose)')
-    expect(block).toContain('!known.has(name)')
   })
 })

@@ -2460,6 +2460,16 @@
       "source": "apps/web/app/components/admin/ai/tabs/SFAdminAIPurposesTab.vue"
     },
     {
+      "id": "core.component.admin.sf_admin_ai_tool_references_block",
+      "contractVersion": "sforum.component.admin.sf_admin_ai_tool_references_block@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIToolReferencesBlock.vue"
+    },
+    {
       "id": "core.component.admin.sf_admin_ai_tools_tab",
       "contractVersion": "sforum.component.admin.sf_admin_ai_tools_tab@1",
       "kind": "component",

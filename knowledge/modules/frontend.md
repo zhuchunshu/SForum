@@ -1038,6 +1038,25 @@ Architecture sources:
   attachment IDs.
 - Tag input accepts Unicode letters/numbers plus hyphens, matching backend tag
   validation.
+- 2026-10-23 link/code-block paste fix: `app/utils/editor/link.ts` exports
+  `SForumLink` with `inclusive: false` (Tiptap v3 otherwise ties link
+  inclusivity to `autolink`, so typing after a pasted/inserted link kept
+  extending it). `SFEditor#setLink` no longer calls `setMark` on an empty
+  selection; it inserts the normalized URL as link text via `insertSForumLink`
+  and leaves the cursor outside the mark. Code-block paste is now a Host
+  contract in `app/utils/editor/clipboard.ts`: inside a code block every
+  multi-line paste is inserted as literal text (`text/plain` preferred,
+  HTML→text fallback), and a clipboard containing only `<pre>` code containers
+  is collapsed into one `<pre><code>` (language from `language-*`/`data-language`,
+  text escaped). `app/utils/editor/codeBlock.ts` extends `CodeBlock` so
+  `toggleCodeBlock` merges a top-level multi-textblock selection into one code
+  block instead of one block per paragraph; nested/list/table selections and
+  existing-code-block toggling keep native behavior. Direct dependency
+  `@tiptap/extension-code-block@3.31.3`; StarterKit's codeBlock is disabled and
+  the Host extension re-adds it only for the `full` preset. Regression suites:
+  `tests/framework/editorLinkBehavior.test.ts`,
+  `tests/framework/editorCodeBlockPaste.test.ts`, shared harness in
+  `tests/helpers/editorClipboard.ts`.
 
 ## Admin And Trusted Frontend Runtime
 

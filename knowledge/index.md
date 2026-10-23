@@ -6,6 +6,18 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 编辑器链接续写与代码块粘贴修复
+
+- Status: **landed (2026-10-23)**。`SForumLink` 固定 `inclusive:false`，修复粘贴/插入
+  链接后继续输入仍被并入链接；工具栏空选区改为插入 URL 链接文字（不再写 stored
+  mark）。代码块内多行粘贴改为字面文本（HTML-only 剪贴板也覆盖），纯代码 HTML
+  合并为单个 fenced block；`SForumCodeBlock.toggleCodeBlock` 把顶层多段选区合并成
+  一个代码块，不再每段一块。
+- 验证：web 1565 用例、typecheck、架构门禁通过；真实浏览器 QA 覆盖链接续写、
+  工具栏空选区链接、HTML-only 代码块粘贴、逐行 `<pre>` 合并、多段切换单块。
+- Handoff: `sessions/2026-10-23-editor-link-codeblock-fix.md`；
+  模块：`modules/frontend.md`（Editor And Content UI）。
+
 ### 内置插件自动更新
 
 - Status: **landed (2026-10-23)，随 v3.0.13 正式版发布**。API 启动阶段新增 `BuiltinPluginAutoUpdater`：
@@ -472,6 +484,10 @@ load archived sessions or completed plans as current context.
   无）、逐用途暴露与自动收敛、未注册引用清理、三种可用性诊断。
   Handoff: `sessions/2026-10-19-ai-tools-tab-handoff.md`；决策：
   `decisions/2026-10-19-ai-tool-catalog-console.md`。
+- 2026-10-23 AI 工具可见性收敛为单一编辑面：`purposes[id].tools.allowed` 只在
+  `?tab=tools` 编辑；用途页签改为只读摘要 + 深链；手动点名与逐用途恢复声明搬进
+  `SFAdminAIToolReferencesBlock` 与矩阵列头；前端 `{"tools":{}}` 判定与后端对齐。
+  决策：`decisions/2026-10-23-ai-tool-visibility-single-owner.md`。
 
 ## Current Project State
 
@@ -514,6 +530,16 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **编辑器链接续写与代码块粘贴修复（2026-10-23）**：`SForumLink` 固定
+  `inclusive:false`；工具栏空选区插入 URL 链接文字；代码块内粘贴强制字面文本、
+  纯代码 HTML 合并单块；`SForumCodeBlock` 多段选区合并单块。详见
+  `sessions/2026-10-23-editor-link-codeblock-fix.md`。
+- **AI 工具可见性单一编辑面（2026-10-23，最新）**：`purposes[id].tools.allowed`
+  只在 `?tab=tools` 编辑；用途页签改为只读摘要 + 深链；未注册引用与手动点名抽到
+  `SFAdminAIToolReferencesBlock`，矩阵列头提供逐用途恢复声明；前端
+  `{"tools":{}}` 判定与后端对齐。详见
+  `sessions/2026-10-23-ai-tool-visibility-single-owner-handoff.md` 与
+  `decisions/2026-10-23-ai-tool-visibility-single-owner.md`。
 - **公共信息流去掉页码（2026-10-23，最新）**：首页/搜索只保留自动加载，移除
   `<SFPagination>`、`totalPages`、`homePageTo` 与 core 的 `.sforum-home__pagination`
   隐藏规则；根因是主题 `display:flex` 覆盖 core `display:none` 让页码意外可见。

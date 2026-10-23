@@ -1,7 +1,6 @@
 import { CharacterCount } from '@tiptap/extension-character-count'
 import { FileHandler } from '@tiptap/extension-file-handler'
 import Image from '@tiptap/extension-image'
-import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import Underline from '@tiptap/extension-underline'
 import { Markdown } from '@tiptap/markdown'
@@ -14,12 +13,15 @@ import {
 } from '@tiptap/vue-3'
 import type { Editor } from '@tiptap/core'
 import type { NodeViewRenderer } from '@tiptap/core'
+import { createSForumClipboardExtensions } from '~/utils/editor/clipboard'
+import { SForumCodeBlock } from '~/utils/editor/codeBlock'
 import { createEditorImageUploadPlaceholderExtension } from '~/utils/editor/editorImageUpload'
 import {
   editorImageRenderAttributes,
   normalizeEditorImageDimension,
   normalizeEditorImageDisplaySize
 } from '~/utils/editor/editorImage'
+import { SForumLink } from '~/utils/editor/link'
 import {
   createSForumMentionExtensions,
   type SForumMentionOptions
@@ -228,17 +230,20 @@ export function createSFEditorExtensions(options: {
     StarterKit.configure({
       link: false,
       underline: false,
+      codeBlock: false,
       ...(full ? {} : {
         blockquote: false,
         code: false,
-        codeBlock: false,
         heading: false,
         horizontalRule: false,
         strike: false
       })
     }),
+    ...(full ? [SForumCodeBlock] : []),
+    // 剪贴板归一化必须先于 Link/短代码的 paste handler，保证代码块内始终字面粘贴。
+    ...createSForumClipboardExtensions(),
     ...(full ? [Underline] : []),
-    Link.configure({
+    SForumLink.configure({
       autolink: true,
       linkOnPaste: true,
       openOnClick: false,

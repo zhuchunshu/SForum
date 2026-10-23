@@ -31,8 +31,12 @@ export type AIFailurePosture = typeof AI_FAILURE_POSTURES[number]
 
 // 站点覆盖里显式接管工具白名单：tools 字段存在即表示以它为准（空列表 = 不允许任何
 // 工具），tools 缺失即表示沿用用途声明的默认列表。
+//
+// 这里与后端 PurposeSettings.ToolAllowlist() 同一条语义：`{"tools":{}}` 也算接管，
+// 等价于「一个工具都不给」。只认 allowed 是数组会让界面把显式空列表显示成声明默认，
+// 而运行期其实一个工具都不发给模型。
 export function purposeToolsAreOverridden(override: AIPurposeOverride | undefined): boolean {
-  return Boolean(override && override.tools && Array.isArray(override.tools.allowed))
+  return Boolean(override && override.tools)
 }
 
 // purposeOverrideIsEmpty 判断一份覆盖是否什么都没覆盖。空覆盖与「没有这份配置」在
@@ -100,17 +104,8 @@ export function isValidPurposeToolName(name: string | undefined): boolean {
   return value.length > 0 && value.length <= 64 && TOOL_NAME_PATTERN.test(value)
 }
 
-// purposeToolOptions 汇总一个用途可勾选的工具：声明默认与运营者已输入的自定义名
-// 的并集，按字母序稳定排序。
-export function purposeToolOptions(
-  declared: readonly string[] | undefined,
-  selected: readonly string[] | undefined
-): string[] {
-  return normalizePurposeToolNames([...(declared ?? []), ...(selected ?? [])])
-}
-
-// selectedPurposeTools 返回界面上已勾选的工具：沿用声明时即声明默认（因为没有
-// 覆盖，声明就是生效值）。
+// selectedPurposeTools 返回某个用途当前生效的工具：沿用声明时即声明默认（因为没有
+// 覆盖，声明就是生效值）；显式覆盖（含 `{"tools":{}}`）时以覆盖为准，空列表即空集合。
 export function selectedPurposeTools(
   declared: readonly string[] | undefined,
   override: AIPurposeOverride | undefined

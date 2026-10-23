@@ -143,6 +143,18 @@ export function setPurposeTool(
 }
 
 /**
+ * resetPurposeTools 把某个用途的工具覆盖还原成「跟随声明」。
+ *
+ * 只移除 tools，failurePosture 原样保留：工具可见性与失败姿态是两个独立决定，
+ * 恢复其中一个不该顺手清掉另一个。结果为空时返回 undefined，让上层删除整个用途键
+ * （空覆盖在服务端归一化时同样会被丢弃）。
+ */
+export function resetPurposeTools(override: AIPurposeOverride | undefined): AIPurposeOverride | undefined {
+  const posture = typeof override?.failurePosture === 'string' ? override.failurePosture.trim() : ''
+  return posture ? { failurePosture: posture } : undefined
+}
+
+/**
  * removeToolFromAllPurposes 把一个工具从每个用途的生效集合里摘掉，并对每个用途单独
  * 自动收敛：某个用途的覆盖因此变回「与声明一致」时，它的 tools 字段就该消失。
  *

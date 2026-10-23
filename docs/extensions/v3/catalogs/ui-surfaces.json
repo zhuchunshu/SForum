@@ -120,6 +120,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sf_admin_ai_tool_references_block",
+    "contractVersion": "sforum.component.admin.sf_admin_ai_tool_references_block@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/ai/blocks/SFAdminAIToolReferencesBlock.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sf_admin_ai_tools_tab",
     "contractVersion": "sforum.component.admin.sf_admin_ai_tools_tab@1",
     "kind": "component",
