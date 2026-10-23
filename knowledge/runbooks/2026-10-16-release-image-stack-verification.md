@@ -50,7 +50,7 @@ export SFORUM_VERSION=smoke-local APP_ENV=production \
   REDIS_ADDR=redis:6379 EXTENSION_ROOT=/var/lib/sforum/extensions \
   NUXT_API_INTERNAL_BASE_URL=http://api:8080/api/v1 \
   SESSION_HASH_SECRET=… ALTCHA_SECRET=… APP_OPTION_ENC_KEY=… \
-  IDENTITY_SUBJECT_HMAC_SECRET=… MARKETPLACE_ED25519_PUBLIC_KEY_HEX=…
+  IDENTITY_SUBJECT_HMAC_SECRET=…
 docker compose -p sforum-release-smoke -f compose.yaml -f compose.release.yaml \
   -f /tmp/release-smoke-override.yaml up -d --no-build
 docker compose -p sforum-release-smoke -f compose.yaml -f compose.release.yaml down -v
@@ -117,14 +117,16 @@ web     → GET / 200（82,148 字节 SSR，标题 SForum）、/c/general 200
 扩展面   → 容器内多个 backend/plugin 子进程（不可变摘要路径）
 ```
 
-### 新增的两个 fail-closed 配置实测（v3.0.9 的命名报错，值得背下来）
+### fail-closed 配置实测（v3.0.9 的命名报错，值得背下来）
 
 1. `APP_OPTION_ENC_KEY` 必须是 **64 位 hex（32 字节）**，否则：
-   `api bootstrap: create option cipher: crypto: invalid encryption key (expected 32-byte hex)`；
-2. `MARKETPLACE_ED25519_PUBLIC_KEY_HEX` 必须是 **64 位 hex**，否则：
-   `api bootstrap: P12 ops services setup failed: bootstrap: MARKETPLACE_ED25519_PUBLIC_KEY_HEX must be 32-byte hex`。
+   `api bootstrap: create option cipher: crypto: invalid encryption key (expected 32-byte hex)`。
 
-两者都在命名报错上 fail closed，不会带病启动。
+它在命名报错上 fail closed，不会带病启动。
+
+> 历史记录：`MARKETPLACE_ED25519_PUBLIC_KEY_HEX` 曾是第二个 fail-closed 输入，
+> 该预留代码已于 2026-10-24 整包删除（见
+> `knowledge/decisions/2026-10-24-app-store-out-of-tree.md`），部署时不再需要该变量。
 
 ## `compose.prod.yaml` 反代/TLS 层验证（2026-10-17，行 9 第二残留）
 

@@ -2622,7 +2622,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue"
     },
     {
@@ -3492,7 +3492,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/pages/admin/extensions/store/index.vue"
     },
     {
@@ -3502,7 +3502,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/pages/admin/extensions/store/plugins.vue"
     },
     {
@@ -3512,7 +3512,7 @@
       "owners": [
         "admin"
       ],
-      "state": "active",
+      "state": "retired",
       "source": "apps/web/app/pages/admin/extensions/store/themes.vue"
     },
     {

@@ -20,8 +20,9 @@ describe('admin surface placement catalog', () => {
     }
 
     // 与 apps/web/app/pages/admin 下页面及 v3-catalog 生成结果对齐；新增后台页必须先进入 generator。
-    // 51 = 50 + core.component.page.admin.extensions.install（安装扩展页）。
-    expect(adminSurfacePlacements.length).toBe(51)
+    // 48 = 45 + core.component.page.admin.extensions.install（安装扩展页）+ query/route catalog。
+    // 2026-10-24：应用商城三页（store / store.plugins / store.themes）随死代码清算删除。
+    expect(adminSurfacePlacements.length).toBe(48)
     expect(adminSurfacePlacements).toContainEqual({
       id: 'core.component.page.admin.extensions.install',
       contractVersion: 'sforum.component.page.admin.extensions.install@1',

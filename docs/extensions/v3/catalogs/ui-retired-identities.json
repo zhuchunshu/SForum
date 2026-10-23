@@ -56,6 +56,22 @@
     {
       "id": "core.component.admin.sf_admin_ai_identity_block",
       "contractVersion": "sforum.component.admin.sf_admin_ai_identity_block@1"
+    },
+    {
+      "id": "core.component.admin.sfadmin_extension_store_shelf",
+      "contractVersion": "sforum.component.admin.sfadmin_extension_store_shelf@1"
+    },
+    {
+      "id": "core.component.page.admin.extensions.store",
+      "contractVersion": "sforum.component.page.admin.extensions.store@1"
+    },
+    {
+      "id": "core.component.page.admin.extensions.store.plugins",
+      "contractVersion": "sforum.component.page.admin.extensions.store.plugins@1"
+    },
+    {
+      "id": "core.component.page.admin.extensions.store.themes",
+      "contractVersion": "sforum.component.page.admin.extensions.store.themes@1"
     }
   ]
 }

@@ -344,7 +344,7 @@ compose_version_supported() {
 
 validate_env_contract() {
   local public_api_base app_env app_url admin_prefix postgres_db postgres_user postgres_password database_url
-  local redis_addr redis_password session_secret identity_secret option_key altcha_secret marketplace_key
+  local redis_addr redis_password session_secret identity_secret option_key altcha_secret
   public_api_base="$(env_file_value .env.production NUXT_PUBLIC_API_BASE_URL /api/v1)"
   [ "$public_api_base" = "/api/v1" ] || die "$(t invalid_public_api_base)"
 
@@ -361,7 +361,6 @@ validate_env_contract() {
   identity_secret="$(env_file_value .env.production IDENTITY_SUBJECT_HMAC_SECRET)"
   option_key="$(env_file_value .env.production APP_OPTION_ENC_KEY)"
   altcha_secret="$(env_file_value .env.production ALTCHA_SECRET)"
-  marketplace_key="$(env_file_value .env.production MARKETPLACE_ED25519_PUBLIC_KEY_HEX)"
 
   [ "$app_env" = "production" ] || die "$(t invalid_env) APP_ENV"
   [[ "$app_url" =~ ^https?://[^[:space:]]+$ ]] || die "$(t invalid_env) APP_URL"
@@ -379,7 +378,6 @@ validate_env_contract() {
   [ "${#identity_secret}" -ge 32 ] || die "$(t invalid_env) IDENTITY_SUBJECT_HMAC_SECRET"
   [[ "$option_key" =~ ^[0-9A-Fa-f]{64}$ ]] || die "$(t invalid_env) APP_OPTION_ENC_KEY"
   [ "${#altcha_secret}" -ge 32 ] || die "$(t invalid_env) ALTCHA_SECRET"
-  [[ "$marketplace_key" =~ ^[0-9A-Fa-f]{64}$ ]] || die "$(t invalid_env) MARKETPLACE_ED25519_PUBLIC_KEY_HEX"
 }
 
 legacy_worker_container_ids() {

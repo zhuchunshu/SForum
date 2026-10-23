@@ -72,8 +72,6 @@ for (const requiredPageId of [
   '/extensions/install',
   '/extensions/plugins',
   '/extensions/themes',
-  '/extensions/store/themes',
-  '/extensions/store/plugins',
   '/extensions/settings',
   '/extensions/events'
 ]) {
@@ -82,21 +80,13 @@ for (const requiredPageId of [
 assert(adminPageDefinitions.every(page => page.icon.startsWith('i-lucide-')), 'Admin page registry should use lucide icons')
 assert(adminPageDefinitions.find(page => page.id === '/permissions')?.permissionMode === 'any', 'Permission matrix should allow role.manage or user.manage')
 // 扩展相关页使用细粒度权限（view / plugin.manage / theme.manage），不再统一 extension.manage
-for (const extensionPageId of ['/extensions', '/extensions/install', '/extensions/plugins', '/extensions/themes', '/extensions/settings', '/extensions/events', '/extensions/store/themes', '/extensions/store/plugins']) {
+for (const extensionPageId of ['/extensions', '/extensions/install', '/extensions/plugins', '/extensions/themes', '/extensions/settings', '/extensions/events']) {
   const perms = adminPageDefinitions.find(page => page.id === extensionPageId)?.requiredPermissions || []
   assert(
     perms.some(permission => permission.startsWith('extension.')),
     `${extensionPageId} should require an extension.* permission`
   )
 }
-assert(
-  adminPageDefinitions.find(page => page.id === '/extensions/store/themes')?.requiredPermissions?.includes('extension.theme.manage'),
-  'Theme store should require extension.theme.manage'
-)
-assert(
-  adminPageDefinitions.find(page => page.id === '/extensions/store/plugins')?.requiredPermissions?.includes('extension.plugin.manage'),
-  'Plugin store should require extension.plugin.manage'
-)
 
 const adminRoutesComposable = read('apps/web/app/composables/admin/useAdminRoutes.ts')
 assert(adminRoutesComposable.includes('useLocalePath'), 'Admin routes should delegate localization to the i18n localePath authority')
@@ -189,9 +179,7 @@ const adminPagePathsById: Record<string, string> = {
   '/extensions/install': 'apps/web/app/pages/admin/extensions/install.vue',
   '/extensions/plugins': 'apps/web/app/pages/admin/extensions/plugins.vue',
   '/extensions/themes': 'apps/web/app/pages/admin/extensions/themes.vue',
-  '/extensions/store': 'apps/web/app/pages/admin/extensions/store/index.vue',
-  '/extensions/store/themes': 'apps/web/app/pages/admin/extensions/store/themes.vue',
-  '/extensions/store/plugins': 'apps/web/app/pages/admin/extensions/store/plugins.vue',
+
   '/extensions/settings': 'apps/web/app/pages/admin/extensions/settings.vue',
   '/extensions/events': 'apps/web/app/pages/admin/extensions/events.vue',
   '/extensions/contributions': 'apps/web/app/pages/admin/extensions/contributions.vue',
@@ -216,10 +204,7 @@ const adminPagePathsById: Record<string, string> = {
 }
 
 // 纯重定向页：只校验 layout + 组件名 + 不走 tab 手写
-const adminRedirectPageIds = new Set(['/site-chrome', '/settings/notifications', '/extensions/store', '/attachments'])
-// 商城货架：页内用共享组件注册 useAdminPage，不强制 UDashboardToolbar
-const adminStoreShelfPageIds = new Set(['/extensions/store/themes', '/extensions/store/plugins'])
-const adminStoreShelfComponent = 'apps/web/app/components/admin/SFAdminExtensionStoreShelf.vue'
+const adminRedirectPageIds = new Set(['/site-chrome', '/settings/notifications', '/attachments'])
 
 const attachmentConfigurationPage = read('apps/web/app/pages/admin/attachments/settings.vue')
 assert(attachmentConfigurationPage.includes('SFAdminFixedTabNav'), 'Attachment Configuration should expose fixed tabs')
@@ -241,14 +226,6 @@ for (const page of adminPageDefinitions) {
     continue
   }
 
-  if (adminStoreShelfPageIds.has(page.id)) {
-    assert(content.includes('SFAdminExtensionStoreShelf'), `${adminPage} should render the shared store shelf`)
-    assert(content.includes(`page-id="${page.id}"`), `${adminPage} should pass its page id to the shelf`)
-    const shelf = read(adminStoreShelfComponent)
-    assert(shelf.includes('useAdminPage'), `${adminStoreShelfComponent} should use low-code admin page registration`)
-    assert(shelf.includes('useAdminPage(props.pageId)'), `${adminStoreShelfComponent} should register by pageId prop`)
-    continue
-  }
 
   assert(content.includes('UDashboardToolbar') || content.includes('useAdminPage'), `${adminPage} should render inside the admin shell or register via useAdminPage`)
   assert(content.includes('useAdminPage'), `${adminPage} should use low-code admin page registration`)
@@ -357,14 +334,7 @@ assert(extensionFolder, 'Admin sidebar should expose extensions as an independen
 assert(
   extensionFolder.children?.map(entry => entry.pageId).join(',') ===
     '/extensions,/extensions/install,/extensions/plugins,/extensions/themes,/extensions/pages,/extensions/route-catalog,/extensions/query-catalog,/extensions/route-providers,/extensions/route-inspector,/extensions/cache-inspector,/extensions/asset-inspector,/extensions/template-inspector,/extensions/component-inspector,/extensions/navigation-inspector,/extensions/registry-catalogs,/extensions/provider-slots,/extensions/settings,/extensions/events,/extensions/contributions',
-  'Extension folder should keep the approved submenu order without the app store'
-)
-assert(!extensionFolder.children?.some(entry => entry.pageId === '/extensions/store'), 'App store should not live under the extensions folder')
-const extensionStoreFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensionStore')
-assert(extensionStoreFolder, 'Admin sidebar should expose app store as an independent top-level folder')
-assert(
-  extensionStoreFolder.children?.map(entry => entry.pageId).join(',') === '/extensions/store/themes,/extensions/store/plugins',
-  'App store folder should expose Themes then Plugins'
+  'Extension folder should keep the approved submenu order'
 )
 const operationsFolder = firstSidebarGroup.find(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.operations')
 assert(operationsFolder, 'Admin sidebar should expose operations as an independent folder')
@@ -387,10 +357,8 @@ assert(
   'Attachment settings folder should expose independent settings and manager routes'
 )
 const extensionFolderIndex = firstSidebarGroup.findIndex(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensions')
-const extensionStoreFolderIndex = firstSidebarGroup.findIndex(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.extensionStore')
 const operationsFolderIndex = firstSidebarGroup.findIndex(entry => entry.type === 'folder' && entry.labelKey === 'admin.nav.operations')
-assert(extensionFolderIndex >= 0 && extensionStoreFolderIndex > extensionFolderIndex, 'App store folder should appear below the extensions folder')
-assert(extensionStoreFolderIndex >= 0 && operationsFolderIndex > extensionStoreFolderIndex, 'Operations folder should appear below the app store folder')
+assert(extensionFolderIndex >= 0 && operationsFolderIndex > extensionFolderIndex, 'Operations folder should appear below the extensions folder')
 const extensionEventsPage = read('apps/web/app/pages/admin/extensions/events.vue')
 assert(extensionEventsPage.includes('data-testid="admin-extension-events-page"'), 'Extension event log page should expose a stable page wrapper for layout checks')
 assert(extensionEventsPage.includes('data-testid="admin-extension-events-page" class="min-w-0 shrink-0"'), 'Extension event log page wrapper should not shrink inside the admin flex scroll container')

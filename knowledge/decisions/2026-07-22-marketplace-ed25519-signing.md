@@ -1,8 +1,13 @@
 # Marketplace index signing: Ed25519
 
 **Date:** 2026-07-22  
-**Status:** accepted  
+**Status:** superseded by `2026-10-24-app-store-out-of-tree.md`  
 **Area:** V3 P12 Marketplace
+
+> **Superseded 2026-10-24.** The Marketplace reserve package this record designed
+> was deleted: it never gained an HTTP/CLI consumer, the app store moved
+> out-of-tree, and `MARKETPLACE_ED25519_PUBLIC_KEY_HEX` no longer exists. Kept for
+> historical reasoning only — Ed25519 index signing is not part of core.
 
 ## Context
 

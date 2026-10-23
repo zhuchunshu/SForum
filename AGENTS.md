@@ -251,8 +251,12 @@ product vertical. New capabilities must be designed around stable framework
 contracts first.
 
 - Treat payments, outbound mail delivery, notification channels, analytics,
-  external integrations, provider-specific search/storage/security behavior,
-  and similar deployment-specific systems as plugins by default.
+  external integrations, app-store catalogs and their release services, and
+  similar deployment-specific systems as plugins or out-of-tree services by
+  default. Core keeps only the generic primitives such an integration needs —
+  for extension catalogs that is `install-from-url` plus the host-mediated
+  install action of trusted admin pages, never a catalog, index, or store UI
+  (see `knowledge/decisions/2026-10-24-app-store-out-of-tree.md`).
 - Core should expose the stable contracts that make plugins easy to build:
   explicit events, provider slots, typed payloads, permission checks, admin
   selection/reset UI, SDK helpers, scaffolding, tests, no-op defaults, and

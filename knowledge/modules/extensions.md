@@ -261,16 +261,20 @@ does not rebuild Nuxt.
 - M6 full gate and browser QA passed. M7 focused tests, typecheck, build,
   architecture validation, and V3 catalog validation passed.
 - The 2026-07-31 release-blocker repair migrates historical `enc::` secret
-  settings into SecretStore before any SettingsLifecycle read/write, requires
-  the documented Marketplace Ed25519 public key in production Compose, passes
+  settings into SecretStore before any SettingsLifecycle read/write, passes
   SystemTier priority into the real plugin full-set start plan, and rejects
   CompatFarm RPC errors. The local full repository gate is green.
 - RuntimeRollout no longer fabricates a healthy `api-local` acknowledgement.
   Until real node-bound health proof is wired before active publication, the
   ordinary extension lifecycle deliberately does not bind this post-terminal
-  rollout hook. Marketplace install remains staged-only and has no supported
-  product consumer; Marketplace/Privacy and the real rollout gate remain open
-  work rather than advertised release features.
+  rollout hook. The real rollout gate and the Privacy operator surface remain
+  open work rather than advertised release features.
+- The Marketplace reserve is **gone** (2026-10-24): `app/Support/Marketplace`,
+  its boot construction, `MARKETPLACE_ED25519_*` config, the `/extensions/store*`
+  admin pages, and the placeholder shelf were deleted without a consumer ever
+  existing. The app store is an out-of-tree product (`sforum-app-store`); core
+  keeps only `install-from-url` and the host-mediated install action. See
+  `../decisions/2026-10-24-app-store-out-of-tree.md`.
 - The generic `account-settings` navigation contract now carries through
   Manifest V3 lifecycle publication with exact runtime filtering. The Manifest V3
   contract is aligned end to end (2026-10-15): `navigation[].kind` accepts
@@ -466,9 +470,9 @@ does not rebuild Nuxt.
   `DELETE …/trust` (`extension.trust_challenge_replayed`). The grant itself persists per
   exact artifact, so a disable/enable cycle needs no new confirmation. Production
   requires absolute `EXTENSION_ROOT` (compose and the image set
-  `/var/lib/sforum/extensions`), plus the documented secrets and the marketplace
-  Ed25519 public key; a missing or relative `EXTENSION_ROOT` now fails with a named
-  config error instead of `mkdir /storage: permission denied`.
+  `/var/lib/sforum/extensions`), plus the documented secrets; a missing or relative
+  `EXTENSION_ROOT` now fails with a named config error instead of
+  `mkdir /storage: permission denied`.
 - Runtime-missing and disabled-owner behaviour (2026-10-16, A2): already covered by
   `TestResolvePathReportsLayoutRegardlessOfBodyRender` (layout independent of body
   render), `TestLoaderUnavailableWhenPluginRuntimeMissing` (page resolves with a
@@ -783,10 +787,10 @@ remediation plan.
 | Finding | Status | Plan milestone |
 | --- | --- | --- |
 | Legacy `enc::` values can be dropped | **closed** by production binding + PostgreSQL first-write regression | M1 |
-| Production Marketplace key missing from deploy inputs | **implemented** with strict Compose/env/docs wiring; candidate-image smoke pending | M2 |
+| Production Marketplace key missing from deploy inputs | **obsolete** — the Marketplace reserve and its key were deleted (2026-10-24); production no longer requires the key | M2 |
 | Runtime rollout used fictional `api-local` after activation | fictional Ack removed and unsafe post-terminal binding disabled; real gate still **open** | M3 |
 | SystemTier order discarded before startup | **closed**; real full-set starter consumes priority order | M4 |
-| Marketplace/Privacy lack real product consumers | actor and rollback lookup hardened; supported HTTP/CLI consumers still **open** | M5 |
+| Marketplace/Privacy lack real product consumers | Marketplace **removed** as dead reserve code; Privacy has a real erase consumer, its operator surface still **open** | M5 |
 | CompatFarm could soft-pass RPC errors and runs a narrow/repeated matrix | RPC soft-pass **closed**; matrix and single-run residual **open** | M6 |
 | Commerce uses Dispatcher only for `add` | **open** | M7 |
 | Full gates/catalog/web residual | local gates and admin overview QA **closed**; release-image and Page Registry live smoke pending | M8 |
@@ -1308,8 +1312,9 @@ Relevant plans:
   the first themeable/non-replaceable Core surface.
 - Admin surfaces include overview, plugin/theme lists and details, settings,
   event log, extension points, Page Registry, lifecycle progress/recovery, and
-  provider inspection. The App Store remains a local framework shell until a
-  real marketplace consumer is production-wired.
+  provider inspection. There is no store surface in core: the app store is
+  out-of-tree, and a catalog plugin installs through `install-from-url` or the
+  host-mediated install action of its own trusted admin page.
 - Admin extension overview and plugin management label `stagedVersion` as a
   pending upgrade rather than a generic candidate, while retaining the exact
   current/staged version explanation. Each staged plugin has an Upgrade action;

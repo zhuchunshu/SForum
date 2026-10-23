@@ -4,7 +4,9 @@
 
 Snapshot (2026-07): core forum, identity, admin, attachments, mail/notifications, moderation, and default site search are in place. Extension platform V3 has closed its P0–P12 **phase checklists**, but the cross-phase production rewire is still open; this is not a stable-production claim for the extension platform. Treat this as directional; details live in `knowledge/plans/` and code.
 
-Until remediation M3/M5/M6/M7 close, multi-node RuntimeRollout, Marketplace and Privacy operator consumers, the complete compatibility matrix, and full commerce Dispatcher proof are preview or unsupported scope. Current distributions must remain prereleases and must not be described as the first public stable release.
+Until remediation M3/M5/M6/M7 close, multi-node RuntimeRollout, Privacy operator consumers, the complete compatibility matrix, and full commerce Dispatcher proof are preview or unsupported scope. Current distributions must remain prereleases and must not be described as the first public stable release.
+
+The app store is an **out-of-tree** product: SForum keeps only the generic `install-from-url` primitive. The store service and store plugin live in the separate `sforum-app-store` repository; core ships no catalog, signed index, or store page.
 
 ## Done (abridged)
 
@@ -24,7 +26,7 @@ Until remediation M3/M5/M6/M7 close, multi-node RuntimeRollout, Marketplace and 
 | Engagement loop | View counts, reactions, bookmarks | `knowledge/plans/2026-07-12-iteration-a-engagement-loop.md` |
 | Settings richness | Broader operator policy surface | `knowledge/plans/2026-07-12-admin-settings-richness.md` |
 | Extension density | Contribution points & service slots | `knowledge/plans/2026-07-12-extension-surface-density.md` |
-| V3 production rewire | RuntimeRollout, Marketplace/Privacy consumers, CompatFarm, and commerce Dispatcher residuals | `knowledge/plans/2026-07-22-v3-production-rewire-honesty-remediation.md` |
+| V3 production rewire | RuntimeRollout, Privacy consumers, CompatFarm, and commerce Dispatcher residuals | `knowledge/plans/2026-07-22-v3-production-rewire-honesty-remediation.md` |
 | V3 P13 LTS | Remove legacy shims after window | `docs/extensions/v3/p13-migration-and-lts.md` |
 
 ## Later candidates

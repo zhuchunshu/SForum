@@ -28,9 +28,6 @@
 | `core.admin.page.extensions_route_inspector` | `apps/web/app/pages/admin/extensions/route-inspector.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_route_providers` | `apps/web/app/pages/admin/extensions/route-providers.vue` | yes | no | yes | no | yes | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_settings` | `apps/web/app/pages/admin/extensions/settings.vue` | yes | no | yes | no | no | no | no | no | yes | no | no | yes | no |
-| `core.admin.page.extensions_store` | `apps/web/app/pages/admin/extensions/store/index.vue` | yes | no | no | no | no | no | no | no | no | no | no | yes | no |
-| `core.admin.page.extensions_store_plugins` | `apps/web/app/pages/admin/extensions/store/plugins.vue` | yes | no | no | no | no | no | no | no | no | no | no | yes | no |
-| `core.admin.page.extensions_store_themes` | `apps/web/app/pages/admin/extensions/store/themes.vue` | yes | no | no | no | no | no | no | no | no | no | no | yes | no |
 | `core.admin.page.extensions_template_inspector` | `apps/web/app/pages/admin/extensions/template-inspector.vue` | yes | no | yes | no | no | no | no | yes | yes | no | no | yes | no |
 | `core.admin.page.extensions_themes` | `apps/web/app/pages/admin/extensions/themes.vue` | yes | no | yes | no | yes | yes | no | yes | yes | no | yes | yes | no |
 | `core.admin.page.forum_categories` | `apps/web/app/pages/admin/forum/categories.vue` | yes | no | yes | no | no | no | no | yes | yes | no | yes | yes | no |

@@ -279,8 +279,8 @@ func wireAPIExtensionPlatform(ctx context.Context, cfg config.Config, logger *sl
 	if hostPlatform != nil {
 		attachmentService.WithSecretStore(hostPlatform.Secrets)
 	}
-	// P12 ops：RuntimeRollout / SystemTier / Marketplace / Privacy 绑定 PostgreSQL。
-	p12Ops, err := bindProductionP12Ops(cfg, pool, logger, extensionService, identityStore)
+	// P12 ops：RuntimeRollout / SystemTier / Privacy 绑定 PostgreSQL。
+	p12Ops, err := bindProductionP12Ops(cfg, pool, logger)
 	if err == nil && p12Ops != nil && p12Ops.Privacy != nil {
 		// S5：隐私擦除消费者。Support/Privacy 此前没有任何消费者，插件会话状态也就
 		// 永远不会随用户擦除而消失；这里注册一个宿主自有 contribution，其 erase hook

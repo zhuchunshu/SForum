@@ -118,7 +118,6 @@ t() {
       exists) printf '%s' "The existing production configuration was preserved. Secret rotation requires a dedicated migration and is not performed by this wizard." ;;
       refuse_force) printf '%s' "Refusing to replace an existing production file because doing so would rotate database and encryption secrets." ;;
       written) printf '%s' "Production configuration created with mode 0600:" ;;
-      marketplace) printf '%s' "WARNING: a deployment-local Marketplace verifier key was generated. The official Marketplace remains locked until its official public key and key ID are configured." ;;
       invalid_version) printf '%s' "Version must be empty or look like v3.0.0-alpha.8." ;;
       invalid_url) printf '%s' "Site URL must be an http:// or https:// URL without spaces, credentials, fragments, or newlines." ;;
       invalid_port) printf '%s' "Ports must be different integers from 1 to 65535." ;;
@@ -136,7 +135,6 @@ t() {
       exists) printf '%s' "已保留现有生产配置；密钥轮换需要专用迁移流程，本向导不会执行。" ;;
       refuse_force) printf '%s' "拒绝覆盖现有生产配置，否则会轮换数据库和加密密钥。" ;;
       written) printf '%s' "生产配置已创建，文件权限为 0600：" ;;
-      marketplace) printf '%s' "警告：已生成仅限本次部署的 Marketplace 验签公钥；配置官方公钥和 key ID 前，官方 Marketplace 仍保持锁定。" ;;
       invalid_version) printf '%s' "版本必须留空，或使用 v3.0.0-alpha.8 这样的格式。" ;;
       invalid_url) printf '%s' "站点地址必须是 http:// 或 https:// URL，且不能包含空格、账号信息、片段或换行。" ;;
       invalid_port) printf '%s' "两个端口必须不同，且都是 1 到 65535 之间的整数。" ;;
@@ -244,7 +242,6 @@ session_secret="$(generate_secret)"
 identity_secret="$(generate_secret)"
 option_key="$(generate_secret)"
 altcha_secret="$(generate_secret)"
-marketplace_key="$(generate_secret)"
 csrf_origin="${app_url%%/*}"
 if [[ "$app_url" =~ ^(https?://[^/]+) ]]; then
   csrf_origin="${BASH_REMATCH[1]}"
@@ -296,8 +293,6 @@ trap cleanup EXIT HUP INT TERM
     "ALTCHA_SECRET=$altcha_secret" \
     'ALTCHA_CHALLENGE_TTL=10m' \
     'ALTCHA_COST=1000' \
-    "MARKETPLACE_ED25519_PUBLIC_KEY_HEX=$marketplace_key" \
-    'MARKETPLACE_ED25519_KEY_ID=deployment-local-untrusted' \
     "CSRF_TRUSTED_ORIGINS=$csrf_origin" \
     'EXTENSION_ROOT=/var/lib/sforum/extensions' \
     'BUILTIN_EXTENSION_ROOT=/app/extensions/builtin' \
@@ -315,4 +310,3 @@ trap - EXIT HUP INT TERM
 
 printf '%s %s\n' "$(t written)" "$OUTPUT_PATH"
 printf '%s\n' "$(t managed)"
-printf '%s\n' "$(t marketplace)"

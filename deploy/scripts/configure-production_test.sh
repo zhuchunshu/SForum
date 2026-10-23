@@ -47,13 +47,12 @@ assert_line 'REDIS_ADDR=redis:6379' "$OUTPUT"
 assert_line 'NUXT_API_INTERNAL_BASE_URL=http://api:8080/api/v1' "$OUTPUT"
 assert_line 'NUXT_PUBLIC_ADMIN_ROUTE_PREFIX=/control-panel' "$OUTPUT"
 assert_line 'SFORUM_VERSION=v3.0.0-alpha.8' "$OUTPUT"
-assert_line 'MARKETPLACE_ED25519_KEY_ID=deployment-local-untrusted' "$OUTPUT"
 
 if grep -Fq 'change-me' "$OUTPUT"; then
   fail "output contains a placeholder secret"
 fi
 
-for key in POSTGRES_PASSWORD REDIS_PASSWORD SESSION_HASH_SECRET IDENTITY_SUBJECT_HMAC_SECRET APP_OPTION_ENC_KEY ALTCHA_SECRET MARKETPLACE_ED25519_PUBLIC_KEY_HEX; do
+for key in POSTGRES_PASSWORD REDIS_PASSWORD SESSION_HASH_SECRET IDENTITY_SUBJECT_HMAC_SECRET APP_OPTION_ENC_KEY ALTCHA_SECRET; do
   value="$(env_value "$key" "$OUTPUT")"
   [[ "$value" =~ ^[0-9a-f]{64}$ ]] || fail "$key is not a 32-byte lowercase hex value"
 done

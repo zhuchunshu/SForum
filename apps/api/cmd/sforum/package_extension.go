@@ -177,7 +177,8 @@ func buildExtensionPackage(root, zipPath string, opts packageBuildOptions) (pack
 	}
 	digest := hex.EncodeToString(hasher.Sum(nil))
 
-	// SBOM stub (CycloneDX-like minimal JSON) for marketplace provenance display.
+	// SBOM stub (CycloneDX-like minimal JSON) recorded next to the package for
+	// provenance inspection.
 	sbomPath := zipPath + ".sbom.json"
 	sbom := map[string]any{
 		"bomFormat":    "CycloneDX",
