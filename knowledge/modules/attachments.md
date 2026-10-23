@@ -9,6 +9,18 @@ derived display variants, admin governance, and orphan cleanup.
 
 Attachment system foundation is implemented.
 
+- **Attachment reference uniqueness is scope-aware (2026-10-24)**: topic/comment
+  body references are multi-value (one post may bind many attachments, guarded
+  by the base-table `UNIQUE (attachment_id, resource_type, resource_id, context)`),
+  while site/seo/user/extension slots stay one-image-per-slot through the
+  partial `attachment_references_slot_context_unique` index. The former global
+  `(resource_type, resource_id, context)` index from `202607110015` made every
+  multi-image post fail with an undiagnosable 500; see
+  `../decisions/2026-10-24-attachment-reference-uniqueness-scope.md`. Forum-side
+  writes live in `app/Models/Forum/attachment_references_postgres.go` with
+  idempotent `ON CONFLICT DO NOTHING`, ordered row locking, recount-based
+  `reference_count` maintenance, and typed 422 `forum.attachment_unavailable` /
+  409 `forum.attachment_conflict` mappings instead of raw 500s.
 - General attachment uploads now resolve an authoritative typed upload policy:
   `attachment.upload` controls eligibility, a user-specific per-file limit
   overrides role limits, and multiple upload-enabled roles use their largest

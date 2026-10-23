@@ -6,6 +6,17 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 多图发帖 500（附件引用唯一性作用域）
+
+- Status: **landed (2026-10-24)**。根因是 `202607110015` 把槽位型唯一索引
+  `(resource_type, resource_id, context)` 建到所有资源，topic/comment 第二张图
+  必然违反约束并冒泡为 500 `internal_error`；修复收窄为槽位型部分索引 +
+  论坛写入幂等化/锁序/重算计数 + 具名 422/409 错误映射。真机两图发帖 201、
+  负例具名 422、浏览器渲染验证通过；`--fast` 三线全绿。
+- Handoff: `sessions/2026-10-24-multi-image-attachment-500-fix.md`；
+  决策：`decisions/2026-10-24-attachment-reference-uniqueness-scope.md`；
+  模块：`modules/attachments.md`。
+
 ### API 连接弹窗误报治理
 
 - Status: **landed (2026-10-23)**。连接失败先进 pending 缓冲并退避探测
@@ -567,7 +578,10 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- **API 连接弹窗误报治理（2026-10-23，最新）**：失败缓冲 + `/health` 探测
+- **多图发帖 500 修复（2026-10-24，最新）**：附件引用唯一索引收窄为槽位型，
+  论坛侧写入幂等化 + 具名 422/409；两图发帖真机 201。详见
+  `sessions/2026-10-24-multi-image-attachment-500-fix.md`。
+- **API 连接弹窗误报治理（2026-10-23）**：失败缓冲 + `/health` 探测
   （跨 9s 宽限才弹、恢复自动关）、GET 原地重试与默认超时、chunk 失败分流
   「新版本已发布」自动刷新。详见
   `sessions/2026-10-23-api-connection-error-buffering.md`。
