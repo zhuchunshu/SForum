@@ -2,6 +2,8 @@ package forum
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math"
 	"net/url"
 	"regexp"
@@ -11,6 +13,25 @@ import (
 )
 
 var attachmentPublicIDPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
+
+// 附件引用专用 reason 与 sentinel，和下方的 typed error 定义同处一档；
+// types.go 只保留通用错误码表。
+const (
+	// CodeAttachmentUnavailable 正文引用的附件不可用（已删除/已禁用/已转私有/非本人上传）。
+	// 与笼统的 content_invalid 区分开，前端才能给出「重新上传这张图」的可操作提示。
+	CodeAttachmentUnavailable = "forum.attachment_unavailable"
+	// CodeAttachmentConflict 引用写入撞上唯一约束（schema 与代码假设不一致时的具名兜底，
+	// 不让它冒泡成 internal_error）。
+	CodeAttachmentConflict = "forum.attachment_conflict"
+)
+
+var (
+	// ErrAttachmentUnavailable 表示正文提交的部分附件不可用；具体 id 见
+	// AttachmentUnavailableError。errors.Is(err, ErrAttachmentUnavailable) 成立。
+	ErrAttachmentUnavailable = errors.New("forum: attachment unavailable")
+	// ErrAttachmentConflict 表示附件引用写入撞上唯一约束。
+	ErrAttachmentConflict = errors.New("forum: attachment reference conflict")
+)
 
 func normalizeAndValidateContentAttachmentIDs(
 	content RenderedContent,
@@ -121,4 +142,37 @@ func attachmentURLMatchesPublicID(rawURL, publicID string) bool {
 	default:
 		return false
 	}
+}
+
+// AttachmentUnavailableError 携带提交里不可用的附件 id，供控制器映射成具名 422。
+// 与笼统的 ErrInvalidContent 分开，前端才能只针对失效图片给出「重新上传」提示。
+type AttachmentUnavailableError struct {
+	ResourceType  string
+	ResourceID    int64
+	AttachmentIDs []int64
+}
+
+func (e *AttachmentUnavailableError) Error() string {
+	return fmt.Sprintf("forum: attachments %v unavailable for %s %d", e.AttachmentIDs, e.ResourceType, e.ResourceID)
+}
+
+func (e *AttachmentUnavailableError) Is(target error) bool {
+	return target == ErrAttachmentUnavailable
+}
+
+// AttachmentConflictError 表示附件引用写入撞上唯一约束。它只应在 schema 与代码
+// 假设不一致时出现，因此保留约束名用于审计。
+type AttachmentConflictError struct {
+	Constraint    string
+	ResourceType  string
+	ResourceID    int64
+	AttachmentIDs []int64
+}
+
+func (e *AttachmentConflictError) Error() string {
+	return fmt.Sprintf("forum: attachment reference conflict on %s for %s %d (attachments %v)", e.Constraint, e.ResourceType, e.ResourceID, e.AttachmentIDs)
+}
+
+func (e *AttachmentConflictError) Is(target error) bool {
+	return target == ErrAttachmentConflict
 }

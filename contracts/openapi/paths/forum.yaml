@@ -217,6 +217,11 @@ topics:
   post:
     summary: Create a topic
     operationId: createTopic
+    description: |
+      正文附件引用为多值型（一条内容可绑定多张图）。提交的 `attachmentIds` 中任一附件
+      不可用（已删除/已禁用/已转私有/非本人上传且未被该内容引用）返回 422
+      `forum.attachment_unavailable`，`data.fields.content` 携带 reason；附件引用写入
+      撞上唯一约束返回 409 `forum.attachment_conflict`（schema 漂移兜底，正常不应出现）。
     parameters:
     - "$ref": "../components/parameters.yaml#/IdempotencyKey"
     requestBody:
@@ -874,6 +879,10 @@ topicByID:
   patch:
     summary: Update a topic's title, category, tags, or content
     operationId: updateTopic
+    description: |
+      与创建一致：更新后的正文附件不可用返回 422 `forum.attachment_unavailable`
+      （`data.fields.content` 携带 reason）；引用写入唯一约束冲突返回 409
+      `forum.attachment_conflict`。
     parameters:
     - "$ref": "../components/parameters.yaml#/TopicID"
     requestBody:
@@ -1308,6 +1317,10 @@ topicComments:
   post:
     summary: Create a topic comment
     operationId: createTopicComment
+    description: |
+      评论正文附件同样为多值型：附件不可用返回 422 `forum.attachment_unavailable`
+      （`data.fields.content` 携带 reason）；引用写入唯一约束冲突返回 409
+      `forum.attachment_conflict`。
     parameters:
     - "$ref": "../components/parameters.yaml#/TopicID"
     - "$ref": "../components/parameters.yaml#/IdempotencyKey"
@@ -1554,6 +1567,10 @@ commentByID:
   patch:
     summary: Update a comment's shared post content
     operationId: updateComment
+    description: |
+      与评论创建一致：更新后的正文附件不可用返回 422 `forum.attachment_unavailable`
+      （`data.fields.content` 携带 reason）；引用写入唯一约束冲突返回 409
+      `forum.attachment_conflict`。
     parameters:
     - "$ref": "../components/parameters.yaml#/CommentID"
     requestBody:

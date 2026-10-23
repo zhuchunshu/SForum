@@ -368,7 +368,9 @@ func topicTagSlugsTx(ctx context.Context, tx pgx.Tx, topicID int64) ([]string, e
 }
 
 func attachmentIDsTx(ctx context.Context, tx pgx.Tx, resourceType string, resourceID int64) ([]int64, error) {
-	rows, err := tx.Query(ctx, `SELECT attachment_id FROM attachment_references WHERE resource_type = $1 AND resource_id = $2 ORDER BY attachment_id ASC`, resourceType, resourceID)
+	// 正文引用可以有多行（一条内容多张图），因此必须按 context 收敛，不能只按
+	// (resource_type, resource_id) 取；DISTINCT 防止同一附件因历史数据重复而污染快照。
+	rows, err := tx.Query(ctx, `SELECT DISTINCT attachment_id FROM attachment_references WHERE resource_type = $1 AND resource_id = $2 AND context = $3 ORDER BY attachment_id ASC`, resourceType, resourceID, forumAttachmentContext)
 	if err != nil {
 		return nil, fmt.Errorf("load revision attachments: %w", err)
 	}
