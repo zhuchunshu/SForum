@@ -214,7 +214,7 @@ export function useRoleSuggestions(onPermissionApplied?: (result: RoleSuggestion
           : t('admin.roles.suggestions.rejectedToast'),
         color: 'success',
         icon: approved ? 'i-lucide-shield-check' : 'i-lucide-circle-x',
-        duration: 10000
+        duration: 5000
       })
       if (approved) await onPermissionApplied?.(result)
       await loadSuggestions(true)

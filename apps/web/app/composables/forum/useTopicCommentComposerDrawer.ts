@@ -278,7 +278,7 @@ export function useTopicCommentComposerDrawer(options: TopicCommentComposerDrawe
       mode.value = null
       resetEditingState()
       await options.refreshComments()
-      toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.commentUpdated'), duration: 10000 })
+      toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.commentUpdated'), duration: 5000 })
     } catch (cause) {
       editingError.value = apiErrorMessage(cause) || t('topicDetail.editFailed')
     } finally {

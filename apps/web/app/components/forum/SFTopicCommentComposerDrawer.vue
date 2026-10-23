@@ -201,7 +201,7 @@ function submit() {
       icon: 'i-lucide-info',
       title: t('composer.editValidation.blocked'),
       description: message,
-      duration: 10000
+      duration: 5000
     })
     return
   }

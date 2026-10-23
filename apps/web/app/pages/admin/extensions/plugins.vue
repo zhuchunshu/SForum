@@ -137,7 +137,7 @@ const builtinAutoUpdateHelp = computed(() => t('admin.extensions.plugins.autoUpd
 
 function reportBuiltinAutoUpdate(ok: boolean, successTitle: string) {
   if (ok) {
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 5000 })
     return
   }
   toast.add({

@@ -78,7 +78,7 @@ async function applySelection(slot: ProviderSlotItem) {
   busy.value = candidateOperationId(slot.contract.id, 'select')
   try {
     await select(slot.contract.id, candidateId, slot.selection?.revision ?? 0)
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.extensions.providerSlots.selected'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.extensions.providerSlots.selected'), duration: 5000 })
     await load()
   } catch (cause) {
     toast.add({ color: 'error', icon: 'i-lucide-circle-alert', title: operationError(cause, 'admin.extensions.providerSlots.selectFailed') })
@@ -94,7 +94,7 @@ async function restoreDefault(slot: ProviderSlotItem) {
   try {
     await reset(slot.contract.id, slot.selection.revision)
     delete chosen.value[slot.contract.id]
-    toast.add({ color: 'primary', icon: 'i-lucide-rotate-ccw', title: t('admin.extensions.providerSlots.reset'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-rotate-ccw', title: t('admin.extensions.providerSlots.reset'), duration: 5000 })
     await load()
   } catch (cause) {
     toast.add({ color: 'error', icon: 'i-lucide-circle-alert', title: operationError(cause, 'admin.extensions.providerSlots.resetFailed') })

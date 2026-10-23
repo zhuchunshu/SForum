@@ -60,7 +60,7 @@ const { copyCommentLink, copyCommentShortcode } = useTopicCommentClipboard()
 const replyActorName = computed(() => userDisplayName(reportUser.value, ''))
 
 function showSuccessToast(title: string) {
-  toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
+  toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 5000 })
 }
 // 未登录访客：评论区块照常展示，但用登录引导替代回复编辑器；登录后跳回当前帖子。
 const isGuest = computed(() => !reportUser.value)

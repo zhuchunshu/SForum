@@ -278,7 +278,7 @@ export function useAdminListSurfaces(options: AdminListSurfaceOptions) {
         color: 'primary',
         icon: 'i-lucide-check',
         title: view?.message || t('admin.surfaces.completed', { label: action.label }),
-        duration: 10000
+        duration: 5000
       })
       if (view?.refresh) {
         await options.refreshHost?.()

@@ -310,7 +310,7 @@ async function submitRevisionAction() {
       const updated = selected.value.targetType === 'topic'
         ? await contentApi.restoreTopicRevision(selected.value.id, selectedRevision.value.revisionNo, { expectedRevision: selected.value.currentRevision, reason })
         : await contentApi.restoreCommentRevision(selected.value.id, selectedRevision.value.revisionNo, { expectedRevision: selected.value.currentRevision, reason })
-      toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.forum.content.history.restored', { revision: updated.currentRevision }), duration: 10000 })
+      toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.forum.content.history.restored', { revision: updated.currentRevision }), duration: 5000 })
       closeRevisionAction()
       await openDetail(selected.value)
       historyOpen.value = true
@@ -322,7 +322,7 @@ async function submitRevisionAction() {
     } else {
       await contentApi.redactCommentRevision(selected.value.id, selectedRevision.value.revisionNo, { expectedRevision: selected.value.currentRevision, reason, confirmation: 'REDACT' })
     }
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.forum.content.history.redacted'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.forum.content.history.redacted'), duration: 5000 })
     closeRevisionAction()
     await loadHistory()
     const redacted = history.value.find(item => item.revisionNo === selectedRevision.value?.revisionNo)

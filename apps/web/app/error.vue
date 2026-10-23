@@ -95,7 +95,7 @@ if (import.meta.client && i18nReady && isThemeableSystemError.value && !resolved
     :error="nuxtError"
     :resolved-page="resolvedSystemPage"
   />
-  <UApp v-else :toaster="{ position: 'top-right' }">
+  <UApp v-else :toaster="{ position: 'bottom-right' }">
     <SFErrorPageContent :error="nuxtError" />
   </UApp>
 </template>

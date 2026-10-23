@@ -62,7 +62,7 @@ async function uploadFile(file?: File) {
       color: 'success',
       icon: 'i-lucide-image-up',
       title: t('admin.siteChrome.brand.uploaded'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.siteChrome.brand.uploadFailed')

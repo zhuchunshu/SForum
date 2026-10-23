@@ -103,7 +103,7 @@ async function submitPassword() {
       color: 'primary',
       icon: 'i-lucide-check',
       title: t('localPasswordSettings.saved'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     const reason = apiErrorReason(error)

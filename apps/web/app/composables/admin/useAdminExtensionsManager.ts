@@ -120,7 +120,7 @@ export const useAdminExtensionsManager = async () => {
               : result.requiredReEnable
                 ? t('admin.extensions.upgradedReEnableHint')
                 : undefined,
-          duration: 10000
+          duration: 5000
         })
       } else {
         toast.add({ color: 'success', icon: 'i-lucide-package-check', title: t('admin.extensions.uploaded') })
@@ -181,7 +181,7 @@ export const useAdminExtensionsManager = async () => {
         color: 'success',
         icon: 'i-lucide-trash-2',
         title: t('admin.extensions.uninstalled'),
-        duration: 10000
+        duration: 5000
       })
       uninstallKeys.delete(item.id)
       cancelUninstallExtension()
@@ -274,7 +274,7 @@ export const useAdminExtensionsManager = async () => {
         color: 'success',
         icon: input.decision === 'retry' ? 'i-lucide-refresh-cw' : 'i-lucide-skip-forward',
         title: t(input.decision === 'retry' ? 'admin.extensions.lifecycle.retrySuccess' : 'admin.extensions.lifecycle.skipSuccess'),
-        duration: 10000
+        duration: 5000
       })
       await loadLifecycleOperations(item.id, updated.id)
     } catch (error) {
@@ -588,7 +588,7 @@ export const useAdminExtensionsManager = async () => {
           color: 'success',
           icon: 'i-lucide-palette',
           title: t('admin.extensions.themeActivated'),
-          duration: 10000
+          duration: 5000
         })
         return
       }
@@ -724,7 +724,7 @@ export const useAdminExtensionsManager = async () => {
           color: 'success',
           icon: 'i-lucide-palette',
           title: t('admin.extensions.themeActivated'),
-          duration: 10000
+          duration: 5000
         })
         return
       }
@@ -758,7 +758,7 @@ export const useAdminExtensionsManager = async () => {
         color: 'success',
         icon: lifecycleSuccessIcon(action),
         title: t(lifecycleSuccessMessage(action)),
-        duration: 10000
+        duration: 5000
       })
       return { ok: true as const, updated }
     } catch (error) {

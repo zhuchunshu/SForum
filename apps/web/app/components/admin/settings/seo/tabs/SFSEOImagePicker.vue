@@ -32,7 +32,7 @@ async function uploadFile(file?: File) {
     const asset = await request<SEOAsset>('/admin/seo/assets', { method: 'POST', body })
     model.value = asset.url
     pendingUrl.value = asset.url
-    toast.add({ color: 'success', icon: 'i-lucide-image-up', title: t('admin.seo.imageUploaded'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-image-up', title: t('admin.seo.imageUploaded'), duration: 5000 })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.seo.imageUploadFailed')
   } finally {

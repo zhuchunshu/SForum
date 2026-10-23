@@ -460,7 +460,7 @@ future generated clients. Keep it modular as the product surface grows.
 - Keep blocking errors, field-level validation, and guidance that the user must
   read next to the relevant form or page state. Error Toasts are appropriate for
   non-blocking operation failures, but must not replace field-level messages.
-- Alerts and toast-style feedback must support automatic dismissal after 10
+- Alerts and toast-style feedback must support automatic dismissal after 5
   seconds for non-error states. Error alerts and error Toasts must not
   auto-close; keep them visible until the user dismisses them or resolves the
   blocking issue.

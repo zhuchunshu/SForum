@@ -56,7 +56,7 @@ async function save() {
     await forumApi.selectSearchProvider(selected.value)
     await load()
     success(t('admin.forum.settings.search.saved'))
-    toast.add({ color: 'primary', icon: 'i-lucide-info', title: t('admin.forum.settings.search.switchHint'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-info', title: t('admin.forum.settings.search.switchHint'), duration: 5000 })
   } catch (error) {
     failure(error, t('admin.forum.settings.search.saveFailed'))
   } finally {
@@ -88,7 +88,7 @@ async function reindex() {
   } catch (error) {
     const message = apiErrorMessage(error)
     if (message?.includes('reindex_running')) {
-      toast.add({ color: 'warning', icon: 'i-lucide-alert-triangle', title: t('admin.forum.settings.search.reindexAlreadyRunning'), duration: 10000 })
+      toast.add({ color: 'warning', icon: 'i-lucide-alert-triangle', title: t('admin.forum.settings.search.reindexAlreadyRunning'), duration: 5000 })
     } else {
       failure(error, t('admin.forum.settings.search.reindexFailed'))
     }
@@ -98,7 +98,7 @@ async function reindex() {
 }
 
 function success(title: string) {
-  toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
+  toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 5000 })
 }
 
 function failure(error: unknown, fallback: string) {

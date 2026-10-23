@@ -11,12 +11,12 @@ const rows = computed(() => [{ key: 'reply' as const, label: t('admin.mailSettin
 onMounted(load)
 defineExpose({ refresh: load, pending })
 async function load() { pending.value = true; try { Object.assign(policy, await request<MailPolicy>('/admin/mail/policy')) } catch (error) { errorMessage.value = apiErrorMessage(error) || t('admin.mailSettings.loadFailed') } finally { pending.value = false } }
-async function act(path: string, body?: MailPolicy) { saving.value = true; try { const result = await request<MailPolicy>(path, { method: path.endsWith('restore') ? 'POST' : 'PUT', body }); if (result) Object.assign(policy, result); toast.add({ color: 'success', icon: 'i-lucide-check', title: t(path.endsWith('restore') ? 'admin.mailSettings.policyRestored' : 'admin.mailSettings.policySaved'), duration: 10000 }) } catch (error) { errorMessage.value = apiErrorMessage(error) || t('admin.mailSettings.saveFailed') } finally { saving.value = false } }
+async function act(path: string, body?: MailPolicy) { saving.value = true; try { const result = await request<MailPolicy>(path, { method: path.endsWith('restore') ? 'POST' : 'PUT', body }); if (result) Object.assign(policy, result); toast.add({ color: 'success', icon: 'i-lucide-check', title: t(path.endsWith('restore') ? 'admin.mailSettings.policyRestored' : 'admin.mailSettings.policySaved'), duration: 5000 }) } catch (error) { errorMessage.value = apiErrorMessage(error) || t('admin.mailSettings.saveFailed') } finally { saving.value = false } }
 async function testNotification() {
   saving.value = true
   try {
     await request('/admin/notifications/test', { method: 'POST' })
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.mailSettings.notificationCreated'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.mailSettings.notificationCreated'), duration: 5000 })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.mailSettings.saveFailed')
   } finally {

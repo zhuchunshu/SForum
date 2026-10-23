@@ -30,7 +30,7 @@ async function remove(item: SiteFriendLink) {
   try { await api.deleteFriendLink(item.id); items.value = items.value.filter(row => row.id !== item.id); success(t('admin.siteChrome.friendLinks.deleted')) } catch (error) { failure(error) }
 }
 function sort(rows: SiteFriendLink[]) { return [...rows].sort((a, b) => a.position - b.position || a.id - b.id) }
-function success(title: string) { toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 }) }
+function success(title: string) { toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 5000 }) }
 function failure(error: unknown) { toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.siteChrome.friendLinks.saveFailed') }) }
 </script>
 

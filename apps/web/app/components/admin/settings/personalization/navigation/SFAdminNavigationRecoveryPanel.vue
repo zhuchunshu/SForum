@@ -36,7 +36,7 @@ async function exportBackup() {
     anchor.download = navigationBackupFilename(backup.exportedAt)
     anchor.click()
     URL.revokeObjectURL(url)
-    toast.add({ color: 'primary', icon: 'i-lucide-download', title: t('admin.navigationEditor.recovery.exported'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-download', title: t('admin.navigationEditor.recovery.exported'), duration: 5000 })
   } catch (cause) {
     exportError.value = apiErrorMessage(cause) || t('admin.navigationEditor.recovery.exportFailed')
   } finally {
@@ -47,7 +47,7 @@ async function exportBackup() {
 async function applied(document: SiteNavigationDocument, workflow: 'defaults' | 'import' | 'history') {
   emit('applied', document)
   if (workflow !== 'history') {
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t(`admin.navigationEditor.recovery.${workflow}.applied`), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t(`admin.navigationEditor.recovery.${workflow}.applied`), duration: 5000 })
   }
   await nextTick()
   await history.value?.refresh()

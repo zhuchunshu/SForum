@@ -13,7 +13,7 @@ export type SettingsSectionSaveOptions = {
   successTitle: string
   /** 失败时无 API 消息时的回落标题 */
   failureTitle: string
-  /** 成功 toast 自动关闭毫秒；与项目约定一致，默认 10000 */
+  /** 成功 toast 自动关闭毫秒；与项目约定一致，默认 5000 */
   successDuration?: number
 }
 
@@ -42,7 +42,7 @@ export function useSettingsSection() {
         color: 'success',
         icon: 'i-lucide-check',
         title: options.successTitle,
-        duration: options.successDuration ?? 10000
+        duration: options.successDuration ?? 5000
       })
       return true
     } catch (error) {
@@ -63,7 +63,7 @@ export function useSettingsSection() {
       color: options.color ?? 'success',
       icon: options.icon ?? 'i-lucide-rotate-ccw',
       title: options.title,
-      duration: options.duration ?? 10000
+      duration: options.duration ?? 5000
     })
   }
 

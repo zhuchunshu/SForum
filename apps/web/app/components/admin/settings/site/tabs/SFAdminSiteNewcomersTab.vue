@@ -64,7 +64,7 @@ async function save() {
 
 function resetChanges() {
   resetFromItems()
-  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.settings.newcomers.resetChanges'), duration: 10000 })
+  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.settings.newcomers.resetChanges'), duration: 5000 })
 }
 
 function restoreRecommended() {

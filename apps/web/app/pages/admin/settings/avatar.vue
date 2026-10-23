@@ -123,7 +123,7 @@ async function saveSettings(successTitle = t('admin.avatar.saved')) {
   try {
     const updated = await saveMany(Object.entries(settingsPayload()).map(([name, value]) => ({ name, value })))
     applyAdminOptions(updated)
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 5000 })
   } catch (error) {
     toast.add({
       color: 'error',
@@ -151,7 +151,7 @@ function resetForm() {
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
     title: t('admin.avatar.resetChanges'),
-    duration: 10000
+    duration: 5000
   })
 }
 

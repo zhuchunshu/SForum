@@ -149,7 +149,7 @@ function successToast(title: string) {
     color: 'success',
     icon: 'i-lucide-check',
     title,
-    duration: 10000
+    duration: 5000
   })
 }
 

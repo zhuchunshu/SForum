@@ -51,7 +51,7 @@ async function save(payload: SFEditorContentPayload) {
       props.comment.currentRevision,
       reason || undefined
     )
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.forum.content.saved'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.forum.content.saved'), duration: 5000 })
     emit('saved')
   } catch (cause) {
     if (apiErrorReason(cause) === 'forum.revision_conflict') {

@@ -124,7 +124,7 @@ export function useAdminFrontendTrust(extension: Ref<AdminExtension>, options: A
 			: await request<AdminFrontendStatus>(`/admin/extensions/${extension.value.id}/frontend/trust`, { method: 'DELETE' })
 		status.value = nextStatus
 		resolved.value = true
-		toast.add({ color: 'success', icon: 'i-lucide-shield-check', title: t(`admin.extensions.frontend.${action}Success`), duration: 10000 })
+		toast.add({ color: 'success', icon: 'i-lucide-shield-check', title: t(`admin.extensions.frontend.${action}Success`), duration: 5000 })
     } catch (cause) {
       error.value = `${cause}`
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: error.value, duration: 0 })

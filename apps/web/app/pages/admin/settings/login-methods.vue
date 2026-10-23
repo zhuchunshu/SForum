@@ -121,7 +121,7 @@ function successToast(title: string, description?: string) {
     icon: 'i-lucide-check',
     title,
     description,
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -179,7 +179,7 @@ async function ensureSettings(extensionId: string) {
         color: 'warning',
         icon: 'i-lucide-info',
         title: apiErrorMessage(error) || t('admin.loginMethods.settingsLoadFailed'),
-        duration: 10000
+        duration: 5000
       })
     }
   } finally {
@@ -354,7 +354,7 @@ async function probeProvider(item: AdminIdentityProvider) {
         description: feedback.reason === 'probe_pending'
           ? t('admin.loginMethods.probe.pendingHelp')
           : (feedback.reason || result?.message || t('admin.loginMethods.probe.unavailable')),
-        duration: 10000
+        duration: 5000
       })
     }
     await loadProviders()

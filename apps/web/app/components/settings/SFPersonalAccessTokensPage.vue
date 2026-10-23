@@ -115,7 +115,7 @@ function applyPreset(scopeKeys: string[]) {
     color: 'neutral',
     icon: 'i-lucide-list-checks',
     title: t('accessTokensSettings.presetApplied'),
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -127,7 +127,7 @@ function resetRecommended() {
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
     title: t('accessTokensSettings.recommendedRestored'),
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -153,7 +153,7 @@ async function createToken() {
     const created = await tokensApi.createAPIToken({ name: form.name.trim(), scopes: selectedScopes.value })
     createdPlaintext.value = created.token
     form.name = ''
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('accessTokensSettings.created'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('accessTokensSettings.created'), duration: 5000 })
     await loadTokens()
     activeTokenTab.value = 'manage'
   } catch (error) {
@@ -166,7 +166,7 @@ async function createToken() {
 async function revokeToken(token: APIToken) {
   try {
     await tokensApi.revokeAPIToken(token.id)
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('accessTokensSettings.revoked'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('accessTokensSettings.revoked'), duration: 5000 })
     await loadTokens()
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accessTokensSettings.saveFailed') })
@@ -177,7 +177,7 @@ async function rotateToken(token: APIToken) {
   try {
     const created = await tokensApi.rotateAPIToken(token.id)
     createdPlaintext.value = created.token
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('accessTokensSettings.rotated'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('accessTokensSettings.rotated'), duration: 5000 })
     await loadTokens()
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: apiErrorMessage(error) || t('accessTokensSettings.saveFailed') })
@@ -190,7 +190,7 @@ async function copyPlaintext() {
   }
   try {
     await navigator.clipboard.writeText(createdPlaintext.value)
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('accessTokensSettings.copied'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('accessTokensSettings.copied'), duration: 5000 })
   } catch {
     toast.add({ color: 'error', icon: 'i-lucide-alert-triangle', title: t('accessTokensSettings.copyFailed') })
   }

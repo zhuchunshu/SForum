@@ -154,7 +154,7 @@ async function save() {
 
 function resetChanges() {
   resetFromItems()
-  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.settings.verification.resetChanges'), duration: 10000 })
+  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.settings.verification.resetChanges'), duration: 5000 })
 }
 
 function restoreRecommended() {
@@ -189,7 +189,7 @@ function generateSecret() {
   const bytes = new Uint8Array(32)
   globalThis.crypto.getRandomValues(bytes)
   form.secret = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
-  toast.add({ color: 'success', icon: 'i-lucide-key-round', title: t('admin.settings.verification.secretGenerated'), duration: 10000 })
+  toast.add({ color: 'success', icon: 'i-lucide-key-round', title: t('admin.settings.verification.secretGenerated'), duration: 5000 })
 }
 
 function toggleSecretVisibility() {

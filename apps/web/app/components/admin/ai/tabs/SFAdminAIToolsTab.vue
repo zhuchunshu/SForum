@@ -137,7 +137,7 @@ function resetPurpose(purpose: AdminAIValidatedPurpose) {
     color: 'success',
     icon: 'i-lucide-rotate-ccw',
     title: t('admin.ai.tools.resetPurposeDone', { purpose: localized(purpose.label) }),
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -152,7 +152,7 @@ function toggle(purpose: AdminAIValidatedPurpose, tool: AdminAIToolAvailability,
       color: 'warning',
       icon: 'i-lucide-triangle-alert',
       title: t('admin.ai.tools.tooMany', { max: MAX_TOOLS_PER_REQUEST }),
-      duration: 10000
+      duration: 5000
     })
     return
   }
@@ -172,7 +172,7 @@ function removeEverywhere(tool: AdminAIToolAvailability) {
     color: 'success',
     icon: 'i-lucide-check',
     title: t('admin.ai.tools.removeEverywhereDone', { name: tool.name }),
-    duration: 10000
+    duration: 5000
   })
   detailOpen.value = false
 }
@@ -185,7 +185,7 @@ async function copyName(tool: AdminAIToolAvailability) {
       color: 'success',
       icon: 'i-lucide-check',
       title: t('admin.ai.tools.copied', { name: tool.name }),
-      duration: 10000
+      duration: 5000
     })
   } catch {
     toast.add({
@@ -262,7 +262,7 @@ function saveEnglish() {
     color: 'neutral',
     icon: 'i-lucide-pencil',
     title: t('admin.ai.tools.dirtyHint'),
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -274,7 +274,7 @@ function clearEnglish() {
     color: 'neutral',
     icon: 'i-lucide-pencil',
     title: t('admin.ai.tools.dirtyHint'),
-    duration: 10000
+    duration: 5000
   })
 }
 

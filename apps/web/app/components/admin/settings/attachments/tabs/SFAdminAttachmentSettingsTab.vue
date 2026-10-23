@@ -134,7 +134,7 @@ async function persistSettings(successTitle: string) {
     body: settingsPayload()
   })
   applySettings(updated)
-  toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 10000 })
+  toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 5000 })
 }
 
 async function testConnection() {
@@ -147,7 +147,7 @@ async function testConnection() {
       icon: result.ok ? 'i-lucide-check' : 'i-lucide-triangle-alert',
       title: result.ok ? t('admin.attachments.testPassed') : t('admin.attachments.testFailed'),
       description: detailParts.join(result.message && result.reason ? ' · ' : ''),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.attachments.testFailed') })

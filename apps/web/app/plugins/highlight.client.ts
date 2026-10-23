@@ -22,7 +22,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       color: 'success',
       icon: 'i-lucide-check',
       title: translate('codeBlock.copySuccess', '代码已复制'),
-      duration: 10000
+      duration: 5000
     }),
     onCopyError: () => toast.add({
       color: 'error',

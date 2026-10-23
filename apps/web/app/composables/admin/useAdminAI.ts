@@ -335,7 +335,7 @@ export function useAdminAI() {
     clearFieldErrors()
     try {
       await request('/admin/ai/settings', { method: 'PUT', body: next })
-      toast.add({ color: 'success', icon: 'i-lucide-save', title: t('admin.ai.saved'), duration: 10000 })
+      toast.add({ color: 'success', icon: 'i-lucide-save', title: t('admin.ai.saved'), duration: 5000 })
       await refresh()
       return true
     } catch (error) {
@@ -350,7 +350,7 @@ export function useAdminAI() {
     busy.value = 'reset'
     try {
       await request('/admin/ai/settings/reset', { method: 'POST', body: {} })
-      toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.ai.resetDone'), duration: 10000 })
+      toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.ai.resetDone'), duration: 5000 })
       await refresh()
     } catch (error) {
       reportFailure(error, 'admin.ai.resetFailed')
@@ -367,7 +367,7 @@ export function useAdminAI() {
         method: 'PUT',
         body: { apiKey }
       })
-      toast.add({ color: 'success', icon: 'i-lucide-key-round', title: t('admin.ai.credentialSaved', { version: result.version }), duration: 10000 })
+      toast.add({ color: 'success', icon: 'i-lucide-key-round', title: t('admin.ai.credentialSaved', { version: result.version }), duration: 5000 })
       await refresh()
       return true
     } catch (error) {
@@ -415,9 +415,9 @@ export function useAdminAI() {
       // 调用成功但正文为空不是「连接正常」：推理模型的预算被思考耗尽时就会这样。
       // 提示语必须区分，否则运营者看到成功提示却找不到回复内容。
       if (result.ok && !result.reason) {
-        toast.add({ color: 'success', icon: 'i-lucide-circle-check', title: t('admin.ai.diagnose.okToast'), duration: 10000 })
+        toast.add({ color: 'success', icon: 'i-lucide-circle-check', title: t('admin.ai.diagnose.okToast'), duration: 5000 })
       } else if (result.reason === 'empty_reply') {
-        toast.add({ color: 'warning', icon: 'i-lucide-message-square-warning', title: t('admin.ai.diagnose.emptyReplyToast'), duration: 10000 })
+        toast.add({ color: 'warning', icon: 'i-lucide-message-square-warning', title: t('admin.ai.diagnose.emptyReplyToast'), duration: 5000 })
       }
       await executions.refresh()
       return result

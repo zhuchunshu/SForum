@@ -458,7 +458,7 @@ async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'nativ
       icon: 'i-lucide-info',
       title: t('composer.editValidation.blocked'),
       description: t('composer.editValidation.noChanges'),
-      duration: 10000
+      duration: 5000
     })
     return
   }
@@ -506,7 +506,7 @@ async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'nativ
       icon: 'i-lucide-triangle-alert',
       title: t('composer.editValidation.blocked'),
       description: Object.values(nextErrors)[0]?.[0] || t('composer.editValidation.requiredFields'),
-      duration: 10000
+      duration: 5000
     })
     return
   }
@@ -531,7 +531,7 @@ async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'nativ
     submitState.value = 'success'
     baselineSignature.value = currentSignature.value
     baselineContentSignature.value = currentContentSignature.value
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.topicUpdated'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.topicUpdated'), duration: 5000 })
     await navigateTo(localePath(forumTopicPath(updated, topicUrlMode.value)))
   } catch (error) {
     submitState.value = 'error'

@@ -180,7 +180,7 @@ function bodyText(item: SiteAnnouncement) {
 }
 
 function success(title: string) {
-  toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
+  toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 5000 })
 }
 
 function failure(error: unknown) {

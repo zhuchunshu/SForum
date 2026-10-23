@@ -72,7 +72,7 @@ export function useAdminForumSettingsTab(
       color: 'neutral',
       icon: 'i-lucide-undo-2',
       title: t('admin.forum.settings.discarded'),
-      duration: 10000
+      duration: 5000
     })
   }
 

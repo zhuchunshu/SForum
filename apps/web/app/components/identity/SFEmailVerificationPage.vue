@@ -106,7 +106,7 @@ async function sendVerification() {
       color: 'success',
       icon: 'i-lucide-mail-check',
       title: wasSent ? t('auth.emailVerificationResent') : t('auth.emailVerificationSent'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     fieldErrors.value = apiErrorFields(error)
@@ -131,7 +131,7 @@ async function checkVerification() {
         color: 'success',
         icon: 'i-lucide-badge-check',
         title: t('auth.emailVerificationConfirmed'),
-        duration: 10000
+        duration: 5000
       })
       return
     }
@@ -139,7 +139,7 @@ async function checkVerification() {
       color: 'neutral',
       icon: 'i-lucide-mail-search',
       title: t('auth.emailVerificationStillPending'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     toast.add({

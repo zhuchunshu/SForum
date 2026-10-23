@@ -118,7 +118,7 @@ async function save() {
       color: 'success',
       icon: 'i-lucide-check',
       title: mode.value === 'site' ? t('userAppearanceSettings.siteDefaultsSaved') : t('userAppearanceSettings.saved'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     actionError.value = apiErrorMessage(error) || t('userAppearanceSettings.saveFailed')
@@ -130,7 +130,7 @@ async function save() {
 function resetDraft() {
   loadSavedPreference()
   syncPreview()
-  toast.add({ color: 'neutral', icon: 'i-lucide-undo-2', title: t('userAppearanceSettings.reset'), duration: 10000 })
+  toast.add({ color: 'neutral', icon: 'i-lucide-undo-2', title: t('userAppearanceSettings.reset'), duration: 5000 })
 }
 
 watch([mode, draftTheme, lightBackground, siteTheme, siteLightBackground], syncPreview, { flush: 'sync' })

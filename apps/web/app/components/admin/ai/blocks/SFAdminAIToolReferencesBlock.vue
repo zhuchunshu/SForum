@@ -108,7 +108,7 @@ function addManual() {
       color: 'neutral',
       icon: 'i-lucide-info',
       title: t('admin.ai.tools.manualAdd.alreadyPresent', { name, purpose: localized(purpose.label) }),
-      duration: 10000
+      duration: 5000
     })
     return
   }
@@ -124,7 +124,7 @@ function addManual() {
     color: 'success',
     icon: 'i-lucide-check',
     title: t('admin.ai.tools.manualAdd.added', { name, purpose: localized(purpose.label) }),
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -147,7 +147,7 @@ function removeUnregistered(entry: { name: string, purposes: string[] }) {
     color: 'success',
     icon: 'i-lucide-check',
     title: t('admin.ai.tools.removeEverywhereDone', { name: entry.name }),
-    duration: 10000
+    duration: 5000
   })
 }
 </script>

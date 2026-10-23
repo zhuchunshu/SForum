@@ -105,7 +105,7 @@ function resetChanges() {
     item.userConfigurable = state.configurable
   }
   errorMessage.value = ''
-  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.notificationSettings.resetChanges'), duration: 10000 })
+  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.notificationSettings.resetChanges'), duration: 5000 })
 }
 
 async function load() {
@@ -131,7 +131,7 @@ async function save() {
       body: { revision: catalog.value.revision, items: notificationPolicyUpdates(catalog.value.items) }
     })
     captureSnapshot()
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.notificationSettings.saved'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.notificationSettings.saved'), duration: 5000 })
   } catch (saveError) {
     errorMessage.value = apiErrorMessage(saveError) || t('admin.notificationSettings.saveFailed')
   } finally {
@@ -149,7 +149,7 @@ async function restoreDefaults() {
       body: { revision: catalog.value.revision }
     })
     captureSnapshot()
-    toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.notificationSettings.restored'), description: t('admin.notificationSettings.secretsPreserved'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.notificationSettings.restored'), description: t('admin.notificationSettings.secretsPreserved'), duration: 5000 })
   } catch (restoreError) {
     errorMessage.value = apiErrorMessage(restoreError) || t('admin.notificationSettings.restoreFailed')
   } finally {
@@ -162,7 +162,7 @@ async function createTestNotification() {
   errorMessage.value = ''
   try {
     await request('/admin/notifications/test', { method: 'POST' })
-    toast.add({ color: 'success', icon: 'i-lucide-bell', title: t('admin.notificationSettings.testCreated'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-bell', title: t('admin.notificationSettings.testCreated'), duration: 5000 })
   } catch (testError) {
     errorMessage.value = apiErrorMessage(testError) || t('admin.notificationSettings.testFailed')
   }

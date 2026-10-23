@@ -77,7 +77,7 @@ async function subscribeBrowser() {
     const item = await api.create(serializePushSubscription(pushSubscription))
     localStorage.setItem(STORAGE_KEY, String(item.id))
     await load()
-    toast.add({ color: 'success', icon: 'i-lucide-bell-ring', title: t('notificationSettings.webPush.subscribed'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-bell-ring', title: t('notificationSettings.webPush.subscribed'), duration: 5000 })
   } catch (error) {
     if (pushSubscription && createdBrowserSubscription) await pushSubscription.unsubscribe().catch(() => false)
     errorMessage.value = error instanceof Error && error.message === 'notification.permission_denied'
@@ -99,7 +99,7 @@ async function unsubscribeBrowser() {
     await browserSubscription?.unsubscribe()
     localStorage.removeItem(STORAGE_KEY)
     await load()
-    toast.add({ color: 'success', icon: 'i-lucide-bell-off', title: t('notificationSettings.webPush.unsubscribed'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-bell-off', title: t('notificationSettings.webPush.unsubscribed'), duration: 5000 })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('notificationSettings.webPush.unsubscribeFailed')
   } finally {
@@ -119,7 +119,7 @@ async function revoke(item: WebPushSubscriptionItem) {
       localStorage.removeItem(STORAGE_KEY)
     }
     await load()
-    toast.add({ color: 'success', icon: 'i-lucide-trash-2', title: t('notificationSettings.webPush.revoked'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-trash-2', title: t('notificationSettings.webPush.revoked'), duration: 5000 })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('notificationSettings.webPush.revokeFailed')
   } finally {

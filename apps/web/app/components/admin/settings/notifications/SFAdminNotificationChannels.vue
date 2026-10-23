@@ -62,7 +62,7 @@ async function selectProvider(item: ProviderSlotItem) {
   try {
     await api.select(channelKey(item), candidateId, selectedRevision(item))
     await load()
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.notificationSettings.channelsAdmin.selected'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.notificationSettings.channelsAdmin.selected'), duration: 5000 })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.notificationSettings.channelsAdmin.selectFailed')
   } finally {
@@ -77,7 +77,7 @@ async function resetProvider(item: ProviderSlotItem) {
   try {
     await api.reset(channelKey(item), item.selection.revision)
     await load()
-    toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.notificationSettings.channelsAdmin.reset'), description: t('admin.notificationSettings.secretsPreserved'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('admin.notificationSettings.channelsAdmin.reset'), description: t('admin.notificationSettings.secretsPreserved'), duration: 5000 })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.notificationSettings.channelsAdmin.resetFailed')
   } finally {
@@ -93,7 +93,7 @@ async function sendTest(item: ProviderSlotItem) {
     await api.test(channelKey(item))
     const history = await api.deliveries()
     deliveries.value = history.items
-    toast.add({ color: 'success', icon: 'i-lucide-send', title: t('admin.notificationSettings.channelsAdmin.testQueued'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-send', title: t('admin.notificationSettings.channelsAdmin.testQueued'), duration: 5000 })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.notificationSettings.channelsAdmin.testFailed')
   } finally {

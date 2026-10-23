@@ -65,7 +65,7 @@ export function useAdminExtensionUpgradeFlow(options: AdminExtensionUpgradeFlowO
         color: 'neutral',
         icon: 'i-lucide-circle-stop',
         title: t('admin.extensions.upgradeAllStopped', { completed, total }),
-        duration: 10000
+        duration: 5000
       })
       return
     }
@@ -83,7 +83,7 @@ export function useAdminExtensionUpgradeFlow(options: AdminExtensionUpgradeFlowO
       color: 'success',
       icon: 'i-lucide-package-check',
       title: t('admin.extensions.upgradeAllSuccess', { count: completed }),
-      duration: 10000
+      duration: 5000
     })
   }
 
@@ -109,7 +109,7 @@ export function useAdminExtensionUpgradeFlow(options: AdminExtensionUpgradeFlowO
           color: 'success',
           icon: 'i-lucide-package-check',
           title: t('admin.extensions.upgraded'),
-          duration: 10000
+          duration: 5000
         })
       }
       return true

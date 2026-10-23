@@ -289,7 +289,7 @@ async function saveRole() {
     closeRoleModal()
     await loadData()
     successMessage.value = t('admin.roles.saved')
-    toast.add({ title: t('admin.roles.saved'), color: 'success', icon: 'i-lucide-check', duration: 10000 })
+    toast.add({ title: t('admin.roles.saved'), color: 'success', icon: 'i-lucide-check', duration: 5000 })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.roles.saveFailed')
   } finally {
@@ -307,7 +307,7 @@ async function deleteRole() {
     closeRoleModal()
     await loadData()
     successMessage.value = t('admin.roles.deleted')
-    toast.add({ title: t('admin.roles.deleted'), color: 'success', icon: 'i-lucide-check', duration: 10000 })
+    toast.add({ title: t('admin.roles.deleted'), color: 'success', icon: 'i-lucide-check', duration: 5000 })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.roles.deleteFailed')
   } finally {

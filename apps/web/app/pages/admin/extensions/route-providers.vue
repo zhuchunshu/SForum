@@ -118,7 +118,7 @@ async function applySelection(conflict: RouteProviderConflict) {
       color: 'primary',
       icon: 'i-lucide-check',
       title: t('admin.extensions.routeProviders.selected'),
-      duration: 10000
+      duration: 5000
     })
     await load()
   } catch (cause) {
@@ -147,7 +147,7 @@ async function resetSelection(conflict: RouteProviderConflict) {
       color: 'primary',
       icon: 'i-lucide-rotate-ccw',
       title: t('admin.extensions.routeProviders.reset'),
-      duration: 10000
+      duration: 5000
     })
     delete selectedCandidates.value[id]
     await load()

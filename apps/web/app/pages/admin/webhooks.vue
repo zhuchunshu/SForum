@@ -111,7 +111,7 @@ async function createEndpoint() {
       }
     })
     closeCreateModal()
-    toast.add({ title: t('admin.webhooks.created'), color: 'primary', duration: 10000 })
+    toast.add({ title: t('admin.webhooks.created'), color: 'primary', duration: 5000 })
     await load()
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.webhooks.saveFailed')

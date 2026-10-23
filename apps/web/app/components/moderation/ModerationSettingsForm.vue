@@ -41,7 +41,7 @@ async function saveSettings() {
       color: 'success',
       icon: 'i-lucide-check',
       title: t('admin.moderation.settingsSaved'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.moderation.settingsSaveFailed')
@@ -67,7 +67,7 @@ async function resetSettings() {
       color: 'success',
       icon: 'i-lucide-rotate-ccw',
       title: t('admin.moderation.settingsReset'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('admin.moderation.settingsResetFailed')
@@ -87,7 +87,7 @@ function discardChanges() {
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
     title: t('admin.moderation.resetChanges'),
-    duration: 10000
+    duration: 5000
   })
 }
 </script>

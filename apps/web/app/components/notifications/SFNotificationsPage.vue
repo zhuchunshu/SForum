@@ -184,7 +184,7 @@ async function markAllRead() {
       color: 'primary',
       icon: 'i-lucide-check-check',
       title: t('notifications.allRead'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     for (const previous of previousItems) {

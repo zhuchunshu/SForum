@@ -64,7 +64,7 @@ async function copyTarget() {
       color: 'neutral',
       icon: 'i-lucide-clipboard-check',
       title: t('outbound.copySuccessTitle'),
-      duration: 10000
+      duration: 5000
     })
   } catch {
     // 剪贴板被拒绝时保持页面可见，用户仍可手动选中地址复制。

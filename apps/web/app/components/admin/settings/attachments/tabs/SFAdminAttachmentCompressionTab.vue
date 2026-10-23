@@ -105,7 +105,7 @@ async function optimizeExisting() {
       color: 'success',
       icon: 'i-lucide-list-restart',
       title: t('admin.attachments.compression.backfillScheduled', { count: result.scheduled }),
-      duration: 10000
+      duration: 5000
     })
     await refresh()
   } catch (cause) {
@@ -121,7 +121,7 @@ async function persistSettings(value: Partial<AttachmentCompressionSettings>, su
     body: normalizeAttachmentCompressionSettings(value)
   })
   applySettings(updated)
-  toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 10000 })
+  toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 5000 })
   await refresh()
 }
 

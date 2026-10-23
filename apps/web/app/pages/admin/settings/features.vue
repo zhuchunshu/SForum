@@ -119,7 +119,7 @@ async function save() {
       color: 'success',
       icon: 'i-lucide-check',
       title: t('admin.features.saved'),
-      duration: 10000
+      duration: 5000
     })
     await load()
   } catch (error) {
@@ -143,7 +143,7 @@ async function restoreRecommended() {
       color: 'success',
       icon: 'i-lucide-rotate-ccw',
       title: t('admin.features.restored'),
-      duration: 10000
+      duration: 5000
     })
     await load()
   } catch (error) {
@@ -165,7 +165,7 @@ function resetForm() {
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
     title: t('admin.features.resetChanges'),
-    duration: 10000
+    duration: 5000
   })
 }
 

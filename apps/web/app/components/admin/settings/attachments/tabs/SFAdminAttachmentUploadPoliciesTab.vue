@@ -274,7 +274,7 @@ async function saveUserPermission() {
 }
 
 function showSuccess(title: string) {
-  toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 10000 })
+  toast.add({ color: 'success', icon: 'i-lucide-check', title, duration: 5000 })
 }
 
 function showError(error: unknown, fallbackKey: string) {

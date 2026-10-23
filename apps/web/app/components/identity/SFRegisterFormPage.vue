@@ -243,7 +243,7 @@ async function finishRegistration(currentUser: CurrentUser) {
     color: 'success',
     icon: needsEmailVerification ? 'i-lucide-mail-check' : 'i-lucide-check',
     title: needsEmailVerification ? t('auth.emailVerificationActionRequired') : registerSuccessTitle(),
-    duration: 10000
+    duration: 5000
   })
   // 首注册者即初始 super_admin（服务端在注册事务内判定）。提示只发给真正拿到
   // 权限的注册者，注册前不预告，因此不会向未认证访客暴露 bootstrap 窗口。
@@ -252,7 +252,7 @@ async function finishRegistration(currentUser: CurrentUser) {
       color: 'success',
       icon: 'i-lucide-shield-check',
       title: t('auth.initialSuperAdminGranted'),
-      duration: 10000
+      duration: 5000
     })
   }
   if (needsEmailVerification) {

@@ -132,7 +132,7 @@ async function completeBinding() {
       color: 'success',
       icon: 'i-lucide-link-2',
       title: t('auth.external.continuation.linkSuccess', { name: providerName.value }),
-      duration: 10000
+      duration: 5000
     })
     await returnFromAuth()
   } catch (error) {

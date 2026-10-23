@@ -101,10 +101,10 @@ export function useTopicCommentSubmission(options: TopicCommentSubmissionOptions
         options.replyParentId.value = null
       }
       if (created.status === 'pending') {
-        toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 10000 })
+        toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('topicDetail.replySubmittedForReview'), duration: 5000 })
       } else {
         await options.refreshComments()
-        toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.replyPosted'), duration: 10000 })
+        toast.add({ color: 'success', icon: 'i-lucide-check', title: t('topicDetail.replyPosted'), duration: 5000 })
         // 时间流下新回复在列表末尾：滚动与跨页跳转由页面注入的 focusCreatedComment 承担。
         // 定位只是 UX 增强，失败不能反过来把已成功的发布报成失败。
         try {

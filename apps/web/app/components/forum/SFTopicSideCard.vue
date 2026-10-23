@@ -260,7 +260,7 @@ async function runSidebarExtensionRoute(item: ForumTopicExtensionSidebarItem) {
       color: 'primary',
       icon: item.icon || 'i-lucide-check',
       title: itemLabel(item),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     toast.add({

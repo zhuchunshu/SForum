@@ -70,7 +70,7 @@ async function load(manual = false) {
         color: 'primary',
         icon: 'i-lucide-check',
         title: t('admin.extensions.navigationInspector.refreshSuccess'),
-        duration: 10000
+        duration: 5000
       })
     }
   } catch (cause) {

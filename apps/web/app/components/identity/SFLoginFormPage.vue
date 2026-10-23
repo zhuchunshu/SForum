@@ -100,7 +100,7 @@ onMounted(() => {
     color: 'success',
     icon: 'i-lucide-mail-check',
     title: emailVerifiedFeedback.value,
-    duration: 10000
+    duration: 5000
   })
   const nextQuery = { ...route.query }
   delete nextQuery.reason
@@ -180,7 +180,7 @@ async function submitLogin() {
     color: 'success',
     icon: 'i-lucide-check',
     title: loginSuccessTitle(),
-    duration: 10000
+    duration: 5000
   })
   await returnFromAuth()
 }

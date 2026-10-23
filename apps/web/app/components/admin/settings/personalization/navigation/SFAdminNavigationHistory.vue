@@ -66,7 +66,7 @@ async function restore() {
       reason: reason.value.trim() || `operator_restore_snapshot:${selected.value.id}`
     })
     emit('applied', document)
-    toast.add({ color: 'primary', icon: 'i-lucide-history', title: t('admin.navigationEditor.recovery.history.restored'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-history', title: t('admin.navigationEditor.recovery.history.restored'), duration: 5000 })
     selected.value = null
     await load()
   } catch (cause) {

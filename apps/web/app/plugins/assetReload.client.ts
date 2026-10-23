@@ -42,7 +42,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       color: 'primary',
       icon: 'i-lucide-refresh-cw',
       title: translate('errors.assetReload.toast'),
-      duration: 10000
+      duration: 5000
     })
     // 给 toast 留出渲染窗口，立即 reload 会让提示完全不可见。
     setTimeout(() => window.location.reload(), 800)

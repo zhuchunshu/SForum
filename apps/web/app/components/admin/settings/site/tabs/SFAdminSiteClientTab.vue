@@ -44,14 +44,14 @@ async function save() {
 
 function resetChanges() {
   resetFromItems()
-  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.settings.client.resetChanges'), duration: 10000 })
+  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.settings.client.resetChanges'), duration: 5000 })
 }
 
 function restoreRecommended() {
   form.minimumVersion = ''
   form.recommendedVersion = ''
   form.updateNotice = ''
-  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.settings.client.restoredRecommended'), duration: 10000 })
+  toast.add({ color: 'neutral', icon: 'i-lucide-rotate-ccw', title: t('admin.settings.client.restoredRecommended'), duration: 5000 })
 }
 </script>
 

@@ -104,7 +104,7 @@ async function save() {
   actionError.value = ''
   try {
     catalog.value = await preferencesApi.replace(catalog.value.revision, preferenceUpdateItems(catalog.value.items, draft))
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('notificationSettings.saved'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('notificationSettings.saved'), duration: 5000 })
   } catch (saveError) {
     actionError.value = apiErrorMessage(saveError) || t('notificationSettings.saveFailed')
   } finally {
@@ -118,7 +118,7 @@ async function restoreDefaults() {
   actionError.value = ''
   try {
     catalog.value = await preferencesApi.restore(catalog.value.revision)
-    toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('notificationSettings.restored'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-rotate-ccw', title: t('notificationSettings.restored'), duration: 5000 })
   } catch (restoreError) {
     actionError.value = apiErrorMessage(restoreError) || t('notificationSettings.restoreFailed')
   } finally {

@@ -194,7 +194,7 @@ function applyResult(next: AdminExtensionInstallResult, source: InstallSource, f
     description: next.activationPending
       ? t('admin.extensionInstall.result.activationPending')
       : undefined,
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -213,7 +213,7 @@ async function copyDigest() {
       color: 'success',
       icon: 'i-lucide-copy-check',
       title: t('admin.extensionInstall.result.digestCopied'),
-      duration: 10000
+      duration: 5000
     })
   } catch {
     toast.add({

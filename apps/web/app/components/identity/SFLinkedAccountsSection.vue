@@ -192,7 +192,7 @@ async function unlinkIdentity(item: ExternalIdentityItem) {
       color: 'success',
       icon: 'i-lucide-check',
       title: t('accountSecurity.linkedAccounts.unlinked'),
-      duration: 10000
+      duration: 5000
     })
     await loadIdentities()
   } catch (error) {

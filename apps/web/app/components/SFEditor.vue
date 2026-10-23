@@ -616,7 +616,7 @@ function upsertReference(
     referenceCache.delete(`${kind}:${id || 0}`)
     toast.add({
       color: 'success', icon: 'i-lucide-check',
-      title: t(selection ? 'composer.shortcodes.updated' : 'composer.shortcodes.inserted'), duration: 10000
+      title: t(selection ? 'composer.shortcodes.updated' : 'composer.shortcodes.inserted'), duration: 5000
     })
   }
   return changed
@@ -632,7 +632,7 @@ function deleteReference(selection: EditorReferenceSelectionV1) {
     to: selection.position + node.nodeSize
   }).run()
   if (changed) {
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('composer.shortcodes.deleted'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('composer.shortcodes.deleted'), duration: 5000 })
   }
 }
 
@@ -670,7 +670,7 @@ function upsertProtected(kind: EditorProtectedKind, selection?: EditorShortcodeS
   currentEditor.view.dispatch(outcome.tr.scrollIntoView())
   toast.add({
     color: 'success', icon: 'i-lucide-check',
-    title: t(selection ? 'composer.shortcodes.updated' : 'composer.shortcodes.inserted'), duration: 10000
+    title: t(selection ? 'composer.shortcodes.updated' : 'composer.shortcodes.inserted'), duration: 5000
   })
   return true
 }
@@ -684,7 +684,7 @@ function deleteProtected(selection: EditorProtectedSelectionV1) {
     from: selection.position,
     to: selection.position + node.nodeSize
   }).run()
-  if (changed) toast.add({ color: 'success', icon: 'i-lucide-check', title: t('composer.shortcodes.deleted'), duration: 10000 })
+  if (changed) toast.add({ color: 'success', icon: 'i-lucide-check', title: t('composer.shortcodes.deleted'), duration: 5000 })
 }
 
 function unwrapProtected(selection: EditorProtectedSelectionV1) {
@@ -697,7 +697,7 @@ function unwrapProtected(selection: EditorProtectedSelectionV1) {
     dispatch?.(tr.scrollIntoView())
     return true
   })
-  if (changed) toast.add({ color: 'success', icon: 'i-lucide-unlock', title: t('composer.shortcodes.unwrapped'), duration: 10000 })
+  if (changed) toast.add({ color: 'success', icon: 'i-lucide-unlock', title: t('composer.shortcodes.unwrapped'), duration: 5000 })
 }
 
 async function runExtensionAction(commandID: string, selection?: EditorShortcodeSelectionV1) {

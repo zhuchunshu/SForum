@@ -82,7 +82,7 @@ async function fetchModels() {
     color: 'success',
     icon: 'i-lucide-list-checks',
     title: t('admin.ai.modelFetchDone', { count: listed.length }),
-    duration: 10000
+    duration: 5000
   })
 }
 </script>

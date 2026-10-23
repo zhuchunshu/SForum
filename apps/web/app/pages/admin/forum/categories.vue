@@ -118,7 +118,7 @@ function openCreateCategory(preferredGroupId?: number) {
       icon: 'i-lucide-info',
       title: t('admin.forum.categories.noGroupsForCategoryTitle'),
       description: t('admin.forum.categories.noGroupsForCategoryDescription'),
-      duration: 10000
+      duration: 5000
     })
     return
   }
@@ -264,7 +264,7 @@ function successToast(title: string) {
     color: 'success',
     icon: 'i-lucide-check',
     title,
-    duration: 10000
+    duration: 5000
   })
 }
 

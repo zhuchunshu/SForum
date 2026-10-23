@@ -209,7 +209,7 @@ function resetDraft() {
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
     title: t('profileSettings.resetDone'),
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -252,7 +252,7 @@ async function save() {
       color: 'primary',
       icon: 'i-lucide-check',
       title: t('profileSettings.saved'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     saveState.value = 'error'
@@ -306,7 +306,7 @@ async function uploadAvatar(event: Event) {
       color: 'primary',
       icon: 'i-lucide-check',
       title: t('profileSettings.avatarUploaded'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     avatarError.value = apiErrorMessage(error) || t('profileSettings.avatarUploadFailed')
@@ -329,7 +329,7 @@ async function removeAvatar() {
       color: 'primary',
       icon: 'i-lucide-check',
       title: t('profileSettings.avatarRemoved'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     avatarError.value = apiErrorMessage(error) || t('profileSettings.avatarRemoveFailed')

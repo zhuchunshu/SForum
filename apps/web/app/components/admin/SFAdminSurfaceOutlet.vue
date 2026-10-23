@@ -162,7 +162,7 @@ async function execute(surface: AdminSurfaceContract, extra: Record<string, unkn
       color: 'primary',
       icon: 'i-lucide-check',
       title: view?.message || t('admin.surfaces.completed', { label: surface.label }),
-      duration: 10000
+      duration: 5000
     })
     if (view?.download && import.meta.client) window.location.assign(view.download.url)
     if (view?.refresh) {

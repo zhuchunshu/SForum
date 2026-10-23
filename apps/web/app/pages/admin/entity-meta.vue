@@ -144,7 +144,7 @@ async function createField() {
       color: 'success',
       icon: 'i-lucide-check',
       title: t('admin.entityMeta.created'),
-      duration: 10000
+      duration: 5000
     })
     form.fieldKey = ''
     form.labelZh = ''
@@ -175,7 +175,7 @@ function resetCreateForm() {
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
     title: t('admin.entityMeta.resetForm'),
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -190,7 +190,7 @@ async function toggleEnabled(item: FieldDefinition) {
       color: 'success',
       icon: 'i-lucide-check',
       title: t('admin.entityMeta.updated'),
-      duration: 10000
+      duration: 5000
     })
     await load()
   } catch (error) {
@@ -213,7 +213,7 @@ async function removeField(item: FieldDefinition) {
       color: 'success',
       icon: 'i-lucide-check',
       title: t('admin.entityMeta.deleted'),
-      duration: 10000
+      duration: 5000
     })
     await load()
   } catch (error) {

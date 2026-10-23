@@ -176,7 +176,7 @@ export function useEditorImageUpload(labels: EditorImageUploadLabels) {
           color: 'success',
           icon: 'i-lucide-image-up',
           title: labels.uploaded(insertedCount),
-          duration: 10000
+          duration: 5000
         })
       } else if (!disposed && insertedCount > 0) {
         errorToast(labels.partiallyUploaded(insertedCount, failureCount), failureDescription)

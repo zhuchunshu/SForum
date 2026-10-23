@@ -38,7 +38,7 @@ async function decide(action: ModerationAction) {
     if (action === 'approve') {
       invalidateForumPublicData()
     }
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('moderation.workbench.decisionSaved'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('moderation.workbench.decisionSaved'), duration: 5000 })
     emit('decided')
   } catch (error) {
     errorMessage.value = apiErrorMessage(error) || t('moderation.workbench.decisionFailed')

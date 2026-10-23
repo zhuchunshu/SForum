@@ -157,7 +157,7 @@ async function sendResetRequest(isResend = false) {
       color: 'success',
       icon: 'i-lucide-mail-check',
       title: t('auth.recovery.requestAcceptedToast'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     fieldErrors.value = apiErrorFields(error)

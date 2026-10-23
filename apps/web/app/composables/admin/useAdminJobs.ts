@@ -27,7 +27,7 @@ export function useAdminJobs() {
     busy.value = `${id}:${action}`
     try {
       await request(`/admin/jobs/${id}/${action}`, { method: 'POST', body: {} })
-      toast.add({ color: 'success', icon: action === 'retry' ? 'i-lucide-refresh-cw' : 'i-lucide-ban', title: t(`admin.jobs.${action}Success`), duration: 10000 })
+      toast.add({ color: 'success', icon: action === 'retry' ? 'i-lucide-refresh-cw' : 'i-lucide-ban', title: t(`admin.jobs.${action}Success`), duration: 5000 })
       await refresh()
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: `${error}`, duration: 0 })
@@ -40,7 +40,7 @@ export function useAdminJobs() {
     busy.value = `queue:${name}`
     try {
       await request(`/admin/jobs/queues/${encodeURIComponent(name)}/${paused ? 'pause' : 'resume'}`, { method: 'POST', body: {} })
-      toast.add({ color: 'success', icon: paused ? 'i-lucide-pause' : 'i-lucide-play', title: t(paused ? 'admin.jobs.pauseSuccess' : 'admin.jobs.resumeSuccess'), duration: 10000 })
+      toast.add({ color: 'success', icon: paused ? 'i-lucide-pause' : 'i-lucide-play', title: t(paused ? 'admin.jobs.pauseSuccess' : 'admin.jobs.resumeSuccess'), duration: 5000 })
       await refresh()
     } catch (error) {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: `${error}`, duration: 0 })
@@ -57,7 +57,7 @@ export function useAdminJobs() {
         color: 'success',
         icon: enabled ? 'i-lucide-play' : 'i-lucide-pause',
         title: t(enabled ? 'admin.schedules.enableSuccess' : 'admin.schedules.disableSuccess'),
-        duration: 10000
+        duration: 5000
       })
       await refreshSchedules()
     } catch (error) {
@@ -75,7 +75,7 @@ export function useAdminJobs() {
         color: 'success',
         icon: 'i-lucide-zap',
         title: t('admin.schedules.triggerSuccess', { id: result.jobId }),
-        duration: 10000
+        duration: 5000
       })
       await Promise.all([refreshSchedules(), jobs.refresh()])
       return result

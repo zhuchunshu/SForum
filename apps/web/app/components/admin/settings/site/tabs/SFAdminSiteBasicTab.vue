@@ -129,7 +129,7 @@ function resetChanges() {
     color: 'neutral',
     icon: 'i-lucide-rotate-ccw',
     title: t('admin.settings.basic.resetChanges'),
-    duration: 10000
+    duration: 5000
   })
 }
 

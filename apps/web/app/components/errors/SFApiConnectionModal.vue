@@ -24,7 +24,7 @@ watch(() => state.value.recoveredAt, (recoveredAt) => {
       color: 'success',
       icon: 'i-lucide-wifi',
       title: t('errors.apiConnection.recovered'),
-      duration: 10000
+      duration: 5000
     })
   }
 })

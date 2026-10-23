@@ -114,7 +114,7 @@ async function save() {
     editorOpen.value = false
     await refresh()
     emit('changed')
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.attachments.storageInstances.saved'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.attachments.storageInstances.saved'), duration: 5000 })
   } catch (cause) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(cause) || t('admin.attachments.storageInstances.saveFailed') })
   } finally {
@@ -134,7 +134,7 @@ async function probeDraft() {
     toast.add({
       color: result.ok ? 'success' : 'warning', icon: result.ok ? 'i-lucide-check' : 'i-lucide-triangle-alert',
       title: result.ok ? t('admin.attachments.testPassed') : t('admin.attachments.testFailed'),
-      description: result.message, duration: 10000
+      description: result.message, duration: 5000
     })
     if (editing.value) await refresh()
   } catch (cause) {
@@ -151,7 +151,7 @@ async function activate(item: StorageInstance) {
     await request(`/admin/attachment-storage-instances/${item.id}/activate`, { method: 'POST', body: {} })
     emit('changed', `instance:${item.id}`)
     await refresh()
-    toast.add({ color: 'success', icon: 'i-lucide-circle-check', title: t('admin.attachments.storageInstances.activated', { name: item.name }), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-circle-check', title: t('admin.attachments.storageInstances.activated', { name: item.name }), duration: 5000 })
   } catch (cause) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(cause) || t('admin.attachments.storageInstances.activateFailed') })
   } finally {
@@ -165,7 +165,7 @@ async function activateLocal() {
     await request('/admin/attachment-storage-instances/local/activate', { method: 'POST', body: {} })
     emit('changed', 'local')
     await refresh()
-    toast.add({ color: 'success', icon: 'i-lucide-hard-drive', title: t('admin.attachments.storageInstances.localActivated'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-hard-drive', title: t('admin.attachments.storageInstances.localActivated'), duration: 5000 })
   } catch (cause) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(cause) || t('admin.attachments.storageInstances.activateFailed') })
   } finally {
@@ -187,7 +187,7 @@ async function removeInstance() {
     pendingDelete.value = null
     await refresh()
     emit('changed')
-    toast.add({ color: 'success', icon: 'i-lucide-trash-2', title: t('admin.attachments.storageInstances.deleted'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-trash-2', title: t('admin.attachments.storageInstances.deleted'), duration: 5000 })
   } catch (cause) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(cause) || t('admin.attachments.storageInstances.deleteFailed') })
   } finally {

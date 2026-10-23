@@ -10,7 +10,7 @@ export function useTopicCommentClipboard() {
   const toast = useToast()
 
   function showCopiedToast(key: string) {
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t(key), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t(key), duration: 5000 })
   }
 
   async function writeClipboard(text: string, successKey: string, promptKey: string) {

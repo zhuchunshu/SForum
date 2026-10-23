@@ -202,7 +202,7 @@ async function confirmMissingCleanup() {
       color: 'success',
       icon: 'i-lucide-package-check',
       title: t('admin.extensions.missingCleanup.success', { count: result.removed.length }),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     missingCleanupError.value = apiErrorMessage(error) || t('admin.extensions.actionFailed')
@@ -334,7 +334,7 @@ async function executeVersionGc() {
         color: 'success',
         icon: 'i-lucide-archive-x',
         title: t('admin.extensions.versionGc.success', { removed: (result.removed ?? []).length }),
-        duration: 10000
+        duration: 5000
       })
     }
   } catch (error) {

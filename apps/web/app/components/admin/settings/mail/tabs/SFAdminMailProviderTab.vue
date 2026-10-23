@@ -54,7 +54,7 @@ async function saveWelcomeMail() {
 }
 async function act(action: () => Promise<unknown>, key: string, description?: string) {
   saving.value = true
-  try { await action(); toast.add({ color: 'success', icon: 'i-lucide-check', title: t(key), description: description ? t(description) : undefined, duration: 10000 }) } catch (error) { errorMessage.value = apiErrorMessage(error) || t('admin.mailSettings.saveFailed') } finally { saving.value = false }
+  try { await action(); toast.add({ color: 'success', icon: 'i-lucide-check', title: t(key), description: description ? t(description) : undefined, duration: 5000 }) } catch (error) { errorMessage.value = apiErrorMessage(error) || t('admin.mailSettings.saveFailed') } finally { saving.value = false }
 }
 </script>
 <template>

@@ -37,7 +37,7 @@ async function confirmChange() {
       title: targetVerified.value
         ? t('admin.users.emailVerificationMarkedSuccess')
         : t('admin.users.emailVerificationResetSuccess'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     toast.add({

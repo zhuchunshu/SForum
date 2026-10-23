@@ -100,7 +100,7 @@ async function restoreCore(pageId: string) {
       color: 'primary',
       icon: 'i-lucide-rotate-ccw',
       title: t('admin.extensions.pages.restored'),
-      duration: 10000
+      duration: 5000
     })
     await load()
   } catch (e) {
@@ -139,7 +139,7 @@ async function approve(pageId: string, candidate: {
       color: 'primary',
       icon: 'i-lucide-check',
       title: t('admin.extensions.pages.approved'),
-      duration: 10000
+      duration: 5000
     })
     await load()
   } catch (e) {

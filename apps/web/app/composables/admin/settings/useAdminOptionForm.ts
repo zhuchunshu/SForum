@@ -40,7 +40,7 @@ export function useAdminOptionForm<T extends Record<string, unknown>>(
 
   function resetChanges() {
     resetFromItems()
-    toast.add({ color: 'neutral', icon: 'i-lucide-undo-2', title: messages.reset, duration: 10000 })
+    toast.add({ color: 'neutral', icon: 'i-lucide-undo-2', title: messages.reset, duration: 5000 })
   }
 
   function restoreRecommended() {

@@ -118,7 +118,7 @@ async function submit() {
       color: 'success',
       icon: 'i-lucide-circle-check',
       title: t('auth.resetPasswordSuccess'),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     if (isRejectedToken(error)) {

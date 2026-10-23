@@ -131,7 +131,7 @@ function bridge(): AdminMicroFrontendBridgeV1 {
         description: input.description,
         color: error ? 'error' : 'success',
         icon: error ? 'i-lucide-triangle-alert' : 'i-lucide-check',
-        duration: error ? Number.POSITIVE_INFINITY : 10000
+        duration: error ? Number.POSITIVE_INFINITY : 5000
       })
     },
     t,

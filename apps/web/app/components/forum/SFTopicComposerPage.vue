@@ -75,7 +75,7 @@ async function runComposerToolbarAction(action: import('~/utils/forum/forumTaxon
       color: 'primary',
       icon: action.icon || 'i-lucide-check',
       title: composerToolbarLabel(action),
-      duration: 10000
+      duration: 5000
     })
   } catch (error) {
     toast.add({
@@ -432,7 +432,7 @@ async function submit(payload?: Pick<SFEditorContentPayload, 'markdown' | 'nativ
     clearDraft()
     if (created.status === 'pending') {
       // 待审主题无公开落地页；Toast 提示后回首页，审核结果走通知。
-      toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('composer.submittedForReview'), duration: 10000 })
+      toast.add({ color: 'primary', icon: 'i-lucide-clock-3', title: t('composer.submittedForReview'), duration: 5000 })
       await navigateTo(localePath('/'))
       return
     }
@@ -480,7 +480,7 @@ function saveDraft({ quiet = false } = {}) {
         color: 'primary',
         icon: 'i-lucide-save',
         title: t('composer.draft.saved'),
-        duration: 10000
+        duration: 5000
       })
     }
   } catch {

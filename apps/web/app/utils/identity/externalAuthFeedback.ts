@@ -91,7 +91,7 @@ export function externalAuthFeedbackDelivery(
 }
 
 export function externalAuthFeedbackToastDuration(item: ExternalAuthFeedback): number {
-  return item.kind === 'error' ? 0 : 10000
+  return item.kind === 'error' ? 0 : 5000
 }
 
 export function externalAuthFeedbackUsesInlineSurface(path: string): boolean {

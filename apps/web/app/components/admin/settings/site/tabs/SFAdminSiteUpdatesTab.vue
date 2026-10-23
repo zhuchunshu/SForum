@@ -78,7 +78,7 @@ async function checkNow(showSuccessToast = true) {
       return
     }
     if (showSuccessToast) {
-      toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.settings.updates.checked'), duration: 10000 })
+      toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.settings.updates.checked'), duration: 5000 })
     }
   } catch {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: t('admin.settings.updates.checkFailed') })

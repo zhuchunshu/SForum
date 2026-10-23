@@ -207,7 +207,7 @@ function showSuccess(message: string) {
     title: message,
     color: 'success',
     icon: 'i-lucide-check-circle',
-    duration: 10000
+    duration: 5000
   })
 }
 

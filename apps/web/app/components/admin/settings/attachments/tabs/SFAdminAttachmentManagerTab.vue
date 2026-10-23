@@ -82,7 +82,7 @@ async function updateAttachmentStatus(item: AdminAttachment, status: 'active' | 
     })
     replaceAttachment(updated)
     if (selected.value?.id === updated.id) selected.value = { ...selected.value, ...updated }
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.attachments.statusUpdated'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.attachments.statusUpdated'), duration: 5000 })
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.attachments.updateFailed') })
   }
@@ -93,7 +93,7 @@ async function deleteAttachment(item: AdminAttachment) {
     const updated = await request<AdminAttachment>(`/admin/attachments/${item.id}`, { method: 'DELETE' })
     replaceAttachment(updated)
     if (selected.value?.id === updated.id) selected.value = { ...selected.value, ...updated }
-    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.attachments.deleted'), duration: 10000 })
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: t('admin.attachments.deleted'), duration: 5000 })
   } catch (error) {
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.attachments.deleteFailed') })
   }
@@ -109,7 +109,7 @@ async function cleanupAttachments() {
       color: result.failed > 0 ? 'warning' : 'success',
       icon: result.failed > 0 ? 'i-lucide-triangle-alert' : 'i-lucide-check',
       title: t('admin.attachments.cleanupFinished', result),
-      duration: 10000
+      duration: 5000
     })
     await fetchAttachments()
   } catch (error) {
@@ -136,7 +136,7 @@ async function selectAttachment(item: AdminAttachment) {
 async function copySelectedURL() {
   if (!selected.value?.url || !import.meta.client) return
   await navigator.clipboard.writeText(selected.value.url)
-  toast.add({ color: 'success', icon: 'i-lucide-copy-check', title: t('admin.attachments.copied'), duration: 10000 })
+  toast.add({ color: 'success', icon: 'i-lucide-copy-check', title: t('admin.attachments.copied'), duration: 5000 })
 }
 
 function providerLabel(provider: string) {

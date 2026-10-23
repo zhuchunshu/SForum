@@ -100,7 +100,7 @@ function restorePurpose(purpose: AdminAIValidatedPurpose) {
     color: 'success',
     icon: 'i-lucide-rotate-ccw',
     title: t('admin.ai.purposes.restoreDone'),
-    duration: 10000
+    duration: 5000
   })
 }
 </script>

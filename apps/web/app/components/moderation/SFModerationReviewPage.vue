@@ -312,7 +312,7 @@ async function submitDecision(action: ModerationAction) {
     const drafts = { ...noteDrafts.value }
     delete drafts[reviewKey.value]
     noteDrafts.value = drafts
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('moderation.workbench.decisionSaved'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('moderation.workbench.decisionSaved'), duration: 5000 })
     await Promise.all([refreshCounts(), refreshList()])
     if (nextItem) {
       await router.replace({ query: { ...queueQuery(), ...reviewQuery(selectionFromQueueItem(tab.value, nextItem)) } })

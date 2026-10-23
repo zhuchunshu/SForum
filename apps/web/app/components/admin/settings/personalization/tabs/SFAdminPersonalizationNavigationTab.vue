@@ -94,7 +94,7 @@ async function save() {
     document.value = cloneNavigationDocument(saved)
     baseline.value = cloneNavigationDocument(saved)
     clearNuxtData(key => key.startsWith('site-public-navigation:'))
-    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.navigationEditor.saved'), duration: 10000 })
+    toast.add({ color: 'primary', icon: 'i-lucide-check', title: t('admin.navigationEditor.saved'), duration: 5000 })
   } catch (error) {
     persistentError.value = isConflict(error) ? t('admin.navigationEditor.stale') : apiErrorMessage(error) || t('admin.navigationEditor.saveFailed')
   } finally {

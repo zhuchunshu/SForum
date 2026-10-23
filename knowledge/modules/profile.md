@@ -105,7 +105,7 @@ editor in V1.
   permission boundary.
 - `/settings/profile` current-user settings page with avatar preview,
   upload/remove controls, safe defaults, and a clear save flow (success
-  auto-dismisses after 10s; errors do not).
+  auto-dismisses after 5s; errors do not).
 - 昵称输入由 `components/settings/SFProfileNicknameField.vue` 拥有：本地格式/长度
   预检、400ms 防抖的 `nickname/availability` 预检、分钟级冷却倒计时（30s 刷新）、
   重名提示与字段级错误。保存仍由资料页统一提交；成功后页面更新
@@ -131,7 +131,7 @@ editor in V1.
   authoritative.
 - Profile form editing is draft-based. Save is disabled until local edits are
   dirty, reset discards unsaved changes with a neutral Toast, save/avatar
-  success Toasts auto-dismiss after 10 seconds, field-level validation stays
+  success Toasts auto-dismiss after 5 seconds, field-level validation stays
   beside the relevant inputs, and blocking errors remain visible.
 - The profile identity section includes a private default-language selector.
   `useUserLanguage` maps API BCP 47 values (such as `en-US`) to Nuxt locale

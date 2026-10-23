@@ -215,7 +215,7 @@ function settingsSuccessToast(kind: 'saved' | 'reset') {
     title,
     // 影响公开贡献时说明：刷新帖子页即可，无需重新激活主题；revision bump 已更新匿名 SWR 键。
     description: affectsPublic ? t('admin.extensions.dynamic.settingsPublicSurfaceHint') : undefined,
-    duration: 10000
+    duration: 5000
   })
 }
 
@@ -295,7 +295,7 @@ async function executeSettingsAction(action: AdminExtensionSettingsAction) {
     })
     actionResults[action.id] = result
     if (result.success) {
-      toast.add({ color: 'success', icon: 'i-lucide-activity', title: result.message || action.label, duration: 10000 })
+      toast.add({ color: 'success', icon: 'i-lucide-activity', title: result.message || action.label, duration: 5000 })
       setTimeout(() => {
         if (actionResults[action.id] === result) actionResults[action.id] = undefined
       }, 10000)
