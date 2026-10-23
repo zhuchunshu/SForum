@@ -6,6 +6,14 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 发布 v3.0.15 正式版
+
+- Status: **已发布 (2026-10-23T21:23:20Z)**。多图发帖 500 修复 + toast 右下角
+  5 秒自动关闭；main CI/Security 两轮全绿，release workflow 全绿，资产 10 项，
+  GHCR `api:3.0.15` / `web:latest` / `migrate:3.0` 匿名拉取验证通过。
+  补记：v3.0.14 已于 10-23 发布（dompurify 3.4.17 修镜像扫描后转绿）。
+- Handoff: `sessions/2026-10-24-release-v3.0.15.md`
+
 ### 多图发帖 500（附件引用唯一性作用域）
 
 - Status: **landed (2026-10-24)**。根因是 `202607110015` 把槽位型唯一索引
@@ -578,7 +586,10 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- **多图发帖 500 修复（2026-10-24，最新）**：附件引用唯一索引收窄为槽位型，
+- **内置 S3 存储插件 R2 兼容修复（2026-10-24，最新）**：SDK 默认 CRC32 请求校验和被 R2 拒绝 + Virtual-host 寻址在 R2 上无 DNS，探测与上传必然失败；改为 checksum `when_required`、寻址三态 auto（非 AWS 端点自动 Path-style）、R2 空 region 自动 `auto`、读流不再被 60s 截断。插件 1.0.10，包校验/单测/架构门禁/fast 三线全绿；真机 R2 探测待操作者凭据。详见
+  `sessions/2026-10-24-s3-r2-compatibility-handoff.md` 与
+  `decisions/2026-10-24-s3-compatible-auto-addressing.md`。
+- **多图发帖 500 修复（2026-10-24）**：附件引用唯一索引收窄为槽位型，
   论坛侧写入幂等化 + 具名 422/409；两图发帖真机 201。详见
   `sessions/2026-10-24-multi-image-attachment-500-fix.md`。
 - **API 连接弹窗误报治理（2026-10-23）**：失败缓冲 + `/health` 探测
@@ -633,19 +644,6 @@ load archived sessions or completed plans as current context.
   指定标签，目标低于 `.deployrc` 记录时会在下载前拦下。文档提供一条 curl 入口
   （临时文件 + 原子替换 + 包装器 SHA-256 校验），README 与中英部署指南已同步。详见
   `sessions/2026-10-23-sforum-latest-entry.md`。
-
-- **首注册者进后台（2026-10-22，最新）**：首位注册者拿到初始 `super_admin` 后直接
-  落到后台概览；邮箱验证开启时先验证、验证后落后台。`useAdminRoutes().path()` 改由
-  i18n `localePath` 生成，修掉 en 语言下后台入口的客户端 404。web 1508 用例 +
-  typecheck 通过。详见 `sessions/2026-10-22-first-admin-admin-landing.md`。
-
-- **公开资产跨源（2026-10-22，最新）**：QQ 内置浏览器（X5 云加速）换源后拒载入口
-  chunk 与扩展样式，表现为 `500 – Cross-origin script load denied`（那是 X5 内核
-  错误页，不是我们的 title）。公开只读资产改由应用自己发 ACAO + CORP cross-origin，
-  扩展样式去 `crossorigin` 保留 `integrity`，两个 ingress 补冗余头，错误页动作改真
-  链接。web 1503 用例、typecheck、架构门禁与 Go 测试通过。详见
-  `sessions/2026-10-22-public-asset-cross-origin-handoff.md`、
-  `decisions/2026-10-22-public-asset-cross-origin.md`。
 
 - **昵称策略（2026-10-20，最新）**：昵称改成可自助编辑的展示标签，唯一性仍只属于
   username。非唯一 + 7 天冷却（分钟精度）+ 永久历史 + 撞用户名/保留词拦截；后台
