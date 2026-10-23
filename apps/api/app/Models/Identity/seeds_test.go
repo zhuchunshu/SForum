@@ -15,7 +15,10 @@ func TestSystemRoles(t *testing.T) {
 	if RoleModerator != "moderator" || RoleOperator != "operator" || RoleTechAdmin != "tech_admin" {
 		t.Fatalf("unexpected template role keys: %q %q %q", RoleModerator, RoleOperator, RoleTechAdmin)
 	}
-	for _, key := range []string{RoleSuperAdmin, RoleMember, RoleModerator, RoleOperator, RoleTechAdmin} {
+	if RoleBuiltinAuto != "builtin_auto" {
+		t.Fatalf("unexpected builtin auto role key: %q", RoleBuiltinAuto)
+	}
+	for _, key := range []string{RoleSuperAdmin, RoleMember, RoleModerator, RoleOperator, RoleTechAdmin, RoleBuiltinAuto} {
 		if !IsBuiltInSystemRole(key) {
 			t.Fatalf("expected %s to be a built-in system role", key)
 		}

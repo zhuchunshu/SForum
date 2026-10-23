@@ -121,6 +121,16 @@ Release's complete deploy toolkit, and finally hands off to `upgrade.sh`:
 ./sforum-bootstrap.sh upgrade --yes
 ```
 
+### Built-in plugin auto-update
+
+On the first API startup after an upgrade, the Host automatically promotes
+protected built-in plugins to the version shipped in that release. The upgrade
+scripts need no extra flags; behavior and the off switch are documented in
+[Extensions & themes (operators)](./usage/extensions.md#built-in-plugin-auto-update).
+To review before allowing the first pass, start with
+`SFORUM_SAFE_MODE=true`, turn off “Auto-update built-in plugins” in the admin,
+then restart normally.
+
 ### Re-fetch the official toolkit on every run (optional)
 
 The bootstrap's self-refresh is initiated by the local old script. When an

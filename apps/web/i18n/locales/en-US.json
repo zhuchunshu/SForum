@@ -1691,7 +1691,23 @@
         "intro": "Manage extension packages declared as plugins. Plugin activation still passes backend entry preflight and API permission checks.",
         "count": "{count} plugin(s) installed",
         "emptyTitle": "No plugins installed",
-        "emptyDescription": "Upload an extension ZIP with type plugin to enable or disable plugins here."
+        "emptyDescription": "Upload an extension ZIP with type plugin to enable or disable plugins here.",
+        "autoUpdate": {
+          "label": "Auto-update built-in plugins",
+          "help": "After SForum is upgraded or installed, built-in plugins maintained by the project are automatically upgraded to the release version. Manually disabled plugins are not re-enabled, and plugins currently used as providers are skipped.",
+          "stateOn": "On",
+          "stateOff": "Off",
+          "saveSuccess": "Built-in plugin auto-update setting saved",
+          "saveFailed": "Failed to save the built-in plugin auto-update setting",
+          "restoreRecommended": "Restore recommended default",
+          "restoreSuccess": "Recommended default restored: auto-update built-in plugins",
+          "builtinMaintained": "Maintained by SForum",
+          "builtinMaintainedHint": "This plugin is maintained by the SForum release and is updated with version upgrades.",
+          "disabledBadge": "Auto-update off",
+          "disabledHint": "Built-in plugin auto-update is off; new release plugins must be upgraded manually.",
+          "incompleteHint": "Auto-update did not finish. Check events or upgrade manually.",
+          "loadFailed": "Failed to read the built-in plugin auto-update setting"
+        }
       },
       "store": {
         "metaTitle": "App store",

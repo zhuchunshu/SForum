@@ -100,5 +100,12 @@ func wireAPICoreStack(ctx context.Context, cfg config.Config, logger *slog.Logge
 	if err != nil {
 		return nil, err
 	}
-	return wireAPIDomainServices(ctx, cfg, logger, infrastructure, extensionPlatform)
+	core, err := wireAPIDomainServices(ctx, cfg, logger, infrastructure, extensionPlatform)
+	if err != nil {
+		return nil, err
+	}
+	// 内置插件自动更新在领域服务与插件运行时协调器就绪之后、HTTP 路由冻结之前执行。
+	// 失败只记录日志/事件，不阻断启动。
+	runBuiltinPluginAutoUpdate(ctx, cfg.SafeMode, core, logger)
+	return core, nil
 }

@@ -533,6 +533,35 @@ func isPluginStorageFailure(err error) bool {
 		errors.Is(err, extensions.ErrRuntimeUnavailable)
 }
 
+// SelectedStorageProviderExtension 返回当前 attachment.provider 选择指向的扩展 id。
+// plugin: 选择直接返回扩展 id；instance: 选择通过实例目录解析所属扩展。
+// 供 Host 启动自动更新判断“这个内置插件是否正在提供附件存储”。
+func (s *Service) SelectedStorageProviderExtension(ctx context.Context) (string, error) {
+	if s == nil || s.options == nil {
+		return "", nil
+	}
+	values, err := s.options.InternalValues(ctx)
+	if err != nil {
+		return "", err
+	}
+	selection := storage.ParseSelection(values[options.NameAttachmentProvider])
+	switch {
+	case selection.IsValidPluginSelection():
+		return selection.ExtensionID, nil
+	case selection.IsValidInstanceSelection():
+		if s.instanceStore == nil {
+			return "", nil
+		}
+		instance, loadErr := s.instanceStore.GetStorageInstance(ctx, selection.InstanceID)
+		if loadErr != nil {
+			return "", loadErr
+		}
+		return instance.ExtensionID, nil
+	default:
+		return "", nil
+	}
+}
+
 // ClearStorageProviderSelectionIfMatch 在禁用/卸载插件时，若当前选择指向该插件则恢复 local。
 // 供 Extensions lifecycle 调用；失败时返回 error 以便调用方中止 drain。
 func (s *Service) ClearStorageProviderSelectionIfMatch(ctx context.Context, extensionID string) error {

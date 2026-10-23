@@ -7,6 +7,9 @@ const (
 	RoleModerator = "moderator"
 	RoleOperator  = "operator"
 	RoleTechAdmin = "tech_admin"
+	// RoleBuiltinAuto 是 Host 自动升级受保护内置插件时使用的系统角色。
+	// 它只持有 extension.view / extension.plugin.manage，不授予后台访问。
+	RoleBuiltinAuto = "builtin_auto"
 
 	PermissionAdminAccess = "admin.access"
 	PermissionRoleManage  = "role.manage"
@@ -221,7 +224,7 @@ var SeedRoleTemplates = []SeedRoleTemplate{
 // IsBuiltInSystemRole 内置系统角色（不可删除；member 另走默认注册组锁定）。
 func IsBuiltInSystemRole(roleKey string) bool {
 	switch roleKey {
-	case RoleSuperAdmin, RoleMember, RoleModerator, RoleOperator, RoleTechAdmin:
+	case RoleSuperAdmin, RoleMember, RoleModerator, RoleOperator, RoleTechAdmin, RoleBuiltinAuto:
 		return true
 	default:
 		return false

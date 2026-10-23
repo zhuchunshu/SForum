@@ -930,6 +930,7 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 		NameSiteTimeFormat:                      recommendedSiteTimeFormat,
 		NameSiteStartOfWeek:                     strconv.Itoa(recommendedSiteStartOfWeek),
 		NameSystemUpdatesGitHubMirrorURL:        "",
+		NameExtensionBuiltinAutoUpdate:          enabledOptionValue(true),
 		NameHumanVerificationProvider:           humanverify.ProviderDisabled,
 		NameHumanVerificationRegister:           enabledOptionValue(true),
 		NameHumanVerificationPasswordReset:      enabledOptionValue(true),
@@ -1040,7 +1041,6 @@ func normalizedDefaults(defaults Defaults) map[string]string {
 	for name, value := range seoRecommendedDefaults() {
 		values[name] = value
 	}
-
 	applyDefaultsOverrides(values, defaults)
 
 	return values

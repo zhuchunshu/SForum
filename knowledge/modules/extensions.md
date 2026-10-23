@@ -12,6 +12,21 @@ does not rebuild Nuxt.
 
 ## Current Program State
 
+- **Protected built-in plugin auto-update is implemented (2026-10-23).**
+  API startup runs `BuiltinPluginAutoUpdater` after domain services and the
+  plugin runtime coordinator are ready. It promotes enabled
+  `source=builtin` plugins with a newer staged SemVer through the existing
+  `Upgrade`/`Restart` lifecycle paths, using a credential-less `builtin-auto`
+  account bound to the `builtin_auto` system role and the `builtin` lifecycle
+  authority (no trust grant). It skips disabled/installed plugins, downgrades,
+  same-version digest drift, Safe Mode/recovery, open operations, and any
+  legacy plugin currently selected as a provider (to avoid resetting
+  mail/storage/search/notification selections). A Postgres advisory lock makes
+  the pass single-owner across API nodes; failures emit
+  `builtin_auto_update_failed` and never block boot. The admin switch is
+  `extension.builtin_auto_update` (default enabled). See
+  `../decisions/2026-10-23-builtin-plugin-auto-update.md`.
+
 - **Plugin session state (S9) is complete and production-wired (2026-10-17).**
   The Gateway implements the S9 issuer that `ProtocolStarter` resolves by type
   assertion (before the fix, every scoped Host-initiated invocation failed at

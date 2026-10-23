@@ -1731,7 +1731,23 @@
         "intro": "管理声明为 plugin 的扩展包。插件启用前仍会经过后端入口预检与 API 权限检查。",
         "count": "已安装 {count} 个插件",
         "emptyTitle": "还没有安装插件",
-        "emptyDescription": "上传 type 为 plugin 的扩展 ZIP 后，就可以在这里启用或停用插件。"
+        "emptyDescription": "上传 type 为 plugin 的扩展 ZIP 后，就可以在这里启用或停用插件。",
+        "autoUpdate": {
+          "label": "自动更新内置插件",
+          "help": "SForum 升级或安装后，自动把项目维护的内置插件升级到发行版版本；手动停用的插件不会被重新启用；正在作为供应商使用的插件会跳过。",
+          "stateOn": "已开启",
+          "stateOff": "已关闭",
+          "saveSuccess": "内置插件自动更新设置已保存",
+          "saveFailed": "保存内置插件自动更新设置失败",
+          "restoreRecommended": "恢复推荐默认",
+          "restoreSuccess": "已恢复推荐默认：自动更新内置插件",
+          "builtinMaintained": "SForum 维护",
+          "builtinMaintainedHint": "该插件由 SForum 发行版维护，随版本升级更新。",
+          "disabledBadge": "自动更新已关闭",
+          "disabledHint": "内置插件自动更新已关闭，新的发行版插件需要手动升级。",
+          "incompleteHint": "自动更新未完成，请查看事件或手动升级。",
+          "loadFailed": "读取内置插件自动更新设置失败"
+        }
       },
       "store": {
         "metaTitle": "应用商城",

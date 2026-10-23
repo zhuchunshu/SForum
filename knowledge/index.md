@@ -6,6 +6,25 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 内置插件自动更新
+
+- Status: **landed (2026-10-23)**。API 启动阶段新增 `BuiltinPluginAutoUpdater`：
+  对已启用、`source=builtin` 且有更新 staged SemVer 的受保护插件，复用现有
+  `Upgrade`/`Restart` 生命周期自动晋升；`builtin-auto` 无密码系统账号绑定
+  `builtin_auto` 角色（仅 `extension.view` + `extension.plugin.manage`），
+  authority=`builtin`，不写 trust grant。
+- 安全闸：停用/installed 不处理；只升不降；同版本不同 digest 保持 staged；
+  Safe Mode/recovery/无人类用户/已有 open operation 全部跳过；legacy 插件若
+  正被选为 mail/storage/search/notification provider 则跳过，避免重置选择。
+- 多节点：Postgres session advisory lock + `builtin-auto/<id>/<digest>` 幂等键；
+  失败写 `builtin_auto_update_failed`，不阻断启动。
+- 管理端：`extension.builtin_auto_update` 默认 `enabled`，插件页开关 + 内置
+  badge；关闭后保留手工“全部升级”。
+- 验证：Go 全量测试、隔离 Postgres 集成测试（含真实 legacy `Restart`）、
+  web 1533 用例、typecheck、架构门禁；浏览器 QA 1633×810 / 390×844 通过。
+- Handoff: `sessions/2026-10-23-builtin-plugin-auto-update.md`；
+  决策：`decisions/2026-10-23-builtin-plugin-auto-update.md`。
+
 ### 发布 v3.0.13-alpha.2
 
 - Status: **已发布 (2026-10-23)**。`ghcr.io/zhuchunshu/sforum-{api,migrate,web}:3.0.13-alpha.2`

@@ -3,6 +3,7 @@ package extensions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -96,4 +97,25 @@ func (s *CatalogService) InspectProviderSlots(ctx context.Context, actor identit
 		return ProviderSlotInspection{}, ErrProviderSlotInspectionUnavailable
 	}
 	return source.ProviderSlotInspection(ctx)
+}
+
+// ProviderSlotSelected 报告扩展当前是否持有任一版本化 provider 槽位选择：
+// 既可能是 provider 候选，也可能是 contract owner。自动更新在 legacy 重启前
+// 用它避免静默重置运营选择。
+func (s *PostgresStore) ProviderSlotSelected(ctx context.Context, extensionID string) (bool, error) {
+	extensionID = normalizeID(extensionID)
+	if extensionID == "" {
+		return false, nil
+	}
+	var selected bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM extension_provider_slot_selections
+			WHERE provider_extension_id = $1 OR contract_extension_id = $1
+		)
+	`, extensionID).Scan(&selected)
+	if err != nil {
+		return false, fmt.Errorf("check provider slot selection: %w", err)
+	}
+	return selected, nil
 }

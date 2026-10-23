@@ -2,6 +2,8 @@
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { useAdminExtensionsManager } from '~/composables/admin/useAdminExtensionsManager'
 import { useAdminExtensionUpgradeFlow } from '~/composables/admin/useAdminExtensionUpgradeFlow'
+import { useAdminBuiltinAutoUpdate } from '~/composables/admin/useAdminBuiltinAutoUpdate'
+import { useAuthSession } from '~/composables/identity/useAuthSession'
 import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
 import SFAdminExtensionEnableDialog from '~/components/admin/SFAdminExtensionEnableDialog.vue'
@@ -24,6 +26,12 @@ import {
   type AdminExtension,
   type AdminRuntimeState
 } from '~/utils/admin/adminExtensions'
+import {
+  builtinAutoUpdateStateLabelKey,
+  isBuiltinMaintainedExtension,
+  shouldShowBuiltinAutoUpdateDisabled,
+  shouldShowBuiltinAutoUpdateIncomplete
+} from '~/utils/admin/extensions/builtinAutoUpdate'
 
 definePageMeta({
   middleware: 'admin',
@@ -97,6 +105,82 @@ const {
   cancelUpgradeExtension
 } = useAdminExtensionUpgradeFlow({ extensions, refresh, isSuperAdmin })
 
+const { can } = useAuthSession()
+const toast = useToast()
+const canManagePlugins = computed(() => can('extension.plugin.manage'))
+const {
+  supported: builtinAutoUpdateSupported,
+  enabled: builtinAutoUpdateEnabled,
+  saving: builtinAutoUpdateSaving,
+  loadError: builtinAutoUpdateLoadError,
+  saveError: builtinAutoUpdateSaveError,
+  load: loadBuiltinAutoUpdate,
+  save: saveBuiltinAutoUpdate,
+  restoreRecommended: restoreBuiltinAutoUpdate
+} = useAdminBuiltinAutoUpdate()
+
+// 只读管理员没有 extension.plugin.manage，读取 admin web-options 会被拒绝；
+// 这种情况下不请求、也不渲染开关。
+const builtinAutoUpdateLoadFailed = ref(false)
+if (canManagePlugins.value) {
+  builtinAutoUpdateLoadFailed.value = !(await loadBuiltinAutoUpdate())
+}
+
+const showBuiltinAutoUpdate = computed(() => canManagePlugins.value && builtinAutoUpdateSupported.value)
+const builtinAutoUpdateState = computed(() => ({
+  supported: builtinAutoUpdateSupported.value,
+  enabled: builtinAutoUpdateEnabled.value
+}))
+const builtinAutoUpdateStateLabel = computed(() => t(builtinAutoUpdateStateLabelKey(builtinAutoUpdateEnabled.value)))
+const builtinAutoUpdateAriaLabel = computed(() => `${t('admin.extensions.plugins.autoUpdate.label')} · ${builtinAutoUpdateStateLabel.value}`)
+const builtinAutoUpdateHelp = computed(() => t('admin.extensions.plugins.autoUpdate.help'))
+
+function reportBuiltinAutoUpdate(ok: boolean, successTitle: string) {
+  if (ok) {
+    toast.add({ color: 'success', icon: 'i-lucide-check', title: successTitle, duration: 10000 })
+    return
+  }
+  toast.add({
+    color: 'error',
+    icon: 'i-lucide-triangle-alert',
+    title: builtinAutoUpdateSaveError.value || t('admin.extensions.plugins.autoUpdate.saveFailed'),
+    duration: 0
+  })
+}
+
+async function setBuiltinAutoUpdate(next: boolean) {
+  if (builtinAutoUpdateSaving.value) {
+    return
+  }
+  reportBuiltinAutoUpdate(
+    await saveBuiltinAutoUpdate(next),
+    t('admin.extensions.plugins.autoUpdate.saveSuccess')
+  )
+}
+
+async function restoreBuiltinAutoUpdateRecommended() {
+  if (builtinAutoUpdateSaving.value) {
+    return
+  }
+  reportBuiltinAutoUpdate(
+    await restoreBuiltinAutoUpdate(),
+    t('admin.extensions.plugins.autoUpdate.restoreSuccess')
+  )
+}
+
+function stagedVersionHint(item: AdminExtension) {
+  if (!item.stagedVersion) {
+    return ''
+  }
+  if (shouldShowBuiltinAutoUpdateIncomplete(item, builtinAutoUpdateState.value)) {
+    return t('admin.extensions.plugins.autoUpdate.incompleteHint')
+  }
+  return t('admin.extensions.stagedVersionHint', {
+    version: item.stagedVersion.version,
+    current: item.version
+  })
+}
+
 const plugins = computed(() => filterExtensionsByType(extensions.value, 'plugin'))
 const inspectorMenuItems = computed(() => [[
   { label: t('admin.nav.extensionRouteProviders'), icon: 'i-lucide-route', to: adminRoutes.path('/extensions/route-providers') },
@@ -158,6 +242,33 @@ useSeoMeta({
       </div>
     </template>
     <template #right>
+      <div v-if="showBuiltinAutoUpdate" class="flex shrink-0 items-center gap-2">
+        <UIcon name="i-lucide-package-check" class="size-4 shrink-0" />
+        <span class="hidden whitespace-nowrap text-xs xl:inline">
+          {{ t('admin.extensions.plugins.autoUpdate.label') }}
+        </span>
+        <USwitch
+          :model-value="builtinAutoUpdateEnabled"
+          :loading="builtinAutoUpdateSaving"
+          size="sm"
+          :aria-label="builtinAutoUpdateAriaLabel"
+          :title="builtinAutoUpdateHelp"
+          @update:model-value="setBuiltinAutoUpdate(Boolean($event))"
+        />
+      </div>
+      <UButton
+        v-if="showBuiltinAutoUpdate && !builtinAutoUpdateEnabled"
+        icon="i-lucide-rotate-ccw"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        :loading="builtinAutoUpdateSaving"
+        :aria-label="t('admin.extensions.plugins.autoUpdate.restoreRecommended')"
+        :title="t('admin.extensions.plugins.autoUpdate.restoreRecommended')"
+        @click="restoreBuiltinAutoUpdateRecommended"
+      >
+        <span class="hidden 2xl:inline">{{ t('admin.extensions.plugins.autoUpdate.restoreRecommended') }}</span>
+      </UButton>
       <UButton
         v-if="upgradeCandidates.length"
         icon="i-lucide-package-plus"
@@ -292,6 +403,15 @@ useSeoMeta({
     class="mb-6"
   />
 
+  <UAlert
+    v-if="canManagePlugins && builtinAutoUpdateLoadFailed"
+    color="warning"
+    icon="i-lucide-triangle-alert"
+    variant="subtle"
+    :title="builtinAutoUpdateLoadError || t('admin.extensions.plugins.autoUpdate.loadFailed')"
+    class="mb-6"
+  />
+
   <div class="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
     <div v-if="plugins.length === 0 && !pending" class="p-10">
       <SFEmptyState icon-label="PLG" :title="t('admin.extensions.plugins.emptyTitle')" :description="t('admin.extensions.plugins.emptyDescription')" />
@@ -315,11 +435,29 @@ useSeoMeta({
               {{ t(runtimeStatusLabelKey(item)) }}
             </UBadge>
             <UBadge
+              v-if="isBuiltinMaintainedExtension(item)"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-package-check"
+              :title="t('admin.extensions.plugins.autoUpdate.builtinMaintainedHint')"
+            >
+              {{ t('admin.extensions.plugins.autoUpdate.builtinMaintained') }}
+            </UBadge>
+            <UBadge
+              v-if="shouldShowBuiltinAutoUpdateDisabled(item, builtinAutoUpdateState)"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-pause"
+              :title="t('admin.extensions.plugins.autoUpdate.disabledHint')"
+            >
+              {{ t('admin.extensions.plugins.autoUpdate.disabledBadge') }}
+            </UBadge>
+            <UBadge
               v-if="item.stagedVersion"
               color="warning"
               variant="outline"
               icon="i-lucide-package-plus"
-              :title="t('admin.extensions.stagedVersionHint', { version: item.stagedVersion.version, current: item.version })"
+              :title="stagedVersionHint(item)"
             >
               {{ t('admin.extensions.stagedVersionBadge', { version: item.stagedVersion.version }) }}
             </UBadge>

@@ -48,6 +48,33 @@ selects a provider, or uninstalls a package whose source disappeared. Docker
 deployments must use container paths and mount each source collection read-only
 into the API container.
 
+## Built-in plugin auto-update
+
+After SForum is upgraded or freshly installed, the API startup pass promotes
+**project-maintained protected built-in plugins** to the version shipped in the
+current release. Operators no longer click upgrade for each one. Scope is
+limited to `extensions/builtin/plugins/**` with `source=builtin`; uploaded
+packages, optional packages, fixtures, and themes are excluded.
+
+- Only enabled plugins with a staged newer version are considered. Manually
+  disabled plugins stay disabled.
+- Forward-only strict SemVer. A same-version artifact with a different digest
+  stays staged; releases must bump `manifest.version`.
+- A built-in currently selected as a mail, storage, search, or notification
+  provider is skipped so operator selections are not reset. It stays staged and
+  can be upgraded manually.
+- Operators can turn off “Auto-update built-in plugins” under
+  Extensions → Plugins. The existing manual “Upgrade all” flow remains.
+- Failures never block startup. The event log records
+  `builtin_auto_update_failed`; the old version keeps serving or the plugin
+  stays in the safe disabled state for an explicit retry/rollback.
+- To review before allowing the first pass, boot in Safe Mode, turn the option
+  off in the admin, then restart normally.
+
+Built-in themes are out of scope. The protected default theme keeps its
+first-install/startup-repair rule, and a new theme digest still requires one
+explicit admin activation.
+
 ## Theme activation
 
 Activation switches Page Registry bindings and L0 skin—**not** a full site rebuild.  

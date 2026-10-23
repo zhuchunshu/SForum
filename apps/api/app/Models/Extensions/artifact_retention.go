@@ -27,6 +27,12 @@ func artifactState(packagePath string) string {
 	return ArtifactAvailable
 }
 
+// StagedArtifactUsable validates a staged artifact without executing it.
+// Exported for the focused builtin auto-update package.
+func StagedArtifactUsable(staged Extension) error {
+	return stagedArtifactUsable(staged)
+}
+
 // stagedArtifactUsable 判定一份冻结的候选制品当前是否仍可装载。
 //
 // dev 自动机在自动恢复失败升级之前必须过这道闸：不可装载的制品每一轮重试都只会

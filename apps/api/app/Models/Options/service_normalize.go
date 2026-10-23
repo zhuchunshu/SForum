@@ -301,6 +301,8 @@ func normalizeOptionValue(name string, value string) (string, bool) {
 		return normalizeBoundedInt(value, nicknameMaxLengthMin, nicknameMaxLengthMax)
 	case NameNotificationReplyInApp, NameNotificationReplyEmail, NameNotificationMentionInApp, NameNotificationMentionEmail, NameNotificationModerationInApp, NameNotificationModerationEmail:
 		return normalizeEnabledOption(value)
+	case NameExtensionBuiltinAutoUpdate:
+		return normalizeEnabledOption(value)
 	default:
 		return normalizeSEOOption(name, value)
 	}

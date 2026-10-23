@@ -81,6 +81,13 @@ func usesLifecycleV2(extension Extension) bool {
 		extension.Manifest.Lifecycle != nil && strings.TrimSpace(extension.Manifest.Lifecycle.ContractVersion) != ""
 }
 
+// UsesLifecycleV2 reports whether the exact artifact declares the Lifecycle V2
+// contract. It is the exported form used by the focused builtin auto-update
+// package, which must not duplicate the contract predicate.
+func UsesLifecycleV2(extension Extension) bool {
+	return usesLifecycleV2(extension)
+}
+
 func (s *serviceCore) enableLifecycleV2(
 	ctx context.Context,
 	actor identity.Actor,

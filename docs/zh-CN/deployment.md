@@ -108,6 +108,14 @@ PostgreSQL 和 Redis。只支持 Linux `amd64`/`arm64`，不支持 Windows。对
 ./sforum-bootstrap.sh upgrade --yes
 ```
 
+### 内置插件自动更新
+
+升级后首次启动 API 时，Host 会自动把受保护的内置插件提升到该发行版自带的
+版本。升级脚本本身不需要额外参数；行为与关闭方式见
+[扩展与主题（运营侧）](./usage/extensions.md#内置插件自动更新)。需要先审查的
+部署可先用 `SFORUM_SAFE_MODE=true` 启动，在后台关闭「自动更新内置插件」后再
+正常启动。
+
 ### 每次重新获取官方工具链（可选）
 
 `./sforum-bootstrap.sh upgrade` 的自刷新由本地旧脚本发起。若要求本次使用的

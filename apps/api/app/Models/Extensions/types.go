@@ -55,6 +55,15 @@ const (
 	// 或同一摘要已被自动恢复过上限次数）。它不是失败：不再重试才不再刷台账。
 	EventDevAutoSkipped = "dev_auto_skipped"
 
+	// EventBuiltinAutoUpdated 记录 Host 在启动阶段自动升级受保护内置插件。
+	EventBuiltinAutoUpdated = "builtin_auto_updated"
+	// EventBuiltinAutoUpdateSkipped 记录自动升级被安全闸跳过（provider 正在使用、
+	// 版本不前进、制品不可用等）。它不是失败，下一轮启动会重新评估。
+	EventBuiltinAutoUpdateSkipped = "builtin_auto_update_skipped"
+	// EventBuiltinAutoUpdateFailed 记录自动升级执行失败；旧 active 继续服务或
+	// 插件停在安全停用态，等待管理员重试/回滚。
+	EventBuiltinAutoUpdateFailed = "builtin_auto_update_failed"
+
 	DeliveryQueued    = "queued"
 	DeliveryRunning   = "running"
 	DeliverySucceeded = "succeeded"

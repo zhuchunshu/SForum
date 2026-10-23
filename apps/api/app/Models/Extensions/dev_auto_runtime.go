@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/zhuchunshu/sforum/apps/api/app/Models/Extensions/systemactor"
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
 )
 
@@ -46,7 +47,9 @@ var errDevAutoGiveUp = errors.New("dev auto: giving up on staged artifact")
 // DevIdentityStore 是本服务需要的最小身份写入边界（identity.Store 的窄投影）。
 type DevIdentityStore interface {
 	identity.ActorStore
+	AnyUserExists(ctx context.Context) (bool, error)
 	GetCurrentUserByEmail(ctx context.Context, email string) (identity.CurrentUser, error)
+	GetCredentialByLogin(ctx context.Context, login string) (identity.CredentialUser, error)
 	WithBootstrapTx(ctx context.Context, fn func(context.Context, identity.TxStore) error) error
 }
 
@@ -325,45 +328,19 @@ func (r *DevAutoRuntime) ensureDevAutoActor(ctx context.Context) (identity.Actor
 	if r.operatorUserID > 0 {
 		return r.identities.LoadActor(ctx, r.operatorUserID)
 	}
-	if current, err := r.identities.GetCurrentUserByEmail(ctx, DevAutoEmail); err == nil {
-		r.operatorUserID = current.ID
-		return r.identities.LoadActor(ctx, current.ID)
-	} else if !errors.Is(err, identity.ErrUserNotFound) {
+	actor, err := systemactor.Ensure(ctx, r.identities, systemactor.Spec{
+		Username:    DevAutoUsername,
+		Email:       DevAutoEmail,
+		DisplayName: DevAutoDisplayName,
+		RoleKey:     identity.RoleSuperAdmin,
+		// dev 自动机保留旧行为：没有人类账号时也可以创建自己的执行者。
+		RequireExistingUser: false,
+	})
+	if err != nil {
 		return identity.Actor{}, err
 	}
-	var userID int64
-	txErr := r.identities.WithBootstrapTx(ctx, func(ctx context.Context, tx identity.TxStore) error {
-		current, createErr := tx.CreateUser(ctx, identity.CreateUserInput{
-			Username:      DevAutoUsername,
-			Email:         DevAutoEmail,
-			DisplayName:   DevAutoDisplayName,
-			EmailVerified: true,
-		})
-		if createErr != nil {
-			// 并发创建（双实例 dev）时唯一索引冲突：按已存在处理。
-			existing, getErr := r.identities.GetCurrentUserByEmail(ctx, DevAutoEmail)
-			if getErr != nil {
-				return createErr
-			}
-			userID = existing.ID
-			return nil
-		}
-		superAdmin, roleErr := tx.GetRole(ctx, identity.RoleSuperAdmin)
-		if roleErr != nil {
-			return roleErr
-		}
-		if err := tx.AssignRole(ctx, current.ID, superAdmin.ID); err != nil {
-			return err
-		}
-		userID = current.ID
-		return nil
-	})
-	if txErr != nil {
-		return identity.Actor{}, txErr
-	}
-	r.operatorUserID = userID
-	// 不调用 CreateCredential：无密码凭据 → GetCredentialByLogin 找不到 → 不可登录。
-	return r.identities.LoadActor(ctx, userID)
+	r.operatorUserID = actor.ID
+	return actor, nil
 }
 
 // withStoreForTests 返回共享同一 store 的副本（测试专用；生产 store 随装配持有）。

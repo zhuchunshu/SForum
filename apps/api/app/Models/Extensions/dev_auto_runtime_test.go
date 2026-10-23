@@ -47,6 +47,14 @@ func (s *devAutoFakeIdentity) GetCurrentUserByEmail(_ context.Context, email str
 	return identity.CurrentUser{}, identity.ErrUserNotFound
 }
 
+func (s *devAutoFakeIdentity) AnyUserExists(context.Context) (bool, error) {
+	return len(s.byEmail) > 0, nil
+}
+
+func (s *devAutoFakeIdentity) GetCredentialByLogin(context.Context, string) (identity.CredentialUser, error) {
+	return identity.CredentialUser{}, identity.ErrCredentialNotFound
+}
+
 func (s *devAutoFakeIdentity) WithBootstrapTx(
 	ctx context.Context, fn func(context.Context, identity.TxStore) error,
 ) error {
