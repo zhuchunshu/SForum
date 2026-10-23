@@ -6,6 +6,19 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 发布 v3.0.13-alpha.2
+
+- Status: **已发布 (2026-10-23)**。`ghcr.io/zhuchunshu/sforum-{api,migrate,web}:3.0.13-alpha.2`
+  （linux/amd64 + linux/arm64，带 attestation）、GitHub Pre-release（10 个资产 +
+  `SHA256SUMS`）；npm `@sforum/{admin-sdk,plugin-ui}@1.1.0` 内容未变，Release 按
+  exact-artifact 跳过发布。
+- 发布前收口两个红灯：`tests/validate-homepage.js` 仍要求已被移除的信息流页码
+  （`d333f0060` 只改了 web 单测，漏了仓库级静态契约）；管理端全量替换角色权限与
+  插件权限审批并发时撞 `role_permissions` 主键（23505，`ReplaceRolePermissions`
+  缺角色行锁）。
+- 验证：main CI 5/5 job 全绿（`e1656526e`）；Release 24 个 job 全 success。
+- Handoff: `sessions/2026-10-23-release-v3.0.13-alpha.2.md`
+
 ### 全新安装默认主题免手动激活（Host 批准）
 
 - Status: **landed (2026-10-23)**。全新库首启不再停在 Core fallback：受保护内置默认
