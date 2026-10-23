@@ -6,13 +6,15 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
-### 发布 v3.0.15 正式版
+### 发布 v3.0.16 正式版
 
-- Status: **已发布 (2026-10-23T21:23:20Z)**。多图发帖 500 修复 + toast 右下角
-  5 秒自动关闭；main CI/Security 两轮全绿，release workflow 全绿，资产 10 项，
-  GHCR `api:3.0.15` / `web:latest` / `migrate:3.0` 匿名拉取验证通过。
-  补记：v3.0.14 已于 10-23 发布（dompurify 3.4.17 修镜像扫描后转绿）。
-- Handoff: `sessions/2026-10-24-release-v3.0.15.md`
+- Status: **已发布 (2026-10-23T22:41:18Z)**。S3 存储插件 Cloudflare R2
+  兼容（checksum when_required + 寻址三态 auto + 读流超时修复）；main
+  CI/Security 全绿，release workflow 全绿，资产 10 项，GHCR
+  `api:3.0.16` / `web:latest` / `migrate:3.0` 匿名拉取验证通过。
+  无迁移、无手工升级步骤。
+- Handoff: `sessions/2026-10-24-release-v3.0.16.md`；发布对象详见
+  `sessions/2026-10-24-s3-r2-compatibility-handoff.md`。
 
 ### 多图发帖 500（附件引用唯一性作用域）
 
