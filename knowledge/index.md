@@ -8,7 +8,7 @@ load archived sessions or completed plans as current context.
 
 ### 内置插件自动更新
 
-- Status: **landed (2026-10-23)，随 v3.0.13-beta.1 发布**。API 启动阶段新增 `BuiltinPluginAutoUpdater`：
+- Status: **landed (2026-10-23)，随 v3.0.13 正式版发布**。API 启动阶段新增 `BuiltinPluginAutoUpdater`：
   对已启用、`source=builtin` 且有更新 staged SemVer 的受保护插件，复用现有
   `Upgrade`/`Restart` 生命周期自动晋升；`builtin-auto` 无密码系统账号绑定
   `builtin_auto` 角色（仅 `extension.view` + `extension.plugin.manage`），
@@ -25,17 +25,18 @@ load archived sessions or completed plans as current context.
 - Handoff: `sessions/2026-10-23-builtin-plugin-auto-update.md`；
   决策：`decisions/2026-10-23-builtin-plugin-auto-update.md`。
 
-### 发布 v3.0.13-beta.1
+### 发布 v3.0.13 正式版
 
-- Status: **已发布 (2026-10-23)**。`ghcr.io/zhuchunshu/sforum-{api,migrate,web}:3.0.13-beta.1`
-  （linux/amd64 + linux/arm64，带 attestation，匿名拉取验证）、GitHub Pre-release
-  （10 个资产 + `SHA256SUMS`）；npm `@sforum/{admin-sdk,plugin-ui}@1.1.0` 命中
-  exact-artifact，按设计跳过发布。
-- 发布前确认：main `57a01e375` 的 CI 5/5 job 全绿、Security 全绿；本地
+- Status: **已发布 (2026-10-23)**。`ghcr.io/zhuchunshu/sforum-{api,migrate,web}:3.0.13`
+  同时写入 `latest` 与 `3.0`（linux/amd64 + linux/arm64，带 attestation，匿名拉取
+  验证，三个 tag 的 manifest digest 一致）；GitHub Release 正式版（10 个资产 +
+  `SHA256SUMS`）；npm `@sforum/{admin-sdk,plugin-ui}@1.1.0` 命中 exact-artifact，
+  按设计跳过发布。
+- 发布前确认：main `8dad007fd` 的 CI 5/5 job 全绿、Security 全绿；本地
   `./scripts/test.sh --fast` 三线全 PASS（api 161s / web 48s / static 20s）。
-- 通道：v3.0.13 首个 beta；预发布只写版本标签，不移动 `latest`。Release 24 个
-  job 全 success（run `39888232789`）。
-- Handoff: `sessions/2026-10-23-release-v3.0.13-beta.1.md`
+- 范围：自上一稳定版 `v3.0.9` 起 160 个提交；Release 24 个 job 全 success
+  （run `39890804744`）。发布后把自动 compare 链接修正为 `v3.0.9...v3.0.13`。
+- Handoff: `sessions/2026-10-23-release-v3.0.13.md`
 
 ### 全新安装默认主题免手动激活（Host 批准）
 
