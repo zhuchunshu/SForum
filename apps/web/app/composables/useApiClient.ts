@@ -1,4 +1,5 @@
 import { notifyApiConnectionError } from './useApiConnectionError'
+import { isApiConnectionError } from './errors/apiConnectionErrorClassify'
 
 export type ApiEnvelope<T> = {
   code: number
@@ -26,6 +27,10 @@ type ApiFetchOptions = {
 }
 
 const UNSAFE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE'])
+// 未显式传 timeout 的兜底：面向慢站点放宽——慢而活的响应不再被短超时误杀，
+// 也不会长时间悬挂后才报 timeout 触发误报（连接失败仍走缓冲弹窗逻辑）。
+const DEFAULT_SAFE_TIMEOUT_MS = 15000
+const DEFAULT_UNSAFE_TIMEOUT_MS = 30000
 const CSRF_COOKIE_NAME = 'csrf_'
 const CSRF_HEADER_NAME = 'X-Csrf-Token'
 const CSRF_PRIME_PATH = '/health'
@@ -137,7 +142,7 @@ export function useApiClient() {
         body: options.body,
         credentials: options.credentials ?? 'include',
         headers,
-        timeout: options.timeout
+        timeout: options.timeout ?? (unsafe ? DEFAULT_UNSAFE_TIMEOUT_MS : DEFAULT_SAFE_TIMEOUT_MS)
       })
 
       return envelope.data
@@ -150,11 +155,21 @@ export function useApiClient() {
         try {
           return await send(true)
         } catch (retryError) {
-          notifyApiConnectionError(retryError, path)
+          notifyApiConnectionError(retryError, path, apiBaseUrl)
           throw retryError
         }
       }
-      notifyApiConnectionError(error, path)
+      // 安全方法（GET/未指定 method）连接类失败做一次原地重试：抖动在第二次
+      // 即恢复时完全不进入弹窗缓冲。unsafe 方法保持单次，避免重复提交。
+      if (!unsafe && canRetryInPlace(error)) {
+        try {
+          return await send()
+        } catch (retryError) {
+          notifyApiConnectionError(retryError, path, apiBaseUrl)
+          throw retryError
+        }
+      }
+      notifyApiConnectionError(error, path, apiBaseUrl)
       throw error
     }
   }
@@ -249,4 +264,13 @@ export function apiErrorFields(error: unknown) {
   return Object.fromEntries(
     Object.entries(fields).filter(([, messages]) => Array.isArray(messages))
   ) as Record<string, string[]>
+}
+
+/** 连接类失败且非调用方主动 abort 才值得原地重试；当前调用方尚未接入 AbortSignal，该分支为契约预留。 */
+function canRetryInPlace(error: unknown) {
+  if (!isApiConnectionError(error)) {
+    return false
+  }
+  const name = (error as { name?: unknown } | null)?.name
+  return name !== 'AbortError'
 }

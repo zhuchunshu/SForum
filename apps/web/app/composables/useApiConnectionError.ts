@@ -1,18 +1,20 @@
-export type ApiConnectionErrorState = {
-  open: boolean
-  message: string
-  reason: string
-  statusCode: number | null
-  path: string
-  failedAt: number | null
-}
+import {
+  apiConnectionErrorStatusCode,
+  isApiConnectionError
+} from './errors/apiConnectionErrorClassify'
+import {
+  bindApiConnectionRecovery,
+  recordApiConnectionFailure,
+  stopApiConnectionRecovery,
+  type ApiConnectionRecoveryPatch,
+  type ApiConnectionRecoveryState
+} from './errors/useApiConnectionRecovery'
 
-type ErrorRecord = Record<string, unknown>
+export type ApiConnectionErrorState = ApiConnectionRecoveryState
+
+export { apiConnectionErrorStatusCode, isApiConnectionError }
 
 const API_CONNECTION_ERROR_STATE_KEY = 'api:connection-error'
-const API_CONNECTION_STATUS_CODES = new Set([502, 503, 504])
-const API_CONNECTION_REASONS = new Set(['server.unavailable'])
-const NETWORK_ERROR_PATTERN = /(failed to fetch|fetch failed|networkerror|load failed|timeout|timed out|econnrefused|econnreset|enotfound|etimedout|eai_again|und_err_connect_timeout)/i
 
 export function useApiConnectionError() {
   const state = useState<ApiConnectionErrorState>(API_CONNECTION_ERROR_STATE_KEY, () => ({
@@ -21,30 +23,30 @@ export function useApiConnectionError() {
     reason: '',
     statusCode: null,
     path: '',
-    failedAt: null
+    failedAt: null,
+    failureCount: 0,
+    recoveredAt: null
   }))
 
-  function show(error: unknown, path = '') {
+  // 引擎是模块级单例；useState 对同一 key 返回同一 ref，重复绑定幂等。
+  bindApiConnectionRecovery({
+    emit: (patch: ApiConnectionRecoveryPatch) => {
+      Object.assign(state.value, patch)
+    },
+    snapshot: () => ({ open: state.value.open, failureCount: state.value.failureCount })
+  })
+
+  function show(error: unknown, path = '', apiBaseUrl = '') {
     if (!isApiConnectionError(error)) {
       return
     }
 
-    // 多个并发请求同时失败时保留第一个错误，避免弹窗内容反复跳动。
-    if (state.value.open) {
-      return
-    }
-
-    state.value = {
-      open: true,
-      message: apiConnectionErrorMessage(error),
-      reason: apiConnectionErrorReason(error),
-      statusCode: apiConnectionErrorStatusCode(error),
-      path,
-      failedAt: Date.now()
-    }
+    // 不再立即弹窗：交给探测引擎进入 pending 缓冲，持续失败跨过宽限期才 open。
+    recordApiConnectionFailure(error, path, apiBaseUrl)
   }
 
   function close() {
+    stopApiConnectionRecovery()
     state.value.open = false
   }
 
@@ -58,105 +60,11 @@ export function useApiConnectionError() {
   return { state, show, close, reload }
 }
 
-export function notifyApiConnectionError(error: unknown, path = '') {
+export function notifyApiConnectionError(error: unknown, path = '', apiBaseUrl = '') {
   if (import.meta.server || !isApiConnectionError(error)) {
     return
   }
 
   const { show } = useApiConnectionError()
-  show(error, path)
-}
-
-export function isApiConnectionError(error: unknown) {
-  const statusCode = apiConnectionErrorStatusCode(error)
-  const reason = apiConnectionErrorReason(error)
-  if (statusCode && API_CONNECTION_STATUS_CODES.has(statusCode)) {
-    // 结构化 5xx 业务错误（例如插件 Probe 暂不可用）应留在当前操作旁，不应误报为整个 API 断线。
-    return !reason || API_CONNECTION_REASONS.has(reason)
-  }
-
-  if (reason && API_CONNECTION_REASONS.has(reason)) {
-    return true
-  }
-
-  return NETWORK_ERROR_PATTERN.test([
-    apiConnectionErrorMessage(error),
-    apiConnectionErrorCauseCode(error)
-  ].filter(Boolean).join(' '))
-}
-
-export function apiConnectionErrorStatusCode(error: unknown) {
-  const direct = asRecord(error)
-  const response = asRecord(direct?.response)
-  const data = asRecord(direct?.data)
-  const responseData = asRecord(response?._data)
-  const candidates = [
-    direct?.status,
-    direct?.statusCode,
-    response?.status,
-    data?.code,
-    responseData?.code
-  ]
-
-  for (const candidate of candidates) {
-    if (typeof candidate === 'number') {
-      return candidate
-    }
-  }
-
-  return null
-}
-
-function apiConnectionErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message
-  }
-
-  const direct = asRecord(error)
-  const data = asRecord(direct?.data)
-  const responseData = asRecord(asRecord(direct?.response)?._data)
-  const candidates = [
-    direct?.message,
-    data?.message,
-    responseData?.message
-  ]
-
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string') {
-      return candidate
-    }
-  }
-
-  return ''
-}
-
-function apiConnectionErrorReason(error: unknown) {
-  const direct = asRecord(error)
-  const directData = asRecord(direct?.data)
-  const responseData = asRecord(asRecord(direct?.response)?._data)
-  const directEnvelopeData = asRecord(directData?.data)
-  const responseEnvelopeData = asRecord(responseData?.data)
-  const candidates = [
-    directData?.reason,
-    directEnvelopeData?.reason,
-    responseEnvelopeData?.reason
-  ]
-
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string') {
-      return candidate
-    }
-  }
-
-  return ''
-}
-
-function apiConnectionErrorCauseCode(error: unknown) {
-  const cause = asRecord(asRecord(error)?.cause)
-  const code = cause?.code
-  return typeof code === 'string' ? code : ''
-}
-
-function asRecord(value: unknown) {
-  return value && typeof value === 'object' ? value as ErrorRecord : undefined
+  show(error, path, apiBaseUrl)
 }

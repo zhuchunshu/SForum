@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, jest, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { parse, compileScript } from '@vue/compiler-sfc'
 import { computed, reactive, ref, watch } from 'vue'
@@ -12,6 +12,7 @@ import {
   useApiClient
 } from '../../app/composables/useApiClient'
 import { isApiConnectionError, useApiConnectionError } from '../../app/composables/useApiConnectionError'
+import { __resetApiConnectionRecoveryForTests } from '../../app/composables/errors/useApiConnectionRecovery'
 import { isUnauthenticatedAuthError } from '../../app/composables/identity/useAuthSession'
 import { registerErrorMessage } from '../../app/utils/identity/registerErrors'
 
@@ -201,35 +202,6 @@ describe('useApiClient CSRF handling', () => {
 })
 
 describe('useApiClient global connection error state', () => {
-  test('opens the global api connection modal state after a backend api connection failure', async () => {
-    const csrfCookie = ref('')
-    const stateStore = createStateStore()
-
-    await withApiClientGlobals(csrfCookie, async () => {
-      globalThis.useState = stateStore.useState
-      globalThis.$fetch = async () => {
-        throw {
-          response: {
-            status: 502,
-            _data: {
-              code: 502,
-              message: 'Bad Gateway',
-              data: { reason: 'server.unavailable' }
-            }
-          }
-        }
-      }
-
-      const { request } = useApiClient()
-      await expect(request('/admin/overview')).rejects.toBeDefined()
-
-      const { state } = useApiConnectionError()
-      expect(state.value.open).toBe(true)
-      expect(state.value.statusCode).toBe(502)
-      expect(state.value.path).toBe('/admin/overview')
-    })
-  })
-
   test('keeps the global api connection modal state closed for business errors', async () => {
     const csrfCookie = ref('')
     const stateStore = createStateStore()
@@ -254,6 +226,288 @@ describe('useApiClient global connection error state', () => {
       const { state } = useApiConnectionError()
       expect(state.value.open).toBe(false)
     })
+  })
+})
+
+describe('api connection failure buffering and recovery', () => {
+  // 探测循环完全由 fake timers 驱动（bun:test 的 jest.useFakeTimers 同步 mock
+  // Date.now），用例间零真实等待；引擎模块状态跨用例存活，用例间显式复位。
+  const gatewayError = () => ({
+    response: {
+      status: 502,
+      _data: {
+        code: 502,
+        message: 'Bad Gateway',
+        data: { reason: 'server.unavailable' }
+      }
+    }
+  })
+  const okEnvelope = () => ({ code: 200, message: 'ok', data: { saved: true } })
+
+  const flushMicrotasks = async () => {
+    for (let round = 0; round < 8; round += 1) {
+      await Promise.resolve()
+    }
+  }
+  const advance = async (ms: number) => {
+    jest.advanceTimersByTime(ms)
+    await flushMicrotasks()
+  }
+
+  beforeEach(() => {
+    __resetApiConnectionRecoveryForTests()
+    jest.useFakeTimers()
+  })
+
+  afterEach(() => {
+    __resetApiConnectionRecoveryForTests()
+    jest.useRealTimers()
+  })
+
+  test('absorbs a single failure when /health recovers during the probe cycle', async () => {
+    const csrfCookie = ref('')
+    const stateStore = createStateStore()
+    let healthProbeCount = 0
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.useState = stateStore.useState
+      globalThis.$fetch = async (url: string) => {
+        if (url === '/api/v1/health') {
+          healthProbeCount += 1
+          return okEnvelope()
+        }
+        throw gatewayError()
+      }
+
+      const { request } = useApiClient()
+      await expect(request('/admin/overview')).rejects.toBeDefined()
+
+      const { state } = useApiConnectionError()
+      expect(state.value.open).toBe(false)
+      expect(state.value.failureCount).toBe(1)
+
+      await advance(1000)
+      await advance(10000)
+
+      expect(state.value.open).toBe(false)
+      expect(healthProbeCount).toBe(1)
+    })
+  })
+
+  test('opens the modal only after probes keep failing past the grace period', async () => {
+    const csrfCookie = ref('')
+    const stateStore = createStateStore()
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.useState = stateStore.useState
+      globalThis.$fetch = async (url: string) => {
+        if (url === '/api/v1/health') {
+          throw new TypeError('Failed to fetch')
+        }
+        throw gatewayError()
+      }
+
+      const { request } = useApiClient()
+      await expect(request('/admin/overview')).rejects.toBeDefined()
+
+      const { state } = useApiConnectionError()
+      expect(state.value.open).toBe(false)
+
+      // 探测点位于 1s/3s/7s/11s/15s：15s 宽限内的失败全部保持静默。
+      await advance(1000)
+      expect(state.value.open).toBe(false)
+      await advance(2000)
+      expect(state.value.open).toBe(false)
+      await advance(4000)
+      expect(state.value.open).toBe(false)
+      await advance(4000)
+      expect(state.value.open).toBe(false)
+
+      await advance(4000)
+      expect(state.value.open).toBe(true)
+      expect(state.value.statusCode).toBe(502)
+      expect(state.value.path).toBe('/admin/overview')
+      expect(state.value.message).toBe('Bad Gateway')
+      expect(state.value.failureCount).toBe(1)
+    })
+  })
+
+  test('auto-closes the modal once /health recovers', async () => {
+    const csrfCookie = ref('')
+    const stateStore = createStateStore()
+    let healthy = false
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.useState = stateStore.useState
+      globalThis.$fetch = async (url: string) => {
+        if (url === '/api/v1/health') {
+          if (!healthy) {
+            throw new TypeError('Failed to fetch')
+          }
+          return okEnvelope()
+        }
+        throw gatewayError()
+      }
+
+      const { request } = useApiClient()
+      await expect(request('/admin/overview')).rejects.toBeDefined()
+
+      const { state } = useApiConnectionError()
+      await advance(1000)
+      await advance(2000)
+      await advance(4000)
+      await advance(4000)
+      await advance(4000)
+      expect(state.value.open).toBe(true)
+
+      healthy = true
+      await advance(5000)
+
+      expect(state.value.open).toBe(false)
+      expect(state.value.recoveredAt).not.toBeNull()
+    })
+  })
+
+  test('merges concurrent failures into a single pending with keep-first error info', async () => {
+    const csrfCookie = ref('')
+    const stateStore = createStateStore()
+    let healthy = false
+    let healthProbeCount = 0
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.useState = stateStore.useState
+      globalThis.$fetch = async (url: string) => {
+        if (url === '/api/v1/health') {
+          healthProbeCount += 1
+          if (!healthy) {
+            throw new TypeError('Failed to fetch')
+          }
+          return okEnvelope()
+        }
+        throw gatewayError()
+      }
+
+      const { request } = useApiClient()
+      await expect(request('/admin/overview')).rejects.toBeDefined()
+      await expect(request('/forum/topics')).rejects.toBeDefined()
+
+      const { state } = useApiConnectionError()
+      expect(state.value.failureCount).toBe(2)
+      expect(state.value.path).toBe('/admin/overview')
+      expect(state.value.message).toBe('Bad Gateway')
+
+      healthy = true
+      await advance(1000)
+
+      expect(state.value.open).toBe(false)
+      // 单一 pending：恢复判定只由探测循环做出，成功一次即静默收场。
+      expect(healthProbeCount).toBe(1)
+    })
+  })
+
+  test('retries a failed safe request once in place before reporting', async () => {
+    const csrfCookie = ref('')
+    const stateStore = createStateStore()
+    let endpointAttempts = 0
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.useState = stateStore.useState
+      globalThis.$fetch = async (url: string) => {
+        if (url === '/api/v1/health') {
+          return okEnvelope()
+        }
+        endpointAttempts += 1
+        if (endpointAttempts === 1) {
+          throw new TypeError('Failed to fetch')
+        }
+        return okEnvelope()
+      }
+
+      const { request } = useApiClient()
+      const data = await request('/admin/overview')
+
+      expect(data).toEqual({ saved: true })
+      expect(endpointAttempts).toBe(2)
+
+      const { state } = useApiConnectionError()
+      expect(state.value.failureCount).toBe(0)
+      expect(state.value.open).toBe(false)
+    })
+  })
+
+  test('buffers the failure after the safe-method in-place retry also fails', async () => {
+    const csrfCookie = ref('')
+    const stateStore = createStateStore()
+    let endpointAttempts = 0
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.useState = stateStore.useState
+      globalThis.$fetch = async (url: string) => {
+        if (url === '/api/v1/health') {
+          return okEnvelope()
+        }
+        endpointAttempts += 1
+        throw new TypeError('Failed to fetch')
+      }
+
+      const { request } = useApiClient()
+      await expect(request('/admin/overview')).rejects.toBeDefined()
+
+      expect(endpointAttempts).toBe(2)
+
+      const { state } = useApiConnectionError()
+      expect(state.value.failureCount).toBe(1)
+      expect(state.value.open).toBe(false)
+
+      // 抖动恢复：探针成功即静默丢弃，全程无弹窗。
+      await advance(1000)
+      expect(state.value.open).toBe(false)
+    })
+  })
+
+  test('does not retry unsafe methods in place', async () => {
+    const csrfCookie = ref('token')
+    const stateStore = createStateStore()
+    let postAttempts = 0
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.useState = stateStore.useState
+      globalThis.$fetch = async () => {
+        postAttempts += 1
+        throw new TypeError('Failed to fetch')
+      }
+
+      const { request } = useApiClient()
+      await expect(request('/auth/login', { method: 'POST' })).rejects.toBeDefined()
+
+      expect(postAttempts).toBe(1)
+
+      const { state } = useApiConnectionError()
+      expect(state.value.failureCount).toBe(1)
+      expect(state.value.open).toBe(false)
+    })
+  })
+
+  test('applies default request timeouts while preserving caller overrides', async () => {
+    const csrfCookie = ref('token')
+    const calls: Array<{ url: string, timeout?: number }> = []
+
+    await withApiClientGlobals(csrfCookie, async () => {
+      globalThis.$fetch = async (url: string, options?: { timeout?: number }) => {
+        calls.push({ url, timeout: options?.timeout })
+        return okEnvelope()
+      }
+
+      const { request } = useApiClient()
+      await request('/admin/overview')
+      await request('/admin/web-options', { method: 'PUT', body: { options: [] } })
+      await request('/admin/overview', { timeout: 1234 })
+    })
+
+    expect(calls.find((call) => call.url === '/api/v1/admin/overview' && call.timeout === 1234)).toBeTruthy()
+    const plainOverviewCalls = calls.filter((call) => call.url === '/api/v1/admin/overview')
+    expect(plainOverviewCalls[0]?.timeout).toBe(15000)
+    expect(calls.find((call) => call.url === '/api/v1/admin/web-options')?.timeout).toBe(30000)
   })
 })
 

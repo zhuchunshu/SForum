@@ -5574,7 +5574,12 @@
       "description": "当前请求没有连上后端服务。可能是 API 正在启动、重启或暂时不可用；已打开的页面内容不会因此丢失。",
       "status": "错误状态：{statusCode}",
       "dismiss": "我知道了",
-      "retry": "刷新重试"
+      "retry": "刷新重试",
+      "recovering": "正在自动重连，恢复后此提示会自动关闭。",
+      "recovered": "后端连接已恢复。"
+    },
+    "assetReload": {
+      "toast": "站点刚发布了新版本，正在为你刷新页面。"
     },
     "page": {
       "statusLabel": "{statusCode} 错误",

@@ -1159,6 +1159,24 @@ Cookie-authenticated unsafe calls go through `useApiClient().request`. It primes
 the CSRF cookie when absent, adds `X-Csrf-Token`, and retries once after
 `csrf.invalid`. Do not use raw `$fetch` for those writes.
 
+### API Connection Failure UX
+
+`useApiConnectionError()` is a thin facade; the buffering/recovery engine lives
+in `composables/errors/useApiConnectionRecovery.ts` (module-level singleton,
+client-only, zero Nuxt composables at probe time — probe base URL is passed in
+by `useApiClient`). Connection failures enter a pending buffer and probe
+`GET {apiBaseUrl}/health` with 1s→2s→4s (4s cap) backoff; the modal opens only
+after probes keep failing past `GRACE_MS` (~15s, tuned for slow deployments —
+probes allow 4s so a slow-but-alive /health never counts as down) and
+auto-closes when `/health` recovers (5s cadence, `recoveredAt` drives the
+recovered toast). Safe methods (GET/method-less) get one in-place retry inside
+`useApiClient` before being buffered; unsafe methods never retry in place.
+Default request timeouts: GET 15s, unsafe 30s (slow-site friendly); caller-provided `timeout` always wins. Errors are classified by
+`errors/apiConnectionErrorClassify.ts` — keep business-reason 5xx out of the
+connection modal. `/_nuxt/**` chunk and dynamic-import failures are handled by
+`plugins/assetReload.client.ts` (toast + delayed reload with a 10s
+sessionStorage cooldown) and must never reach the connection-error modal.
+
 ### Authentication And SWR
 
 Never serialize user auth into shared anonymous public payloads. Session-bearing

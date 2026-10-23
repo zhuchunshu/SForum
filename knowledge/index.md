@@ -6,6 +6,18 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### API 连接弹窗误报治理
+
+- Status: **landed (2026-10-23)**。连接失败先进 pending 缓冲并退避探测
+  `/health`（1s→2s→4s 封顶，4s 超时容忍慢站点），跨 15s 宽限仍失败才弹
+  模态（~15s+，慢响应下自然更晚）；恢复后 5s 内自动关闭并出 toast。GET 单次
+  原地重试 + 默认超时 15s/30s（慢站点友好）；`/_nuxt/**` chunk / 动态 import
+  失败分流为「新版本已发布」toast + 自动刷新（10s sessionStorage 冷却），
+  不再误报为后端断线。
+- 验证：web 1582 用例、typecheck、架构门禁通过；引擎全 fake timers 驱动。
+- Handoff: `sessions/2026-10-23-api-connection-error-buffering.md`；
+  模块：`modules/frontend.md`。
+
 ### 首页列表默认排序文案与兜底
 
 - Status: **landed (2026-10-23)**。公开文案改为 最近活跃 / 最新发表 / 热门；
@@ -555,7 +567,11 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- **AI 回复「成功却不回复」修复（2026-10-23，最新）**：空补全改为失败
+- **API 连接弹窗误报治理（2026-10-23，最新）**：失败缓冲 + `/health` 探测
+  （跨 9s 宽限才弹、恢复自动关）、GET 原地重试与默认超时、chunk 失败分流
+  「新版本已发布」自动刷新。详见
+  `sessions/2026-10-23-api-connection-error-buffering.md`。
+- **AI 回复「成功却不回复」修复（2026-10-23）**：空补全改为失败
   （`empty_completion`）且永不入缓存；缓存命中行在控制台带 `cache` 徽标与解释；
   回复结果独立成账（`ai_reply_outcomes` + `GET /admin/ai/reply-outcomes`）；
   生成器按触发幂等；新增 `sforum ai:reply --topic-id N [--confirm]`。详见

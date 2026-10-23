@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { t } = useI18n()
+const toast = useToast()
 const { state, close, reload } = useApiConnectionError()
 
 const open = computed({
@@ -15,6 +16,18 @@ const statusText = computed(() => state.value.statusCode
   ? t('errors.apiConnection.status', { statusCode: state.value.statusCode })
   : ''
 )
+
+// 模态由探测引擎在 /health 恢复后自动关闭；补一条恢复提示，避免用户以为要手动重试。
+watch(() => state.value.recoveredAt, (recoveredAt) => {
+  if (recoveredAt) {
+    toast.add({
+      color: 'success',
+      icon: 'i-lucide-wifi',
+      title: t('errors.apiConnection.recovered'),
+      duration: 10000
+    })
+  }
+})
 </script>
 
 <template>
@@ -34,6 +47,10 @@ const statusText = computed(() => state.value.statusCode
             </p>
             <p v-if="statusText" class="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
               {{ statusText }}
+            </p>
+            <p class="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <UIcon name="i-lucide-loader-circle" class="size-3.5 animate-spin" />
+              {{ t('errors.apiConnection.recovering') }}
             </p>
           </div>
         </div>

@@ -5534,7 +5534,12 @@
       "description": "This request could not reach the backend service. The API may be starting, restarting, or temporarily unavailable; content already open in this page is not lost.",
       "status": "Error status: {statusCode}",
       "dismiss": "Got it",
-      "retry": "Refresh and retry"
+      "retry": "Refresh and retry",
+      "recovering": "Reconnecting automatically; this notice dismisses itself once the connection is back.",
+      "recovered": "Backend connection restored."
+    },
+    "assetReload": {
+      "toast": "A new version was just published; refreshing the page."
     },
     "page": {
       "statusLabel": "{statusCode} error",
