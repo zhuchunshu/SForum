@@ -158,7 +158,7 @@ describe('password recovery production forms', () => {
     expect(wrapper.find('[data-testid="recovery-request-view"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="recovery-sent-view"]').text()).toContain('n•••@example.com')
     expect(wrapper.get('[data-testid="recovery-shell"]').attributes('data-phase')).toBe('1')
-    expect(toasts[0]?.duration).toBe(10000)
+    expect(toasts[0]?.duration).toBe(5000)
 
     await wrapper.get('.sf-recovery-button.is-secondary').trigger('click')
     await Vue.nextTick()
@@ -309,7 +309,7 @@ describe('password recovery production forms', () => {
     }])
     expect(wrapper.get('[data-testid="recovery-complete-view"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="recovery-shell"]').attributes('data-phase')).toBe('3')
-    expect(toasts[0]?.duration).toBe(10000)
+    expect(toasts[0]?.duration).toBe(5000)
   })
 
   test('shows the approved invalid-link state when the token is missing', () => {

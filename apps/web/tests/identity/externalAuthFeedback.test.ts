@@ -25,8 +25,8 @@ describe('external auth callback feedback', () => {
     const cancellation = resolveExternalAuthFeedback('auth.provider_cancelled')
     expect(externalAuthFeedbackDelivery(success!, 'auth')).toBe('toast')
     expect(externalAuthFeedbackDelivery(cancellation!, 'global')).toBe('alert')
-    expect(externalAuthFeedbackToastDuration(success!)).toBe(10000)
-    expect(externalAuthFeedbackToastDuration(cancellation!)).toBe(10000)
+    expect(externalAuthFeedbackToastDuration(success!)).toBe(5000)
+    expect(externalAuthFeedbackToastDuration(cancellation!)).toBe(5000)
   })
 
   test('leaves login and registration callback errors to their inline surfaces', () => {

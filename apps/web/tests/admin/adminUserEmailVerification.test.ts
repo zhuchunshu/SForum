@@ -79,7 +79,7 @@ describe('admin user email verification control', () => {
         options: { method: 'PUT', body: { verified: true } }
       }])
       expect(wrapper.emitted('updated')?.[0]?.[0]).toMatchObject({ id: 42, emailVerified: true })
-      expect(toasts[0]).toMatchObject({ color: 'success', duration: 10000 })
+      expect(toasts[0]).toMatchObject({ color: 'success', duration: 5000 })
     } finally {
       wrapper.unmount()
     }

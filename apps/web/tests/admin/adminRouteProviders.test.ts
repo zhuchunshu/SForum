@@ -40,7 +40,7 @@ describe('admin route provider selection', () => {
     expect(page).toContain('candidate.permission')
     expect(page).toContain('candidate.timeoutMs')
     expect(page).toContain('conflict.selection.selectionAuditEventId')
-    expect(page).toContain("duration: 10000")
+    expect(page).toContain("duration: 5000")
     expect(page).toContain("color: 'error'")
   })
 

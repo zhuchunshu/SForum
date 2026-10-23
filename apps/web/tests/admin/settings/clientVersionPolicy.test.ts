@@ -32,7 +32,7 @@ describe('admin client version policy surface', () => {
   test('keeps unsaved changes visible and non-error toasts auto-dismissible', () => {
     expect(component).toContain(':show-unsaved-alert="hasChanges"')
     expect(component).toContain("color: 'neutral'")
-    expect(component).toContain('duration: 10000')
+    expect(component).toContain('duration: 5000')
   })
 
   test('registers the client tab inside the fixed site settings shell', () => {

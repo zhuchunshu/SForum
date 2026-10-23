@@ -20,7 +20,7 @@ describe('V3 exact-artifact trust operator flow', () => {
     expect(manager).toContain('/admin/extensions/${item.id}/trust/challenge')
     expect(manager).toContain('confirmationToken: enableTrustChallenge.value?.token')
     expect(manager).toContain("apiErrorReason(error) === 'extension.trust_not_required'")
-    expect(manager).toContain("duration: 10000")
+    expect(manager).toContain("duration: 5000")
     expect(manager).toContain("duration: 0")
     expect(dialog).not.toContain('challenge.token')
   })

@@ -606,7 +606,7 @@ describe('register page submit guard', () => {
       color: 'success',
       icon: 'i-lucide-check',
       title: '注册成功，欢迎加入。',
-      duration: 10000
+      duration: 5000
     }))
   })
 
@@ -649,7 +649,7 @@ describe('login page navigation', () => {
       color: 'success',
       icon: 'i-lucide-check',
       title: '登录成功，欢迎回来。',
-      duration: 10000
+      duration: 5000
     }))
   })
 })

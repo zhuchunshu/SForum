@@ -181,7 +181,7 @@ describe('plugins page auto-update wiring', () => {
   })
 
   test('keeps success toasts dismissible and error toasts persistent', () => {
-    expect(pluginsPage).toContain('duration: 10000')
+    expect(pluginsPage).toContain('duration: 5000')
     expect(pluginsPage).toContain('duration: 0')
   })
 

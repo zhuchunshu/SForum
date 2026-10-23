@@ -516,7 +516,7 @@ describe('SFNotificationsPage contract', () => {
     expect(page).toContain('setNotificationRead(previous.id, previous.readAt)')
     expect(page).toContain('notifications.markAllRead()')
     expect(page).toContain("duration: 0")
-    expect(page).toContain("duration: 10000")
+    expect(page).toContain("duration: 5000")
     expect(page).toContain("color: 'primary'")
     expect(page).toContain("color: 'error'")
   })
