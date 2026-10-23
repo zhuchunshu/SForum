@@ -466,7 +466,10 @@ live in `../reports/` and
   (created / last activity / `hot_score`), empty `sort` resolves to the site
   option `forum.list.default_sort` (recommended default `active`, aligned with
   `topics_public_activity_idx`), and the cursor is bound to the chosen sort.
-  Public labels are 最新 (`active`) / 最新帖子 (`latest`) / 热门 (`hot`).
+  Public labels are 最近活跃 (`active`) / 最新发表 (`latest`) / 热门 (`hot`).
+  Empty or invalid `sort` resolves to the site default; when that default is
+  missing or invalid it falls back to `active`, never implicitly to `latest`.
+  The admin default-sort select lists `active` first and marks it as recommended.
   The public feed must not re-sort loaded rows client-side — that would only
   cover the loaded page and break pin-first ordering plus cursor continuation.
   Homepage sort lives in the URL (`?sort=`) and in `forumHomeFeedKey`, so

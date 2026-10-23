@@ -411,7 +411,7 @@ describe('default theme V32 left-nav homepage contract', () => {
     expect(page).not.toContain('displayTopics')
     expect(page).not.toContain("ref<'latest' | 'replies'>")
     expect(page).toContain('const FEED_SORT_OPTIONS = [...forumTopicSorts]')
-    // 展示顺序：最新（active=最后活跃）在最前，其次最新帖子，最后热门
+    // 展示顺序：最近活跃（active）在最前，其次最新发表，最后热门。
     expect(page).toContain('const FEED_SORT_PRIORITY: Record<ForumTopicSort, number> = { active: 0, latest: 1, hot: 2 }')
     // 站点未配置时前端回退同样是 active，避免高亮与服务端排序不一致
     expect(page).toContain("'forum.list.default_sort', 'active'")

@@ -11,12 +11,15 @@ import {
   createCategoryPayload,
   createDefaultForumSettings,
   createTagPayload,
+  forumListSortOptions,
   forumSettingsPartialPayload,
   forumSettingsPayload,
   forumTaxonomyDeleteErrorKey,
   normalizeForumSettings,
+  recommendedListDefaultSort,
   type AdminForumRequestOptions
 } from '../../app/utils/admin/adminForum'
+import { recommendedForumSettings } from '../../app/utils/forum/forumTaxonomy'
 
 describe('admin forum helpers', () => {
   test('normalizes forum settings to recommended defaults', () => {
@@ -56,6 +59,15 @@ describe('admin forum helpers', () => {
       topicTitleMaxRunes: 120,
       commentMaxNestingDepth: 6
     })
+  })
+
+  test('offers the recommended list sort first and keeps it in sync', () => {
+    expect(recommendedListDefaultSort).toBe('active')
+    expect(recommendedListDefaultSort).toBe(recommendedForumSettings.listDefaultSort)
+    expect(forumListSortOptions.map(option => option.value)).toEqual(['active', 'latest', 'hot'])
+    for (const option of forumListSortOptions) {
+      expect(option.labelKey).toBe(`admin.forum.settings.sort${option.value[0].toUpperCase()}${option.value.slice(1)}`)
+    }
   })
 
   test('builds exact tab-scoped settings payloads', () => {

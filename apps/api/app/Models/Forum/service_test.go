@@ -730,6 +730,41 @@ func TestServiceListTopicsDecoratesExtensionListBadges(t *testing.T) {
 	}
 }
 
+func TestServiceListTopicsResolvesSortToSiteDefault(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name        string
+		requested   string
+		siteDefault string
+		wantSort    string
+	}{
+		{name: "empty request uses active default", requested: "", siteDefault: "active", wantSort: "active"},
+		{name: "empty request keeps stored latest", requested: "", siteDefault: "latest", wantSort: "latest"},
+		{name: "explicit sort wins", requested: "hot", siteDefault: "latest", wantSort: "hot"},
+		{name: "invalid request uses site default", requested: "replies", siteDefault: "active", wantSort: "active"},
+		{name: "empty setting falls back to recommended", requested: "", siteDefault: "", wantSort: "active"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			store := newServiceFakeStore()
+			settings := testForumSettings()
+			settings.ListDefaultSort = tc.siteDefault
+			service := NewService(ServiceConfig{
+				Store:    store,
+				Settings: fakeSettingsResolver{settings: settings},
+			})
+
+			if _, err := service.ListTopics(context.Background(), TopicListInput{Sort: tc.requested}); err != nil {
+				t.Fatalf("ListTopics returned error: %v", err)
+			}
+			if store.listTopicsInput.Sort != tc.wantSort {
+				t.Fatalf("resolved sort = %q, want %q", store.listTopicsInput.Sort, tc.wantSort)
+			}
+		})
+	}
+}
+
 func TestCommentPositionForInsertSupportsArbitraryDepth(t *testing.T) {
 	parent := CommentSummary{
 		ID:            7,

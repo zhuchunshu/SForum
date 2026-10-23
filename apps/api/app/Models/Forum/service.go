@@ -423,17 +423,8 @@ func (s *Service) ListTopics(ctx context.Context, input TopicListInput) (TopicLi
 		defaultPerPage = 20
 	}
 	input.Page, input.PerPage = normalizePageWithDefault(input.Page, input.PerPage, defaultPerPage)
-	// 空 sort 使用站点默认；非法值回退 latest。
-	sort := strings.TrimSpace(strings.ToLower(input.Sort))
-	if sort == "" {
-		sort = strings.TrimSpace(settings.ListDefaultSort)
-	}
-	switch sort {
-	case "latest", "active", "hot":
-		input.Sort = sort
-	default:
-		input.Sort = "latest"
-	}
+	// sort 解析：显式合法值 > 站点默认 > 推荐默认 active；空/非法值不隐式落到 latest。
+	input.Sort = resolveTopicListSort(input.Sort, settings.ListDefaultSort)
 	// M5：非空 after 优先于 page；非法游标在 store 校验。
 	input.After = strings.TrimSpace(input.After)
 	list, err := s.store.ListTopics(ctx, input)

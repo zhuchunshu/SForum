@@ -6,6 +6,17 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 首页列表默认排序文案与兜底
+
+- Status: **landed (2026-10-23)**。公开文案改为 最近活跃 / 最新发表 / 热门；
+  默认仍是 `active`（最后活跃）。空/非法 `sort` 解析为站点默认，最终兜底
+  `active`，不再落到 `latest`；后台默认排序把 `active` 标为推荐。
+- 验证：web 1567 用例、typecheck、架构门禁；真实 API / 浏览器（1633×810、
+  390×844）与后台设置页通过。
+- Handoff: `sessions/2026-10-23-public-feed-sort-default-clarity.md`；
+  决策：`decisions/2026-10-23-public-feed-sort-labels.md`；
+  模块：`modules/forum.md`。
+
 ### AI 回复「成功却不回复」
 
 - Status: **active（M1–M4 landed 2026-10-23；M5 剩浏览器 QA / eval 基线 / 保留策略）**。

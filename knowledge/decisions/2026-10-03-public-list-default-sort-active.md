@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted (public labels superseded by
+`2026-10-23-public-feed-sort-labels.md`; the `active` default still stands)
 
 ## Date
 

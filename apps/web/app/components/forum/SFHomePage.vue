@@ -43,7 +43,7 @@ const FEED_SORT_LABEL_KEYS: Record<ForumTopicSort, string> = {
   active: 'home.filter.active',
   hot: 'home.filter.hot'
 }
-// 展示顺序 = 产品优先序：最新（活跃）在前，其次最新帖子，最后热门。
+// 展示顺序 = 产品优先序：最近活跃在前，其次最新发表，最后热门。
 const FEED_SORT_PRIORITY: Record<ForumTopicSort, number> = { active: 0, latest: 1, hot: 2 }
 const FEED_SORT_OPTIONS = [...forumTopicSorts]
   .sort((left, right) => FEED_SORT_PRIORITY[left] - FEED_SORT_PRIORITY[right])

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { usePermissions } from '~/composables/identity/usePermissions'
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
+import { forumListSortOptions, recommendedListDefaultSort } from '~/utils/admin/adminForum'
 import type { ForumCategory, ForumSettings } from '~/utils/forum/forumTaxonomy'
 import { useAdminForumSettingsTab } from '~/composables/admin/settings/useAdminForumSettingsTab'
 import SFAdminForumTabFrame from '../SFAdminForumTabFrame.vue'
@@ -41,8 +42,12 @@ const tab = useAdminForumSettingsTab(toRef(props, 'settings'), keys, key => key 
       <UFormField :label="t('admin.forum.settings.guestRead')" name="guest-read">
         <select v-model="tab.form.guestRead" :disabled="!canManageSettings" class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-950"><option value="public">{{ t('admin.forum.settings.guestReadPublic') }}</option><option value="login_required">{{ t('admin.forum.settings.guestReadLogin') }}</option></select>
       </UFormField>
-      <UFormField :label="t('admin.forum.settings.listDefaultSort')" name="list-sort">
-        <select v-model="tab.form.listDefaultSort" :disabled="!canManageSettings" class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-950"><option value="latest">{{ t('admin.forum.settings.sortLatest') }}</option><option value="active">{{ t('admin.forum.settings.sortActive') }}</option><option value="hot">{{ t('admin.forum.settings.sortHot') }}</option></select>
+      <UFormField :label="t('admin.forum.settings.listDefaultSort')" name="list-sort" :help="t('admin.forum.settings.listDefaultSortHelp')">
+        <select v-model="tab.form.listDefaultSort" :disabled="!canManageSettings" class="h-11 w-full rounded-md border border-slate-200 bg-white px-3 dark:border-zinc-700 dark:bg-zinc-950">
+          <option v-for="option in forumListSortOptions" :key="option.value" :value="option.value">
+            {{ t(option.labelKey) }}{{ option.value === recommendedListDefaultSort ? t('admin.forum.settings.recommended') : '' }}
+          </option>
+        </select>
       </UFormField>
       <UFormField :label="t('admin.forum.settings.listHotWindowDays')" name="hot-window"><UInputNumber v-model="tab.form.listHotWindowDays" :min="1" :max="90" :disabled="!canManageSettings" class="w-full" /></UFormField>
     </section>

@@ -48,6 +48,31 @@ func TestListTopicsWhereSQL_NoILIKE(t *testing.T) {
 	}
 }
 
+func TestResolveTopicListSort(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name        string
+		requested   string
+		siteDefault string
+		want        string
+	}{
+		{name: "explicit sort wins", requested: "hot", siteDefault: "active", want: "hot"},
+		{name: "request is trimmed and lowercased", requested: " Active ", siteDefault: "latest", want: "active"},
+		{name: "empty request uses site default", requested: "", siteDefault: "latest", want: "latest"},
+		{name: "invalid request uses site default", requested: "replies", siteDefault: "hot", want: "hot"},
+		{name: "empty site default falls back to recommended", requested: "", siteDefault: "", want: "active"},
+		{name: "invalid site default falls back to recommended", requested: "replies", siteDefault: "random", want: "active"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := resolveTopicListSort(tc.requested, tc.siteDefault); got != tc.want {
+				t.Fatalf("resolveTopicListSort(%q, %q) = %q, want %q", tc.requested, tc.siteDefault, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestTopicListOrderBy_ActiveUsesActivityColumns(t *testing.T) {
 	t.Parallel()
 	// 默认 active 排序列序需与 topics_category_activity_idx 后缀对齐（is_pinned, last_activity_at, id）。

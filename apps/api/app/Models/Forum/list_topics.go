@@ -9,6 +9,29 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// normalizeTopicListSort 只接受公开契约的三种排序；其他值返回空串表示未指定。
+func normalizeTopicListSort(value string) string {
+	switch sort := strings.TrimSpace(strings.ToLower(value)); sort {
+	case "latest", "active", "hot":
+		return sort
+	default:
+		return ""
+	}
+}
+
+// resolveTopicListSort 解析公开列表排序：显式合法值 > 站点默认 > 推荐默认 active。
+// 空值与非法值不得隐式落到 latest：先回退站点默认，站点默认缺失时回退 active。
+func resolveTopicListSort(requested, siteDefault string) string {
+	if sort := normalizeTopicListSort(requested); sort != "" {
+		return sort
+	}
+	if sort := normalizeTopicListSort(siteDefault); sort != "" {
+		return sort
+	}
+	// 兜底与推荐默认同源，避免空配置再次退回 latest。
+	return normalizeTopicListSort(defaultForumSettings().ListDefaultSort)
+}
+
 // ListTopics 公开主题列表冷路径（M1 + M5 keyset）：
 //   - 先按索引友好排序取本页 ID，再仅对页内行 join posts 取 plain_text 前缀（不扫全表正文）
 //   - total 走 D1：分类/标签用冗余 topic_count；首页用公开分类计数之和（近似）；禁止公开全表 COUNT(*)

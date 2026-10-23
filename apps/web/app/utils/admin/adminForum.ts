@@ -9,6 +9,7 @@ import {
   type ForumCategory,
   type ForumCategoryGroup,
   type ForumDefaultSort,
+  type ForumListSort,
   type ForumSettings,
   type ForumTag,
   type ForumTagStatus,
@@ -144,6 +145,14 @@ type ForumSettingsLike = Partial<Record<keyof ForumSettings, unknown>>
 export const forumVisibilityChoices: ForumVisibility[] = ['public', 'hidden']
 export const forumCategorySortChoices: ForumDefaultSort[] = ['latest', 'hot']
 export const forumTagStatusChoices: ForumTagStatus[] = ['active', 'pending', 'disabled']
+
+// 公开列表默认排序的可选项：推荐值排第一，与公开首页分段控件顺序一致。
+export const recommendedListDefaultSort: ForumListSort = 'active'
+export const forumListSortOptions: Array<{ value: ForumListSort, labelKey: string }> = [
+  { value: 'active', labelKey: 'admin.forum.settings.sortActive' },
+  { value: 'latest', labelKey: 'admin.forum.settings.sortLatest' },
+  { value: 'hot', labelKey: 'admin.forum.settings.sortHot' }
+]
 
 /**
  * 分类/分组删除的服务端拒绝原因码 → `admin.forum.categories.delete.errors.*` 后缀。
