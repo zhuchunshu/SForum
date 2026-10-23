@@ -549,6 +549,44 @@ live in configuration, not in Core code.
   `error` 的快照必须补跑干净（D19：供应商会间歇性 30s/120s 无响应头，用 `--only`
   补跑，**不许**调大超时或步数来换通过率）。
 
+## Empty completions, cache hits, and reply outcomes
+
+- **空补全 = 失败**（`decisions/2026-10-23-empty-completion-is-a-failure.md`）。
+  `Gateway.Execute` 在记账与缓存之前调用 `validateCompletion`：既无正文、也无
+  工具调用的结果按 `failed` + `empty_completion` 记账，`error_summary` 带
+  `finish_reason` / `reasoning=<bool>` / `usage`，并**永不入缓存**（`store()`
+  另有一道防御）。只要求工具的响应仍然是成功——它只是工具循环的一步。
+- **缓存命中行必须自我说明**：`cacheHit=true` 且 `0 ms / 0 token / 0 花费` 是
+  正确值（本次没出站，钱已经算在产出这条缓存的那一行上）。控制台在执行记录状态
+  列显示 `cache` 徽标、筛选器有「仅缓存命中」、表尾有一行解释。不要把被缓存那次
+  的用量抄到命中行：成本看板会把这些列相加。
+- **诊断的两层含义**：连通性探测对 `empty_completion` 返回 `ok=true` +
+  `reason=empty_reply` + 可执行建议（调预算/换模型），因为往返是成功的、模型没
+  产出。网关同时把部分结果（停止原因、思考有无、用量）带回错误路径，否则空回答
+  在诊断页与日志里都只剩一句「失败」。
+- **回复结果是一张独立的账**（`ai_reply_outcomes`，迁移
+  `202610250001`，见 `decisions/2026-10-23-reply-outcome-ledger.md`）。
+  `aireply.Generator.Generate` 在唯一出口（defer）写一行：`topic_id` /
+  `parent_comment_id` / `trigger_comment_id` / `bot_user_id` / `run_id` /
+  `comment_id` / `outcome` / `reason` / `detail` / `model_calls` / `tool_calls` /
+  token。`detail` 只放稳定短语，不含提示词与正文。`outcome` 是 CHECK 约束里的
+  六种：`posted` / `empty_reply` / `tool_loop_stuck` / `unavailable` /
+  `publish_failed` / `failed`。
+- **同一张表就是幂等判据**：`HasPostedReply(topic, trigger)` 只认
+  `posted + comment_id > 0`，命中时 `Generate` 在模型调用之前就返回。被拒/空回复
+  不算「已经回过」，运营者改完配置仍会得到重试。写失败只记 Warn（与引用、工具
+  轨迹同一条纪律），不回滚已发布的评论。
+- **读面**：`GET /admin/ai/reply-outcomes?limit=`（`ai.manage`，默认 50、上限
+  200），形状与执行记录一致（`{ items: [...] }`），控制台的「回复结果」区块与
+  执行记录并列。读权限与执行记录同源——能看见调用的人必须能看见它有没有产出。
+- 该表**没有公开读面**：它是运营诊断面且紧邻用户内容（主题/评论 id），因此不建
+  `sforum_core_v1` 视图、不发 HostQuery；这是 extension data-surface policy 允许的
+  「有记录的故意缺失」。保留策略 v1 未自动化（约定 30 天，见后续待办）。
+- **`sforum ai:reply --topic-id N [--confirm]`** 用真实帖子与真实配置跑一次生成，
+  禁用结果缓存、不发布评论、不写结果表；不带 `--confirm` 时只解析配置与预算。
+  它是「控制台一片成功、社区没有回复」的第一诊断工具，与在固定 fixture 上做 diff
+  的 `sforum ai:eval` 分工明确。
+
 ## Limits and validation
 
 - **上限只有一个权威**：`Support/AI/limits.go` 的常量经

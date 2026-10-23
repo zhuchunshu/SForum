@@ -131,6 +131,37 @@ adminAIExecutions:
       '401': {$ref: "../components/responses.yaml#/Unauthorized"}
       '403': {$ref: "../components/responses.yaml#/Forbidden"}
 
+adminAIReplyOutcomes:
+  get:
+    summary: List recent AI reply outcomes (requires ai.manage)
+    description: |
+      回复结果：每一条触发最后有没有变成一条评论，以及为什么没有。
+
+      它是执行记录之外的另一半事实：执行记录回答「某一次模型调用花了多少」，
+      这里回答「回复有没有出现」。`outcome` 的取值是稳定字符串：
+
+      - `posted`：评论已发布，`commentId` 有值。
+      - `empty_reply`：模型调用成功但正文为空（`reason=empty_completion`）。
+      - `tool_loop_stuck`：模型在工具撤下后仍要求调用且没有正文。
+      - `unavailable`：网关不可用（关闭、闸门、用途未声明、供应商失败）。
+      - `publish_failed`：正文已生成但发布失败（权限、主题状态、内容规则）。
+
+      记录里没有提示词与响应正文；`detail` 只是稳定短语。
+    operationId: listAIReplyOutcomes
+    security: [{cookieAuth: []}]
+    parameters:
+    - name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    responses:
+      '200': {description: Recent reply outcomes., content: {application/json: {schema: {$ref: "../schemas/ai.yaml#/ApiResponseAIReplyOutcomes"}}}}
+      '401': {$ref: "../components/responses.yaml#/Unauthorized"}
+      '403': {$ref: "../components/responses.yaml#/Forbidden"}
+
 adminAIRunTimeline:
   get:
     summary: Read every execution record of one AI run in time order (requires ai.manage)

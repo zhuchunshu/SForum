@@ -6,6 +6,20 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### AI 回复「成功却不回复」
+
+- Status: **active（M1–M4 landed 2026-10-23；M5 剩浏览器 QA / eval 基线 / 保留策略）**。
+  执行记录里的 `succeeded` 只说明模型调用成立；「回复是否出现」现在是独立的一行事实
+  （`ai_reply_outcomes`，六种稳定 outcome）。空补全判失败且永不进结果缓存，缓存命中行
+  在控制台带 `cache` 徽标与「0 ms / 0 token 是正确值」的解释。生成器按
+  `(topic, trigger)` 幂等，写失败不回滚发布。
+- 排查入口：`sforum ai:reply --topic-id N [--confirm]`（真实帖子 + 真实配置、禁用
+  缓存、不发布）；控制台 `?tab=observability` 的「回复结果」区块。
+- Handoff: `sessions/2026-10-23-ai-reply-silent-success-handoff.md`；计划：
+  `plans/2026-10-23-ai-reply-silent-success-remediation.md`；决策：
+  `decisions/2026-10-23-empty-completion-is-a-failure.md`、
+  `decisions/2026-10-23-reply-outcome-ledger.md`。
+
 ### 编辑器链接续写与代码块粘贴修复
 
 - Status: **landed (2026-10-23)**。`SForumLink` 固定 `inclusive:false`，修复粘贴/插入
@@ -530,6 +544,13 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
+- **AI 回复「成功却不回复」修复（2026-10-23，最新）**：空补全改为失败
+  （`empty_completion`）且永不入缓存；缓存命中行在控制台带 `cache` 徽标与解释；
+  回复结果独立成账（`ai_reply_outcomes` + `GET /admin/ai/reply-outcomes`）；
+  生成器按触发幂等；新增 `sforum ai:reply --topic-id N [--confirm]`。详见
+  `sessions/2026-10-23-ai-reply-silent-success-handoff.md` 与
+  `decisions/2026-10-23-empty-completion-is-a-failure.md`、
+  `decisions/2026-10-23-reply-outcome-ledger.md`。
 - **编辑器链接续写与代码块粘贴修复（2026-10-23）**：`SForumLink` 固定
   `inclusive:false`；工具栏空选区插入 URL 链接文字；代码块内粘贴强制字面文本、
   纯代码 HTML 合并单块；`SForumCodeBlock` 多段选区合并单块。详见

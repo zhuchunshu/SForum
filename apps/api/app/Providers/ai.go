@@ -72,6 +72,7 @@ func NewAIProvider(pool *pgxpool.Pool, secrets *secretstore.Service, users ident
 		Gateway:          gateway,
 		Usage:            store,
 		Traces:           store,
+		ReplyOutcomes:    store,
 		Credentials:      supportai.NewCredentialWriter(secrets),
 		CredentialReader: resolver,
 		Models:           supportai.NewHTTPModelLister(invoker),

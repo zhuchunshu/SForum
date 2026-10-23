@@ -173,6 +173,28 @@ export type AdminAIExecution = {
   resourceId?: string
 }
 
+// AdminAIReplyOutcome 是一条回复的最终裁决：这条触发最后有没有变成一条评论。
+//
+// 它与 AdminAIExecution 是两个问题：执行记录记每一次模型调用，这张表记一次生成
+// 的结果。status=succeeded 却看不到回复时，答案在这里而不在调用里。
+export type AdminAIReplyOutcome = {
+  id: number
+  createdAt: string
+  topicId: number
+  parentCommentId?: number
+  triggerCommentId?: number
+  botUserId?: number
+  runId?: string
+  commentId?: number
+  outcome: 'posted' | 'empty_reply' | 'tool_loop_stuck' | 'unavailable' | 'publish_failed' | 'failed'
+  reason?: string
+  detail?: string
+  modelCalls?: number
+  toolCalls?: number
+  inputTokens?: number
+  outputTokens?: number
+}
+
 // AdminAIModelList 是一次只读的模型列表探测结论。供应商层面的失败以 reason + error
 // 返回，而不是抛出：地址能连上但密钥无效，是运营者要读到的信息。
 export type AdminAIModelList = {
@@ -250,11 +272,13 @@ export function useAdminAI() {
   const payload = useAsyncData<AdminAISettingsPayload>('admin-ai-settings', () => request('/admin/ai/settings'))
   const usage = useAsyncData<AdminAIUsagePayload>('admin-ai-usage', () => request('/admin/ai/usage'))
   const executions = useAsyncData<{ items: AdminAIExecution[] }>('admin-ai-executions', () => request('/admin/ai/executions?limit=50'))
+  // 回复结果与执行记录并列拉取：页面壳是唯一数据所有者，页签只渲染。
+  const replyOutcomePayload = useAsyncData<{ items: AdminAIReplyOutcome[] }>('admin-ai-reply-outcomes', () => request('/admin/ai/reply-outcomes?limit=50'))
   // 页面壳必须在 SSR 渲染前等这三个请求完成：useAdminAI 是同步组合式函数，若不
   // await，SSR 首渲染拿到的 settings/purposes/usage 全是空兜底，而客户端水合时
   // payload 已从 __NUXT_DATA__ 同步恢复——两边的分支（v-if/v-else、v-for 数量）
   // 全部错位，hydration mismatch 由此而来（所有 AI 页签都受影响，不只是用途页签）。
-  const ready = Promise.all([payload, usage, executions]).then(() => undefined)
+  const ready = Promise.all([payload, usage, executions, replyOutcomePayload]).then(() => undefined)
 
   // 请求失败时 data 是 undefined，而不是 default 的返回值：所有下游读取都必须
   // 经由这些经过保护的 computed，否则一次 401/500 就会让整页渲染抛错。
@@ -281,9 +305,11 @@ export function useAdminAI() {
   const budgetMicros = computed(() => usage.data.value?.budgetMicros ?? 0)
   const executions_ = computed(() => executions.data.value?.items ?? [])
   const executionsPending = computed(() => executions.pending.value)
+  const replyOutcomes_ = computed(() => replyOutcomePayload.data.value?.items ?? [])
+  const replyOutcomesPending = computed(() => replyOutcomePayload.pending.value)
 
   async function refresh() {
-    await Promise.all([payload.refresh(), usage.refresh(), executions.refresh()])
+    await Promise.all([payload.refresh(), usage.refresh(), executions.refresh(), replyOutcomePayload.refresh()])
   }
 
   // reportFailure 把失败说清楚：优先用服务端 envelope 的 message，其次按
@@ -422,6 +448,8 @@ export function useAdminAI() {
     budgetMicros,
     executions: executions_,
     executionsPending,
+    replyOutcomes: replyOutcomes_,
+    replyOutcomesPending,
     diagnoseResult,
     diagnose,
     fetchModels,

@@ -682,6 +682,71 @@ AIRunTimelinePayload:
       items:
         "$ref": "#/AIExecutionRecord"
 
+AIReplyOutcomeRecord:
+  type: object
+  description: |
+    一次回复的最终裁决。它不是执行记录：执行记录回答「某一次模型调用花了多少」，
+    这张表回答「这条触发最后有没有变成一条评论」，以及为什么没有。
+    刻意不含提示词与响应正文；`detail` 只放稳定短语（停止原因、失败码、调用次数）。
+  properties:
+    id:
+      type: integer
+      format: int64
+    createdAt:
+      type: string
+      format: date-time
+    topicId:
+      type: integer
+      format: int64
+    parentCommentId:
+      type: integer
+      format: int64
+      description: 回复挂靠的评论；主题触发时为 0。
+    triggerCommentId:
+      type: integer
+      format: int64
+      description: 唤起本次回复的评论；主题触发时为 0（此时按 `(topicId, 0)` 幂等）。
+    botUserId:
+      type: integer
+      format: int64
+    runId:
+      type: string
+      description: 与执行记录的 `ai.run` 归属相同，用于展开 run 回放。
+    commentId:
+      type: integer
+      format: int64
+      description: 最终发布的评论 id，只有 `posted` 时有值。
+    outcome:
+      type: string
+      enum:
+      - posted
+      - empty_reply
+      - tool_loop_stuck
+      - unavailable
+      - publish_failed
+      - failed
+    reason:
+      type: string
+      description: 稳定原因码（`empty_completion`、`provider_failed`、`budget_exceeded`、`publish_forbidden` 等），与执行记录的 gate/reason 同源。
+    detail:
+      type: string
+    modelCalls:
+      type: integer
+    toolCalls:
+      type: integer
+    inputTokens:
+      type: integer
+    outputTokens:
+      type: integer
+
+AIReplyOutcomesPayload:
+  type: object
+  properties:
+    items:
+      type: array
+      items:
+        "$ref": "#/AIReplyOutcomeRecord"
+
 AIProfileCredentialRequest:
   type: object
   required:
@@ -866,6 +931,20 @@ ApiResponseAIExecutions:
       type: string
     data:
       "$ref": "#/AIExecutionsPayload"
+
+ApiResponseAIReplyOutcomes:
+  type: object
+  required:
+  - code
+  - message
+  - data
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      "$ref": "#/AIReplyOutcomesPayload"
 
 ApiResponseAIRunTimeline:
   type: object

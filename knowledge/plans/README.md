@@ -20,6 +20,7 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
+| `2026-10-23-ai-reply-silent-success-remediation.md` | **active（M1–M4 已落地，M5 剩浏览器 QA / eval 基线 / 保留策略）** -- 「succeeded + 0 ms + 0/0 token 却没有回复」：空补全改为失败且永不入缓存、缓存命中行加徽标与解释、回复结果独立成账（`ai_reply_outcomes` + `GET /admin/ai/reply-outcomes`）、生成器按触发幂等、新增 `sforum ai:reply` 排查命令。见 `sessions/2026-10-23-ai-reply-silent-success-handoff.md` |
 | `2026-10-23-test-suite-speedup.md` | **active（本地全绿，CI 待 PR）** -- 全量测试提速：Go 并行从「包级 `-p`」改成「集群级分片」（`SFORUM_TEST_SHARDS` 默认 min(nproc,4)，片内 `-p 1`）——`-p>1` 在单个 database 上实测四类跨包竞态；两次隔离运行合并成 `--with-compat`；test.sh 三线并行（日志 `tests/.logs/`）；新增 `--fast` 本地分层；typecheck 增量缓存。实测 21:31 → 7:24（冷）/ 6:14（热）/ 0:41（`--fast`），154 个包两轮冷缓存真跑零失败。见 `sessions/2026-10-23-test-suite-speedup-handoff.md` |
 | `2026-10-20-rich-content-fences.md` | **landed（有 residual）** -- 富内容围栏（mermaid / chart / 公式）：不扩短代码身份，改用代码围栏 + `$…$` 承载；客户端渐进增强接在 `v-highlight`，KaTeX 走 MathML，图表走窄 schema + Chart.js；AI 提示词增加宿主拥有的富内容段（`forum-reply@10`）。浏览器实测出图/回落/颜色模式重渲染/390 无溢出，并修掉 mermaid `click` 的 `<a>` 绕过站外中转。未做：eval baseline、工具栏插入菜单 |
 | `2026-10-19-ai-tool-call-visibility.md` | **completed（待归档）** -- 两半：W1 让工具进入提示词（宿主渲染「本次可用工具」段 + `forum-reply@9`，修「模型拿到 web-search 却一次没调」）；W2 把 `ToolTrace` 落进新表 `ai_tool_calls` 并公开读（增量挂在 `GET /comments/:id/citations` 的 `toolCalls` 字段，不新增路由）。证据：run `8681e832…` 只有 1 行 `ai_executions` = 零工具调用；轨迹此前只进 slog |

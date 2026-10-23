@@ -127,6 +127,12 @@ type executionsResponse struct {
 	Items []supportai.ExecutionRecord `json:"items"`
 }
 
+// replyOutcomesResponse 与 executionsResponse 同形（items 包一层）：两个读面在
+// 前端共用一个分页/刷新约定，形状不同会让同一段 UI 代码长出两个分支。
+type replyOutcomesResponse struct {
+	Items []supportai.ReplyOutcome `json:"items"`
+}
+
 func (h *Controller) getSettings(c fiber.Ctx) error {
 	actor, err := h.actor(c)
 	if err != nil {
@@ -355,6 +361,22 @@ func (h *Controller) listExecutions(c fiber.Ctx) error {
 		return mapAIError(err)
 	}
 	return apphttp.OK(c, executionsResponse{Items: items})
+}
+
+// listReplyOutcomes 返回最近的回复结果：每一条触发最后有没有变成一条评论。
+//
+// 它是「控制台一片 succeeded、社区一条回复都没有」这个故障的读面：执行记录回答
+// 「模型调用花了多少」，这里回答「回复有没有出现」。条数上限由存储层再裁一次。
+func (h *Controller) listReplyOutcomes(c fiber.Ctx) error {
+	actor, err := h.actor(c)
+	if err != nil {
+		return err
+	}
+	items, err := h.service.ReplyOutcomes(c.Context(), actor, queryInt(c, "limit"))
+	if err != nil {
+		return mapAIError(err)
+	}
+	return apphttp.OK(c, replyOutcomesResponse{Items: items})
 }
 
 // MaxRunIDLen 是回放路径参数的长度上限。与 MaxToolCallIDLen 同量级：run id 是

@@ -3,6 +3,7 @@ import type { AdminAIExecution } from '~/composables/admin/useAdminAI'
 import { ADMIN_AI_KEY, MICRO_PER_UNIT, useAdminAIRunTimeline } from '~/composables/admin/useAdminAI'
 import SFAdminAIRunTimeline from '~/components/admin/ai/blocks/SFAdminAIRunTimeline.vue'
 import { executionExpandable, executionStatusColor } from '~/components/admin/ai/runTimeline'
+import { replyOutcomeColor, replyOutcomeHref } from '~/components/admin/ai/replyOutcomes'
 
 const { t, locale } = useI18n()
 const ai = inject(ADMIN_AI_KEY)!
@@ -46,18 +47,30 @@ function statusColor(status: AdminAIExecution['status']) {
 }
 
 // 执行记录最多 50 条且混合三种状态：排查失败时要在里面翻，筛选是刚需。
-const statusFilter = ref<'all' | AdminAIExecution['status']>('all')
+//
+// cache 是与三种状态并列的一个筛选维度，不是第四种状态：缓存命中行的 status 仍然
+// 是 succeeded，只是本次没有出站（0 ms / 0 token 是正确值）。不把它单列出来，
+// 一排「成功 + 0 ms + 0/0」只会被读成「供应商坏了」。
+type ExecutionFilter = 'all' | AdminAIExecution['status'] | 'cache'
+const statusFilter = ref<ExecutionFilter>('all')
 const statusOptions = computed(() => [
   { label: t('admin.ai.filterAll'), value: 'all' as const },
   { label: t('admin.ai.statusSucceeded'), value: 'succeeded' as const },
   { label: t('admin.ai.statusFailed'), value: 'failed' as const },
-  { label: t('admin.ai.statusDenied'), value: 'denied' as const }
+  { label: t('admin.ai.statusDenied'), value: 'denied' as const },
+  { label: t('admin.ai.filterCacheHit'), value: 'cache' as const }
 ])
-const filteredExecutions = computed(() =>
-  statusFilter.value === 'all'
-    ? ai.executions.value
-    : ai.executions.value.filter(item => item.status === statusFilter.value)
-)
+const filteredExecutions = computed(() => {
+  const items = ai.executions.value
+  if (statusFilter.value === 'all') return items
+  if (statusFilter.value === 'cache') return items.filter(item => item.cacheHit)
+  return items.filter(item => item.status === statusFilter.value)
+})
+
+// 颜色与落点的唯一实现在 replyOutcomes.ts：表格、测试与将来的公共读面共用
+// 同一套判定，模板里不再各自写一遍。
+const outcomeColor = replyOutcomeColor
+const outcomeHref = replyOutcomeHref
 
 // 回放：同一时刻只展开一处。展开是查询能力的组合（GET /admin/ai/runs/:runId），
 // 不是新的持久化面；工具调用明细在日志里，时间线不会补造它。
@@ -199,6 +212,7 @@ function closeTimeline() {
                 <td class="px-3 py-3 font-mono text-xs">{{ item.model || '-' }}</td>
                 <td class="px-3 py-3">
                   <UBadge :color="statusColor(item.status)" variant="subtle">{{ item.status }}</UBadge>
+                  <UBadge v-if="item.cacheHit" color="neutral" variant="subtle" class="ml-1">{{ t('admin.ai.cacheBadge') }}</UBadge>
                   <p v-if="item.gateReason" class="mt-1 text-xs text-slate-500">
                     {{ item.gateScope ? `${item.gateReason} · ${item.gateScope}` : item.gateReason }}
                   </p>
@@ -225,6 +239,60 @@ function closeTimeline() {
         </table>
         <div v-if="!filteredExecutions.length && !ai.executionsPending.value" class="p-10 text-center text-sm text-slate-500">
           {{ statusFilter === 'all' ? t('admin.ai.executionsEmpty') : t('admin.ai.executionsEmptyFiltered') }}
+        </div>
+      </div>
+      <p class="border-t border-slate-200 px-4 py-2 text-xs text-slate-500 dark:border-zinc-800 dark:text-zinc-400">
+        {{ t('admin.ai.cacheHitHint') }}
+      </p>
+    </section>
+
+    <section class="min-w-0 rounded-lg border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+      <div class="border-b border-slate-200 px-4 py-3 dark:border-zinc-800">
+        <p class="text-sm font-semibold text-slate-900 dark:text-zinc-100">{{ t('admin.ai.replyOutcomes') }}</p>
+        <p class="mt-1 text-xs text-slate-500 dark:text-zinc-400">{{ t('admin.ai.replyOutcomesIntro') }}</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-left text-sm">
+          <thead class="bg-slate-50 text-xs text-slate-500 dark:bg-zinc-950">
+            <tr>
+              <th class="px-3 py-3">{{ t('admin.ai.colTime') }}</th>
+              <th class="px-3 py-3">{{ t('admin.ai.colTrigger') }}</th>
+              <th class="px-3 py-3">{{ t('admin.ai.colOutcome') }}</th>
+              <th class="px-3 py-3">{{ t('admin.ai.colReason') }}</th>
+              <th class="px-3 py-3 text-right">{{ t('admin.ai.colCalls') }}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 dark:divide-zinc-800">
+            <tr v-for="item in ai.replyOutcomes.value" :key="item.id">
+              <td class="whitespace-nowrap px-3 py-3 text-xs text-slate-500">{{ stamp(item.createdAt) }}</td>
+              <td class="px-3 py-3">
+                <a
+                  v-if="outcomeHref(item)"
+                  :href="outcomeHref(item)"
+                  target="_blank"
+                  rel="noopener"
+                  class="font-mono text-xs text-primary hover:underline"
+                >#{{ item.topicId }}{{ item.commentId ? ` · #${item.commentId}` : '' }}</a>
+                <span v-else class="font-mono text-xs">#{{ item.topicId }}</span>
+                <p v-if="item.triggerCommentId" class="text-xs text-slate-500">
+                  {{ t('admin.ai.replyOutcomeTrigger', { id: item.triggerCommentId }) }}
+                </p>
+              </td>
+              <td class="px-3 py-3">
+                <UBadge :color="outcomeColor(item.outcome)" variant="subtle">{{ t(`admin.ai.replyOutcome.${item.outcome}`) }}</UBadge>
+              </td>
+              <td class="px-3 py-3">
+                <p class="font-mono text-xs">{{ item.reason || '-' }}</p>
+                <p v-if="item.detail" class="mt-1 max-w-xs truncate text-xs text-slate-500" :title="item.detail">{{ item.detail }}</p>
+              </td>
+              <td class="px-3 py-3 text-right tabular-nums">
+                {{ num(item.modelCalls) }} / {{ num(item.inputTokens) }} / {{ num(item.outputTokens) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="!ai.replyOutcomes.value.length && !ai.replyOutcomesPending.value" class="p-10 text-center text-sm text-slate-500">
+          {{ t('admin.ai.replyOutcomesEmpty') }}
         </div>
       </div>
     </section>

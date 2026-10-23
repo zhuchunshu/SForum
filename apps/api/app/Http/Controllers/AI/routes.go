@@ -9,6 +9,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	admin.Post("/settings/reset", h.resetSettings)
 	admin.Get("/usage", h.getUsage)
 	admin.Get("/executions", h.listExecutions)
+	// 回复结果：每一条触发有没有变成评论。与执行记录并列，因为它们是两个问题。
+	admin.Get("/reply-outcomes", h.listReplyOutcomes)
 	// 轨迹回放：按 run 归属聚合执行记录。资源类型由控制器常量固定，见 handler。
 	admin.Get("/runs/:runId", h.getRunTimeline)
 	// 连通性诊断：发一次真实的最小调用，验证配置是否可用。

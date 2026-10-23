@@ -54,6 +54,7 @@ func newRootCommand() *cobra.Command {
 		newSeedCommand(),
 		newSeedPerfCommand(),
 		newAIEvalCommand(),
+		newAIReplyCommand(),
 		newAIDerivedCommand(),
 		newUsersResetPasswordCommand(),
 		newPrivacyEraseUserCommand(),

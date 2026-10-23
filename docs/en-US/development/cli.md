@@ -45,6 +45,7 @@ go run ./cmd/sforum --version
 | `extension builtins` | Discover the built-in package list from the manifest tree (single source for the build script) |
 | `dev:cleanup-orphan-plugins` | Stop reparented extension backend plugin processes (safe for live `sforum-api` children) |
 | `ai:eval` | Run one real AI reply generation over fixed fixtures and emit diffable baseline snapshots (`--diff` / `--only` / `--confirm`; never publishes a comment) |
+| `ai:reply` | Run one real reply generation against a live topic and print every deciding fact (`--topic-id`, `--trigger-comment-id`, `--confirm`; result cache disabled, publishes nothing, writes no outcome rows) |
 | `ai:derived` | Manually trigger AI-derived content (`run --topic-id --purpose digest\|tour`, artifact lands as a draft in `ai_derived_artifacts`; `list` to inspect) |
 
 > This table is the authoritative command list; adding or removing commands must

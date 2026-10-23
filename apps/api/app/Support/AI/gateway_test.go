@@ -426,8 +426,13 @@ func TestGatewayKeepsEmptySystemEmpty(t *testing.T) {
 	}
 }
 
-// 只有思考、没有正文的响应是一次可解释的空回复，而不是「思维链就是回答」。
-func TestGatewayKeepsReasoningOutOfResultText(t *testing.T) {
+// 只有思考、没有正文的响应是一次可解释的**失败**，既不是「思维链就是回答」，
+// 也不是「调用成功」。
+//
+// 这条用例此前断言的是 succeeded + 空正文：那个语义让控制台显示一片绿色而社区
+// 一条回复都没有。现在两层事实都必须成立——理由留在错误里（reasoning=true 证明
+// 网关看见了思考），正文永远不进入结果。
+func TestGatewayReportsReasoningOnlyReplyAsEmptyCompletion(t *testing.T) {
 	gateway, _, traces, invoker, _ := newGateway(t, enabledSettings())
 	invoker.response = ai.WireResponse{
 		Text:       "",
@@ -435,16 +440,21 @@ func TestGatewayKeepsReasoningOutOfResultText(t *testing.T) {
 		StopReason: ai.StopReasonLength,
 	}
 	result, err := gateway.Execute(context.Background(), validRequest())
-	if err != nil {
-		t.Fatalf("execute failed: %v", err)
+	var unavailable *ai.UnavailableError
+	if !errors.As(err, &unavailable) || unavailable.Reason != ai.ReasonEmptyCompletion {
+		t.Fatalf("err = %v", err)
 	}
 	if result.Text != "" {
-		t.Fatalf("text = %q；思考正文不得成为回答", result.Text)
+		t.Fatalf("正文必须为空: %+v", result)
 	}
-	if result.Reasoning == "" {
-		t.Fatal("思考正文必须单独回传，否则空回复无法解释")
+	// 思考正文照旧单独回传：它是「为什么没有正文」的唯一解释，但永远不是回答。
+	if result.Reasoning == "" || strings.Contains(result.Text, "端口占用") {
+		t.Fatalf("思考正文必须与正文分离: %+v", result)
 	}
-	if len(traces.records) != 1 || traces.records[0].Status != ai.ExecutionStatusSucceeded {
+	if len(traces.records) != 1 || traces.records[0].Status != ai.ExecutionStatusFailed {
 		t.Fatalf("traces = %+v", traces.records)
+	}
+	if !strings.Contains(traces.records[0].ErrorSummary, "reasoning=true") {
+		t.Fatalf("错误摘要必须说明模型产出了思考: %q", traces.records[0].ErrorSummary)
 	}
 }

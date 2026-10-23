@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -214,6 +215,10 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 		// 命中的结果必须自己带上 cacheHit：它是结果契约的一部分，插件与观测页据此
 		// 区分「这次真的调用了供应商」与「从这里取回的旧答案」。缓存里存的永远是
 		// 一次真实调用的结果，因此标记只在返回路径上加。
+		//
+		// 这条记录的 0 ms / 0 token / 0 花费是**正确值**，不是缺数据：本次没有
+		// 出站、没有花 token，钱已经算在产出这条缓存的那一行上。控制台必须显示
+		// cacheHit 徽标，否则一排「succeeded + 0 ms + 0/0」会被读成「供应商坏了」。
 		cached.CacheHit = true
 		g.record(ctx, ExecutionRecord{
 			Purpose: request.Purpose, CostClass: request.CostClass,
@@ -232,11 +237,38 @@ func (g *Gateway) Execute(ctx context.Context, request CompletionRequest) (Compl
 	started := time.Now()
 	result, err := g.invoke(ctx, settings, request, profile)
 	latency := time.Since(started).Milliseconds()
+	// 200 但没有正文不算成功：它会让「调用成功」继续冒充「有答案」。判定放在
+	// 记账与缓存之前，因此空补全既不会进缓存，也不会留下一条绿色的成功行。
+	// 供应商确实为此计费，所以用量照实记录——只是不写缓存、不算成功。
+	if err == nil {
+		if emptyErr := validateCompletion(result); emptyErr != nil {
+			g.recordUsage(ctx, now, request, result.Usage.InputTokens, result.Usage.OutputTokens,
+				EstimateSpendMicros(profile.Price, result.Usage))
+			g.record(ctx, ExecutionRecord{
+				Purpose: request.Purpose, CostClass: request.CostClass,
+				CallerExtensionID: request.Metadata.CallerExtensionID,
+				ResourceType:      request.Metadata.ResourceType, ResourceID: request.Metadata.ResourceID,
+				ProfileID: profile.ID, Protocol: profile.Protocol, Model: profile.Model,
+				Status:        ExecutionStatusFailed,
+				PromptVersion: request.PromptVersion, ConfigRevision: settings.Revision,
+				LatencyMS: int(latency), InputTokens: result.Usage.InputTokens,
+				OutputTokens: result.Usage.OutputTokens, CachedTokens: result.Usage.CachedTokens,
+				SpendMicros:  EstimateSpendMicros(profile.Price, result.Usage),
+				ErrorSummary: emptyErr.Error(),
+			})
+			// 带回部分结果：停止原因、是否有思考、用量是「为什么是空的」的唯一
+			// 解释，也是诊断页与回复结果表要展示的事实。它不含正文——判定成立
+			// 的前提就是正文为空。
+			return result, &UnavailableError{
+				Posture: posture, Reason: ReasonEmptyCompletion, Err: emptyErr,
+			}
+		}
+	}
 	if err != nil {
 		// 失败的调用同样消耗一次配额：否则一个持续失败的插件可以无限重试而
 		// 永不耗尽配额，配额反而奖励了最不可靠的一方。token 记 0，因为本次
 		// 没有产生可计费的产出。
-		g.recordUsage(ctx, now, request, 0, 0)
+		g.recordUsage(ctx, now, request, 0, 0, 0)
 		g.record(ctx, ExecutionRecord{
 			Purpose: request.Purpose, CostClass: request.CostClass,
 			CallerExtensionID: request.Metadata.CallerExtensionID,
@@ -305,7 +337,7 @@ func (g *Gateway) invoke(ctx context.Context, settings Settings, request Complet
 
 // account 同时写用量计数与执行 trace。两者都写，因为限额判定与成本看板需要
 // 不同粒度：计数是可累加的窗口，trace 是逐次的归因。
-func (g *Gateway) recordUsage(ctx context.Context, now time.Time, request CompletionRequest, inputTokens, outputTokens int) {
+func (g *Gateway) recordUsage(ctx context.Context, now time.Time, request CompletionRequest, inputTokens, outputTokens int, spendMicros int64) {
 	if g.usage == nil {
 		return
 	}
@@ -315,6 +347,7 @@ func (g *Gateway) recordUsage(ctx context.Context, now time.Time, request Comple
 		CallerUserID:      request.SubjectUserID,
 		InputTokens:       inputTokens,
 		OutputTokens:      outputTokens,
+		SpendMicros:       spendMicros,
 	})
 }
 
@@ -344,6 +377,12 @@ func (g *Gateway) account(ctx context.Context, settings Settings, request Comple
 
 func (g *Gateway) store(ctx context.Context, request CompletionRequest, profile Profile, revision int64, result CompletionResult) {
 	if g.cache == nil {
+		return
+	}
+	// 防御：空回答永不入缓存。Execute 已经在调用前把空补全判成失败，这里是第二
+	// 道闸——缓存一条空结果是「一次坏运气变成十分钟确定性失败」的唯一机制：之后
+	// 所有同键请求都会在 0 ms 内拿回同一个空正文，并且看起来完全成功。
+	if len(result.ToolCalls) == 0 && strings.TrimSpace(result.Text) == "" {
 		return
 	}
 	g.cache.Put(ctx, CacheKey(request, profile, revision), result, g.cacheTTL)

@@ -122,7 +122,16 @@ func (c *GatewayCompleter) Complete(ctx context.Context, input CompletionInput) 
 		SubjectUserID: input.SubjectUserID,
 	})
 	if err != nil {
-		return CompletionOutput{}, err
+		// 失败路径同样透出可解释事实（停止原因、思考有无、用量）：网关对空补全
+		// 会带回部分结果，丢掉它会让「为什么没回」在日志与结果表里都变成一句
+		// 笼统的失败。正文仍然不发：空补全的判定前提就是没有正文。
+		return CompletionOutput{
+			Text:       result.Text,
+			StopReason: result.StopReason,
+			Reasoning:  result.Reasoning,
+			Usage:      result.Usage,
+			ModelCalls: 1,
+		}, err
 	}
 	return CompletionOutput{
 		Text:       result.Text,

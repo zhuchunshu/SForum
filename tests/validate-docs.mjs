@@ -281,6 +281,7 @@ const TOP_LEVEL_COMMANDS = {
   'newExtensionCommand': 'extension',
   'newDevCleanupOrphanPluginsCommand': 'dev:cleanup-orphan-plugins',
   'newAIEvalCommand': 'ai:eval',
+  'newAIReplyCommand': 'ai:reply',
   'newAIDerivedCommand': 'ai:derived',
 }
 

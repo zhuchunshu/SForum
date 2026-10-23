@@ -26,6 +26,12 @@
       "path": "/api/v1/admin/ai/executions"
     },
     {
+      "id": "core.route.ai.list_reply_outcomes",
+      "contractVersion": "sforum.route.ai.list_reply_outcomes@1",
+      "method": "GET",
+      "path": "/api/v1/admin/ai/reply-outcomes"
+    },
+    {
       "id": "core.route.ai.get_run_timeline",
       "contractVersion": "sforum.route.ai.get_run_timeline@1",
       "method": "GET",

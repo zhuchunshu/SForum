@@ -44,6 +44,7 @@ go run ./cmd/sforum --version
 | `extension builtins` | 从清单树发现内置包清单（构建脚本的唯一来源） |
 | `dev:cleanup-orphan-plugins` | 停止已改属的扩展后端进程（安全用于运行中的 sforum-api） |
 | `ai:eval` | 在固定 fixture 上跑一次真实 AI 回复生成，产出可 diff 的基线快照（`--diff`/`--only`/`--confirm`；不发布评论） |
+| `ai:reply` | 用真实帖子与真实配置跑一次回复生成并打印全部决定事实（`--topic-id`、`--trigger-comment-id`、`--confirm`；禁用结果缓存、不发布评论、不写结果表） |
 | `ai:derived` | 手动触发 AI 派生内容（`run --topic-id --purpose digest\|tour`，产物落 `ai_derived_artifacts` 草稿；`list` 查看） |
 
 > 本表是命令的**权威清单**；新增或删除命令时必须同步更新本表与

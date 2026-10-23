@@ -91,6 +91,9 @@ type Generator struct {
 	// 它由 Host 的编排器实现，因为只有它同时知道用途白名单、登记表与本次是否
 	// 真的会带上工具（步数预算、profile 是否支持 tools）。
 	toolSectioner ToolSectioner
+	// outcomes 可为 nil：那时「有没有真的回出一条评论」只留在日志里（与引入前
+	// 一致）。装配后每次生成都在唯一出口写一行结果，并据它做幂等判定。
+	outcomes OutcomeRecorder
 }
 
 // ToolSectioner 把「本次真的会发给模型的工具」渲染成提示词里的一段。
@@ -262,12 +265,33 @@ func (g *Generator) resolveImageCandidates(ctx context.Context, input ReplyJobIn
 //
 // 它刻意不做「先插一条占位评论再替换」：那需要额外的创建与更新两步，还要抑制
 // 中间态的通知，而生成通常只要几秒。等真实体验证明有必要再加。
-func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
+func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) (err error) {
 	if g == nil || g.threads == nil || g.completer == nil || g.poster == nil {
 		return ErrGeneratorUnavailable
 	}
+	// 幂等：同一条触发只应产出一次回复。缓存命中或事件重复投递都会把同一个
+	// prompt 再送一遍，而缓存里存的是上一次的正文——没有这条判定，重复投递会
+	// 变成一条一模一样的第二条回复。
+	if g.alreadyPosted(ctx, input) {
+		slog.InfoContext(ctx, "aireply: reply already posted for this trigger; skipping",
+			"topicId", input.TopicID, "triggerCommentId", input.TriggerCommentID)
+		return nil
+	}
+	// completion 与 stage 提到函数作用域，是为了让唯一出口的 defer 能看见这次
+	// 生成到底走到了哪一步、花了多少。没有它们的 defer 只能写「失败了」。
+	var (
+		completion       CompletionOutput
+		publishedComment int64
+		stage            = "complete"
+	)
+	defer func() {
+		g.recordOutcome(ctx, input, replyOutcome(input, completion, publishedComment, stage, err))
+	}()
 	thread, err := g.threads.ReplyContext(ctx, input.TopicID, input.ParentCommentID, input.TriggerCommentID)
 	if err != nil {
+		// 读上下文失败发生在任何模型调用之前：单独标一个 stage，结果表才能把
+		// 「帖子读不出来」与「模型没产出」分开，而不是都落在 generation_failed 上。
+		stage = "context"
 		return fmt.Errorf("load reply context: %w", err)
 	}
 	parameters, systemOverride := g.resolveParameters(ctx)
@@ -298,7 +322,7 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 			toolContext.Locale = strings.TrimSpace(locale)
 		}
 	}
-	completion, err := g.completer.Complete(ctx, CompletionInput{
+	completion, err = g.completer.Complete(ctx, CompletionInput{
 		Purpose:       ReplyPurpose,
 		CostClass:     parameters.CostClass,
 		PromptVersion: parameters.PromptVersion,
@@ -343,6 +367,7 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 	// 校验整体失败（存储不可用）同样降级为「无引用」——依据缺失不该让一条有用
 	// 的回答发不出去。
 	citations := g.verifyCitations(ctx, refs)
+	stage = "publish"
 	commentID, err := g.poster.PostBotComment(ctx, input.BotUserID, BotCommentInput{
 		TopicID:   input.TopicID,
 		ParentID:  input.ParentCommentID,
@@ -354,6 +379,7 @@ func (g *Generator) Generate(ctx context.Context, input ReplyJobInput) error {
 		logGeneratedReply(ctx, input, completion, parameters.PromptVersion, postErr)
 		return postErr
 	}
+	publishedComment = commentID
 	// 发布成功之后才落库引用、才写会话状态（记忆连续性 · 层 2 第 3 条）。
 	// 发布失败却写状态，下一轮会引用一段没人看过的结论。
 	runID := completion.RunID

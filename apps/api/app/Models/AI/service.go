@@ -40,14 +40,17 @@ type ModelLister interface {
 }
 
 type Service struct {
-	settings    supportai.SettingsStore
-	gateway     *supportai.Gateway
-	usage       supportai.UsageStore
-	traces      supportai.ExecutionStore
-	credentials CredentialStore
-	reader      CredentialReader
-	models      ModelLister
-	botAccounts BotAccountReader
+	settings supportai.SettingsStore
+	gateway  *supportai.Gateway
+	usage    supportai.UsageStore
+	traces   supportai.ExecutionStore
+	// replyOutcomes 读「这条触发最后有没有变成一条评论」。它与 traces 是两个
+	// 问题：traces 记每一次模型调用，这里记一次生成的结果。
+	replyOutcomes supportai.ReplyOutcomeStore
+	credentials   CredentialStore
+	reader        CredentialReader
+	models        ModelLister
+	botAccounts   BotAccountReader
 	// purposes 是用途登记表：解析生效参数（成本等级、工具白名单、失败姿态）并
 	// 供控制台枚举。它是进程级只读声明，不是可配置项。
 	purposes *supportai.PurposeRegistry
@@ -63,11 +66,14 @@ type Config struct {
 	Settings supportai.SettingsStore
 	// Purposes 是用途登记表。缺省时使用 Core 内置用途，保证服务层不会因为少传
 	// 一个可选依赖就失去用途语义。
-	Purposes    *supportai.PurposeRegistry
-	Gateway     *supportai.Gateway
-	Usage       supportai.UsageStore
-	Traces      supportai.ExecutionStore
-	Credentials CredentialStore
+	Purposes *supportai.PurposeRegistry
+	Gateway  *supportai.Gateway
+	Usage    supportai.UsageStore
+	Traces   supportai.ExecutionStore
+	// ReplyOutcomes 是回复结果的读面。缺省时控制台该区块返回空列表，而不是
+	// 让整页打不开——一个还没跑过回复的部署本来就没有结果可读。
+	ReplyOutcomes supportai.ReplyOutcomeStore
+	Credentials   CredentialStore
 	// CredentialReader 与 Models 只服务「获取模型列表」这一条只读路径；缺省时该
 	// 能力报告不可用，其余配置功能不受影响。
 	CredentialReader CredentialReader
@@ -89,6 +95,7 @@ func NewService(cfg Config) *Service {
 		gateway:       cfg.Gateway,
 		usage:         cfg.Usage,
 		traces:        cfg.Traces,
+		replyOutcomes: cfg.ReplyOutcomes,
 		credentials:   cfg.Credentials,
 		reader:        cfg.CredentialReader,
 		models:        cfg.Models,
@@ -292,6 +299,19 @@ func (s *Service) Diagnose(ctx context.Context, actor identity.Actor, message st
 	if err != nil {
 		var unavailable *supportai.UnavailableError
 		if errors.As(err, &unavailable) {
+			// 空补全是「连接正常、模型没产出」，不是传输失败：诊断的 ok 描述的是
+			// 往返是否成立，reason 描述的是模型给了什么。把它报成 provider_failed
+			// 会让运营者去查网络与密钥，而真正要改的是输出预算或模型选择。
+			if unavailable.Reason == supportai.ReasonEmptyCompletion {
+				result.OK = true
+				result.LatencyMS = completion.LatencyMS
+				result.InputTokens = completion.Usage.InputTokens
+				result.OutputTokens = completion.Usage.OutputTokens
+				result.StopReason = completion.StopReason
+				result.Reason = supportai.DiagnoseReasonEmptyReply
+				result.Error = diagnoseEmptyReplyHint(completion.StopReason, strings.TrimSpace(completion.Reasoning) != "")
+				return result, nil
+			}
 			result.Reason = unavailable.Reason
 			result.Error = unavailable.Error()
 			return result, nil
@@ -525,4 +545,19 @@ func (s *Service) RunTimeline(ctx context.Context, actor identity.Actor, runID s
 		return []supportai.ExecutionRecord{}, nil
 	}
 	return s.traces.ListRunExecutions(ctx, supportai.ResourceTypeRun, runID, limit)
+}
+
+// ReplyOutcomes 返回最近的回复结果，按时间倒序。
+//
+// 权限沿用「谁能读执行记录」：两处都是运营诊断面，分成两个权限只会让一个管理员
+// 看得见调用却看不见它有没有产出。缺省依赖时返回空列表而不是错误——没跑过回复
+// 的部署读到空是正确行为。
+func (s *Service) ReplyOutcomes(ctx context.Context, actor identity.Actor, limit int) ([]supportai.ReplyOutcome, error) {
+	if !actor.Can(identity.PermissionAIManage) {
+		return nil, identity.ErrPermissionDenied
+	}
+	if s == nil || s.replyOutcomes == nil {
+		return []supportai.ReplyOutcome{}, nil
+	}
+	return s.replyOutcomes.ListReplyOutcomes(ctx, limit)
 }

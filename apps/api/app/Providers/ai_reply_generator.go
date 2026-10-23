@@ -51,7 +51,24 @@ func NewAIReplyGenerator(
 	if orchestrator != nil {
 		generator = generator.WithToolSectioner(orchestrator)
 	}
+	// 回复结果与幂等判据来自同一处存储：写入的那一行就是「这条触发回过没有」的
+	// 唯一答案。pool 为 nil 时整体关闭（与引用、状态同一条可选能力纪律）。
+	if outcomes := NewAIReplyOutcomeStore(pool); outcomes != nil {
+		generator = generator.WithOutcomes(outcomes)
+	}
 	return generator
+}
+
+// NewAIReplyOutcomeStore 构造回复结果存储。pool 为 nil 时返回 nil 接口值，
+// 生成器据此整体关闭结果记录与幂等判定。
+//
+// 写面（生成器）与读面（控制台）共用同一个实现，但走两条权限路径：写入没有
+// actor（由队列执行），读取必须经过 Models/AI 服务层的 ai.manage 判定。
+func NewAIReplyOutcomeStore(pool *pgxpool.Pool) aireply.OutcomeRecorder {
+	if pool == nil {
+		return nil
+	}
+	return supportai.NewPostgresStore(pool)
 }
 
 // NewForumToolCallReader 把工具轨迹存储适配成 Forum 侧的读取面。

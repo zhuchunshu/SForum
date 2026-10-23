@@ -42,7 +42,7 @@
     "handler": "diagnose",
     "method": "POST",
     "path": "/api/v1/admin/ai/diagnose",
-    "source": "apps/api/app/Http/Controllers/AI/routes.go:15",
+    "source": "apps/api/app/Http/Controllers/AI/routes.go:17",
     "access": "permission",
     "policy": "ai.manage",
     "guard": {
@@ -78,7 +78,7 @@
     "handler": "putProfileCredential",
     "method": "PUT",
     "path": "/api/v1/admin/ai/profiles/:profileId/credential",
-    "source": "apps/api/app/Http/Controllers/AI/routes.go:17",
+    "source": "apps/api/app/Http/Controllers/AI/routes.go:19",
     "access": "permission",
     "policy": "ai.manage",
     "guard": {
@@ -96,7 +96,25 @@
     "handler": "listProfileModels",
     "method": "POST",
     "path": "/api/v1/admin/ai/profiles/:profileId/models",
-    "source": "apps/api/app/Http/Controllers/AI/routes.go:19",
+    "source": "apps/api/app/Http/Controllers/AI/routes.go:21",
+    "access": "permission",
+    "policy": "ai.manage",
+    "guard": {
+      "kind": "permission_any",
+      "permissions": [
+        "ai.manage"
+      ],
+      "evaluatorId": ""
+    }
+  },
+  {
+    "id": "core.route.ai.list_reply_outcomes",
+    "contractVersion": "sforum.route.ai.list_reply_outcomes@1",
+    "module": "ai",
+    "handler": "listReplyOutcomes",
+    "method": "GET",
+    "path": "/api/v1/admin/ai/reply-outcomes",
+    "source": "apps/api/app/Http/Controllers/AI/routes.go:13",
     "access": "permission",
     "policy": "ai.manage",
     "guard": {
@@ -114,7 +132,7 @@
     "handler": "getRunTimeline",
     "method": "GET",
     "path": "/api/v1/admin/ai/runs/:runId",
-    "source": "apps/api/app/Http/Controllers/AI/routes.go:13",
+    "source": "apps/api/app/Http/Controllers/AI/routes.go:15",
     "access": "permission",
     "policy": "ai.manage",
     "guard": {
