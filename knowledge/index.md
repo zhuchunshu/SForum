@@ -586,7 +586,7 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- **内置 S3 存储插件 R2 兼容修复（2026-10-24，最新）**：SDK 默认 CRC32 请求校验和被 R2 拒绝 + Virtual-host 寻址在 R2 上无 DNS，探测与上传必然失败；改为 checksum `when_required`、寻址三态 auto（非 AWS 端点自动 Path-style）、R2 空 region 自动 `auto`、读流不再被 60s 截断。插件 1.0.10，包校验/单测/架构门禁/fast 三线全绿；真机 R2 探测待操作者凭据。详见
+- **内置 S3 存储插件 R2 兼容修复（2026-10-24，最新）**：SDK 默认 CRC32 请求校验和被 R2 拒绝 + Virtual-host 寻址在 R2 上无 DNS，探测与上传必然失败；改为 checksum `when_required`、寻址三态 auto（非 AWS 端点自动 Path-style）、R2 空 region 自动 `auto`、读流不再被 60s 截断。插件 1.0.10，包校验/单测/架构门禁/fast 三线全绿；**真机 R2 已验证**：草稿探测 storage.ok（真实写/读/删往返）、实例激活为当前写入端、真实上传 201、/media 302 到 region=auto 的 R2 预签名 URL 且浏览器渲染成功、自定义域直读 200。详见
   `sessions/2026-10-24-s3-r2-compatibility-handoff.md` 与
   `decisions/2026-10-24-s3-compatible-auto-addressing.md`。
 - **多图发帖 500 修复（2026-10-24）**：附件引用唯一索引收窄为槽位型，

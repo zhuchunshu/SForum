@@ -263,8 +263,15 @@ Supported providers:
 - `sforum.storage-fs`: protected single-instance filesystem reference plugin.
 - `sforum.storage-s3`: protected multi-instance AWS SDK v2 plugin for AWS S3,
   MinIO, Cloudflare R2, and compatible endpoints. It supports endpoint/region,
-  path-style addressing, prefix, public base URL, static credentials, session
-  tokens, and the AWS default credential chain.
+  tri-state path-style addressing (auto/true/false), prefix, public base URL,
+  static credentials, session tokens, and the AWS default credential chain.
+  Auto addressing resolves Path-style for any configured non-AWS endpoint and
+  Virtual-host for AWS; request/response checksums are computed only when the
+  API requires them because R2 rejects the SDK default CRC32 request checksum;
+  an empty region resolves to `auto` for R2 endpoints; object read bodies are
+  no longer bounded by an overall deadline (connect/TLS/header timeouts live on
+  the shared HTTP transport). See
+  `../decisions/2026-10-24-s3-compatible-auto-addressing.md`.
 
 The former protected FTP and SFTP built-ins are removed. Vendor credentials for
 named instances are encrypted by Host SecretStore; instance documents and API

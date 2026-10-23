@@ -4,7 +4,7 @@
     "url": "https://github.com/zhuchunshu/sforum"
   },
   "backend": {
-    "digest": "d93979bed563d2b22cae55026a698935712f124010feb8008fb547ac2206d661",
+    "digest": "c9b5786283406d273284e979eeedc6b54f17f7afa135c68dfb972a5353bc14ea",
     "entry": "backend/plugin",
     "hostApiVersion": "sforum.host@2",
     "protocolVersion": 2,
@@ -23,7 +23,7 @@
   "name": "SForum S3-compatible Storage",
   "packageFiles": [
     {
-      "digest": "d93979bed563d2b22cae55026a698935712f124010feb8008fb547ac2206d661",
+      "digest": "c9b5786283406d273284e979eeedc6b54f17f7afa135c68dfb972a5353bc14ea",
       "id": "sforum.storage-s3.file.backend",
       "kind": "executable",
       "path": "backend/plugin"
@@ -43,5 +43,5 @@
   "sforumVersion": "\u003e=0.1.0",
   "type": "plugin",
   "url": "https://github.com/zhuchunshu/sforum",
-  "version": "1.0.9"
+  "version": "1.0.10"
 }

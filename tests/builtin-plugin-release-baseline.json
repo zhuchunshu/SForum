@@ -26,8 +26,8 @@
       "sourceDigest": "54691739e90e8d2787642b0fc6693e75e26c03fa768202793727d3d231976bd0"
     },
     "sforum.storage-s3": {
-      "version": "1.0.9",
-      "sourceDigest": "38d1716a224f50cbe7d24b9656a84c3ca444c9ce7172e220b1efbdc9d6011cb6"
+      "version": "1.0.10",
+      "sourceDigest": "64de82b1090ea63b7f2aaf903380d5d00665fa80bcffc1c4c9aa6c6030da5574"
     },
     "sforum.web-push": {
       "version": "1.0.7",
