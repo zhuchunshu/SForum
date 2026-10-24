@@ -12,6 +12,21 @@ does not rebuild Nuxt.
 
 ## Current Program State
 
+- **Every shipped package carries brand assets (2026-10-25).** 12 extensions
+  (8 built-in plugins, the default theme, 3 independent-repository plugins) plus
+  the main repository now ship `brand/icon.svg` (512 viewBox), `brand/icon.png`
+  (512×512) and `brand/social-preview.png` (1280×640, Chinese primary card),
+  generated from one template by `scripts/brand/` and read by each README's
+  first screen. The contract is `docs/extensions/brand-assets.md`; the broader
+  plugin repository standard is `docs/{zh-CN,en-US}/development/plugin-standard.md`.
+  Enforcement is `sforum extension brand check` plus a Go test over
+  `extensions/builtin/**` and `extensions/optional/**`. Brand files stay out of
+  `packageFiles` (inert, not runtime artifacts) but remain inside the package
+  tree digest, so adding them is a normal artifact change for the same version.
+  No manifest `icon`/`socialPreview` field and no admin-list icon slot yet — the
+  decision record explains why. See
+  `../decisions/2026-10-25-extension-brand-assets.md`.
+
 - **Protected built-in plugin auto-update is implemented (2026-10-23).**
   API startup runs `BuiltinPluginAutoUpdater` after domain services and the
   plugin runtime coordinator are ready. It promotes enabled

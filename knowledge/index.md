@@ -6,6 +6,19 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 扩展品牌资产（图标 / 社交卡）
+
+- Status: **landed（2026-10-25）**。12 个扩展（8 内置插件 + 默认主题 + 3 个独立仓
+  插件）与主仓产出同构品牌资产：`brand/icon.svg`、`brand/icon.png`（512）、
+  `brand/social-preview.png`（1280×640 中文主卡），由 `scripts/brand/` 单一模板
+  生成；门禁是 `sforum extension brand check` + 仓内 Go 测试；契约与模板参数见
+  `../docs/extensions/brand-assets.md`，插件仓库标准见
+  `../docs/zh-CN/development/plugin-standard.md`。
+- **待人工**：4 个仓库的 GitHub Social preview 需手动上传（无公开 API）；重启 API 后
+  8 个内置包会有一次同版本摘要漂移候选，需逐一点升级（或随 patch 版本自动晋升）。
+- Handoff: `sessions/2026-10-25-extension-brand-assets-handoff.md`；决策：
+  `decisions/2026-10-25-extension-brand-assets.md`。
+
 ### 应用商城 · SForum 侧（已落地）
 
 - Status: **landed（2026-10-24）**。P0（`381182cc7`）删除 Marketplace 死代码、
@@ -608,7 +621,14 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- **应用商城 · SForum 侧落地（2026-10-24，最新）**：P0 删除 Marketplace 预留包
+- **扩展品牌资产（2026-10-25，最新）**：12 个扩展 + 主仓的图标与社交卡落地，
+  `scripts/brand/` 一条 spec 生成（确定输出），`sforum extension brand check`
+  + 仓内 Go 测试做门禁；品牌进包内 `brand/`、不进 `packageFiles`、仍属包树摘要。
+  文档：`../docs/extensions/brand-assets.md`、双语 `../docs/zh-CN/development/plugin-standard.md`。
+  待人工：4 个仓库 Social preview 手动上传；8 个内置包一次摘要漂移升级。
+  详见 `sessions/2026-10-25-extension-brand-assets-handoff.md`。
+
+- **应用商城 · SForum 侧落地（2026-10-24）**：P0 删除 Marketplace 预留包
   （8 文件 1492 行）+ `MARKETPLACE_ED25519_*` + `/extensions/store*` 三页与占位货架，
   store UI 身份转 retired 并进墓碑账本；P1 给受信任管理页加宿主中介安装动作
   （清单 `hostActions` → `bridge.installExtension` → 确认框 → `install-from-url`，
