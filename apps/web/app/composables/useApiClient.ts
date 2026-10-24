@@ -12,6 +12,7 @@ export type ApiErrorData = {
   fields?: Record<string, string[]>
   retryAfterSeconds?: number
   retryAt?: string
+  details?: Record<string, unknown>
 }
 
 type ApiRequestBody = BodyInit | Record<string, unknown> | null
@@ -223,6 +224,14 @@ export function apiErrorMessage(error: unknown) {
 export function apiErrorReason(error: unknown) {
   const reason = apiErrorEnvelope(error)?.data?.reason
   return typeof reason === 'string' ? reason : ''
+}
+
+/** 读取错误信封里的结构化诊断载荷（如卸载清理失败的 operationId/failedStep）。 */
+export function apiErrorDetails(error: unknown): Record<string, unknown> | undefined {
+  const details = apiErrorEnvelope(error)?.data?.details
+  return details && typeof details === 'object' && !Array.isArray(details)
+    ? details as Record<string, unknown>
+    : undefined
 }
 
 export function apiErrorRetryAfterSeconds(error: unknown) {

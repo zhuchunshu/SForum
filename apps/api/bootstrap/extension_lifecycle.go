@@ -363,7 +363,7 @@ func newProductionLifecycleStack(config productionLifecycleStackConfig) (*produc
 
 	return &productionLifecycleStack{
 		Repository: repository, RuntimeManager: config.Runtime, Runtime: runtime,
-		Trust: config.Trust,
+		Trust:     config.Trust,
 		Preflight: preflight, StaticPreflight: staticPreflight,
 		MigrationEngine: config.MigrationEngine, Migrations: migrations,
 		Schedules: schedules, JobStore: jobStore, JobCoordinator: jobCoordinator, Jobs: jobs,
@@ -397,6 +397,8 @@ func (s *productionLifecycleStack) bindService(service *extensions.Service) erro
 	extensions.WithLifecycleCoordinator(s.Coordinator, s.StaticPreflight, s.Repository)(service)
 	extensions.WithLifecycleInspectionRepository(s.Repository)(service)
 	extensions.WithLifecycleCleanupFinalizer(adaptLifecycleCleanupFinalizer(s.CleanupFinalizer))(service)
+	// 卸载清理收敛：周期 sweep 与免键收尾端点共用同一 pending tombstone 读取边界。
+	extensions.WithLifecycleCleanupSweepSource(s.Repository)(service)
 	extensions.WithRouteProviderSelectionInvalidator(s.RouteProviders)(service)
 	extensions.WithProviderSlotSelectionInvalidator(s.ProviderSlots)(service)
 	extensions.WithComponentRegistry(s.ComponentRegistry)(service)

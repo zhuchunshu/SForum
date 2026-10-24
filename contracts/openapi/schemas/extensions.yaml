@@ -268,6 +268,44 @@ LifecycleCleanupFinalization:
     physicalPurgeComplete:
       type: boolean
       const: true
+LifecycleCleanupFailureDetails:
+  type: object
+  required: [operationId, failedStep, retriable]
+  additionalProperties: false
+  description: >-
+    Structured diagnostics for a failed uninstall physical cleanup. failedStep
+    names the finalize step that did not complete; every step is idempotent, so
+    a retriable failure can be replayed with the original idempotency key or
+    through the keyless finalize-cleanup endpoint.
+  properties:
+    operationId:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Ledger operation the cleanup belongs to; 0 when the operation itself was rejected.
+    failedStep:
+      type: string
+      enum: [quarantine_asset_publication, release_attachment_references, clear_provider_selections, physical_purge, not_finalized]
+    retriable:
+      type: boolean
+      description: Whether replaying the cleanup can make progress.
+ApiResponseUninstallCleanupFailed:
+  type: object
+  required: [code, message, data]
+  properties:
+    code:
+      type: integer
+    message:
+      type: string
+    data:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          enum: [extension.lifecycle_cleanup_failed]
+        details:
+          "$ref": "#/LifecycleCleanupFailureDetails"
 ExtensionUninstallResult:
   type: object
   required: [uninstalled, extensionId]

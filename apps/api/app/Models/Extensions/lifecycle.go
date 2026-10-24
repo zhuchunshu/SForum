@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -723,4 +724,155 @@ func sanitizeSourceLabel(raw string) string {
 func ValidSourceLabel(raw string) bool {
 	trimmed := strings.TrimSpace(raw)
 	return trimmed != "" && trimmed == sanitizeSourceLabel(trimmed)
+}
+
+// WithLifecycleCleanupSweepSource 注入 pending tombstone 读取边界；
+// nil 时 sweep 与免键收尾端点 fail closed 为 503。
+func WithLifecycleCleanupSweepSource(source LifecycleCleanupSweepSource) ServiceOption {
+	return func(service *Service) {
+		service.lifecycleCleanupSweeper = source
+	}
+}
+
+// LifecycleCleanupSweepFailure 记录 sweep 中单条失败的 operation 与原因。
+type LifecycleCleanupSweepFailure struct {
+	OperationID int64  `json:"operationId"`
+	ExtensionID string `json:"extensionId"`
+	Err         string `json:"err"`
+}
+
+// LifecycleCleanupSweepResult 汇总一轮收敛的结果。
+type LifecycleCleanupSweepResult struct {
+	Finalized []int64                        `json:"finalized"`
+	Failed    []LifecycleCleanupSweepFailure `json:"failed,omitempty"`
+}
+
+// CleanupConvergenceService 是卸载物理清理的聚焦协作对象：把「台账已
+// succeeded 但 tombstone 仍 pending」的收尾工作（周期 sweep、免键收尾端点、
+// 管理端徽标投影）从 Service/LifecycleService 的 God-object 表面上分离。
+// 它经内嵌 *Service 复用 serviceCore 的 finalize 边界与审计器，自身不持有状态。
+type CleanupConvergenceService struct {
+	*Service
+}
+
+// NewCleanupConvergenceService 由 bootstrap/controller 装配；与 Service 共享
+// 同一份 WithLifecycleCleanupSweepSource 注入的 pending tombstone 读取边界。
+func NewCleanupConvergenceService(service *Service) *CleanupConvergenceService {
+	return &CleanupConvergenceService{Service: service}
+}
+
+// RunPendingUninstallCleanupSweep 是宿主自有的收敛任务：把「台账已 succeeded
+// 但 tombstone 仍 pending」的卸载物理清理从失败点续跑。每一步幂等且受
+// FOR UPDATE 锁与 purge fence 保护，可与手动重试并发。失败条目隔离并留待下一轮。
+func (s *CleanupConvergenceService) RunPendingUninstallCleanupSweep(
+	ctx context.Context, limit int,
+) (LifecycleCleanupSweepResult, error) {
+	items, err := s.pendingUninstallCleanups(ctx, "", limit)
+	if err != nil {
+		return LifecycleCleanupSweepResult{}, err
+	}
+	result := LifecycleCleanupSweepResult{Finalized: []int64{}}
+	for _, item := range items {
+		if _, finalizeErr := s.finalizePendingUninstallCleanup(ctx, item); finalizeErr != nil {
+			result.Failed = append(result.Failed, LifecycleCleanupSweepFailure{
+				OperationID: item.OperationID, ExtensionID: item.ExtensionID, Err: finalizeErr.Error(),
+			})
+			slog.WarnContext(ctx, "uninstall cleanup sweep item failed",
+				"operationId", item.OperationID, "extensionId", item.ExtensionID, "error", finalizeErr.Error())
+			continue
+		}
+		result.Finalized = append(result.Finalized, item.OperationID)
+		slog.InfoContext(ctx, "uninstall cleanup sweep finalized operation",
+			"operationId", item.OperationID, "extensionId", item.ExtensionID)
+	}
+	return result, nil
+}
+
+// FinalizeUninstallCleanupForExtension 是免键恢复入口：原幂等键丢失时，
+// super_admin 按扩展维度把全部 pending tombstone 收敛到 finalized。
+// 幂等：无 pending 条目时同样返回成功（Uninstalled=false）。
+func (s *CleanupConvergenceService) FinalizeUninstallCleanupForExtension(
+	ctx context.Context, actor identity.Actor, extensionID string,
+) (UninstallResult, error) {
+	if !actor.IsSuperAdmin() {
+		return UninstallResult{}, identity.ErrPermissionDenied
+	}
+	extensionID = normalizeID(extensionID)
+	if extensionID == "" {
+		return UninstallResult{}, ErrLifecycleInvalidInput
+	}
+	items, err := s.pendingUninstallCleanups(ctx, extensionID, 100)
+	if err != nil {
+		return UninstallResult{}, err
+	}
+	if len(items) == 0 {
+		return UninstallResult{Uninstalled: false, ExtensionID: extensionID}, nil
+	}
+	var last UninstallResult
+	for _, item := range items {
+		result, finalizeErr := s.finalizePendingUninstallCleanup(ctx, item)
+		if finalizeErr != nil {
+			return UninstallResult{}, finalizeErr
+		}
+		last = result
+	}
+	s.appendAudit(ctx, actor, audit.ActionExtensionUninstalled, map[string]any{
+		"extensionId": extensionID,
+		"operation":   "uninstall_cleanup_finalized",
+		"operations":  lifecycleOperationIDList(items),
+	})
+	return last, nil
+}
+
+// PendingUninstallCleanupExtensions 返回存在 pending tombstone 的扩展集合，
+// 供管理端列表投影「清理挂起」徽标。查询失败时返回错误，由调用方决定降级。
+func (s *CleanupConvergenceService) PendingUninstallCleanupExtensions(ctx context.Context) (map[string]bool, error) {
+	items, err := s.pendingUninstallCleanups(ctx, "", 500)
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[string]bool, len(items))
+	for _, item := range items {
+		set[item.ExtensionID] = true
+	}
+	return set, nil
+}
+
+func (s *CleanupConvergenceService) pendingUninstallCleanups(ctx context.Context, extensionID string, limit int) ([]PendingUninstallCleanup, error) {
+	if s == nil || s.lifecycleCleanupSweeper == nil {
+		return nil, ErrLifecycleCoordinatorUnavailable
+	}
+	items, err := s.lifecycleCleanupSweeper.PendingUninstallCleanups(ctx, extensionID, limit)
+	if err != nil {
+		return nil, errors.Join(ErrLifecycleCoordinatorUnavailable, err)
+	}
+	return items, nil
+}
+
+func (s *CleanupConvergenceService) finalizePendingUninstallCleanup(ctx context.Context, item PendingUninstallCleanup) (UninstallResult, error) {
+	if s == nil || s.lifecycleInspector == nil {
+		return UninstallResult{}, ErrLifecycleCoordinatorUnavailable
+	}
+	operation, err := s.lifecycleInspector.Operation(ctx, item.ExtensionID, item.OperationID)
+	if err != nil {
+		// sweep 查询与加载之间的 ledger 不一致（记录被并发收口等）按无效输入
+		// 处理：pending tombstone 引用的 succeeded operation 不会凭空消失。
+		if errors.Is(err, ErrLifecycleOperationNotFound) {
+			return UninstallResult{}, fmt.Errorf(
+				"%w: pending cleanup operation %d/%s vanished", ErrLifecycleInvalidInput, item.OperationID, item.ExtensionID)
+		}
+		return UninstallResult{}, err
+	}
+	if operation.ID != item.OperationID || operation.ExtensionID != item.ExtensionID {
+		return UninstallResult{}, fmt.Errorf("%w: sweep operation identity mismatch %d/%s", ErrLifecycleInvalidInput, item.OperationID, item.ExtensionID)
+	}
+	return s.finalizeLifecycleUninstall(ctx, item.ExtensionID, item.RemovalMode, operation, true)
+}
+
+func lifecycleOperationIDList(items []PendingUninstallCleanup) []int64 {
+	ids := make([]int64, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.OperationID)
+	}
+	return ids
 }

@@ -628,6 +628,15 @@ load archived sessions or completed plans as current context.
   待人工：4 个仓库 Social preview 手动上传；8 个内置包一次摘要漂移升级。
   详见 `sessions/2026-10-25-extension-brand-assets-handoff.md`。
 
+- **卸载物理清理自动收敛（2026-10-24）**：503 `extension.lifecycle_cleanup_failed`
+  携带结构化 `data.details`（operationId/failedStep/retriable）；新增 River 周期任务
+  `extensions.finalize_uninstall_cleanup`（5 分钟 + RunOnStart，仅 embed worker）自动重放
+  pending tombstone；免键收尾端点 `POST /admin/extensions/:id/uninstall-cleanup/finalize`
+  （super_admin，幂等）；前端卸载幂等键落 sessionStorage + 失败步骤一键重试 +
+  「立即完成清理」按钮 + 列表 `pendingUninstallCleanup` 徽标。Go/Web/架构门禁/OpenAPI
+  /catalog 全绿；两段式卸载保留，收敛安全全部来自既有幂等机制。详见
+  `sessions/2026-10-24-uninstall-cleanup-convergence-handoff.md` 与
+  `decisions/2026-10-24-uninstall-cleanup-convergence.md`。
 - **应用商城 · SForum 侧落地（2026-10-24）**：P0 删除 Marketplace 预留包
   （8 文件 1492 行）+ `MARKETPLACE_ED25519_*` + `/extensions/store*` 三页与占位货架，
   store UI 身份转 retired 并进墓碑账本；P1 给受信任管理页加宿主中介安装动作

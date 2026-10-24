@@ -65,10 +65,12 @@
 - `forum.auto_lock_idle`
 - `forum.flush_view_counts`
 - `search.reconcile`
+- `extensions.finalize_uninstall_cleanup`
 
 ## jobKinds
 
 - `audit.cleanup_events` — `apps/api/app/Jobs/Audit/cleanup_events.go`
+- `extensions.finalize_uninstall_cleanup` — `apps/api/app/Jobs/Extensions/finalize_uninstall_cleanup.go`
 - `forum.auto_lock_idle` — `apps/api/app/Jobs/Forum/auto_lock_idle.go`
 - `forum.flush_view_counts` — `apps/api/app/Jobs/Forum/flush_view_counts.go`
 - `identity.cleanup_sessions` — `apps/api/app/Jobs/Identity/cleanup_sessions.go`

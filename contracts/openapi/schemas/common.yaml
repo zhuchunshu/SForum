@@ -21,6 +21,14 @@ ApiErrorData:
       type: string
       format: date-time
       description: Server-authoritative UTC time when a rate-limited operation may be retried.
+    details:
+      type: object
+      additionalProperties: true
+      description: >-
+        Structured diagnostics for specific failure classes, populated only by
+        the endpoints that declare them. The uninstall cleanup failure carries
+        operationId, failedStep, and retriable (see LifecycleCleanupFailureDetails
+        in extensions.yaml).
 ApiErrorResponse:
   type: object
   required:

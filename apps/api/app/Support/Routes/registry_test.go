@@ -497,7 +497,8 @@ func TestCoreRouteCatalogHasExactReviewedGuardParity(t *testing.T) {
 	// 376 = 375 + core.route.extensions.install_from_url（后台链接安装）。
 	// 377 = 376 + core.route.ai.list_reply_outcomes（回复结果读面：这条触发有没有
 	// 变成评论。与执行记录是两个问题，因此是独立路由而不是复用 executions）。
-	if len(catalog) != 377 {
+	// 378 = 377 + core.route.extensions.finalize_uninstall_cleanup（卸载清理免键收尾）。
+	if len(catalog) != 378 {
 		t.Fatalf("generated core route count = %d", len(catalog))
 	}
 	kinds := make(map[CoreGuardKind]int)

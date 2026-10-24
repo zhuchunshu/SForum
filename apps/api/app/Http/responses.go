@@ -23,6 +23,9 @@ type ErrorData struct {
 	Fields            map[string][]string `json:"fields,omitempty"`
 	RetryAfterSeconds *int                `json:"retryAfterSeconds,omitempty"`
 	RetryAt           *time.Time          `json:"retryAt,omitempty"`
+	// Details 是领域层的结构化诊断载荷（如卸载清理失败的 operationId/failedStep），
+	// 具体键由各 controller 在 OpenAPI 中约束；transport 层不做解释。
+	Details map[string]any `json:"details,omitempty"`
 }
 
 type APIError struct {
@@ -30,6 +33,7 @@ type APIError struct {
 	Reason  string
 	Fields  map[string][]string
 	RetryAt *time.Time
+	Details map[string]any
 }
 
 func (e *APIError) Error() string {
@@ -64,6 +68,10 @@ func NewErrorWithFields(status int, reason string, fields map[string][]string) *
 	return &APIError{Status: status, Reason: reason, Fields: fields}
 }
 
+func NewErrorWithDetails(status int, reason string, details map[string]any) *APIError {
+	return &APIError{Status: status, Reason: reason, Details: details}
+}
+
 func NewErrorWithRetryAt(status int, reason string, retryAt time.Time) *APIError {
 	retryAt = retryAt.UTC()
 	return &APIError{Status: status, Reason: reason, RetryAt: &retryAt}
@@ -91,6 +99,12 @@ func ErrorResponse(c fiber.Ctx, status int, reason string) error {
 
 func ErrorResponseWithFields(c fiber.Ctx, status int, reason string, fields map[string][]string) error {
 	return JSON(c, status, reason, ErrorData{Reason: reason, Fields: fields})
+}
+
+func ErrorResponseWithFieldsAndDetails(
+	c fiber.Ctx, status int, reason string, fields map[string][]string, details map[string]any,
+) error {
+	return JSON(c, status, reason, ErrorData{Reason: reason, Fields: fields, Details: details})
 }
 
 func ErrorResponseWithRetryAt(c fiber.Ctx, status int, reason string, retryAt time.Time) error {

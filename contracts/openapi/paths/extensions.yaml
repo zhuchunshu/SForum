@@ -1057,11 +1057,58 @@ adminExtensionUninstall:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '503':
-        description: Lifecycle coordinator or exact cleanup finalizer unavailable.
+        description: >-
+          The uninstall reached terminal success, but Host physical cleanup did
+          not finish. The error data carries structured details (operationId,
+          failedStep, retriable); every cleanup step is idempotent, so retrying
+          with the original Idempotency-Key or the keyless finalize-cleanup
+          endpoint resumes from the failed step.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseUninstallCleanupFailed"
+adminExtensionFinalizeUninstallCleanup:
+  post:
+    summary: Finish pending uninstall host cleanup without the original idempotency key
+    description: >-
+      Keyless recovery entry point for the two-phase V2 uninstall. When an
+      uninstall reached durable terminal success but Host physical cleanup did
+      not finish (503 extension.lifecycle_cleanup_failed on the DELETE), a
+      super_admin can converge every pending uninstall tombstone of this
+      extension from the failed step onward. Idempotent: with no pending
+      tombstone the call succeeds with uninstalled=false and no side effects.
+      Physical purge still requires the exact purge receipt; this endpoint
+      never skips Host safety gates.
+    operationId: finalizeUninstallCleanup
+    parameters:
+    - "$ref": "../components/parameters.yaml#/ExtensionID"
+    responses:
+      '200':
+        description: >-
+          Cleanup converged for this extension, or there was nothing pending
+          (uninstalled=false).
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseExtensionUninstall"
+      '401':
+        "$ref": "../components/responses.yaml#/Unauthorized"
+      '403':
+        "$ref": "../components/responses.yaml#/Forbidden"
+      '422':
+        description: Invalid extension id (reason extension.lifecycle_invalid).
         content:
           application/json:
             schema:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
+      '503':
+        description: >-
+          A pending cleanup step failed again. Structured details identify the
+          failed step; the background sweep keeps retrying retriable failures.
+        content:
+          application/json:
+            schema:
+              "$ref": "../schemas/extensions.yaml#/ApiResponseUninstallCleanupFailed"
 adminExtensionLifecycleOperations:
   get:
     summary: List durable extension lifecycle operations

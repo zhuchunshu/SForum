@@ -57,8 +57,8 @@ func TestServiceSchedulesReturnsCoreCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("schedules: %v", err)
 	}
-	if len(items) != 7 {
-		t.Fatalf("expected 7 core schedules, got %d", len(items))
+	if len(items) != 8 {
+		t.Fatalf("expected 8 core schedules, got %d", len(items))
 	}
 	ids := map[string]bool{}
 	for _, item := range items {

@@ -30,19 +30,22 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		ScheduleSearchReconcile: func() (river.JobArgs, *river.InsertOpts) {
 			return stubArgs{kind: ScheduleSearchReconcile}, nil
 		},
+		ScheduleExtensionsFinalizeUninstallCleanup: func() (river.JobArgs, *river.InsertOpts) {
+			return stubArgs{kind: ScheduleExtensionsFinalizeUninstallCleanup}, nil
+		},
 	})
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
-	if reg.Len() != 7 {
-		t.Fatalf("expected 7 core schedules, got %d", reg.Len())
+	if reg.Len() != 8 {
+		t.Fatalf("expected 8 core schedules, got %d", reg.Len())
 	}
 	jobs, err := reg.BuildPeriodicJobs()
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	if len(jobs) != 7 {
-		t.Fatalf("expected 7 river periodics, got %d", len(jobs))
+	if len(jobs) != 8 {
+		t.Fatalf("expected 8 river periodics, got %d", len(jobs))
 	}
 
 	// 元数据完整性：daily、owner 明确
@@ -59,6 +62,7 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		ScheduleForumAutoLockIdle,
 		ScheduleForumFlushViewCounts,
 		ScheduleSearchReconcile,
+		ScheduleExtensionsFinalizeUninstallCleanup,
 	} {
 		v, ok := byID[id]
 		if !ok {
@@ -85,6 +89,10 @@ func TestCoreScheduleRegistryBuildsCorePeriodics(t *testing.T) {
 		!byID[ScheduleAttachmentsReconcileCompression].RunOnStart {
 		t.Fatalf("attachment compression reconcile schedule=%+v", byID[ScheduleAttachmentsReconcileCompression])
 	}
+	if byID[ScheduleExtensionsFinalizeUninstallCleanup].IntervalSeconds != int64((5*time.Minute)/time.Second) ||
+		!byID[ScheduleExtensionsFinalizeUninstallCleanup].RunOnStart {
+		t.Fatalf("uninstall cleanup sweep schedule=%+v", byID[ScheduleExtensionsFinalizeUninstallCleanup])
+	}
 	if byID[ScheduleIdentityCleanupSessions].Queue != QueueDefault {
 		t.Fatalf("session cleanup queue=%s", byID[ScheduleIdentityCleanupSessions].Queue)
 	}
@@ -105,7 +113,7 @@ func TestCoreScheduleRegistryWithoutConstructorsIsCatalogOnly(t *testing.T) {
 	if len(jobs) != 0 {
 		t.Fatalf("catalog-only should not build periodics, got %d", len(jobs))
 	}
-	if len(reg.Views()) != 7 {
+	if len(reg.Views()) != 8 {
 		t.Fatalf("views=%d", len(reg.Views()))
 	}
 }

@@ -77,6 +77,8 @@ type serviceCore struct {
 	lifecyclePreflight     LifecycleStaticPreflight
 	lifecycleAuthority     LifecycleAuthorityRepository
 	lifecycleFinalizer     LifecycleCleanupFinalizer
+	// lifecycleCleanupSweeper 读取 pending tombstone，供周期 sweep 与免键收尾端点共用。
+	lifecycleCleanupSweeper LifecycleCleanupSweepSource
 	// attachmentReferences 在卸载收口释放插件拥有的附件引用（公开图标等）。
 	attachmentReferences ExtensionAttachmentReferenceReaper
 	queryPublications    RuntimeQueryPublicationBoundary

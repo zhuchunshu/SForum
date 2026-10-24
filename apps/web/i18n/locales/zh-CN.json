@@ -1383,6 +1383,22 @@
       "upgradedTrustRevokedHint": "包摘要已变更，前端信任已吊销；请重新启用并重新授权可信管理端组件。",
       "uninstalled": "扩展已卸载。",
       "uninstall": "卸载",
+      "uninstallCleanup": {
+        "pendingBadge": "清理挂起",
+        "pendingHint": "上一次卸载的宿主清理尚未完成，后台正在自动重试。",
+        "failedStep": "清理在第 {step} 步未完成。",
+        "unknownStep": "未知步骤",
+        "retry": "重试清理",
+        "finalize": "立即完成清理",
+        "finalizeSuccess": "卸载清理已完成。",
+        "steps": {
+          "quarantine_asset_publication": "隔离前端资产发布",
+          "release_attachment_references": "释放附件引用",
+          "clear_provider_selections": "清除 Provider 选择注册",
+          "physical_purge": "物理清理制品",
+          "not_finalized": "收尾确认"
+        }
+      },
       "confirmUninstallTitle": "确认卸载扩展？",
       "confirmUninstallBody": "将删除「{name}」的安装记录与配置（默认）。请先禁用扩展；内置/系统扩展不可卸载。",
       "confirmTrustedUninstallBody": "将对「{name}」执行可恢复的受信任卸载流程。包、运行时恢复材料与最后成功授权会保留到终态成功。",

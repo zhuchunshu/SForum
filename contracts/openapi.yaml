@@ -626,6 +626,8 @@ paths:
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleOperation"
   "/admin/extensions/{id}/lifecycle/{operationID}/recovery":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionLifecycleRecovery"
+  "/admin/extensions/{id}/uninstall-cleanup/finalize":
+    "$ref": "./openapi/paths/extensions.yaml#/adminExtensionFinalizeUninstallCleanup"
   "/admin/extensions/{id}/migrations":
     "$ref": "./openapi/paths/extensions.yaml#/adminExtensionMigrations"
   "/admin/extensions/{id}/migrations/apply":

@@ -6,8 +6,6 @@ import {
   extensionStats,
   mergeExtensionDeliveries,
   mergeExtensionEvents,
-  isLifecycleV2Plugin,
-  RECOMMENDED_LIFECYCLE_REMOVAL_MODE,
   type AdminContributionPointDefinition,
   type AdminEffectiveContribution,
   type AdminExtension,
@@ -19,14 +17,14 @@ import {
   type AdminExtensionStatus,
   type AdminLifecycleOperation,
   type AdminLifecycleOperationDetail,
-  type AdminLifecycleRecoveryInput,
-  type AdminLifecycleRemovalMode
+  type AdminLifecycleRecoveryInput
 } from '~/utils/admin/adminExtensions'
 import type {
   ExecutableTrustChallenge, ExecutableTrustStatus,
   ExtensionEnableTrustMode
 } from '~/utils/extensions/extensionTrust'
 import { apiErrorMessage, apiErrorReason } from '~/composables/useApiClient'
+import { lifecycleIdempotencyKey, useAdminUninstallCleanup } from '~/composables/admin/useAdminUninstallCleanup'
 import {
   executableTrustPath,
   lifecycleSuccessIcon,
@@ -79,6 +77,23 @@ export const useAdminExtensionsManager = async () => {
   const aggregatedEvents = computed(() => mergeExtensionEvents(eventsByExtension.value))
   const aggregatedDeliveries = computed(() => mergeExtensionDeliveries(eventDeliveries.value))
 
+  // 卸载确认与清理恢复（F2.4 + 清理收敛）：聚焦协作对象持有幂等键持久化、
+  // 确认弹窗状态、503 结构化详情与免键收尾入口。
+  const uninstallCleanup = useAdminUninstallCleanup({
+    t,
+    toast,
+    request,
+    busyId,
+    refresh,
+    onUninstalled: (item) => {
+      const current = extensions.value.filter(row => row.id !== item.id)
+      data.value = current
+      if (selectedId.value === item.id) {
+        selectedId.value = current[0]?.id || ''
+      }
+    }
+  })
+
   function openUpload() {
     fileInput.value?.click()
   }
@@ -129,72 +144,6 @@ export const useAdminExtensionsManager = async () => {
       toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: apiErrorMessage(error) || t('admin.extensions.uploadFailed') })
     } finally {
       uploading.value = false
-    }
-  }
-
-  // 卸载确认（F2.4）。
-  const uninstallConfirmOpen = ref(false)
-  const uninstallConfirmItem = ref<AdminExtension | null>(null)
-  const uninstallRemovalMode = ref<AdminLifecycleRemovalMode>(RECOMMENDED_LIFECYCLE_REMOVAL_MODE)
-  const uninstallError = ref('')
-  const uninstallKeys = new Map<string, string>()
-
-  function openUninstallExtension(item: AdminExtension) {
-    if (!item.isDeletable || item.source === 'builtin' || item.isSystem) {
-      return
-    }
-    uninstallConfirmItem.value = item
-    uninstallRemovalMode.value = RECOMMENDED_LIFECYCLE_REMOVAL_MODE
-    uninstallError.value = ''
-    if (!uninstallKeys.has(item.id)) {
-      uninstallKeys.set(item.id, lifecycleIdempotencyKey())
-    }
-    uninstallConfirmOpen.value = true
-  }
-
-  function cancelUninstallExtension() {
-    uninstallConfirmOpen.value = false
-    uninstallConfirmItem.value = null
-    uninstallRemovalMode.value = RECOMMENDED_LIFECYCLE_REMOVAL_MODE
-    uninstallError.value = ''
-  }
-
-  async function confirmUninstallExtension() {
-    const item = uninstallConfirmItem.value
-    if (!item) {
-      return
-    }
-    busyId.value = item.id
-    uninstallError.value = ''
-    try {
-      await request(`/admin/extensions/${item.id}`, {
-        method: 'DELETE',
-        body: isLifecycleV2Plugin(item) ? { removalMode: uninstallRemovalMode.value } : {},
-        headers: { 'Idempotency-Key': uninstallKeys.get(item.id) || lifecycleIdempotencyKey() }
-      })
-      const current = extensions.value.filter(row => row.id !== item.id)
-      data.value = current
-      if (selectedId.value === item.id) {
-        selectedId.value = current[0]?.id || ''
-      }
-      toast.add({
-        color: 'success',
-        icon: 'i-lucide-trash-2',
-        title: t('admin.extensions.uninstalled'),
-        duration: 5000
-      })
-      uninstallKeys.delete(item.id)
-      cancelUninstallExtension()
-    } catch (error) {
-      uninstallError.value = apiErrorMessage(error) || t('admin.extensions.actionFailed')
-      toast.add({
-        color: 'error',
-        icon: 'i-lucide-triangle-alert',
-        title: uninstallError.value,
-        duration: 0
-      })
-    } finally {
-      busyId.value = ''
     }
   }
 
@@ -286,14 +235,6 @@ export const useAdminExtensionsManager = async () => {
       lifecycleRecoveryBusy.value = false
     }
   }
-
-  watch([uninstallConfirmOpen, busyId], ([open, busy]) => {
-    if (!open && busy !== uninstallConfirmItem.value?.id) {
-      uninstallConfirmItem.value = null
-      uninstallRemovalMode.value = RECOMMENDED_LIFECYCLE_REMOVAL_MODE
-      uninstallError.value = ''
-    }
-  })
 
   watch([lifecycleDialogOpen, lifecycleRecoveryBusy, lifecycleLoading], ([open, recoveryBusy, loading]) => {
     if (!open && !recoveryBusy && !loading) {
@@ -949,13 +890,7 @@ export const useAdminExtensionsManager = async () => {
     cancelThemeActivate,
     confirmThemePreviewActivate,
     cancelThemePreviewActivate,
-    openUninstallExtension,
-    confirmUninstallExtension,
-    cancelUninstallExtension,
-    uninstallConfirmOpen,
-    uninstallConfirmItem,
-    uninstallRemovalMode,
-    uninstallError,
+    ...uninstallCleanup,
     lifecycleDialogOpen,
     lifecycleDialogItem,
     lifecycleOperations,
@@ -983,8 +918,4 @@ export const useAdminExtensionsManager = async () => {
     typeLabel,
     statusLabel
   }
-}
-
-function lifecycleIdempotencyKey() {
-  return globalThis.crypto.randomUUID()
 }

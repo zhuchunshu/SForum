@@ -375,6 +375,8 @@ export type AdminExtension = {
   capabilityGrants?: AdminCapabilityGrant[]
   runtime?: AdminExtensionRuntime
   artifactState?: AdminExtensionArtifactState
+  /** 存在「台账已 succeeded 但宿主物理清理未完成」的 pending 卸载 tombstone。 */
+  pendingUninstallCleanup?: boolean
   packageDigest: string
   adminFrontendDigest?: string
   packagePath: string

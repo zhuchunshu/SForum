@@ -57,12 +57,16 @@ assert(types.includes('export type AdminExtensionVersion = {'), 'web types must 
 assert(types.includes('stagedVersion?: AdminExtensionVersion'), 'AdminExtension must expose stagedVersion')
 
 const manager = read('apps/web/app/composables/admin/useAdminExtensionsManager.ts')
+const uninstallCleanup = read('apps/web/app/composables/admin/useAdminUninstallCleanup.ts')
 const upgradeFlow = read('apps/web/app/composables/admin/useAdminExtensionUpgradeFlow.ts')
 const lifecyclePresentation = read('apps/web/app/utils/admin/extensions/lifecyclePresentation.ts')
 assert(types.includes('activationPending?: boolean'), 'upload result type must expose activationPending')
 assert(manager.includes("t('admin.extensions.upgradeStagedHint')"), 'staged upload toast must explain pending activation')
 assert(manager.includes("headers: { 'Idempotency-Key': idempotencyKey }"), 'lifecycle requests must send Idempotency-Key')
-assert(manager.includes('globalThis.crypto.randomUUID()'), 'each lifecycle operation must use a UUID idempotency key')
+// 卸载清理收敛抽出后，幂等键的 UUID 生成在聚焦协作对象里；两处共同守住
+// 「每个生命周期操作一个 UUID 幂等键」的契约。
+assert(manager.includes('globalThis.crypto.randomUUID()') || uninstallCleanup.includes('globalThis.crypto.randomUUID()'), 'each lifecycle operation must use a UUID idempotency key')
+assert(uninstallCleanup.includes("headers: { 'Idempotency-Key': uninstallKeys.get(item.id) || lifecycleIdempotencyKey() }"), 'uninstall retries must reuse the persisted idempotency key')
 assert(upgradeFlow.includes('/admin/extensions/${item.id}/${action}'), 'staged candidates must choose the native upgrade or restart bridge lifecycle operation')
 assert(upgradeFlow.includes('extensionUpgradeLifecycleAction(item)'), 'upgrade flow must preserve the Host legacy-to-V2 restart bridge')
 assert(upgradeFlow.includes('globalThis.crypto.randomUUID()'), 'single and bulk upgrades must use per-operation UUID idempotency keys')

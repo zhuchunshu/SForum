@@ -19,6 +19,9 @@ const (
 	ScheduleForumFlushViewCounts = "forum.flush_view_counts"
 	// ScheduleSearchReconcile 增量修复当前搜索 provider 的漏建、过期和幽灵文档。
 	ScheduleSearchReconcile = "search.reconcile"
+	// ScheduleExtensionsFinalizeUninstallCleanup 周期收敛「台账已 succeeded 但
+	// tombstone 仍 pending」的卸载物理清理；仅 embed worker 注册执行器。
+	ScheduleExtensionsFinalizeUninstallCleanup = "extensions.finalize_uninstall_cleanup"
 )
 
 // CoreScheduleDefinitions 返回宿主内置 schedule 目录模板（无 Constructor）。
@@ -93,6 +96,16 @@ func CoreScheduleDefinitions() []ScheduleDefinition {
 			Owner:       "search",
 			Enabled:     true,
 			Description: "核对并修复当前搜索 provider 的缺失、过期和幽灵文档",
+			RunOnStart:  true,
+		},
+		{
+			ID:          ScheduleExtensionsFinalizeUninstallCleanup,
+			JobKind:     ScheduleExtensionsFinalizeUninstallCleanup,
+			Queue:       QueueMaintenance,
+			Interval:    5 * time.Minute,
+			Owner:       "extensions",
+			Enabled:     true,
+			Description: "收敛卸载后仍未完成的宿主物理清理（pending tombstone 自动重放）",
 			RunOnStart:  true,
 		},
 	}

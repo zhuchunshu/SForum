@@ -34,6 +34,8 @@ func requireExtensionsMutationAuthority(_ context.Context, evaluation routes.Cor
 		"core.route.extensions.revoke_dev_trust_session",
 		"core.route.extensions.dev_trust_refresh",
 		"core.route.extensions.cleanup_missing_artifacts",
+		// 卸载清理免键收尾：直接触发物理 purge，super_admin only。
+		"core.route.extensions.finalize_uninstall_cleanup",
 		"core.route.extensions.probe_provider_slot",
 		"core.route.extensions.select_provider_slot",
 		"core.route.extensions.reset_provider_slot",

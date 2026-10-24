@@ -58,12 +58,17 @@
     "audit.cleanup_events",
     "forum.auto_lock_idle",
     "forum.flush_view_counts",
-    "search.reconcile"
+    "search.reconcile",
+    "extensions.finalize_uninstall_cleanup"
   ],
   "jobKinds": [
     {
       "id": "audit.cleanup_events",
       "source": "apps/api/app/Jobs/Audit/cleanup_events.go"
+    },
+    {
+      "id": "extensions.finalize_uninstall_cleanup",
+      "source": "apps/api/app/Jobs/Extensions/finalize_uninstall_cleanup.go"
     },
     {
       "id": "forum.auto_lock_idle",

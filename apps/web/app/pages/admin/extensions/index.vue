@@ -88,10 +88,13 @@ const {
   openUninstallExtension,
   confirmUninstallExtension,
   cancelUninstallExtension,
+  finalizeUninstallCleanup,
   uninstallConfirmOpen,
   uninstallConfirmItem,
   uninstallRemovalMode,
   uninstallError,
+  uninstallCleanupDetails,
+  finalizeCleanupBusyId,
   lifecycleDialogOpen,
   lifecycleDialogItem,
   lifecycleOperations,
@@ -570,6 +573,15 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
                   >
                     {{ t('admin.extensions.artifact.missing') }}
                   </UBadge>
+                  <UBadge
+                    v-if="item.pendingUninstallCleanup"
+                    color="warning"
+                    variant="subtle"
+                    icon="i-lucide-brush-cleaning"
+                    :title="t('admin.extensions.uninstallCleanup.pendingHint')"
+                  >
+                    {{ t('admin.extensions.uninstallCleanup.pendingBadge') }}
+                  </UBadge>
                 </div>
                 <p
                   v-if="display.description"
@@ -931,8 +943,11 @@ function extensionStatusLabel(item: (typeof extensions.value)[number]) {
       :extension="uninstallConfirmItem"
       :busy="Boolean(uninstallConfirmItem && busyId === uninstallConfirmItem.id)"
       :error="uninstallError"
+      :cleanup-details="uninstallCleanupDetails"
+      :finalize-busy="Boolean(uninstallConfirmItem && finalizeCleanupBusyId === uninstallConfirmItem.id)"
       @cancel="cancelUninstallExtension"
       @confirm="confirmUninstallExtension"
+      @finalize="uninstallConfirmItem && finalizeUninstallCleanup(uninstallConfirmItem)"
     />
 
     <SFAdminExtensionLifecycleDialog

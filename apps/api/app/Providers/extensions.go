@@ -54,7 +54,8 @@ func NewExtensionsProviderWithRuntime(store extensions.Store, users identity.Act
 		gateway = extensionRouteGateway{runtime: runtime, gateway: extensionsruntime.NewRouteGateway()}
 	}
 	return &ExtensionsProvider{
-		controller: extensionscontroller.NewControllerWithGateway(service, users, sessions, gateway),
+		controller: extensionscontroller.NewControllerWithGateway(service, users, sessions, gateway).
+			WithCleanupConvergence(extensions.NewCleanupConvergenceService(service)),
 	}
 }
 
@@ -71,6 +72,7 @@ func NewExtensionsProviderWithService(
 	}
 	controller := extensionscontroller.NewControllerWithGateway(service, users, sessions, gateway)
 	controller.WithTrustedRuntime(frontend)
+	controller.WithCleanupConvergence(extensions.NewCleanupConvergenceService(service))
 	return &ExtensionsProvider{controller: controller}
 }
 

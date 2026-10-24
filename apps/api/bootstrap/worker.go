@@ -17,6 +17,7 @@ import (
 	aireplyjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/AIReply"
 	attachmentjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Attachments"
 	auditjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Audit"
+	extensionsjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Extensions"
 	forumjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Forum"
 	identityjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Identity"
 	notificationjobs "github.com/zhuchunshu/sforum/apps/api/app/Jobs/Notifications"
@@ -131,6 +132,9 @@ type workerRuntimeDeps struct {
 	// 长楼导览）。它同样只在 embed 模式可用：独立 worker 没有论坛装配。
 	// 为 nil 时该能力整体关闭，不注册执行器。
 	AIDerivedGenerator *aiderived.Generator
+	// UninstallCleanupSweeper 由 embed 路径注入 API 已装配的卸载清理协作对象；
+	// 独立 worker 刻意不提供（依赖完整宿主边界）。为 nil 时整体关闭。
+	UninstallCleanupSweeper extensionsjobs.FinalizeUninstallCleanupSweeper
 	// OwnsRuntime 为 true 时 Worker.Close 关闭 runtime（及自建的 Host API gateway）。
 	// 注入共享 runtime 时必须为 false，由 API shutdown 负责 Close。
 	OwnsRuntime bool
@@ -766,7 +770,7 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 			return ctor()
 		}
 	}
-	scheduleRegistry, err := supportjobs.NewCoreScheduleRegistry(map[string]river.PeriodicJobConstructor{
+	coreScheduleConstructors := map[string]river.PeriodicJobConstructor{
 		supportjobs.ScheduleIdentityCleanupSessions: wrapEnabled(
 			supportjobs.ScheduleIdentityCleanupSessions,
 			func() (river.JobArgs, *river.InsertOpts) {
@@ -811,7 +815,9 @@ func newWorkerWithPool(cfg config.Config, pool *pgxpool.Pool, logger *slog.Logge
 				return searchjobs.ReconcileArgs{}, opts
 			},
 		),
-	})
+	}
+	applyUninstallCleanupSweepRegistration(registry, coreScheduleConstructors, wrapEnabled, deps)
+	scheduleRegistry, err := supportjobs.NewCoreScheduleRegistry(coreScheduleConstructors)
 	if err != nil {
 		return nil, fmt.Errorf("schedule registry: %w", err)
 	}

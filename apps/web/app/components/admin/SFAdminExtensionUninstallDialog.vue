@@ -9,11 +9,14 @@ const props = defineProps<{
   extension: AdminExtension | null
   busy?: boolean
   error?: string
+  cleanupDetails?: Record<string, unknown> | null
+  finalizeBusy?: boolean
 }>()
 
 const emit = defineEmits<{
   cancel: []
   confirm: []
+  finalize: []
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -44,6 +47,16 @@ const riskKey = computed(() => {
   if (removalMode.value === 'export_then_remove') return 'admin.extensions.uninstallModes.export.warning'
   return 'admin.extensions.uninstallModes.preserve.warning'
 })
+
+// 503 data.details.failedStep 的本地化展示；未知步骤回退到通用文案而非报错。
+const cleanupStepLabel = computed(() => {
+  const step = props.cleanupDetails?.failedStep
+  if (typeof step !== 'string' || !step) return ''
+  const key = `admin.extensions.uninstallCleanup.steps.${step}`
+  const label = t(key)
+  return label === key ? t('admin.extensions.uninstallCleanup.unknownStep') : label
+})
+const cleanupRetriable = computed(() => props.cleanupDetails?.retriable === true)
 </script>
 
 <template>
@@ -84,13 +97,57 @@ const riskKey = computed(() => {
         </div>
 
         <UAlert
+          v-if="extension?.pendingUninstallCleanup"
+          class="mt-4"
+          color="warning"
+          icon="i-lucide-brush-cleaning"
+          variant="subtle"
+          :title="t('admin.extensions.uninstallCleanup.pendingBadge')"
+        >
+          <template #description>
+            <div class="flex flex-col gap-2">
+              <span>{{ t('admin.extensions.uninstallCleanup.pendingHint') }}</span>
+              <UButton
+                size="xs"
+                color="warning"
+                variant="outline"
+                icon="i-lucide-check-circle-2"
+                :disabled="busy || finalizeBusy"
+                :loading="finalizeBusy"
+                @click="emit('finalize')"
+              >
+                {{ t('admin.extensions.uninstallCleanup.finalize') }}
+              </UButton>
+            </div>
+          </template>
+        </UAlert>
+
+        <UAlert
           v-if="error"
           class="mt-4"
           color="error"
           icon="i-lucide-triangle-alert"
           variant="subtle"
           :title="error"
-        />
+        >
+          <template v-if="cleanupStepLabel" #description>
+            <div class="flex flex-col gap-2">
+              <span>{{ t('admin.extensions.uninstallCleanup.failedStep', { step: cleanupStepLabel }) }}</span>
+              <UButton
+                v-if="cleanupRetriable"
+                size="xs"
+                color="error"
+                variant="outline"
+                icon="i-lucide-refresh-cw"
+                :disabled="busy"
+                :loading="busy"
+                @click="emit('confirm')"
+              >
+                {{ t('admin.extensions.uninstallCleanup.retry') }}
+              </UButton>
+            </div>
+          </template>
+        </UAlert>
 
         <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <UButton color="neutral" variant="ghost" :disabled="busy" @click="emit('cancel')">

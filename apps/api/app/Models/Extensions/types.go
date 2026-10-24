@@ -280,16 +280,20 @@ type Extension struct {
 	IsDeletable bool     `json:"isDeletable"`
 	Manifest    Manifest `json:"manifest"`
 	// CapabilityGrants 有效 Host 能力（显式 + 推断），供启用审查 UI（F2.1）。
-	CapabilityGrants    []CapabilityGrant `json:"capabilityGrants,omitempty"`
-	Runtime             *RuntimeStatus    `json:"runtime,omitempty"`
-	ArtifactState       string            `json:"artifactState,omitempty"`
-	PackageDigest       string            `json:"packageDigest"`
-	AdminFrontendDigest string            `json:"adminFrontendDigest,omitempty"`
-	PackagePath         string            `json:"packagePath"`
-	ActiveVersionID     int64             `json:"-"`
-	StagedVersion       *ExtensionVersion `json:"stagedVersion,omitempty"`
-	InstalledAt         time.Time         `json:"installedAt"`
-	UpdatedAt           time.Time         `json:"updatedAt"`
+	CapabilityGrants []CapabilityGrant `json:"capabilityGrants,omitempty"`
+	Runtime          *RuntimeStatus    `json:"runtime,omitempty"`
+	ArtifactState    string            `json:"artifactState,omitempty"`
+	// PendingUninstallCleanup 是管理端投影：该扩展存在「台账已 succeeded 但
+	// 宿主物理清理未 finalized」的 pending tombstone。仅在 admin list/detail
+	// 由 controller 装饰；不参与内部 List 路径。
+	PendingUninstallCleanup bool              `json:"pendingUninstallCleanup,omitempty"`
+	PackageDigest           string            `json:"packageDigest"`
+	AdminFrontendDigest     string            `json:"adminFrontendDigest,omitempty"`
+	PackagePath             string            `json:"packagePath"`
+	ActiveVersionID         int64             `json:"-"`
+	StagedVersion           *ExtensionVersion `json:"stagedVersion,omitempty"`
+	InstalledAt             time.Time         `json:"installedAt"`
+	UpdatedAt               time.Time         `json:"updatedAt"`
 }
 
 // EnableInput 启用插件的可选请求体。

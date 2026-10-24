@@ -434,3 +434,71 @@ func nullableLifecycleString(value string) any {
 	}
 	return value
 }
+
+// PendingUninstallCleanup 是一条待收尾的卸载 tombstone 摘要：
+// 台账 operation 已 durable succeeded，但宿主物理清理仍未 finalized。
+type PendingUninstallCleanup struct {
+	OperationID int64
+	ExtensionID string
+	RemovalMode string
+}
+
+// LifecycleCleanupSweepSource 读取待收敛的卸载清理条目。实现按
+// (record_kind='uninstall_tombstone', status='pending') 与 succeeded 台账求交集。
+type LifecycleCleanupSweepSource interface {
+	PendingUninstallCleanups(ctx context.Context, extensionID string, limit int) ([]PendingUninstallCleanup, error)
+}
+
+// PendingUninstallCleanups 返回待收尾条目。extensionID 为空时不过滤扩展
+// （周期 sweep 全量扫描），否则只返回该扩展的条目（按扩展收尾端点）。
+func (r *PostgresLifecycleRepository) PendingUninstallCleanups(
+	ctx context.Context, extensionID string, limit int,
+) ([]PendingUninstallCleanup, error) {
+	if r == nil || r.pool == nil || ctx == nil {
+		return nil, ErrLifecycleInvalidInput
+	}
+	if extensionID != "" && extensionID != normalizeID(extensionID) {
+		return nil, ErrLifecycleInvalidInput
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	query := `
+		SELECT cleanup.operation_id, cleanup.target_extension_id,
+		       COALESCE(operation.removal_mode, '')
+		FROM extension_lifecycle_cleanup_records AS cleanup
+		JOIN extension_lifecycle_operations AS operation ON operation.id = cleanup.operation_id
+		WHERE cleanup.record_kind = 'uninstall_tombstone'
+		  AND cleanup.status = 'pending'
+		  AND operation.operation = $1
+		  AND operation.terminal_result = $2
+		  AND operation.completed_at IS NOT NULL
+	`
+	args := []any{string(LifecycleMachineUninstall), LifecycleTerminalSucceeded}
+	if extensionID != "" {
+		query += ` AND cleanup.target_extension_id = $3`
+		args = append(args, extensionID)
+	}
+	query += ` ORDER BY cleanup.operation_id LIMIT $` + fmt.Sprint(len(args)+1)
+	args = append(args, limit)
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list pending uninstall cleanups: %w", err)
+	}
+	defer rows.Close()
+	items := []PendingUninstallCleanup{}
+	for rows.Next() {
+		var item PendingUninstallCleanup
+		if scanErr := rows.Scan(&item.OperationID, &item.ExtensionID, &item.RemovalMode); scanErr != nil {
+			return nil, fmt.Errorf("scan pending uninstall cleanup: %w", scanErr)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("iterate pending uninstall cleanups: %w", err)
+	}
+	return items, nil
+}

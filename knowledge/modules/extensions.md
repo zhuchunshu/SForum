@@ -1001,6 +1001,33 @@ Decision: `../decisions/2026-07-22-external-extension-source-roots.md`.
 - Raw request/session authority and raw core database access are independent
   high-risk powers, never implied by ordinary extension trust.
 
+### Uninstall Cleanup Convergence (2026-10-24)
+
+- V2 uninstall stays two-phase: durable terminal state first, host physical
+  cleanup second (`finalizeLifecycleUninstall`). Failures surface as 503
+  `extension.lifecycle_cleanup_failed` with structured
+  `data.details` (`operationId`, `failedStep`, `retriable`) via the typed
+  `LifecycleCleanupFailure`; the `errors.Join` chain and sentinel mapping are
+  unchanged.
+- Convergence is owned by `CleanupConvergenceService` (focused collaborator
+  embedding `*Service`): a River periodic sweep
+  (`extensions.finalize_uninstall_cleanup`, 5m + RunOnStart, batch 10) replays
+  pending tombstones from the failed step; a keyless super_admin endpoint
+  `POST /admin/extensions/:id/uninstall-cleanup/finalize` converges one
+  extension on demand; the admin list projects a `pendingUninstallCleanup`
+  badge. Safety rests on the existing terminal validation, purge fence, `FOR
+  UPDATE` lock, finalized replay shortcut, and CleanupID-idempotent purger —
+  never skips receipts.
+- The sweep worker registers only on the embedded worker
+  (`workerRuntimeDeps.UninstallCleanupSweeper`); standalone `cmd/worker`
+  leaves it nil on purpose (full host boundary is API-assembled). Structured
+  retry and the keyless endpoint work in every topology.
+- Frontend: uninstall idempotency keys persist in sessionStorage per
+  extension (`useAdminUninstallCleanup.ts`), the confirm dialog offers retry
+  with the failed-step name, and a "finish cleanup now" button covers the
+  lost-key path. See
+  `knowledge/decisions/2026-10-24-uninstall-cleanup-convergence.md`.
+
 ## Permissions
 
 - `extension.view`: inspect packages, runtime state, events, and catalogs.

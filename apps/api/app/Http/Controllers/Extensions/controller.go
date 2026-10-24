@@ -83,6 +83,9 @@ type Controller struct {
 	versionGC VersionGCManagementService
 	// remoteArchives 为 nil 时链接安装路由 fail-closed（503）。
 	remoteArchives ArchiveFetcher
+	// cleanupConvergence 是卸载物理清理的聚焦协作对象；nil 时免键收尾路由
+	// fail-closed（503），列表徽标投影静默降级。
+	cleanupConvergence *extensions.CleanupConvergenceService
 	// installer 与 service 同源；测试可注入 fake 以验证编排顺序。
 	installer archiveInstaller
 }
@@ -130,6 +133,13 @@ func NewController(service *extensions.Service, users identity.ActorStore, sessi
 
 func NewControllerWithGateway(service *extensions.Service, users identity.ActorStore, sessions *authsession.Manager, gateway RouteGateway) *Controller {
 	return &Controller{service: service, users: users, sessions: sessions, gateway: gateway, installer: service}
+}
+
+// WithCleanupConvergence 注入卸载物理清理协作对象；生产装配必接，缺省时
+// 免键收尾路由 fail-closed、徽标投影降级。
+func (h *Controller) WithCleanupConvergence(convergence *extensions.CleanupConvergenceService) *Controller {
+	h.cleanupConvergence = convergence
+	return h
 }
 
 // WithRemoteArchiveFetcher injects the outbound archive downloader. Without it
@@ -306,13 +316,37 @@ func (h *Controller) list(c fiber.Ctx) error {
 		if err != nil {
 			return mapExtensionError(err)
 		}
+		if pending := h.pendingUninstallCleanups(c); pending != nil && pending[item.ID] {
+			item.PendingUninstallCleanup = true
+		}
 		return apphttp.OK(c, []extensions.Extension{item})
 	}
 	items, err := h.service.List(c.Context(), actor)
 	if err != nil {
 		return mapExtensionError(err)
 	}
+	if pending := h.pendingUninstallCleanups(c); len(pending) > 0 {
+		for i := range items {
+			if pending[items[i].ID] {
+				items[i].PendingUninstallCleanup = true
+			}
+		}
+	}
 	return apphttp.OK(c, items)
+}
+
+// pendingUninstallCleanups 是管理端投影的辅助查询：返回存在 pending 卸载
+// tombstone 的扩展集合。清理收敛边界不可用（如测试装配）时静默降级为空集，
+// 徽标缺失不影响任何操作路径。
+func (h *Controller) pendingUninstallCleanups(c fiber.Ctx) map[string]bool {
+	if h.cleanupConvergence == nil {
+		return nil
+	}
+	pending, err := h.cleanupConvergence.PendingUninstallCleanupExtensions(c.Context())
+	if err != nil {
+		return nil
+	}
+	return pending
 }
 
 func (h *Controller) navigation(c fiber.Ctx) error {
@@ -794,6 +828,21 @@ func (h *Controller) optionalActor(c fiber.Ctx) (identity.Actor, bool, error) {
 	return actor, true, nil
 }
 
+// lifecycleCleanupFailureError 把卸载物理清理失败渲染成 503。类型化失败携带
+// operationId / failedStep / retriable，写入 data.details 供管理端定位；
+// 无类型化信息时退回裸 reason，保持既有响应形状。
+func lifecycleCleanupFailureError(err error) error {
+	var failure *extensions.LifecycleCleanupFailure
+	if errors.As(err, &failure) {
+		return apphttp.NewErrorWithDetails(fiber.StatusServiceUnavailable, extensions.CodeLifecycleCleanupFailed, map[string]any{
+			"operationId": failure.OperationID,
+			"failedStep":  string(failure.Step),
+			"retriable":   failure.Retriable,
+		})
+	}
+	return apphttp.NewError(fiber.StatusServiceUnavailable, extensions.CodeLifecycleCleanupFailed)
+}
+
 func mapExtensionError(err error) error {
 	if mapped := mapRemoteInstallError(err); mapped != nil {
 		return mapped
@@ -915,7 +964,7 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeLifecycleConflict)
 	case errors.Is(err, extensions.ErrLifecycleCleanupFinalization),
 		errors.Is(err, extensions.ErrLifecycleCleanupNotFinalized):
-		return fiber.NewError(fiber.StatusServiceUnavailable, extensions.CodeLifecycleCleanupFailed)
+		return lifecycleCleanupFailureError(err)
 	case errors.Is(err, extensions.ErrLifecycleAuthorityNotFound):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeLifecycleAuthorityGone)
 	case errors.Is(err, extensions.ErrStagedVersionNotFound):

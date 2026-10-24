@@ -49,10 +49,13 @@ const {
   openUninstallExtension,
   confirmUninstallExtension,
   cancelUninstallExtension,
+  finalizeUninstallCleanup,
   uninstallConfirmOpen,
   uninstallConfirmItem,
   uninstallRemovalMode,
   uninstallError,
+  uninstallCleanupDetails,
+  finalizeCleanupBusyId,
   statusColor
 } = await useAdminExtensionsManager()
 
@@ -135,6 +138,15 @@ useSeoMeta({
               icon="i-lucide-package-x"
             >
               {{ t('admin.extensions.artifact.missing') }}
+            </UBadge>
+            <UBadge
+              v-if="item.pendingUninstallCleanup"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-brush-cleaning"
+              :title="t('admin.extensions.uninstallCleanup.pendingHint')"
+            >
+              {{ t('admin.extensions.uninstallCleanup.pendingBadge') }}
             </UBadge>
             <UBadge
               :color="extensionSettingsPresentation(item).color"
@@ -241,8 +253,11 @@ useSeoMeta({
       :extension="uninstallConfirmItem"
       :busy="Boolean(uninstallConfirmItem && busyId === uninstallConfirmItem.id)"
       :error="uninstallError"
+      :cleanup-details="uninstallCleanupDetails"
+      :finalize-busy="Boolean(uninstallConfirmItem && finalizeCleanupBusyId === uninstallConfirmItem.id)"
       @cancel="cancelUninstallExtension"
       @confirm="confirmUninstallExtension"
+      @finalize="uninstallConfirmItem && finalizeUninstallCleanup(uninstallConfirmItem)"
     />
 
     <!-- L0/L1 与 trust_not_required：页面预览确认 Modal（替代原生 confirm）。 -->

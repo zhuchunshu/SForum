@@ -48,6 +48,8 @@ func (h *Controller) RegisterRoutes(api fiber.Router) {
 	api.Post("/admin/extensions", h.install)
 	api.Post("/admin/extensions/install-from-url", h.installFromURL)
 	api.Post("/admin/extensions/missing-artifacts/uninstall", h.cleanupMissingArtifacts)
+	// 卸载清理免键收尾：原幂等键丢失时由 super_admin 按扩展收敛 pending tombstone。
+	api.Post("/admin/extensions/:id/uninstall-cleanup/finalize", h.finalizeUninstallCleanup)
 	// 版本 GC（阶段 5）：静态段必须在带 :id 的 extension 路由之前注册。
 	// GET 走 extensions read 粗门 + 服务层 super_admin 权威策略；
 	// POST 走 super_admin 守卫 + 服务层同款权威策略。

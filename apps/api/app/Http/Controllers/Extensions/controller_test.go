@@ -98,12 +98,31 @@ func TestMapLifecycleCleanupErrorDoesNotExposeInternalFailure(t *testing.T) {
 		extensions.ErrLifecycleCleanupFinalization,
 		errors.New("private purge path and SQL output"),
 	))
-	fiberErr, ok := mapped.(*fiber.Error)
+	apiErr, ok := mapped.(*apphttp.APIError)
 	if !ok {
-		t.Fatalf("expected fiber error, got %T", mapped)
+		t.Fatalf("expected API error, got %T", mapped)
 	}
-	if fiberErr.Code != http.StatusServiceUnavailable || fiberErr.Message != extensions.CodeLifecycleCleanupFailed {
-		t.Fatalf("unexpected mapping: %#v", fiberErr)
+	if apiErr.Status != http.StatusServiceUnavailable || apiErr.Reason != extensions.CodeLifecycleCleanupFailed || apiErr.Details != nil {
+		t.Fatalf("unexpected mapping: %#v", apiErr)
+	}
+}
+
+func TestMapLifecycleCleanupTypedFailureExposesStructuredDetails(t *testing.T) {
+	mapped := mapExtensionError(&extensions.LifecycleCleanupFailure{
+		OperationID: 703, Step: extensions.LifecycleCleanupStepPhysicalPurge, Retriable: true,
+		Err: errors.Join(extensions.ErrLifecycleCleanupFinalization, errors.New("private purge path")),
+	})
+	apiErr, ok := mapped.(*apphttp.APIError)
+	if !ok {
+		t.Fatalf("expected API error, got %T", mapped)
+	}
+	if apiErr.Status != http.StatusServiceUnavailable || apiErr.Reason != extensions.CodeLifecycleCleanupFailed {
+		t.Fatalf("unexpected mapping: %#v", apiErr)
+	}
+	if apiErr.Details["operationId"] != int64(703) ||
+		apiErr.Details["failedStep"] != string(extensions.LifecycleCleanupStepPhysicalPurge) ||
+		apiErr.Details["retriable"] != true {
+		t.Fatalf("unexpected details: %#v", apiErr.Details)
 	}
 }
 

@@ -657,17 +657,19 @@ func (s *serviceCore) finalizeLifecycleUninstall(
 	if operation.ID <= 0 || operation.Operation != string(LifecycleMachineUninstall) ||
 		operation.TerminalResult != LifecycleTerminalSucceeded || operation.CompletedAt == nil ||
 		operation.RemovalMode != removalMode {
-		return UninstallResult{}, ErrLifecycleCleanupNotFinalized
+		return UninstallResult{}, lifecycleCleanupNotFinalized(operation.ID, false)
 	}
 	if s.lifecycleFinalizer == nil {
-		return UninstallResult{}, ErrLifecycleCleanupFinalization
+		return UninstallResult{}, lifecycleCleanupFinalizationFailure(
+			operation.ID, LifecycleCleanupStepPhysicalPurge,
+			errors.New("lifecycle cleanup finalizer is not configured"))
 	}
 	s.assetPublicationMu.Lock()
 	assetErr := s.quarantineLifecycleAssetPublication(operation)
 	s.assetPublicationMu.Unlock()
 	if assetErr != nil {
-		return UninstallResult{}, errors.Join(
-			ErrLifecycleCleanupFinalization,
+		return UninstallResult{}, lifecycleCleanupFinalizationFailure(operation.ID,
+			LifecycleCleanupStepQuarantineAssetPublication,
 			fmt.Errorf("quarantine exact lifecycle asset publication (forced=%t): %w", operation.Forced, assetErr),
 		)
 	}
@@ -675,8 +677,8 @@ func (s *serviceCore) finalizeLifecycleUninstall(
 	// 失败时保留精确制品与身份，让同一次卸载可以幂等重试。
 	if s.attachmentReferences != nil {
 		if _, err := s.attachmentReferences.ReleaseExtensionAttachmentReferences(ctx, extensionID); err != nil {
-			return UninstallResult{}, errors.Join(
-				ErrLifecycleCleanupFinalization,
+			return UninstallResult{}, lifecycleCleanupFinalizationFailure(operation.ID,
+				LifecycleCleanupStepReleaseAttachmentRefs,
 				fmt.Errorf("release uninstalled extension attachment references: %w", err),
 			)
 		}
@@ -688,17 +690,18 @@ func (s *serviceCore) finalizeLifecycleUninstall(
 		ctx, extensionID, lifecycleOperationActorUserID(operation),
 		lifecycleOperationAuditEventID(operation), "extension_uninstalled",
 	); err != nil {
-		return UninstallResult{}, errors.Join(
-			ErrLifecycleCleanupFinalization,
+		return UninstallResult{}, lifecycleCleanupFinalizationFailure(operation.ID,
+			LifecycleCleanupStepClearProviderSelections,
 			fmt.Errorf("clear uninstalled provider selections: %w", err),
 		)
 	}
 	cleanup, err := s.lifecycleFinalizer(ctx, operation.ID)
 	if err != nil {
-		return UninstallResult{}, errors.Join(ErrLifecycleCleanupFinalization, err)
+		return UninstallResult{}, lifecycleCleanupFinalizationFailure(
+			operation.ID, LifecycleCleanupStepPhysicalPurge, err)
 	}
 	if cleanup.OperationID != operation.ID || cleanup.Status != "finalized" || !cleanup.PhysicalPurgeComplete {
-		return UninstallResult{}, ErrLifecycleCleanupNotFinalized
+		return UninstallResult{}, lifecycleCleanupNotFinalized(operation.ID, true)
 	}
 	return UninstallResult{
 		Uninstalled: true, ExtensionID: extensionID, OperationID: operation.ID,
@@ -746,4 +749,59 @@ func decodeLifecycleAuthoritySnapshot(value json.RawMessage) (LifecycleAuthority
 		return LifecycleAuthoritySnapshot{}, ErrLifecycleAuthorityNotFound
 	}
 	return authority, nil
+}
+
+// LifecycleCleanupStep 标记 finalizeLifecycleUninstall 失败时所处的具体步骤，
+// 通过 503 响应的 data.details.failedStep 暴露给管理端与诊断工具。
+type LifecycleCleanupStep string
+
+const (
+	LifecycleCleanupStepQuarantineAssetPublication LifecycleCleanupStep = "quarantine_asset_publication"
+	LifecycleCleanupStepReleaseAttachmentRefs      LifecycleCleanupStep = "release_attachment_references"
+	LifecycleCleanupStepClearProviderSelections    LifecycleCleanupStep = "clear_provider_selections"
+	LifecycleCleanupStepPhysicalPurge              LifecycleCleanupStep = "physical_purge"
+	LifecycleCleanupStepNotFinalized               LifecycleCleanupStep = "not_finalized"
+)
+
+// LifecycleCleanupFailure 是卸载物理清理失败的结构化载体。Err 保留完整的
+// errors.Join 链（含 ErrLifecycleCleanupFinalization 哨兵）供日志与 errors.Is
+// 判定使用；OperationID/Step/Retriable 由 controller 经 errors.As 提取后写入
+// 503 响应的 data.details，让操作者不必依赖服务端日志即可判断卡在哪一步。
+type LifecycleCleanupFailure struct {
+	OperationID int64
+	Step        LifecycleCleanupStep
+	Retriable   bool
+	Err         error
+}
+
+func (e *LifecycleCleanupFailure) Error() string {
+	if e == nil || e.Err == nil {
+		return "extensions: lifecycle cleanup failure"
+	}
+	return e.Err.Error()
+}
+
+func (e *LifecycleCleanupFailure) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
+// lifecycleCleanupFinalizationFailure 包装 finalize 阶段的可重试失败，
+// 保留 ErrLifecycleCleanupFinalization 哨兵以兼容既有 errors.Is 映射。
+func lifecycleCleanupFinalizationFailure(
+	operationID int64, step LifecycleCleanupStep, err error,
+) *LifecycleCleanupFailure {
+	return &LifecycleCleanupFailure{
+		OperationID: operationID, Step: step, Retriable: true,
+		Err: errors.Join(ErrLifecycleCleanupFinalization, err),
+	}
+}
+
+func lifecycleCleanupNotFinalized(operationID int64, retriable bool) *LifecycleCleanupFailure {
+	return &LifecycleCleanupFailure{
+		OperationID: operationID, Step: LifecycleCleanupStepNotFinalized, Retriable: retriable,
+		Err: fmt.Errorf("%w: operation %d", ErrLifecycleCleanupNotFinalized, operationID),
+	}
 }

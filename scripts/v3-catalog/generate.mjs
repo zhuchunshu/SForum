@@ -127,6 +127,7 @@ function routePolicy(route) {
   if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'POST') return ['super_admin', 'active super_admin plus actor-bound exact frontend artifact confirmation']
   if (path === '/api/v1/admin/extensions/:id/frontend/trust' && method === 'DELETE') return ['super_admin', 'active super_admin trust revocation']
   if (path === '/api/v1/admin/extensions/:id/page-bootstrap') return ['permission', 'extension.view for metadata pages; matching plugin/theme settings manage permission for declared settings views']
+  if (path === '/api/v1/admin/extensions/:id/uninstall-cleanup/finalize') return ['super_admin', 'super_admin keyless finalization of pending uninstall tombstones; service policy mirrors cleanup_missing_artifacts']
   if (path.startsWith('/api/v1/admin/extensions')) return ['permission', method === 'GET' ? 'extension.view or matching manage permission' : 'extension.plugin.manage or extension.theme.manage; operation-specific service policy']
   if (path.startsWith('/api/v1/admin/pages')) return ['permission', 'extension.view for inspection; theme/plugin manage and super_admin approval where required']
   if (path.startsWith('/api/v1/admin/ai')) return ['permission', 'ai.manage']
@@ -264,6 +265,7 @@ const reviewedGuardPolicies = new Map([
   ['active super_admin challenge issuance', { kind: 'super_admin' }],
   ['explicit audited irreversible version reclamation; plan-bound one-time confirmation token', { kind: 'super_admin' }],
   ['version GC candidates read: extensions read gate, super_admin authoritative service policy', { kind: 'contextual', evaluatorId: 'core.guard.extensions.read' }],
+  ['super_admin keyless finalization of pending uninstall tombstones; service policy mirrors cleanup_missing_artifacts', { kind: 'contextual', evaluatorId: 'core.guard.extensions.mutation' }],
   ['active super_admin plus actor-bound exact frontend artifact confirmation', { kind: 'super_admin' }],
   ['active super_admin trust revocation', { kind: 'super_admin' }],
   ['super_admin revision redaction policy', { kind: 'super_admin' }],
