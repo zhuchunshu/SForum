@@ -1,5 +1,7 @@
 # sforum.search-site
 
+![站内搜索 社交卡](./brand/social-preview.png)
+
 Protected built-in **PostgreSQL full-text site search** engine.
 
 Default `search.provider`. The Host owns the provider-neutral search ledger,

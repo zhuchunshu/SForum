@@ -1,5 +1,7 @@
 # SForum Default Theme
 
+![默认主题 社交卡](./brand/social-preview.png)
+
 SForum Default Theme is the protected built-in runtime theme for v1.
 
 It supplies Page Registry templates, public skin tokens/assets, and a Schema

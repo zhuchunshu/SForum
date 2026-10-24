@@ -1,5 +1,7 @@
 # sforum.auth-github
 
+![GitHub 登录 社交卡](./brand/social-preview.png)
+
 Protected built-in **GitHub OAuth protocol adapter** for SForum social login V1.
 
 ## Ownership boundary

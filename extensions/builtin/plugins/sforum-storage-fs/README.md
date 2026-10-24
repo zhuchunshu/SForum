@@ -1,5 +1,7 @@
 # sforum.storage-fs
 
+![本地文件存储 社交卡](./brand/social-preview.png)
+
 Protected built-in **storage provider** reference plugin (Wave E6.4).
 
 Implements `attachment.storage.provider` over Protocol V2 known-slot

@@ -4,6 +4,8 @@ Maintainable, plugin-first open-source forum framework.
 
 Core is the host (identity, forum primitives, permissions, extension runtime, contracts). Deployment-specific behavior—mail transport, optional search engines, storage vendors, and similar—lives in extensions.
 
+![SForum 社交卡：插件优先的开源论坛框架](./docs/assets/brand/social-preview.png)
+
 ## Screenshots
 
 ### Forum home

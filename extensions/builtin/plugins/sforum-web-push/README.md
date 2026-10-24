@@ -1,5 +1,7 @@
 # sforum.web-push
 
+![Web Push 推送 社交卡](./brand/social-preview.png)
+
 Protected built-in **reference provider** for `notification.channel.web_push`.
 
 ## Ownership boundary

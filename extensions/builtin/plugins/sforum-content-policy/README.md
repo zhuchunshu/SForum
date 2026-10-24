@@ -1,5 +1,7 @@
 # sforum.content-policy
 
+![内容策略 社交卡](./brand/social-preview.png)
+
 Protected built-in **workflow** reference plugin (Wave E5) and the first
 Protocol v2 built-in migration reference.
 

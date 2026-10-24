@@ -1,5 +1,7 @@
 # sforum.storage-s3
 
+![S3 兼容存储 社交卡](./brand/social-preview.png)
+
 Protected built-in **S3-compatible attachment storage provider** for the
 attachment storage slot.
 

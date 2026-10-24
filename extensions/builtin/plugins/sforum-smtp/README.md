@@ -1,5 +1,7 @@
 # sforum.smtp
 
+![SMTP 邮件 社交卡](./brand/social-preview.png)
+
 Protected built-in **SMTP mail delivery provider** for the `mail.provider` slot.
 Core owns mail queueing, retries, delivery records, and localized templates;
 this plugin owns the SMTP transport (network, TLS, authentication).

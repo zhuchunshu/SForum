@@ -1,0 +1,110 @@
+{
+  "$comment": "扩展品牌资产的唯一真相：中文名、一句话、字形、种类、仓库 slug。id/name/version 从各包 sforum.extension.json 读取，不在此重复。字形名取自 @iconify-json/tabler。",
+  "extensions": [
+    {
+      "package": "extensions/builtin/plugins/sforum-smtp",
+      "kind": "builtin",
+      "title": "SMTP 邮件",
+      "tagline": "邮件队列与模板归宿主，投递归插件",
+      "glyph": "mail-forward",
+      "slug": "zhuchunshu/SForum"
+    },
+    {
+      "package": "extensions/builtin/plugins/sforum-storage-fs",
+      "kind": "builtin",
+      "title": "本地文件存储",
+      "tagline": "附件存储提供者：本地文件系统",
+      "glyph": "folder",
+      "slug": "zhuchunshu/SForum"
+    },
+    {
+      "package": "extensions/builtin/plugins/sforum-storage-s3",
+      "kind": "builtin",
+      "title": "S3 兼容存储",
+      "tagline": "多实例 S3 兼容附件存储",
+      "glyph": "bucket",
+      "slug": "zhuchunshu/SForum"
+    },
+    {
+      "package": "extensions/builtin/plugins/sforum-search-site",
+      "kind": "builtin",
+      "title": "站内搜索",
+      "tagline": "PostgreSQL 全文检索，默认搜索提供者",
+      "glyph": "file-search",
+      "slug": "zhuchunshu/SForum"
+    },
+    {
+      "package": "extensions/builtin/plugins/sforum-auth-github",
+      "kind": "builtin",
+      "title": "GitHub 登录",
+      "tagline": "用 GitHub 账号登录，账号与会话归宿主",
+      "glyph": "brand-github",
+      "slug": "zhuchunshu/SForum"
+    },
+    {
+      "package": "extensions/builtin/plugins/sforum-web-push",
+      "kind": "builtin",
+      "title": "Web Push 推送",
+      "tagline": "浏览器推送通知渠道",
+      "glyph": "bell-ringing",
+      "slug": "zhuchunshu/SForum"
+    },
+    {
+      "package": "extensions/builtin/plugins/sforum-content-policy",
+      "kind": "builtin",
+      "title": "内容策略",
+      "tagline": "发帖前的内容关键词闸门",
+      "glyph": "shield-check",
+      "slug": "zhuchunshu/SForum"
+    },
+    {
+      "package": "extensions/builtin/plugins/sforum-shortcodes",
+      "kind": "builtin",
+      "title": "内置短代码",
+      "tagline": "结构化的论坛短代码运行时",
+      "glyph": "code",
+      "slug": "zhuchunshu/SForum"
+    },
+    {
+      "package": "extensions/builtin/themes/sforum-default",
+      "kind": "theme",
+      "title": "默认主题",
+      "tagline": "完整 Page Registry 覆盖的官方主题",
+      "glyph": "palette",
+      "slug": "zhuchunshu/SForum"
+    },
+    {
+      "package": "../sforum-fetch-url/plugins/sforum.fetch-url",
+      "kind": "external",
+      "title": "AI 网页抓取",
+      "tagline": "让 AI 读到白名单内网页的正文",
+      "glyph": "world-download",
+      "slug": "zhuchunshu/sforum-fetch-url"
+    },
+    {
+      "package": "../sforum-oauth2-provider/plugins/sforum-oauth2-provider",
+      "kind": "external",
+      "title": "OAuth2 授权服务",
+      "tagline": "授权码 + PKCE，SForum 当授权服务器",
+      "glyph": "key",
+      "slug": "zhuchunshu/sforum-oauth2-provider"
+    },
+    {
+      "package": "../sforum-web-search/plugins/sforum.web-search",
+      "kind": "external",
+      "title": "AI 联网搜索",
+      "tagline": "四个可切换后端，带熔断与缓存",
+      "glyph": "world-search",
+      "slug": "zhuchunshu/sforum-web-search"
+    }
+  ],
+  "repos": [
+    {
+      "output": "docs/assets/brand/social-preview.png",
+      "kind": "framework",
+      "title": "SForum",
+      "tagline": "插件优先的开源论坛框架",
+      "slug": "zhuchunshu/SForum"
+    }
+  ]
+}

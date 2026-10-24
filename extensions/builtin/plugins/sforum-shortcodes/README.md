@@ -1,5 +1,7 @@
 # sforum-shortcodes
 
+![内置短代码 社交卡](./brand/social-preview.png)
+
 Protected built-in **structured forum shortcode runtime**.
 
 Declares and renders the V1 reference shortcodes `user`, `topic`, `comment`,
