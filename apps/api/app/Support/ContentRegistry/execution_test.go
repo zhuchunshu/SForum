@@ -489,9 +489,17 @@ func TestExecutionNonCooperativeTimeoutQuarantinesExactRuntimeAndRetainsLease(t 
 	block := make(chan struct{})
 	var closeBlock sync.Once
 	t.Cleanup(func() { closeBlock.Do(func() { close(block) }) })
+	// The call owner checks the deadline before it invokes the provider, so a
+	// deadline that fires while the owner goroutine is still starting makes the
+	// call return a bare timeout without ever entering the provider. That is the
+	// cooperative path, not the one under test, so the window stays wide enough
+	// for the owner to reach the provider and `entered` proves it did.
+	entered := make(chan struct{})
+	var enterOnce sync.Once
 	renderer := RendererProviderFunc(func(context.Context, RendererProviderRequest) (RenderSegments, error) {
 		active.Add(1)
 		defer active.Add(-1)
+		enterOnce.Do(func() { close(entered) })
 		<-block
 		return executionRender(target, "<p>late</p>"), nil
 	})
@@ -502,8 +510,13 @@ func TestExecutionNonCooperativeTimeoutQuarantinesExactRuntimeAndRetainsLease(t 
 		return &executionTrackedLease{ctx: ctx, released: released}, nil
 	}}
 	executor := newExecutionTestExecutor(t, registry, []ExecutionBinding{binding}, admission, acceptingExecutionSchema,
-		ExecutionLimits{CallTimeout: 10 * time.Millisecond, MaxConcurrentCalls: 2})
+		ExecutionLimits{CallTimeout: 500 * time.Millisecond, MaxConcurrentCalls: 2})
 	result, err := executor.Execute(t.Context(), executionRequest(target, "actor"))
+	select {
+	case <-entered:
+	default:
+		t.Fatal("provider never ran before the deadline; the non-cooperative timeout path was not exercised")
+	}
 	if !errors.Is(err, ErrExecutionTimeout) || !errors.Is(err, ErrRuntimeQuarantined) ||
 		!reflect.DeepEqual(result, ExecutionResult{}) {
 		t.Fatalf("timed out call result=%#v error=%v", result, err)
