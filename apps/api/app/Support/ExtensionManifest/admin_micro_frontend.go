@@ -12,7 +12,107 @@ const (
 	AdminMicroFrontendAPIVersion = 1
 
 	ContributionPointKindDescriptor = "descriptor"
+
+	// AdminHostActionExtensionInstall 是宿主为受信任管理页提供的安装动作。
+	// 首版只此一项：动作由宿主执行并需要管理员当场确认，不是插件进程能力。
+	AdminHostActionExtensionInstall = "extension.install"
+
+	// adminPageHostActionsMax 与清单 schema 的 maxItems 保持一致。
+	adminPageHostActionsMax = 8
 )
+
+// EffectiveAdminPages 解析出真正生效的管理页列表：优先 admin.pages，
+// 其次兼容旧字段 adminPages。归一化在返回前完成，调用方拿到的就是规范值。
+func EffectiveAdminPages(manifest Manifest) []ManifestAdminPage {
+	manifest = Normalize(manifest)
+	if len(manifest.Admin.Pages) > 0 {
+		return manifest.Admin.Pages
+	}
+	return manifest.AdminPages
+}
+
+// MenuAdminPages 只返回进入侧栏的页面。
+func MenuAdminPages(manifest Manifest) []ManifestAdminPage {
+	pages := EffectiveAdminPages(manifest)
+	menuPages := make([]ManifestAdminPage, 0, len(pages))
+	for _, page := range pages {
+		if page.Menu {
+			menuPages = append(menuPages, page)
+		}
+	}
+	return menuPages
+}
+
+// AdminManagePath 是「管理此扩展」的落地路径。
+func AdminManagePath(manifest Manifest) string {
+	manifest = Normalize(manifest)
+	pages := EffectiveAdminPages(manifest)
+	if manifest.Admin.Entry != "" {
+		return manifest.Admin.Entry
+	}
+	for _, page := range pages {
+		if page.Path == "/settings" {
+			return page.Path
+		}
+	}
+	if len(pages) > 0 {
+		return pages[0].Path
+	}
+	return "/about"
+}
+
+// AdminHostActions 返回宿主支持的全部页面级动作 ID，用于清单校验与披露。
+func AdminHostActions() []string {
+	return []string{AdminHostActionExtensionInstall}
+}
+
+func knownAdminHostAction(value string) bool {
+	return value == AdminHostActionExtensionInstall
+}
+
+// validateAdminHostActions 只允许 component 页面声明动作，且动作 ID 必须已知。
+// 动作是宿主提供的能力，声明在非组件页上没有任何承载方，因此直接拒绝清单。
+func validateAdminHostActions(page ManifestAdminPage) error {
+	if len(page.HostActions) == 0 {
+		return nil
+	}
+	if page.View != "component" {
+		return fmt.Errorf("%w: admin host actions require view=component (%s)", ErrInvalidManifest, page.Path)
+	}
+	if len(page.HostActions) > adminPageHostActionsMax {
+		return fmt.Errorf("%w: admin host actions exceed %d entries (%s)", ErrInvalidManifest, adminPageHostActionsMax, page.Path)
+	}
+	for _, action := range page.HostActions {
+		if !knownAdminHostAction(action) {
+			return fmt.Errorf("%w: unknown admin host action %q (%s)", ErrInvalidManifest, action, page.Path)
+		}
+	}
+	return nil
+}
+
+// normalizeAdminHostActions 去空白、转小写并去重，同时保留作者顺序。
+func normalizeAdminHostActions(actions []string) []string {
+	if len(actions) == 0 {
+		return nil
+	}
+	normalized := make([]string, 0, len(actions))
+	seen := make(map[string]struct{}, len(actions))
+	for _, action := range actions {
+		value := NormalizeID(action)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		normalized = append(normalized, value)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
 
 var adminComponentIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,80}$`)
 
@@ -89,6 +189,7 @@ func normalizeAdminPageSlice(pages []ManifestAdminPage) {
 			pages[index].View = "about"
 		}
 		pages[index].Permission = strings.TrimSpace(pages[index].Permission)
+		pages[index].HostActions = normalizeAdminHostActions(pages[index].HostActions)
 		normalizeAdminComponent(pages[index].Component)
 	}
 }
@@ -119,6 +220,9 @@ func validateAdminDeclaration(manifest Manifest) error {
 		}
 		if page.Order < 0 {
 			return fmt.Errorf("%w: admin declaration rule #6 (line ~3302)", ErrInvalidManifest)
+		}
+		if err := validateAdminHostActions(page); err != nil {
+			return err
 		}
 	}
 	if manifest.Admin.Entry == "" {

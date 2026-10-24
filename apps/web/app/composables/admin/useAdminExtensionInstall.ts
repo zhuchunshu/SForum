@@ -1,13 +1,56 @@
 import type { AdminExtensionInstallResult } from '~/utils/admin/adminExtensions'
+import type { AdminHostInstallRequest, AdminHostInstallType } from '~/utils/admin/extensions/hostActions'
 import {
   EXTENSION_INSTALL_FROM_URL_PATH,
   EXTENSION_INSTALL_PATH
 } from '~/utils/admin/extensions/extensionInstall'
 
 /**
- * Thin transport boundary for the admin install page. Page state stays in the
- * feature component so the same calls can be used by a future async installer.
+ * Options forwarded to the single install POST. The admin page panel and the
+ * trusted-page bridge share this transport: one request shape, one error
+ * surface, one result type.
  */
+export type AdminInstallFromUrlOptions = {
+  /** Declared package identity; the Host aborts when the manifest disagrees. */
+  expectations?: Pick<AdminHostInstallRequest, 'expectedExtensionId' | 'expectedType' | 'expectedVersion'> & {
+    source?: string
+  }
+  /** Per-call timeout override. The bridge passes its synchronous-install budget. */
+  timeout?: number
+}
+
+/**
+ * Normalizes the Host install result into the bridge contract. `requiresTrust`
+ * mirrors the service-layer gate: an executable backend on a non-trusted
+ * artifact still needs the administrator's exact-artifact confirmation.
+ */
+export function toAdminHostInstallResult(result: AdminExtensionInstallResult): {
+  extensionId: string
+  version: string
+  type: AdminHostInstallType
+  packageDigest: string
+  upgraded: boolean
+  requiresTrust: boolean
+} {
+  const extension = result.extension
+  const version = extension.stagedVersion?.version || extension.version
+  const packageDigest = extension.stagedVersion?.packageDigest || extension.packageDigest
+  const type: AdminHostInstallType = extension.type === 'theme' ? 'theme' : 'plugin'
+  const manifest = (extension.stagedVersion?.manifest || extension.manifest) as
+    | { backend?: { entry?: string } }
+    | undefined
+  return {
+    extensionId: extension.id,
+    version,
+    type,
+    packageDigest,
+    upgraded: result.upgraded === true,
+    // 带可执行后端的包在启用时仍要管理员做 exact-artifact 信任确认；这里如实
+    // 回报，让目录页能提前提示，而不是让调用方以为装完就能用。
+    requiresTrust: Boolean(manifest?.backend?.entry)
+  }
+}
+
 export const useAdminExtensionInstall = () => {
   const { request } = useApiClient()
 
@@ -20,12 +63,21 @@ export const useAdminExtensionInstall = () => {
     })
   }
 
-  function installFromUrl(url: string, sha256 = '') {
+  function installFromUrl(url: string, sha256 = '', options: AdminInstallFromUrlOptions = {}) {
     const body: Record<string, unknown> = { url }
     if (sha256) body.sha256 = sha256
+    const expectations = options.expectations
+    if (expectations) {
+      if (expectations.expectedExtensionId) body.expectedExtensionId = expectations.expectedExtensionId
+      if (expectations.expectedVersion) body.expectedVersion = expectations.expectedVersion
+      if (expectations.expectedType) body.expectedType = expectations.expectedType
+      if (expectations.source) body.source = expectations.source
+    }
     return request<AdminExtensionInstallResult>(EXTENSION_INSTALL_FROM_URL_PATH, {
       method: 'POST',
-      body
+      body,
+      // 同步安装会一直占着这条请求；不显式放宽会被 useApiClient 的 30 秒默认值掐断。
+      ...(options.timeout ? { timeout: options.timeout } : {})
     })
   }
 

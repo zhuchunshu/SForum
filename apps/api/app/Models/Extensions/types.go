@@ -117,8 +117,10 @@ const (
 	CodeLifecycleActionFailed  = "extension.lifecycle_action_failed"
 	CodeLifecycleAuthorityGone = "extension.lifecycle_authority_not_found"
 	CodeLifecycleCleanupFailed = "extension.lifecycle_cleanup_failed"
-	CodeStagedVersionNotFound  = "extension.staged_version_not_found"
-	CodeVersionNotFound        = "extension.version_not_found"
+	// CodeExpectedMismatch 表示下载包的清单身份与调用方声明不一致。
+	CodeExpectedMismatch      = "extension.expected_mismatch"
+	CodeStagedVersionNotFound = "extension.staged_version_not_found"
+	CodeVersionNotFound       = "extension.version_not_found"
 	// CodeUntrustedBackendRestricted 见 backend_trust.go（非 super_admin 执行非内置后端）。
 
 	SourceBuiltin  = "builtin"
@@ -648,6 +650,11 @@ type ExtensionEventDelivery struct {
 	CompletedAt   *time.Time `json:"completedAt,omitempty"`
 }
 
+// ValidExtensionID 报告扩展 ID 是否符合清单 ID 规则。
+func ValidExtensionID(id string) bool {
+	return extensionmanifest.ValidExtensionID(id)
+}
+
 type ArchiveInput struct {
 	FileName string
 	Data     []byte
@@ -657,6 +664,14 @@ type ArchiveInput struct {
 	// SourceDigest is the SHA-256 of the archive bytes when the caller computed
 	// it. Audit-only, so operators can pin the exact download.
 	SourceDigest string
+	// ExpectedExtensionID/ExpectedVersion/ExpectedType 是调用方在下载前锁定的
+	// 包身份；非空项必须在解析清单后完全一致，否则中止安装。手工 URL 安装可以
+	// 留空，管理页 bridge 总是带上 id 与类型。
+	ExpectedExtensionID string
+	ExpectedVersion     string
+	ExpectedType        string
+	// SourceLabel 是审计用的来源标签（例如 admin-page:sforum.store）。
+	SourceLabel string
 }
 
 type SaveInstalledInput struct {

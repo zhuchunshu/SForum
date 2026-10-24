@@ -793,10 +793,13 @@ adminExtensionInstallFromURL:
               "$ref": "../schemas/common.yaml#/ApiErrorResponse"
       '422':
         description: >-
-          Invalid URL, malformed sha256, digest mismatch, non-ZIP response, or
-          invalid archive/manifest. Reasons include
-          extension.remote_url_invalid, extension.remote_digest_mismatch,
-          extension.archive_invalid, and extension.manifest_invalid.
+          Invalid URL, malformed sha256, invalid declared expectations, digest
+          mismatch, non-ZIP response, archive/manifest rejection, or a package
+          whose manifest identity does not match the declared expectations.
+          Reasons include extension.remote_url_invalid,
+          extension.remote_digest_mismatch, extension.archive_invalid,
+          extension.manifest_invalid, and extension.expected_mismatch (which
+          also reports the manifest id/type/version in data.fields).
         content:
           application/json:
             schema:

@@ -80,6 +80,92 @@ locale, and appearance. It deliberately does not expose settings draft methods.
 Plugin authors may compile Vue SFC source to this module; production SForum
 loads only the prebuilt output.
 
+### Host actions on an admin page
+
+A `view: component` page may additionally ask the Host to perform an action it
+owns. The first (and currently only) action is `extension.install`:
+
+```json
+{
+  "path": "/catalog",
+  "label": "Catalog",
+  "view": "component",
+  "hostActions": ["extension.install"],
+  "component": { "id": "catalog", "apiVersion": 1, "entry": "frontend/admin/dist/catalog.mjs" }
+}
+```
+
+Rules, enforced at manifest validation:
+
+- `hostActions` is rejected on `about` / `settings` pages — an action needs a
+  mounted component to call it.
+- Only known action ids are accepted (`extension.install`); unknown ids reject
+  the whole manifest.
+- At most 8 entries; empty strings are dropped and duplicates collapse
+  (trimmed, lowercased).
+- Hosts older than this field reject the manifest (`additionalProperties:
+  false`), so publishers must state a minimum Host version in their release
+  notes.
+
+Declaring the action is disclosed: the plugin detail card and the enable
+confirmation dialog both show "this plugin can request extension installs".
+The disclosure is a separate line item with its own i18n key — it is **not**
+folded into capability risk levels, because it is a Host action rather than a
+process capability the plugin itself gains.
+
+### `bridge.installExtension`
+
+Present **only** when the current page declared `extension.install`; otherwise
+the member is `undefined` and plugins must feature-detect:
+
+```ts
+const installed = await bridge.installExtension?.({
+  url: 'https://cdn.example.com/sforum.store-1.4.0.zip',
+  sha256: '9f2c…',            // 64 lowercase hex, required
+  expectedExtensionId: 'sforum.store',
+  expectedType: 'plugin',     // selects extension.plugin.manage / extension.theme.manage
+  expectedVersion: '1.4.0'    // optional
+})
+```
+
+What the Host does:
+
+1. Validates the request, then pre-checks the permission for the declared type.
+   A caller without it gets `install_permission_denied` and sees no dialog.
+2. Shows its own confirmation dialog: URL host (full URL expandable), SHA-256,
+   declared id/version/type, required permission, a `super_admin` note, and an
+   explicit "the Host verifies after download" line. Cancelling sends nothing.
+3. Sends one `POST /admin/extensions/install-from-url` with a **120 s** budget
+   and the declared identity plus an audit `source` label
+   (`admin-page:<extension id>`). The 30 s default of `useApiClient` would
+   abort a healthy slow download, so the bridge passes the budget explicitly.
+4. Compares the parsed manifest against the declared identity **after** parsing
+   and **before** the type permission switch. Any mismatch aborts with
+   `extension.expected_mismatch` (the response carries the manifest's actual
+   id/type/version) instead of staging a different package.
+
+What it deliberately does not do:
+
+- No enable, trust, activate, or upgrade. A resolved promise means **staged**.
+  The administrator finishes trust/enable on the core plugin/theme pages, which
+  the success state links to.
+- No queue, intent row, or worker. The call is synchronous; navigating away
+  cancels the request (the browser disconnect cancels the Go context) and the
+  promise rejects with `install_cancelled`. The dialog says so while installing.
+- One dialog and one install at a time per page; a second concurrent call is
+  rejected with `install_in_progress`.
+
+Rejection codes: `install_permission_denied`, `install_cancelled`,
+`install_in_progress`, `install_invalid_request`, `install_failed`. Match on
+`error.code`, never on the text.
+
+**This dialog is not a sandbox.** A trusted admin page runs same-origin in the
+Host DOM and can call the install route directly. What actually bounds
+installation is the service-layer authorization, the `super_admin` requirement
+for untrusted executable backends, digest pinning, and the fact that an install
+only stages an inert package. The dialog exists so the normal path is explicit
+and reviewable.
+
 ## Vue authoring with Plugin UI SDK v1
 
 For a first-class page, start with the supported scaffold instead of writing
@@ -194,6 +280,9 @@ The v1 bridge supplies:
   `@sforum/admin-sdk@1.1.0`. It is a presentation convenience over public
   static data, not an authorization grant, and a plugin must tolerate its
   absence.
+- an optional `installExtension(request)`, present from `@sforum/admin-sdk@1.2.0`
+  and only on pages that declared `hostActions: ["extension.install"]` — see
+  "Host actions on an admin page" above.
 
 It does not expose Cookie or Authorization values. The extension API remains
 permission checked by the backend; bridge access is not an authorization grant.

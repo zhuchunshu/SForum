@@ -8,8 +8,14 @@ import type {
 import { useColorModePreference } from '~/composables/appearance/useColorModePreference'
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import { useAdminFrontendTrust } from '~/composables/admin/useAdminFrontendTrust'
+import { useAdminExtensionInstall, toAdminHostInstallResult } from '~/composables/admin/useAdminExtensionInstall'
+import { useAdminPageHostInstall } from '~/composables/admin/useAdminPageHostInstall'
+import { usePermissions } from '~/composables/identity/usePermissions'
 import SFAdminFrontendTrustPanel from '~/components/admin/SFAdminFrontendTrustPanel.vue'
+import SFAdminPageInstallDialog from '~/components/extensions/admin/SFAdminPageInstallDialog.vue'
 import type { AdminExtension, AdminExtensionAdminPage, AdminFrontendStatus } from '~/utils/admin/adminExtensions'
+import { adminPageCanInstallExtensions } from '~/utils/admin/extensions/hostActions'
+import type { AdminHostInstallRequest } from '~/utils/admin/extensions/hostActions'
 import { assertAdminExtensionRelativePath, extensionRequestPath } from '~/runtime/admin-extensions/types'
 import { hostIconResolver } from '~/utils/icons/hostIcons'
 import {
@@ -90,8 +96,36 @@ function appearance() {
   }
 }
 
+const { can, user } = usePermissions()
+const { installFromUrl } = useAdminExtensionInstall()
+const hostInstall = useAdminPageHostInstall({
+  extensionId: () => props.extension.id,
+  can,
+  isSuperAdmin: () => Boolean(user.value?.roleKeys?.includes('super_admin')),
+  install: installFromUrl,
+  toResult: toAdminHostInstallResult,
+  t,
+  notify: input => toast.add({
+    color: 'success',
+    icon: 'i-lucide-package-check',
+    title: input.title,
+    description: input.description,
+    duration: 5000
+  }),
+  navigate: path => navigateTo(adminRoutes.path(path))
+})
+const {
+  dialogOpen: installDialogOpen,
+  request: installRequest,
+  state: installState,
+  result: installResult,
+  errorMessage: installError,
+  permission: installPermission,
+  isSuperAdmin: installIsSuperAdmin
+} = hostInstall
+
 function bridge(): AdminPageBridgeV1 {
-  return {
+  const base = {
     apiVersion: ADMIN_MICRO_FRONTEND_API_VERSION,
     extensionId: props.extension.id,
     extensionVersion: props.extension.version,
@@ -122,7 +156,11 @@ function bridge(): AdminPageBridgeV1 {
     navigate: async (adminPath: string) => {
       await navigateTo(adminRoutes.path(assertAdminExtensionRelativePath(adminPath)))
     }
-  }
+  } satisfies AdminPageBridgeV1
+  // 只有当前页在清单里声明了 extension.install 才注入；否则保持 undefined，
+  // 插件必须自己 feature-detect。
+  if (!adminPageCanInstallExtensions(props.page)) return base
+  return { ...base, installExtension: (request: AdminHostInstallRequest) => hostInstall.start(request) }
 }
 
 function loadIsCurrent(generation: number) {
@@ -217,6 +255,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposed = true
   loadGeneration += 1
+  // 页面卸载会中止进行中的安装请求；不要让插件的 promise 永远悬着。
+  hostInstall.abortOnUnmount()
   void dispose()
 })
 </script>
@@ -273,5 +313,23 @@ onBeforeUnmount(() => {
         @changed="() => loadTrust(true)"
       />
     </template>
+
+    <!-- 只有声明了 hostActions 的页面才可能打开这个确认框；它属于 bridge，
+         面板流程（SFAdminExtensionInstallPanel）保持不变。 -->
+    <SFAdminPageInstallDialog
+      v-if="installRequest"
+      v-model:open="installDialogOpen"
+      :request="installRequest"
+      :state="installState"
+      :result="installResult"
+      :error="installError"
+      :permission="installPermission"
+      :is-super-admin="installIsSuperAdmin"
+      @confirm="hostInstall.confirm"
+      @cancel="hostInstall.close"
+      @close="hostInstall.close"
+      @retry="hostInstall.retry"
+      @open-management="hostInstall.openManagement"
+    />
   </section>
 </template>

@@ -646,6 +646,14 @@
           },
           "component": {
             "$ref": "#/$defs/adminComponent"
+          },
+          "hostActions": {
+            "type": "array",
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
           }
         }
       }

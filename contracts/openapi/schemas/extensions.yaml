@@ -1361,6 +1361,18 @@ ExtensionManifestAdminPage:
       minimum: 0
     permission:
       type: string
+    hostActions:
+      type: array
+      maxItems: 8
+      uniqueItems: true
+      description: >-
+        Host-provided actions this page may call. Only valid with
+        view=component. The first version accepts extension.install only, which
+        exposes bridge.installExtension after a Host confirmation dialog and
+        stages the package without enabling or trusting it.
+      items:
+        type: string
+        enum: [extension.install]
 ExtensionManifestMigration:
   type: object
   required: [path]
@@ -1820,6 +1832,33 @@ ExtensionRemoteInstallInput:
       description: >-
         Optional SHA-256 of the downloaded ZIP bytes (not the extracted package
         tree digest). A mismatch aborts before installation.
+    expectedExtensionId:
+      type: string
+      maxLength: 81
+      description: >-
+        Optional declared extension ID. When present the parsed manifest must
+        have the same ID or the install aborts with
+        extension.expected_mismatch.
+    expectedVersion:
+      type: string
+      maxLength: 64
+      description: >-
+        Optional declared package version, compared with the parsed manifest
+        version after download.
+    expectedType:
+      type: string
+      enum: [plugin, theme]
+      description: >-
+        Optional declared package type. A mismatch is reported as
+        extension.expected_mismatch rather than a permission error.
+    source:
+      type: string
+      maxLength: 64
+      description: >-
+        Optional canonical audit label for the caller (for example
+        admin-page:sforum.store). Only [a-z0-9._:-] is accepted; the label is
+        recorded in the install/upgrade audit metadata and never affects
+        install behavior.
 ExtensionInstallResult:
   type: object
   required:

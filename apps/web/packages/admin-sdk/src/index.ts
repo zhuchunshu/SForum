@@ -56,6 +56,48 @@ export type AdminMicroFrontendBridgeV1 = Readonly<{
   navigate: (adminPath: string) => Promise<void>
 }>
 
+/**
+ * Host-mediated install request. Only available on a page whose manifest
+ * declared `hostActions: ["extension.install"]`.
+ *
+ * The Host pre-checks the caller's permission, shows its own confirmation
+ * dialog (URL host, full URL, SHA-256, declared identity, `super_admin` note),
+ * then performs one synchronous install. It never enables, trusts, or activates
+ * anything: a successful result means the package is *staged*.
+ */
+export type AdminHostInstallRequest = Readonly<{
+  /** Public HTTPS URL of the ZIP. */
+  url: string
+  /** 64 lowercase hex characters; pins the exact bytes. */
+  sha256: string
+  /** Required: binds the package identity the Host verifies after download. */
+  expectedExtensionId: string
+  /** Required: selects the permission gate (and the follow-up management page). */
+  expectedType: 'plugin' | 'theme'
+  /** Optional: the exact version the catalog advertised. */
+  expectedVersion?: string
+}>
+
+export type AdminHostInstallResult = Readonly<{
+  extensionId: string
+  version: string
+  type: 'plugin' | 'theme'
+  packageDigest: string
+  upgraded: boolean
+  /**
+   * True when the package ships an executable backend, so enabling it still
+   * needs the Host's exact-artifact trust confirmation.
+   */
+  requiresTrust: boolean
+}>
+
+export type AdminHostInstallFailureCode =
+  | 'install_permission_denied'
+  | 'install_cancelled'
+  | 'install_in_progress'
+  | 'install_invalid_request'
+  | 'install_failed'
+
 export type AdminPageDescriptor = Readonly<{
   path: string
   label: string
@@ -76,6 +118,17 @@ export type AdminPageBridgeV1 = Readonly<{
   toast: (input: SForumAdminToastInput) => void
   t: (key: string, params?: Record<string, unknown>) => string
   navigate: (adminPath: string) => Promise<void>
+  /**
+   * Optional Host-mediated package install. Present only when this page
+   * declared `hostActions: ["extension.install"]`; plugins MUST feature-detect
+   * (`typeof bridge.installExtension === 'function'`) and degrade otherwise.
+   *
+   * The promise settles when the package is staged (success) or rejected:
+   * `install_permission_denied`, `install_cancelled`, `install_in_progress`,
+   * `install_invalid_request`, `install_failed`. Navigating away aborts the
+   * install and rejects with `install_cancelled`.
+   */
+  installExtension?: (request: AdminHostInstallRequest) => Promise<AdminHostInstallResult>
 }>
 
 export type AdminMicroFrontendCleanup = () => void | Promise<void>

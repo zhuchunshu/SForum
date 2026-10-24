@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import { fileURLToPath } from 'node:url'
 import { compileVueSfc, flushPromises, mount, testVue } from '../helpers/vueSfc'
 import * as installUtils from '../../app/utils/admin/extensions/extensionInstall'
+import { adminExtensionInstallErrorMessage } from '../../app/utils/admin/extensions/hostActions'
 import type { AdminExtensionInstallResult } from '../../app/utils/admin/adminExtensions'
 
 const panelPath = fileURLToPath(new URL('../../app/components/admin/extensions/SFAdminExtensionInstallPanel.vue', import.meta.url))
@@ -44,7 +45,8 @@ beforeAll(async () => {
     normalizeRemoteArchiveUrl: installUtils.normalizeRemoteArchiveUrl,
     normalizeSha256: installUtils.normalizeSha256,
     remoteArchiveHost: installUtils.remoteArchiveHost,
-    validateArchiveFile: installUtils.validateArchiveFile
+    validateArchiveFile: installUtils.validateArchiveFile,
+    adminExtensionInstallErrorMessage
   })
 })
 
@@ -188,8 +190,27 @@ describe('extension install panel', () => {
       await chooseFile(wrapper, new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], 'demo.zip', { type: 'application/zip' }))
       await wrapper.get('[data-testid="extension-archive-submit"]').trigger('click')
       await flushPromises()
-      expect(wrapper.text()).toContain('upload rejected')
+      // 非信封错误按面板兜底文案呈现，不把传输层文本直接甩给管理员。
+      expect(wrapper.text()).toContain('admin.extensionInstall.upload.failed')
       expect(toasts).toHaveLength(1)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  test('maps a stable API reason to the shared install message', async () => {
+    resetState()
+    archiveError = Object.assign(new Error('mismatch'), {
+      code: 422,
+      message: 'extension.expected_mismatch',
+      data: { reason: 'extension.expected_mismatch' }
+    })
+    const wrapper = mountPanel()
+    try {
+      await chooseFile(wrapper, new File([new Uint8Array([0x50, 0x4b, 0x03, 0x04])], 'demo.zip', { type: 'application/zip' }))
+      await wrapper.get('[data-testid="extension-archive-submit"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('admin.extensionInstall.errors.expectedMismatch')
     } finally {
       wrapper.unmount()
     }

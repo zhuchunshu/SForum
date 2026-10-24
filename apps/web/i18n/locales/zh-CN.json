@@ -1313,6 +1313,49 @@
       "note": {
         "title": "安装后不会自动启用",
         "body": "上传或拉取只会保存扩展制品；插件启用、主题激活和可执行代码信任确认仍在各自管理页完成。"
+      },
+      "errors": {
+        "remoteUrlInvalid": "下载地址不是可用的公开 HTTPS 链接。",
+        "remoteFetchFailed": "下载失败：对方没有返回可用的压缩包。",
+        "remoteArchiveTooLarge": "压缩包超过 50 MB 上限。",
+        "remoteDigestMismatch": "SHA-256 与下载内容不一致，已中止安装。",
+        "installUnavailable": "本部署未启用链接安装。",
+        "expectedMismatch": "压缩包与声明的扩展身份不一致（ID、版本或类型不符），已中止安装。",
+        "archiveInvalid": "压缩包结构无效，无法作为扩展包读取。",
+        "manifestInvalid": "清单校验未通过，安装被拒绝。",
+        "permissionDenied": "当前账号缺少对应的扩展管理权限。",
+        "invalidRequest": "安装请求参数无效。"
+      },
+      "hostAction": {
+        "title": "安装此扩展包？",
+        "subtitle": "来源站点：{host}",
+        "url": "下载地址",
+        "expandUrl": "展开完整地址",
+        "sha256": "SHA-256",
+        "extensionId": "声明的扩展 ID",
+        "version": "声明的版本",
+        "type": "声明的类型",
+        "typePlugin": "插件",
+        "typeTheme": "主题",
+        "permission": "所需权限",
+        "superAdminTitle": "可执行插件还需要超级管理员",
+        "superAdminBody": "如果这个包带可执行后端，安装与启用都由超级管理员完成；其他管理员只能安装纯前端包。",
+        "verifyTitle": "宿主会在下载后校验",
+        "verifyBody": "宿主按上面的 SHA-256 与声明身份核对包内清单，任何一项不一致都会中止安装。",
+        "confirm": "安装",
+        "cancel": "取消",
+        "close": "关闭",
+        "retry": "重试",
+        "installing": "安装中…",
+        "installingTitle": "正在下载并暂存",
+        "installingHint": "安装期间不要关闭页面；关闭会中止本次安装。",
+        "failedTitle": "安装失败",
+        "failedHint": "可以重试，或先取消后到扩展管理页确认当前状态。",
+        "stagedOnlyTitle": "只是暂存，尚未启用",
+        "stagedOnlyBody": "去插件 / 主题管理页完成信任确认与启用；本次操作不会自动启用、信任或激活任何代码。",
+        "packageDigest": "制品摘要",
+        "openPlugins": "去插件页完成信任与启用",
+        "openThemes": "去主题页完成激活"
       }
     },
     "extensions": {
@@ -2512,6 +2555,10 @@
           "runtime": "运行实例",
           "handler": "处理器"
         }
+      },
+      "hostActions": {
+        "title": "可请求安装扩展包",
+        "body": "此插件的管理页可以请求宿主安装扩展包（来源、摘要与声明身份由宿主确认框展示）。安装只暂存，启用与信任仍需管理员在扩展管理页完成。"
       }
     },
     "jobs": {

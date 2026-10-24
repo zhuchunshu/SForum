@@ -1,13 +1,14 @@
 # Plans
 
-Only active, ready, blocked, and long-lived blueprint task books belong in this
-directory. Completed, cancelled, and superseded plans live under
+Only draft, active, ready, blocked, and long-lived blueprint task books belong
+in this directory. Completed, cancelled, and superseded plans live under
 `archive/YYYY-MM/` and are not default session context.
 
 ## Status Vocabulary
 
 | Status | Meaning |
 | --- | --- |
+| `draft` | Written for design review; **do not implement** until it becomes `ready` |
 | `active` | Work is in progress; read before implementing |
 | `ready` | Approved checklist; work may start |
 | `blocked` | Do not continue until its named dependency clears |
@@ -20,6 +21,8 @@ directory. Completed, cancelled, and superseded plans live under
 
 | Plan | Status |
 | --- | --- |
+| `2026-10-24-app-store-core-install-primitive.md` | **landed（2026-10-24）** -- P0（`381182cc7`）删除 Marketplace 死代码 + `MARKETPLACE_ED25519_*` + `/extensions/store*` + 占位货架，store UI 身份转 retired 墓碑；P1 新增管理页 host action `installExtension`（清单 `hostActions` + 宿主确认框 + 期望 ID/版本/类型校验 + 120s 超时 + 页面级单飞 + 详情页/启用弹窗披露）。无 capability/表/worker；只暂存。残留：真实公网包 staged 只做到路由/服务层证明。见 `sessions/2026-10-24-app-store-core-handoff.md` |
+| `2026-10-24-app-store-service.md` | **draft（讨论中，未批准实施）** -- 新仓 `sforum-app-store`：Next.js + Bun + PostgreSQL 服务端（SForum OAuth2 登录、GitHub App、自动检测 release 平台/摘要、签名短链代理、公开前台/开发者门户/审核）与 SForum 插件 `sforum.store`（目录/详情/安装交接）。消费 core 的 `installExtension` 契约 |
 | `2026-10-23-ai-reply-silent-success-remediation.md` | **active（M1–M4 已落地，M5 剩浏览器 QA / eval 基线 / 保留策略）** -- 「succeeded + 0 ms + 0/0 token 却没有回复」：空补全改为失败且永不入缓存、缓存命中行加徽标与解释、回复结果独立成账（`ai_reply_outcomes` + `GET /admin/ai/reply-outcomes`）、生成器按触发幂等、新增 `sforum ai:reply` 排查命令。见 `sessions/2026-10-23-ai-reply-silent-success-handoff.md` |
 | `2026-10-23-test-suite-speedup.md` | **active（本地全绿，CI 待 PR）** -- 全量测试提速：Go 并行从「包级 `-p`」改成「集群级分片」（`SFORUM_TEST_SHARDS` 默认 min(nproc,4)，片内 `-p 1`）——`-p>1` 在单个 database 上实测四类跨包竞态；两次隔离运行合并成 `--with-compat`；test.sh 三线并行（日志 `tests/.logs/`）；新增 `--fast` 本地分层；typecheck 增量缓存。实测 21:31 → 7:24（冷）/ 6:14（热）/ 0:41（`--fast`），154 个包两轮冷缓存真跑零失败。见 `sessions/2026-10-23-test-suite-speedup-handoff.md` |
 | `2026-10-20-rich-content-fences.md` | **landed（有 residual）** -- 富内容围栏（mermaid / chart / 公式）：不扩短代码身份，改用代码围栏 + `$…$` 承载；客户端渐进增强接在 `v-highlight`，KaTeX 走 MathML，图表走窄 schema + Chart.js；AI 提示词增加宿主拥有的富内容段（`forum-reply@10`）。浏览器实测出图/回落/颜色模式重渲染/390 无溢出，并修掉 mermaid `click` 的 `<a>` 绕过站外中转。未做：eval baseline、工具栏插入菜单 |

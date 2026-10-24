@@ -5799,6 +5799,26 @@
       ],
       "state": "active",
       "source": "apps/web/app/components/forum/SFCommentAIActivity.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_extension_host_actions_notice",
+      "contractVersion": "sforum.component.admin.sfadmin_extension_host_actions_notice@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/admin/SFAdminExtensionHostActionsNotice.vue"
+    },
+    {
+      "id": "core.component.admin.sfadmin_page_install_dialog",
+      "contractVersion": "sforum.component.admin.sfadmin_page_install_dialog@1",
+      "kind": "component",
+      "owners": [
+        "admin"
+      ],
+      "state": "active",
+      "source": "apps/web/app/components/extensions/admin/SFAdminPageInstallDialog.vue"
     }
   ]
 }

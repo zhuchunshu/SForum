@@ -5,6 +5,7 @@ import { apiErrorMessage } from '~/composables/useApiClient'
 import { useAdminPage } from '~/composables/admin/useAdminPage'
 import SFAdminExtensionEnableDialog from '~/components/admin/SFAdminExtensionEnableDialog.vue'
 import SFAdminExtensionUninstallDialog from '~/components/admin/SFAdminExtensionUninstallDialog.vue'
+import SFAdminExtensionHostActionsNotice from '~/components/admin/SFAdminExtensionHostActionsNotice.vue'
 import SFAdminThemeActivateDialog from '~/components/admin/SFAdminThemeActivateDialog.vue'
 import { capabilityCount, extensionLocalizedDisplay, extensionManageRoute, extensionSettingsPresentation, filterExtensionsByType, isExtensionArtifactAvailable, themeActionState, themeStatusLabelKey } from '~/utils/admin/adminExtensions'
 
@@ -172,6 +173,7 @@ useSeoMeta({
             <UIcon name="i-lucide-user-round" class="size-3.5 shrink-0" />
             <span class="truncate">{{ t('admin.extensions.authorLinkLabel', { name: display.author.name }) }}</span>
           </span>
+          <SFAdminExtensionHostActionsNotice :extension="item" />
         </div>
         <div class="flex items-center gap-2">
           <UButton

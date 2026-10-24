@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	identity "github.com/zhuchunshu/sforum/apps/api/app/Models/Identity"
@@ -65,6 +66,11 @@ func (s *LifecycleService) InstallOrUpgradeArchive(ctx context.Context, actor id
 		return InstallResult{}, err
 	}
 	if err := validateManifest(manifest); err != nil {
+		return InstallResult{}, err
+	}
+	// 期望身份必须在类型权限 switch 之前比对：类型不符时报“期望不匹配”，
+	// 而不是让调用者看到一个像是权限问题的错误。
+	if err := checkArchiveExpectations(input, manifest); err != nil {
 		return InstallResult{}, err
 	}
 	switch manifest.Type {
@@ -208,6 +214,9 @@ func mergeArchiveSourceMetadata(metadata map[string]any, input ArchiveInput) {
 	}
 	if digest := strings.TrimSpace(input.SourceDigest); digest != "" {
 		metadata["sourceDigest"] = digest
+	}
+	if label := sanitizeSourceLabel(input.SourceLabel); label != "" {
+		metadata["sourceLabel"] = label
 	}
 }
 
@@ -630,4 +639,88 @@ func packagePathUnderRoot(root, packagePath string) (string, bool) {
 		return "", false
 	}
 	return packagePath, true
+}
+
+// ErrArchiveExpectationMismatch 表示调用方在下载前声明的扩展身份与包内清单
+// 不一致。它是中止条件，不是警告：期望值由调用方（管理页 bridge、私有目录）
+// 在拉包之前锁定，包到手后必须逐项对上。
+var ErrArchiveExpectationMismatch = errors.New("extensions: archive does not match the declared extension")
+
+// ArchiveExpectationMismatchError 携带声明值与实际清单值，便于 API 以结构化
+// 字段回报“差在哪一项”，也便于测试断言。
+type ArchiveExpectationMismatchError struct {
+	ExpectedExtensionID string
+	ExpectedVersion     string
+	ExpectedType        string
+	ActualExtensionID   string
+	ActualVersion       string
+	ActualType          string
+	Fields              []string
+}
+
+func (e *ArchiveExpectationMismatchError) Error() string {
+	detail := fmt.Sprintf(
+		"%s (declared id=%q version=%q type=%q; manifest has id=%q version=%q type=%q)",
+		strings.Join(e.Fields, ", "),
+		e.ExpectedExtensionID, e.ExpectedVersion, e.ExpectedType,
+		e.ActualExtensionID, e.ActualVersion, e.ActualType,
+	)
+	return ErrArchiveExpectationMismatch.Error() + ": " + detail
+}
+
+func (e *ArchiveExpectationMismatchError) Unwrap() error { return ErrArchiveExpectationMismatch }
+
+// checkArchiveExpectations compares the caller-declared identity with the parsed
+// manifest. Empty expectations are allowed so manual URL installs from the core
+// panel keep working; the bridge always sends id and type.
+func checkArchiveExpectations(input ArchiveInput, manifest Manifest) error {
+	expectedID := normalizeID(strings.TrimSpace(input.ExpectedExtensionID))
+	expectedType := strings.ToLower(strings.TrimSpace(input.ExpectedType))
+	expectedVersion := strings.TrimSpace(input.ExpectedVersion)
+
+	mismatch := &ArchiveExpectationMismatchError{
+		ExpectedExtensionID: expectedID,
+		ExpectedVersion:     expectedVersion,
+		ExpectedType:        expectedType,
+		ActualExtensionID:   manifest.ID,
+		ActualVersion:       manifest.Version,
+		ActualType:          manifest.Type,
+	}
+	if expectedID != "" && expectedID != normalizeID(manifest.ID) {
+		mismatch.Fields = append(mismatch.Fields, "extensionId")
+	}
+	if expectedType != "" && expectedType != strings.ToLower(manifest.Type) {
+		mismatch.Fields = append(mismatch.Fields, "type")
+	}
+	if expectedVersion != "" && expectedVersion != manifest.Version {
+		mismatch.Fields = append(mismatch.Fields, "version")
+	}
+	if len(mismatch.Fields) == 0 {
+		return nil
+	}
+	return mismatch
+}
+
+var sourceLabelPattern = regexp.MustCompile(`[^a-z0-9._:-]+`)
+
+// maxSourceLabelLength keeps an audit label readable in a single log line.
+const maxSourceLabelLength = 64
+
+// sanitizeSourceLabel normalizes an audit-only provenance label such as
+// "admin-page:sforum.store". Unknown characters are dropped rather than escaped
+// so a label can never smuggle a newline or a URL into the audit log.
+func sanitizeSourceLabel(raw string) string {
+	value := sourceLabelPattern.ReplaceAllString(strings.ToLower(strings.TrimSpace(raw)), "")
+	value = strings.Trim(value, ".:-")
+	if len(value) > maxSourceLabelLength {
+		value = value[:maxSourceLabelLength]
+	}
+	return value
+}
+
+// ValidSourceLabel reports whether raw is already a canonical audit label, so a
+// route can reject junk instead of silently rewriting what the caller sent.
+func ValidSourceLabel(raw string) bool {
+	trimmed := strings.TrimSpace(raw)
+	return trimmed != "" && trimmed == sanitizeSourceLabel(trimmed)
 }

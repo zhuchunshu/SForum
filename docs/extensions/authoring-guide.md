@@ -525,6 +525,19 @@ two placement modes:
 Section membership lives in the manifest, so it is an exact-artifact change: an
 already-installed plugin picks it up through the normal upgrade path.
 
+A `view: component` page may also declare `"hostActions": ["extension.install"]`
+to receive the Host-mediated `bridge.installExtension` action (it stages a
+package, never enables it). The field is rejected on `about`/`settings` pages
+and on unknown action ids; older Hosts reject the manifest entirely
+(`additionalProperties: false`), so declare a minimum Host version in your
+release notes. See `trusted-admin-components.md`.
+
+> Manifest field reference is generated from the embedded schema
+> (`sforum extension docs generate`). The catalog page lists root fields only,
+> so nested `admin.pages[]` members such as `hostActions` are documented here
+> and in `trusted-admin-components.md` rather than edited into the generated
+> catalog by hand.
+
 ### Reference B — provider Schema + Probe action
 
 SMTP is the production reference. Operators can install → configure while

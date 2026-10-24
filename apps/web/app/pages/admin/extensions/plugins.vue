@@ -10,6 +10,7 @@ import SFAdminExtensionEnableDialog from '~/components/admin/SFAdminExtensionEna
 import SFAdminExtensionLifecycleDialog from '~/components/admin/SFAdminExtensionLifecycleDialog.vue'
 import SFAdminExtensionUninstallDialog from '~/components/admin/SFAdminExtensionUninstallDialog.vue'
 import SFAdminFrontendTrustPanel from '~/components/admin/SFAdminFrontendTrustPanel.vue'
+import SFAdminExtensionHostActionsNotice from '~/components/admin/SFAdminExtensionHostActionsNotice.vue'
 import {
   canRestartPlugin,
   canUpgradePlugin,
@@ -559,6 +560,7 @@ useSeoMeta({
           <p v-if="item.runtime?.lastError" class="mt-1 truncate text-xs text-red-600 dark:text-red-400">
             {{ item.runtime.lastError }}
           </p>
+          <SFAdminExtensionHostActionsNotice :extension="item" />
           <SFAdminFrontendTrustPanel :extension="item" />
         </div>
         <div class="flex flex-wrap items-center gap-2 [&>a]:shrink-0 [&>button]:shrink-0">

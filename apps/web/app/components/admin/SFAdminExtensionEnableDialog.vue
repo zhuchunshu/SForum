@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SFAdminExecutableTrustImpact from '~/components/admin/SFAdminExecutableTrustImpact.vue'
+import SFAdminExtensionHostActionsNotice from '~/components/admin/SFAdminExtensionHostActionsNotice.vue'
 import type { AdminExtension } from '~/utils/admin/adminExtensions'
 import type {
   ExecutableTrustChallenge,
@@ -83,6 +84,9 @@ function cancel() {
         </header>
 
         <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
+          <!-- 启用前披露：该插件的管理页可请求宿主安装扩展包（宿主动作，不是进程能力）。 -->
+          <SFAdminExtensionHostActionsNotice :extension="extension" />
+
           <UAlert
             v-if="error"
             color="error"

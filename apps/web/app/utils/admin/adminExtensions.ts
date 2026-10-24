@@ -72,6 +72,8 @@ export type AdminExtensionAdminPage = {
     entry: string
     css?: string
   }
+  /** 宿主为该管理页提供的动作 ID（首版仅 extension.install）。 */
+  hostActions?: string[]
 }
 
 export type AdminExtensionAdmin = {
@@ -811,7 +813,8 @@ export function extensionAdminPages(item: AdminExtension, locale?: string | null
       menu: page.menu === true,
       order: page.order || 0,
       permission: page.permission,
-      component: page.component
+      component: page.component,
+      ...(page.hostActions?.length ? { hostActions: page.hostActions } : {})
     })
   }
 

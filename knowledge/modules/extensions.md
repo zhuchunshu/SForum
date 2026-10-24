@@ -275,6 +275,36 @@ does not rebuild Nuxt.
   existing. The app store is an out-of-tree product (`sforum-app-store`); core
   keeps only `install-from-url` and the host-mediated install action. See
   `../decisions/2026-10-24-app-store-out-of-tree.md`.
+- **Trusted-admin-page install action (2026-10-24)**: `admin.pages[]` on a
+  `view: component` page may declare `hostActions: ["extension.install"]`
+  (`ManifestAdminPage.HostActions`, validated in `admin_micro_frontend.go`,
+  schema mirrored in `manifest-v3.schema.json`). The page bridge then exposes
+  optional `bridge.installExtension({url, sha256, expectedExtensionId,
+  expectedType, expectedVersion?})`; it is `undefined` otherwise. Host flow:
+  permission pre-check (`extension.plugin.manage` / `extension.theme.manage`) →
+  Host confirmation dialog (URL host/full URL, SHA-256, declared identity,
+  `super_admin` note, "Host verifies after download") → one
+  `POST /admin/extensions/install-from-url` with `timeout: 120000` → result.
+  Cancel sends nothing; one dialog/install per page (`install_in_progress`).
+  The route gained optional `expectedExtensionId/expectedVersion/expectedType/
+  source`; `InstallOrUpgradeArchive` compares them after `validateManifest`
+  and **before** the type permission switch, so a mismatch reports
+  `extension.expected_mismatch` (422, with the manifest's actual id/type/version)
+  instead of a permission error. `mergeArchiveSourceMetadata` records a
+  sanitized `sourceLabel` (`[a-z0-9._:-]`, ≤64). **Only staging**: no enable,
+  trust, activate, or upgrade — mechanics are tested in
+  `Models/Extensions/archive_expectations_test.go`,
+  `ExtensionManifest/admin_host_actions_test.go`, the route tests, and the web
+  suites `tests/admin/extensionHostInstall.test.ts` /
+  `tests/admin/adminPageInstallDialog.test.ts`. No new capability, Host
+  Command, intent table, or worker. Decisions:
+  `../decisions/2026-10-24-admin-page-host-action.md`.
+- **Install-action disclosure**: the plugin detail card, the theme detail card,
+  and `SFAdminExtensionEnableDialog` all render
+  `SFAdminExtensionHostActionsNotice`, which shares one i18n key
+  (`admin.extensions.hostActions.*`) and reads the same manifest field the
+  bridge uses. It is deliberately a separate line item, not part of capability
+  risk levels.
 - The generic `account-settings` navigation contract now carries through
   Manifest V3 lifecycle publication with exact runtime filtering. The Manifest V3
   contract is aligned end to end (2026-10-15): `navigation[].kind` accepts

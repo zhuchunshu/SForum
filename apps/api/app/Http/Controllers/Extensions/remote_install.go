@@ -38,6 +38,18 @@ type archiveInstaller interface {
 type remoteInstallInput struct {
 	URL    string `json:"url"`
 	SHA256 string `json:"sha256"`
+	// 可选期望身份：声明后宿主在校验清单时必须逐项对上，否则中止。
+	ExpectedExtensionID string `json:"expectedExtensionId"`
+	ExpectedVersion     string `json:"expectedVersion"`
+	ExpectedType        string `json:"expectedType"`
+	// Source 是审计来源标签（例如 admin-page:sforum.store）。
+	Source string `json:"source"`
+}
+
+// expectedTypeAllowed maps a declared package type to nothing; the value is
+// validated here and re-checked against the manifest by the service layer.
+func expectedTypeAllowed(value string) bool {
+	return value == extensions.TypePlugin || value == extensions.TypeTheme
 }
 
 // installFromURL downloads a public HTTPS ZIP and installs it as an inert
@@ -63,6 +75,10 @@ func (h *Controller) installFromURL(c fiber.Ctx) error {
 	if expectedDigest != "" && !isSHA256Hex(expectedDigest) {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
 	}
+	expected, err := normalizeInstallExpectations(input)
+	if err != nil {
+		return err
+	}
 
 	archive, err := h.remoteArchives.Fetch(c.Context(), strings.TrimSpace(input.URL))
 	if err != nil {
@@ -73,12 +89,19 @@ func (h *Controller) installFromURL(c fiber.Ctx) error {
 	}
 
 	result, err := h.installer.InstallOrUpgradeArchive(c.Context(), actor, extensions.ArchiveInput{
-		FileName:     archive.FileName,
-		Data:         archive.Data,
-		SourceURL:    archive.SourceURL,
-		SourceDigest: archive.Digest,
+		FileName:            archive.FileName,
+		Data:                archive.Data,
+		SourceURL:           archive.SourceURL,
+		SourceDigest:        archive.Digest,
+		ExpectedExtensionID: expected.extensionID,
+		ExpectedVersion:     expected.version,
+		ExpectedType:        expected.packageType,
+		SourceLabel:         expected.sourceLabel,
 	})
 	if err != nil {
+		if mismatch := mapArchiveExpectationError(err); mismatch != nil {
+			return mismatch
+		}
 		return mapExtensionError(err)
 	}
 
@@ -102,6 +125,77 @@ func mapRemoteInstallError(err error) error {
 	default:
 		return nil
 	}
+}
+
+type installExpectations struct {
+	extensionID string
+	version     string
+	packageType string
+	sourceLabel string
+}
+
+// normalizeInstallExpectations validates caller-declared identity before the
+// outbound request. Empty values keep the manual URL install path working; the
+// admin-page bridge always sends at least the id and the type.
+func normalizeInstallExpectations(input remoteInstallInput) (installExpectations, error) {
+	var expected installExpectations
+	expected.extensionID = strings.ToLower(strings.TrimSpace(input.ExpectedExtensionID))
+	if expected.extensionID != "" && !extensions.ValidExtensionID(expected.extensionID) {
+		return installExpectations{}, fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	expected.version = strings.TrimSpace(input.ExpectedVersion)
+	if expected.version != "" && !isExpectedVersion(expected.version) {
+		return installExpectations{}, fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	expected.packageType = strings.ToLower(strings.TrimSpace(input.ExpectedType))
+	if expected.packageType != "" && !expectedTypeAllowed(expected.packageType) {
+		return installExpectations{}, fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+	}
+	if rawSource := input.Source; rawSource != "" {
+		if !extensions.ValidSourceLabel(rawSource) {
+			return installExpectations{}, fiber.NewError(fiber.StatusUnprocessableEntity, "validation.invalid")
+		}
+		expected.sourceLabel = rawSource
+	}
+	return expected, nil
+}
+
+// isExpectedVersion bounds a caller-declared version to the characters a
+// manifest version may use, so junk cannot reach the audit log.
+func isExpectedVersion(value string) bool {
+	if len(value) > 64 {
+		return false
+	}
+	for _, character := range value {
+		switch {
+		case character >= '0' && character <= '9':
+		case character >= 'a' && character <= 'z':
+		case character >= 'A' && character <= 'Z':
+		case character == '.' || character == '-' || character == '+' || character == '_':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// mapArchiveExpectationError answers a declared-identity mismatch with the
+// actual manifest values, so the page can show what the package really is
+// instead of a bare code.
+func mapArchiveExpectationError(err error) error {
+	var mismatch *extensions.ArchiveExpectationMismatchError
+	if !errors.As(err, &mismatch) {
+		return nil
+	}
+	return apphttp.NewErrorWithFields(fiber.StatusUnprocessableEntity, extensions.CodeExpectedMismatch, map[string][]string{
+		"fields":          mismatch.Fields,
+		"expectedId":      {mismatch.ExpectedExtensionID},
+		"expectedVersion": {mismatch.ExpectedVersion},
+		"expectedType":    {mismatch.ExpectedType},
+		"manifestId":      {mismatch.ActualExtensionID},
+		"manifestVersion": {mismatch.ActualVersion},
+		"manifestType":    {mismatch.ActualType},
+	})
 }
 
 func isSHA256Hex(value string) bool {

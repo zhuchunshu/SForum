@@ -181,6 +181,10 @@ type ManifestAdminPage struct {
 	Order      int             `json:"order,omitempty"`
 	Permission string          `json:"permission,omitempty"`
 	Component  *AdminComponent `json:"component,omitempty"`
+	// HostActions 声明宿主为该管理页额外提供的动作 ID（首版仅
+	// extension.install）。只允许出现在 view=component 的页面上：动作是
+	// 宿主中介的，不是插件进程能力。
+	HostActions []string `json:"hostActions,omitempty"`
 }
 
 type ManifestRoute struct {
@@ -635,44 +639,15 @@ func supportedSettingWidth(value string) bool {
 	}
 }
 
-func EffectiveAdminPages(manifest Manifest) []ManifestAdminPage {
-	manifest = Normalize(manifest)
-	if len(manifest.Admin.Pages) > 0 {
-		return manifest.Admin.Pages
-	}
-	return manifest.AdminPages
-}
-
-func MenuAdminPages(manifest Manifest) []ManifestAdminPage {
-	pages := EffectiveAdminPages(manifest)
-	menuPages := make([]ManifestAdminPage, 0, len(pages))
-	for _, page := range pages {
-		if page.Menu {
-			menuPages = append(menuPages, page)
-		}
-	}
-	return menuPages
-}
-
-func AdminManagePath(manifest Manifest) string {
-	manifest = Normalize(manifest)
-	pages := EffectiveAdminPages(manifest)
-	if manifest.Admin.Entry != "" {
-		return manifest.Admin.Entry
-	}
-	for _, page := range pages {
-		if page.Path == "/settings" {
-			return page.Path
-		}
-	}
-	if len(pages) > 0 {
-		return pages[0].Path
-	}
-	return "/about"
-}
-
 func NormalizeID(id string) string {
 	return strings.ToLower(strings.TrimSpace(id))
+}
+
+// ValidExtensionID reports whether value satisfies the manifest ID rule. Host
+// routes that accept a caller-declared extension identity reuse this instead of
+// re-implementing the pattern.
+func ValidExtensionID(value string) bool {
+	return manifestIDPattern.MatchString(value)
 }
 
 func DeclaredEvents(manifest Manifest) []ManifestEvent {

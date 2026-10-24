@@ -230,6 +230,16 @@
     "targetRegistry": "P7/P9 Admin and Component Registries"
   },
   {
+    "id": "core.component.admin.sfadmin_extension_host_actions_notice",
+    "contractVersion": "sforum.component.admin.sfadmin_extension_host_actions_notice@1",
+    "kind": "component",
+    "source": "apps/web/app/components/admin/SFAdminExtensionHostActionsNotice.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
     "id": "core.component.admin.sfadmin_extension_install_panel",
     "contractVersion": "sforum.component.admin.sfadmin_extension_install_panel@1",
     "kind": "component",
@@ -564,6 +574,16 @@
     "contractVersion": "sforum.component.admin.sfadmin_overview_trend_trio@1",
     "kind": "component",
     "source": "apps/web/app/components/admin/SFAdminOverviewTrendTrio.vue",
+    "owners": [
+      "admin"
+    ],
+    "targetRegistry": "P7/P9 Admin and Component Registries"
+  },
+  {
+    "id": "core.component.admin.sfadmin_page_install_dialog",
+    "contractVersion": "sforum.component.admin.sfadmin_page_install_dialog@1",
+    "kind": "component",
+    "source": "apps/web/app/components/extensions/admin/SFAdminPageInstallDialog.vue",
     "owners": [
       "admin"
     ],

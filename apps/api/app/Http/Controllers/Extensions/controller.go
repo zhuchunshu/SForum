@@ -812,6 +812,8 @@ func mapExtensionError(err error) error {
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeInvalidArchive)
 	case errors.Is(err, extensions.ErrInvalidManifest):
 		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeInvalidManifest)
+	case errors.Is(err, extensions.ErrArchiveExpectationMismatch):
+		return fiber.NewError(fiber.StatusUnprocessableEntity, extensions.CodeExpectedMismatch)
 	case errors.Is(err, extensions.ErrArtifactMissing):
 		return fiber.NewError(fiber.StatusConflict, extensions.CodeArtifactMissing)
 	case errors.Is(err, extensions.ErrMissingArtifactCleanupInvalid):

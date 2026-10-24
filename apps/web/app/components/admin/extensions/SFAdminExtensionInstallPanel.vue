@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAdminExtensionInstall } from '~/composables/admin/useAdminExtensionInstall'
+import { adminExtensionInstallErrorMessage } from '~/utils/admin/extensions/hostActions'
 import { useAdminRoutes } from '~/composables/admin/useAdminRoutes'
 import type { AdminExtensionInstallResult } from '~/utils/admin/adminExtensions'
 import {
@@ -136,7 +137,7 @@ async function submitUpload() {
     applyResult(next, 'upload', selectedFile.value.name, '')
     selectedFile.value = null
   } catch (error) {
-    actionError.value = apiErrorMessage(error) || t('admin.extensionInstall.upload.failed')
+    actionError.value = adminExtensionInstallErrorMessage(t, error, 'admin.extensionInstall.upload.failed')
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: actionError.value })
   } finally {
     uploading.value = false
@@ -165,7 +166,7 @@ async function submitUrl() {
     applyResult(next, 'url', '', remoteArchiveHost(urlValidation.url))
     checksumVerified.value = Boolean(digestValidation.value)
   } catch (error) {
-    actionError.value = apiErrorMessage(error) || t('admin.extensionInstall.url.failed')
+    actionError.value = adminExtensionInstallErrorMessage(t, error, 'admin.extensionInstall.url.failed')
     toast.add({ color: 'error', icon: 'i-lucide-triangle-alert', title: actionError.value })
   } finally {
     fetching.value = false

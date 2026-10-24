@@ -6,6 +6,26 @@ load archived sessions or completed plans as current context.
 
 ## Active Workstreams
 
+### 应用商城 · SForum 侧（已落地）
+
+- Status: **landed（2026-10-24）**。P0（`381182cc7`）删除 Marketplace 死代码、
+  `MARKETPLACE_ED25519_*` 配置与 `/extensions/store*` 三页 + 占位货架，store UI
+  身份走 retired 墓碑账本；P1 新增管理页 host action：清单 `hostActions`
+  （仅 `view=component`、仅 `extension.install`）+ `bridge.installExtension` +
+  宿主确认框 + 期望 ID/版本/类型校验（`extension.expected_mismatch`）+
+  120 秒超时 + 页面级单飞 + 详情页/启用弹窗披露；只暂存，不启用/不信任。
+  无 capability/表/worker。**残留**：真实公网扩展包经确认框 staged 只做到
+  路由/服务层证明。Handoff：
+  `sessions/2026-10-24-app-store-core-handoff.md`；计划
+  `plans/2026-10-24-app-store-core-install-primitive.md`。
+- **本轮不做**：服务端 + 商城插件（`plans/2026-10-24-app-store-service.md`，
+  新仓 `sforum-app-store`，仍是 draft）；不要创建该仓库或写插件。
+- 已定：服务端独立；一个仓库两个产物；全量 GitHub App（无验证文件）；
+  下载走商城签名短链代理；安装经管理页 host action（`bridge.installExtension`
+  + 宿主确认框 + 期望校验），同步、只暂存、必须管理员当场确认，
+  bridge 语义固定、将来可无痛升级为异步；登录走 `sforum-oauth2-provider`。
+- 索引：`plans/README.md`；core 契约见 core 计划 §6.2。
+
 ### 发布 v3.0.16 正式版
 
 - Status: **已发布 (2026-10-23T22:41:18Z)**。S3 存储插件 Cloudflare R2
@@ -588,7 +608,16 @@ load archived sessions or completed plans as current context.
 
 ## Latest Handoff
 
-- **内置 S3 存储插件 R2 兼容修复（2026-10-24，最新）**：SDK 默认 CRC32 请求校验和被 R2 拒绝 + Virtual-host 寻址在 R2 上无 DNS，探测与上传必然失败；改为 checksum `when_required`、寻址三态 auto（非 AWS 端点自动 Path-style）、R2 空 region 自动 `auto`、读流不再被 60s 截断。插件 1.0.10，包校验/单测/架构门禁/fast 三线全绿；**真机 R2 已验证**：草稿探测 storage.ok（真实写/读/删往返）、实例激活为当前写入端、真实上传 201、/media 302 到 region=auto 的 R2 预签名 URL 且浏览器渲染成功、自定义域直读 200。详见
+- **应用商城 · SForum 侧落地（2026-10-24，最新）**：P0 删除 Marketplace 预留包
+  （8 文件 1492 行）+ `MARKETPLACE_ED25519_*` + `/extensions/store*` 三页与占位货架，
+  store UI 身份转 retired 并进墓碑账本；P1 给受信任管理页加宿主中介安装动作
+  （清单 `hostActions` → `bridge.installExtension` → 确认框 → `install-from-url`，
+  期望 ID/版本/类型在清单解析后、类型权限 switch 前比对，120 秒超时 + 页面级单飞，
+  只暂存不启用）。Go/Web/架构/catalog/OpenAPI/`--fast` 全绿，
+  `rg -i marketplace` 在 `apps/api`/`apps/web` 归零；浏览器 QA 覆盖 1633×810 与
+  390×844、取消不发请求、真实公网 ZIP 下载+摘要校验+拒绝链路。详见
+  `sessions/2026-10-24-app-store-core-handoff.md`。
+- **内置 S3 存储插件 R2 兼容修复（2026-10-24）**：SDK 默认 CRC32 请求校验和被 R2 拒绝 + Virtual-host 寻址在 R2 上无 DNS，探测与上传必然失败；改为 checksum `when_required`、寻址三态 auto（非 AWS 端点自动 Path-style）、R2 空 region 自动 `auto`、读流不再被 60s 截断。插件 1.0.10，包校验/单测/架构门禁/fast 三线全绿；**真机 R2 已验证**：草稿探测 storage.ok（真实写/读/删往返）、实例激活为当前写入端、真实上传 201、/media 302 到 region=auto 的 R2 预签名 URL 且浏览器渲染成功、自定义域直读 200。详见
   `sessions/2026-10-24-s3-r2-compatibility-handoff.md` 与
   `decisions/2026-10-24-s3-compatible-auto-addressing.md`。
 - **多图发帖 500 修复（2026-10-24）**：附件引用唯一索引收窄为槽位型，

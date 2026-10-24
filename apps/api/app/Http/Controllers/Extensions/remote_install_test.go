@@ -286,3 +286,90 @@ func assertErrorReason(t *testing.T, resp *http.Response, reason string) {
 		t.Fatalf("error reason = %q, want %q", body.Data.Reason, reason)
 	}
 }
+
+func TestInstallFromURLPassesDeclaredExpectations(t *testing.T) {
+	app, manager, controller := newRemoteInstallTestApp(t)
+	controller.remoteArchives = &fakeArchiveFetcher{archive: validRemoteArchive()}
+	installer := &fakeArchiveInstaller{result: installedResult()}
+	controller.installer = installer
+
+	cookie := loginExtensionUser(t, app, manager, 1)
+	body := `{"url":"https://example.com/demo.zip","expectedExtensionId":"Demo.Plugin","expectedVersion":"1.0.0","expectedType":"Plugin","source":"admin-page:sforum.store"}`
+	resp := performExtensionJSONRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/install-from-url", cookie, body)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, responseBody(t, resp))
+	}
+	if installer.input.ExpectedExtensionID != "demo.plugin" ||
+		installer.input.ExpectedVersion != "1.0.0" ||
+		installer.input.ExpectedType != extensions.TypePlugin {
+		t.Fatalf("declared identity not forwarded: %#v", installer.input)
+	}
+	if installer.input.SourceLabel != "admin-page:sforum.store" {
+		t.Fatalf("source label not forwarded: %q", installer.input.SourceLabel)
+	}
+}
+
+func TestInstallFromURLRejectsInvalidExpectationsBeforeFetch(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "unknown type", body: `{"url":"https://example.com/demo.zip","expectedType":"widget"}`},
+		{name: "malformed id", body: `{"url":"https://example.com/demo.zip","expectedExtensionId":"Not An ID!"}`},
+		{name: "malformed version", body: `{"url":"https://example.com/demo.zip","expectedVersion":"1.0.0/../x"}`},
+		{name: "malformed source", body: `{"url":"https://example.com/demo.zip","source":"admin page"}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			app, manager, controller := newRemoteInstallTestApp(t)
+			fetcher := &fakeArchiveFetcher{archive: validRemoteArchive()}
+			controller.remoteArchives = fetcher
+			controller.installer = &fakeArchiveInstaller{result: installedResult()}
+
+			cookie := loginExtensionUser(t, app, manager, 1)
+			resp := performExtensionJSONRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/install-from-url", cookie, test.body)
+			if resp.StatusCode != http.StatusUnprocessableEntity {
+				t.Fatalf("expected 422, got %d", resp.StatusCode)
+			}
+			assertErrorReason(t, resp, "validation.invalid")
+			if fetcher.calls != 0 {
+				t.Fatalf("fetcher called %d times for an invalid expectation", fetcher.calls)
+			}
+		})
+	}
+}
+
+func TestInstallFromURLMapsExpectationMismatch(t *testing.T) {
+	app, manager, controller := newRemoteInstallTestApp(t)
+	controller.remoteArchives = &fakeArchiveFetcher{archive: validRemoteArchive()}
+	controller.installer = &fakeArchiveInstaller{err: &extensions.ArchiveExpectationMismatchError{
+		ExpectedExtensionID: "demo.theme",
+		ExpectedType:        extensions.TypeTheme,
+		ActualExtensionID:   "demo.plugin",
+		ActualVersion:       "1.0.0",
+		ActualType:          extensions.TypePlugin,
+		Fields:              []string{"extensionId", "type"},
+	}}
+
+	cookie := loginExtensionUser(t, app, manager, 1)
+	resp := performExtensionJSONRequest(t, app, http.MethodPost, "/api/v1/admin/extensions/install-from-url", cookie, `{"url":"https://example.com/demo.zip","expectedType":"theme"}`)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	var body testEnvelope[testErrorDataWithFields]
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode error envelope: %v", err)
+	}
+	if body.Data.Reason != extensions.CodeExpectedMismatch {
+		t.Fatalf("reason = %q, want %q", body.Data.Reason, extensions.CodeExpectedMismatch)
+	}
+	if got := body.Data.Fields["manifestId"]; len(got) != 1 || got[0] != "demo.plugin" {
+		t.Fatalf("mismatch response should report the actual manifest id: %#v", body.Data.Fields)
+	}
+}
+
+type testErrorDataWithFields struct {
+	Reason string              `json:"reason"`
+	Fields map[string][]string `json:"fields"`
+}

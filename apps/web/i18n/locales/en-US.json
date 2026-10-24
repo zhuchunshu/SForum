@@ -1273,6 +1273,49 @@
       "note": {
         "title": "Installation does not enable the extension",
         "body": "Uploading or pulling only stores the artifact. Plugin enabling, theme activation, and executable-code trust confirmation still happen on their own pages."
+      },
+      "errors": {
+        "remoteUrlInvalid": "That download address is not a usable public HTTPS URL.",
+        "remoteFetchFailed": "Download failed: the target did not return a usable archive.",
+        "remoteArchiveTooLarge": "The archive exceeds the 50 MB limit.",
+        "remoteDigestMismatch": "The SHA-256 does not match the downloaded bytes; nothing was installed.",
+        "installUnavailable": "URL installation is not enabled in this deployment.",
+        "expectedMismatch": "The archive does not match the declared identity (ID, version, or type); nothing was installed.",
+        "archiveInvalid": "The archive is not a readable extension package.",
+        "manifestInvalid": "The manifest failed validation, so the install was rejected.",
+        "permissionDenied": "This account lacks the matching extension management permission.",
+        "invalidRequest": "The install request is not valid."
+      },
+      "hostAction": {
+        "title": "Install this extension package?",
+        "subtitle": "From: {host}",
+        "url": "Download URL",
+        "expandUrl": "Show the full address",
+        "sha256": "SHA-256",
+        "extensionId": "Declared extension ID",
+        "version": "Declared version",
+        "type": "Declared type",
+        "typePlugin": "Plugin",
+        "typeTheme": "Theme",
+        "permission": "Required permission",
+        "superAdminTitle": "Executable plugins also need a super admin",
+        "superAdminBody": "If this package ships an executable backend, both installing and enabling are super-admin only; other administrators can install front-end-only packages.",
+        "verifyTitle": "The Host verifies after download",
+        "verifyBody": "The Host checks the archive's manifest against the SHA-256 and the declared identity above, and aborts on any mismatch.",
+        "confirm": "Install",
+        "cancel": "Cancel",
+        "close": "Close",
+        "retry": "Retry",
+        "installing": "Installing…",
+        "installingTitle": "Downloading and staging",
+        "installingHint": "Keep this page open while it installs; closing the page aborts this install.",
+        "failedTitle": "Install failed",
+        "failedHint": "Retry, or cancel and check the current state on the extension management page.",
+        "stagedOnlyTitle": "Staged only, not enabled",
+        "stagedOnlyBody": "Finish the trust confirmation and enable on the plugin/theme management page; this action never enables, trusts, or activates code.",
+        "packageDigest": "Package digest",
+        "openPlugins": "Open plugins to trust and enable",
+        "openThemes": "Open themes to activate"
       }
     },
     "extensions": {
@@ -2472,6 +2515,10 @@
           "runtime": "Runtime instance",
           "handler": "Handler"
         }
+      },
+      "hostActions": {
+        "title": "Can request extension installs",
+        "body": "This plugin's admin page can ask the Host to install an extension package; the Host confirmation dialog shows the URL, digest, and declared identity. Installing only stages the package — enabling and trust still happen on the extension management page."
       }
     },
     "jobs": {
