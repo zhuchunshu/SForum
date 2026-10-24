@@ -27,7 +27,7 @@
     },
     "sforum.storage-s3": {
       "version": "1.0.10",
-      "sourceDigest": "64de82b1090ea63b7f2aaf903380d5d00665fa80bcffc1c4c9aa6c6030da5574"
+      "sourceDigest": "a216eddfe58335e63061f173d4bd3472d9b1afb38de95d6ebc7b10b4a316f67d"
     },
     "sforum.web-push": {
       "version": "1.0.7",
