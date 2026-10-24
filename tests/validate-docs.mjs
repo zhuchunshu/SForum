@@ -292,6 +292,7 @@ const EXTENSION_COMMAND_FILES = {
   'manifest_digest.go': ['extension'],
   'test_extension.go': ['extension'],
   'package_extension.go': ['extension'],
+  'extension_brand.go': ['extension', 'brand'],
   'docs.go': ['extension', 'docs'],
   'recovery.go': ['extension'],
   'plugin_command.go': ['extension', 'command'],

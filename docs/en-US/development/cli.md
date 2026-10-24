@@ -32,6 +32,7 @@ go run ./cmd/sforum --version
 | `extension digest` | Inspect or refresh Manifest V3 `packageFiles` digests |
 | `extension test` | Host contract checks (capabilities, events, entrypoints) |
 | `extension package` | Build a zip + SBOM stub |
+| `extension brand check` | Verify brand assets (sizes and byte budgets of brand/icon.svg, brand/icon.png, brand/social-preview.png) |
 | `extension docs generate` | Generate host docs from the Go catalogs |
 | `extension list` | Out-of-band extension recovery state (no plugin code) |
 | `extension disable` / `disable-all` | Out-of-band disable of third-party extensions |

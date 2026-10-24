@@ -31,6 +31,7 @@ go run ./cmd/sforum --version
 | `extension digest` | 查看或刷新 Manifest V3 `packageFiles` 摘要 |
 | `extension test` | Host 契约检查（能力、事件、入口等） |
 | `extension package` | 打 zip + SBOM stub |
+| `extension brand check` | 校验品牌资产（brand/icon.svg、brand/icon.png、brand/social-preview.png 的尺寸与字节上限） |
 | `extension docs generate` | 从 Go catalog 生成 host 文档 |
 | `extension list` | 带外查看扩展恢复状态（不启插件代码） |
 | `extension disable` / `disable-all` | 带外禁用第三方扩展 |
