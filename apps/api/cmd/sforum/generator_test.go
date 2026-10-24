@@ -216,7 +216,7 @@ func TestGenerateVueAdminPageScaffold(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, dependency := range []string{"\"@sforum/admin-sdk\": \"^1.1.0\"", "\"@sforum/plugin-ui\": \"^1.1.0\""} {
+	for _, dependency := range []string{"\"@sforum/admin-sdk\": \"^1.2.0\"", "\"@sforum/plugin-ui\": \"^1.1.0\""} {
 		if !strings.Contains(string(adminPackage), dependency) {
 			t.Fatalf("author workspace must depend on %s: %s", dependency, adminPackage)
 		}
