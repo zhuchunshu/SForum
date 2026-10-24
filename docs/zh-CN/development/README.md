@@ -13,6 +13,7 @@
 | [开发者 CLI](./cli.md) | `sforum`：脚手架、校验、digest、打包、seed、恢复 |
 | [API 使用](./api.md) | 认证、CSRF、PAT、响应信封 |
 | [测试与质量门禁](./testing.md) | 单元测试、仓库门禁、契约校验 |
+| [插件仓库标准](./plugin-standard.md) | 一个插件必须有什么、放在哪、怎么校验 |
 | [仓库地图](./repository.md) | 目录职责与关键路径 |
 
 ## 技术栈速览

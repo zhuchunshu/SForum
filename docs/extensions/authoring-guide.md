@@ -75,6 +75,11 @@ Repository layout lives under [`extensions/`](../../extensions/README.md).
 | CI / contract lock | `extensions/fixtures/…` | No | Test inputs only. |
 | Production site | Admin upload → `EXTENSION_ROOT` | No | Operator trust + enable path. |
 
+Every shipped package (built-in, optional, or an independent repository) also
+carries `brand/icon.svg`, `brand/icon.png`, and `brand/social-preview.png`.
+Sizes, budgets, the visual template, and the `extension brand check` gate are
+specified in [`brand-assets.md`](./brand-assets.md).
+
 ### Auto scan vs auto build
 
 - **Built-in register:** API/worker boot runs `SyncBuiltins` over
@@ -1092,6 +1097,10 @@ implementation.
     document must match it exactly.
 15. **Operator defaults** — settings include safe defaults and reset-friendly
     recommended values so first-time operators are not blocked.
+16. **Brand assets** — `brand/icon.svg` (512 viewBox), `brand/icon.png`
+    (512×512), and `brand/social-preview.png` (1280×640) exist and pass
+    `extension brand check`. They are not `packageFiles`; they are still part of
+    the package tree digest. See [`brand-assets.md`](./brand-assets.md).
 
 ## Host API methods (v1)
 

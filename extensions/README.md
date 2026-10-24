@@ -35,6 +35,24 @@ extensions/
     plugins/…  themes/…      # CI and contract locks
 ```
 
+Layout inside a shipped package (independent repositories use the same shape):
+
+```text
+<package-dir>/
+  sforum.extension.json
+  manifest/            # settings.json + langs/ (referenced through includes)
+  backend/             # only when the plugin ships a backend
+  brand/               # icon.svg, icon.png, social-preview.png — required
+  schemas/ frontend/ templates/ openapi/   # as needed
+  README.md
+```
+
+`brand/` is a required part of every shipped package and is checked by
+`sforum extension brand check`; see
+[`docs/extensions/brand-assets.md`](../docs/extensions/brand-assets.md). It is
+deliberately not declared in `packageFiles` — branding is not a runtime
+artifact.
+
 ## What “auto scan / build / register” actually means
 
 ### Auto register (admin extension list)

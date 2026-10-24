@@ -13,6 +13,7 @@ For contributors and integrators.
 | [Developer CLI](./cli.md) | `sforum`: scaffold, validate, digest, package, seed, recovery |
 | [API usage](./api.md) | Authentication, CSRF, PATs, response envelope |
 | [Testing & gates](./testing.md) | Unit tests, repo gate, contracts |
+| [Plugin repository standard](./plugin-standard.md) | What a plugin must contain, where it lives, how it is checked |
 | [Repository map](./repository.md) | Directory roles |
 
 ## Stack snapshot
